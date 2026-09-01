@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { ArrowRight, MapPin } from "lucide-react";
+import { events } from "@/data/rewind";
+export default function PlacesPage(){const places=Array.from(new Set(events.map(e=>e.city))).map(city=>({city,count:events.filter(e=>e.city===city).length,verified:events.filter(e=>e.city===city&&e.verificationStatus==="verified").length,country:events.find(e=>e.city===city)?.country||""})).sort((a,b)=>b.count-a.count);return <div className="page-shell"><header className="page-hero"><span className="eyebrow">PLACE INDEX</span><h1>Documented geography</h1><p>Locations are shown only at the precision supported by evidence. No route silently fills undocumented gaps.</p></header><div className="place-grid">{places.map(p=><Link href={`/place/${p.city.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`} key={p.city}><MapPin/><div><small>{p.country}</small><h2>{p.city}</h2><p>{p.count} records · {p.verified} verified</p></div><ArrowRight/></Link>)}</div></div>}
