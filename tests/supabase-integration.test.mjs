@@ -25,6 +25,17 @@ test("exports Supabase client configurations and server factory", async () => {
   assert.equal(typeof getSupabaseServerClient, "function");
   assert.equal(typeof getRewindServerClient, "function");
   assert.equal(typeof createRewindBrowserClient, "function");
+
+  const serverClient = getSupabaseServerClient();
+  const rewindClient = getRewindServerClient();
+  if (isSupabaseServerConfigured) {
+    assert.ok(serverClient !== null);
+    assert.ok(rewindClient !== null);
+  } else {
+    assert.equal(serverClient, null);
+    assert.equal(rewindClient, null);
+  }
+
 });
 
 test("provides healthy database instance and in-memory store fallback", async () => {
