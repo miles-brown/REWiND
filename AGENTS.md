@@ -64,7 +64,14 @@ graph LR
    gh pr create --repo miles-brown/REWiND --base main --head feature/<descriptive-feature-name> --title "..." --body "..."
    ```
 
-6. **Wait for User Review**:
+6. **Trigger Automated AI Code Reviews**:
+   - Every time a PR is opened or new commits are pushed to an open PR, automatically trigger a review:
+     ```bash
+     gh pr comment <PR_NUMBER> --repo miles-brown/REWiND --body "@codex review"
+     ```
+   - Inspect and address any feedback raised by Codex, CodeRabbit, GitHub Copilot, or Gemini.
+
+7. **Wait for User Review & Merge Sign-Off**:
    - Provide the PR URL and a clear walkthrough summary to the user.
    - Do **NOT** merge the PR until the user has reviewed and approved it.
 

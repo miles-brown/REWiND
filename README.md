@@ -1,6 +1,7 @@
 # REWIND — Evidence Atlas
 
 <p align="left">
+  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/miles-brown/REWiND?utm_source=oss&utm_medium=github&utm_campaign=miles-brown%2FREWiND&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" /></a>
   <img src="https://img.shields.io/badge/Next.js-16.2.6-black?style=flat&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19.2.6-blue?style=flat&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-5.9.3-3178C6?style=flat&logo=typescript" alt="TypeScript 5" />

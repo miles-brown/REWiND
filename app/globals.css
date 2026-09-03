@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   --ink: #0c1820;
@@ -618,6 +619,27 @@ svg { flex: 0 0 auto; }
   .person-hero { grid-template-columns: auto 1fr; }
   .hero-coverage-nav { grid-column: 1 / -1; max-width: 100%; }
 }
+
+/* --- WebGL Vector Map & Interactive Controls --- */
+.evidence-map-wrapper { position: relative; width: 100%; height: 100%; min-height: 450px; overflow: hidden; background: #060b13; isolation: isolate; }
+.webgl-map-container { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map-toolbar { position: absolute; top: 14px; right: 14px; z-index: 10; display: flex; align-items: center; gap: 6px; background: rgba(8, 14, 26, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; padding: 4px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); }
+.map-tool-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; color: #94a3b8; font-size: 11px; font-weight: 600; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+.map-tool-btn:hover { background: rgba(255, 255, 255, 0.08); color: #f8fafc; }
+.map-tool-btn.active { background: #f59e0b; color: #020617; font-weight: 700; }
+.map-tool-btn.icon-only { padding: 5px 6px; }
+
+/* WebGL Map Custom Markers */
+.webgl-map-marker { cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); transition: transform 0.15s; }
+.webgl-map-marker:hover { transform: translate(-50%, -50%) scale(1.2); z-index: 20; }
+.marker-dot { width: 12px; height: 12px; border-radius: 50%; background: #f59e0b; border: 2px solid #020617; box-shadow: 0 0 10px rgba(245, 158, 11, 0.8); }
+.webgl-map-marker.verified .marker-dot { background: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.8); }
+.webgl-map-marker.selected .marker-dot { width: 16px; height: 16px; background: #f59e0b; border: 2px solid #fff; box-shadow: 0 0 16px #f59e0b; animation: markerPulse 1.8s infinite; }
+@keyframes markerPulse { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8); } 70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }
+.marker-count { position: absolute; top: -6px; right: -8px; background: #020617; color: #f8fafc; font-size: 8px; font-weight: 800; border-radius: 999px; padding: 1px 4px; border: 1px solid rgba(255, 255, 255, 0.2); }
+.marker-tooltip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #020617; color: #f8fafc; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.15); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+.webgl-map-marker:hover .marker-tooltip, .webgl-map-marker.selected .marker-tooltip { opacity: 1; }
+
 
 
 
