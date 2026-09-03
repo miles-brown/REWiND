@@ -100,8 +100,10 @@ test("forwards accessibility attributes and valuetext to the slider thumb", asyn
   assert.match(html, /role="slider"/);
   assert.match(html, /aria-label="Timeline event position"/);
   assert.match(html, /aria-valuetext="1 of 10: 1949-10-21, Event Title"/);
+  assert.match(html, /aria-valuenow="0"/);
   assert.match(html, /aria-valuemin="0"/);
   assert.match(html, /aria-valuemax="9"/);
+
 });
 
 test("generates valid BibTeX, APA, and Chicago citations", async () => {

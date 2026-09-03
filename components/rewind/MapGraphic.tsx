@@ -299,6 +299,7 @@ export function MapGraphic({
       grouped.forEach((eventList) => {
         const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
         if (rep.latitude == null || rep.longitude == null) return;
+        const { longitude, latitude } = rep;
 
         const isSelected = eventList.some((e) => e.id === selected);
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
@@ -345,7 +346,7 @@ export function MapGraphic({
         });
 
         const marker = new Marker({ element: el })
-          .setLngLat([rep.longitude, rep.latitude])
+          .setLngLat([longitude, latitude])
           .addTo(map);
 
         markersRef.current.push(marker);
@@ -355,7 +356,9 @@ export function MapGraphic({
       const source = map.getSource("trajectories") as GeoJSONSource | undefined;
       if (source && "setData" in source) {
         const lineCoords = points.length >= 2
-          ? points.map((p) => [p.longitude!, p.latitude!])
+          ? points
+              .filter((p): p is typeof p & { longitude: number; latitude: number } => p.longitude != null && p.latitude != null)
+              .map(({ longitude, latitude }) => [longitude, latitude])
           : [];
         source.setData({
           type: "Feature",
@@ -366,6 +369,7 @@ export function MapGraphic({
           },
         });
       }
+
     });
   }, [points, selected, mapLoaded, mapMode, onSelect]);
 

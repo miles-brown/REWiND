@@ -192,7 +192,15 @@ export function PersonTimeline({
       className="person-time-machine"
       aria-label={`${person.name} chronological timeline`}
     >
+      {/* Live Region for Screen Readers: announces timeline playback status and selected event updates */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {playing
+          ? `Timeline playing ${direction === "backward" ? "in reverse (REWIND mode)" : "forward"}. Event ${safeIndex + 1} of ${ordered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`
+          : `Selected event ${safeIndex + 1} of ${ordered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`}
+      </div>
+
       <div className="person-time-status">
+
         <div>
           <span className="live-pulse" />
           <small>REWINDING</small>
