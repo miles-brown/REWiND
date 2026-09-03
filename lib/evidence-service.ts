@@ -1,5 +1,6 @@
 import { getRelationalStore } from "@/lib/db/client";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
+import { resolveEntity } from "@/lib/ingestion/resolve";
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -88,10 +89,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         },
         idx: number
       ) => {
+        const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         store.claims.push({
           id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
           eventId: eventSlug,
-          subjectId: null,
+          subjectId: resolvedSubject?.personId || null,
           claimType: clm.claimType || "presence",
           statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
           claimedTime: clm.claimedTime || candidate.suggestedDate,
@@ -137,12 +139,33 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
   candidate.status = "merged";
 
   const data = JSON.parse(candidate.rawExtraction);
-  const sourceId = data.sourceId || null;
+  const sourceId = data.sourceId || "src-editorial-corroboration";
 
+  // Ensure source is registered in the sources catalog
+  let existingSource = store.sources.find((s) => s.id === sourceId);
+  if (!existingSource && sourceId !== "src-editorial-corroboration") {
+    existingSource = {
+      id: sourceId,
+      title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+      publisher: data.publisher || "Archival Source",
+      sourceType: data.sourceType || "official-transcript",
+      tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+      url: data.url || null,
+      archiveUrl: null,
+      author: null,
+      publicationDate: candidate.suggestedDate,
+      trustScore: 0.95,
+    };
+    store.sources.push(existingSource);
+  }
+
+  // 1. Merge Claims with entity resolution and deduplication
+  let claimsAddedCount = 0;
   if (Array.isArray(data.claims)) {
     data.claims.forEach(
       (
         clm: {
+          subjectMention?: string;
           claimType?: string;
           statement?: string;
           claimedTime?: string;
@@ -151,20 +174,46 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         },
         idx: number
       ) => {
-        store.claims.push({
-          id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
-          eventId: targetEventId,
-          subjectId: null,
-          claimType: clm.claimType || "presence",
-          statement: clm.statement || "Corroborating claim",
-          claimedTime: clm.claimedTime || null,
-          claimedVenue: clm.claimedVenue || null,
-          sourceId,
-          confidence: "confirmed",
-          supportingExcerpt: clm.supportingExcerpt || null,
-        });
+        const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
+        const subjectId = resolvedSubject?.personId || null;
+        const statement = clm.statement || "Corroborating claim";
+
+        // Avoid exact duplicate claims on the target event
+        const isDuplicateClaim = store.claims.some(
+          (existing) =>
+            existing.eventId === targetEventId &&
+            existing.statement.toLowerCase().trim() === statement.toLowerCase().trim() &&
+            existing.subjectId === subjectId
+        );
+
+        if (!isDuplicateClaim) {
+          store.claims.push({
+            id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
+            eventId: targetEventId,
+            subjectId,
+            claimType: clm.claimType || "presence",
+            statement,
+            claimedTime: clm.claimedTime || null,
+            claimedVenue: clm.claimedVenue || null,
+            sourceId,
+            confidence: "confirmed",
+            supportingExcerpt: clm.supportingExcerpt || null,
+          });
+          claimsAddedCount++;
+        }
       }
     );
+  }
+
+  // 2. Resolve participants for comprehensive audit attribution
+  const mergedParticipants: string[] = [];
+  if (Array.isArray(data.participants)) {
+    data.participants.forEach((p: { name: string; role?: string }) => {
+      const res = resolveEntity(p.name);
+      if (res.canonicalName) {
+        mergedParticipants.push(res.canonicalName);
+      }
+    });
   }
 
   recordAuditEvent(
@@ -175,12 +224,15 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       targetEventId,
       mergedBy: editorName,
       sourceId,
+      claimsAddedCount,
+      mergedParticipants,
+      similarityScore: candidate.duplicateSimilarity,
     },
     targetEventId,
     candidateId
   );
 
-  return { success: true, targetEventId };
+  return { success: true, targetEventId, claimsAddedCount };
 }
 
 export function rejectCandidate(candidateId: string, reason: string, editorName = "Senior Historical Editor") {

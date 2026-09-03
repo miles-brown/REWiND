@@ -226,3 +226,85 @@ test("enforces one-time candidate approval transitions and claim persistence", a
   assert.equal(reApproveResult.success, false);
   assert.match(reApproveResult.error, /already approved/);
 });
+
+test("enforces mergeCandidate claims deduplication and terminal state transition", async () => {
+  const { mergeCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const targetEvtId = store.events[0]?.id || "evt-1998-10-23-wye-river-memorandum";
+  if (!store.events.some((e) => e.id === targetEvtId)) {
+    store.events.push({
+      id: targetEvtId,
+      slug: targetEvtId,
+      parentId: null,
+      eventType: "treaty-signing",
+      title: "Wye River Memorandum",
+      summary: "Interim peace summit between Israel and Palestine",
+      description: null,
+      startDate: "1998-10-23",
+      endDate: null,
+      temporalPrecision: "exact-day",
+      placeId: "plc-washington-dc",
+      verificationStatus: "verified",
+      confidenceScore: 0.98,
+      publicationStatus: "published",
+      publicationLane: "human-review",
+      significanceScore: 90,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+  const testMergeCandId = `cand-mrg-test-${Date.now()}`;
+
+
+  store.candidateEvents.push({
+    id: testMergeCandId,
+    fingerprint: `fp_mrg_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Duplicate Wire Dispatch: Wye Summit",
+      summary: "Corroborating wire transcript of Wye agreement",
+      startDate: "1998-10-23",
+      eventType: "treaty-signing",
+      sourceId: "src-ap-wye-wire",
+      claims: [
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "presence",
+          statement: "Netanyahu delivered remarks at the signing ceremony",
+        },
+      ],
+      participants: [{ name: "Benjamin Netanyahu" }, { name: "Bill Clinton" }],
+    }),
+    suggestedTitle: "Duplicate Wire Dispatch: Wye Summit",
+    suggestedDate: "1998-10-23",
+    suggestedPlace: "Washington, D.C.",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }, { name: "Bill Clinton" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: targetEvtId,
+    duplicateSimilarity: 0.94,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  // 1. Initial merge succeeds and attaches claims
+  const mergeResult = mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
+  assert.equal(mergeResult.success, true);
+  assert.equal(mergeResult.targetEventId, targetEvtId);
+  assert.ok(mergeResult.claimsAddedCount >= 1);
+
+  // Check merged claim exists with resolved subjectId
+  const mergedClaim = store.claims.find(
+    (c) => c.eventId === targetEvtId && c.statement.includes("Netanyahu delivered remarks")
+  );
+  assert.ok(mergedClaim);
+  assert.equal(mergedClaim.subjectId, "benjamin-netanyahu");
+
+  // 2. Second merge attempt on the same candidate is blocked
+  const reMergeResult = mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
+  assert.equal(reMergeResult.success, false);
+  assert.match(reMergeResult.error, /already merged/);
+});
+
