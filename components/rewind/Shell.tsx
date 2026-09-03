@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeftRight, CalendarRange, Database, Map, Menu, Search, Users, X } from "lucide-react";
+import { ArrowLeftRight, CalendarRange, Database, Map, Menu, Search, Shield, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 
 const nav = [
-  ["Explore","/",CalendarRange], ["Events","/events",Database], ["People","/people",Users], ["Compare","/compare",ArrowLeftRight], ["Places","/places",Map], ["Sources","/sources",Database]
+  ["Explore","/",CalendarRange], ["Events","/events",Database], ["People","/people",Users], ["Compare","/compare",ArrowLeftRight], ["Places","/places",Map], ["Sources","/sources",Database], ["Engine","/admin/evidence",Shield]
 ] as const;
 
 export function Shell({children}:{children:React.ReactNode}) {
