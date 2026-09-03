@@ -17,8 +17,8 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
-import { Shell } from "@/components/rewind/Shell";
 import { z } from "zod";
+
 
 interface CandidateItem {
   id: string;
@@ -224,9 +224,9 @@ export default function EvidenceControlConsole() {
 
 
   return (
-    <Shell>
-      <div className="evidence-console-main">
-        {/* Header */}
+    <div className="evidence-console-main">
+      {/* Header */}
+
 
         <header className="evidence-console-header">
           <div className="header-meta">
@@ -581,6 +581,6 @@ export default function EvidenceControlConsole() {
           )}
         </section>
       </div>
-    </Shell>
-  );
-}
+    );
+  }
+

@@ -200,14 +200,14 @@ export function PersonTimeline({
       </div>
 
       <div className="person-time-status">
-
-        <div>
+        <div className="status-left">
           <span className="live-pulse" />
           <small>REWINDING</small>
           <b>{person.name}</b>
         </div>
         <div className="status-right-tools">
           <button
+            type="button"
             className="keyboard-help-btn"
             onClick={() => setShowHelp(!showHelp)}
             aria-label="Toggle keyboard shortcuts reference"
@@ -220,6 +220,7 @@ export function PersonTimeline({
           </p>
         </div>
       </div>
+
 
       {showHelp && (
         <div className="shortcuts-bar" role="region" aria-label="Timeline keyboard shortcuts">
@@ -436,9 +437,10 @@ export function PersonTimeline({
 
           <div className="slider-heading">
             <span>{ordered[0].startDate}</span>
-            <b>DRAG TO REWIND CHRONOLOGY</b>
+            <b>Event {safeIndex + 1} of {ordered.length}</b>
             <span>{ordered.at(-1)?.startDate}</span>
           </div>
+
 
           <Slider
             aria-label={`${person.name} timeline position`}

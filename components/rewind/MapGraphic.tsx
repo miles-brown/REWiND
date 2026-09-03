@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Layers, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Compass, Globe, Layers, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/data/rewind";
 
-// Standard equirectangular projection helper for SVG mode
+// Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
   return {
     x: ((lon + 180) / 360) * 100,
@@ -26,9 +26,18 @@ function isWebGLAvailable() {
   }
 }
 
-const CARTO_DARK_MATTER_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-// Fallback raster tile style specification if vector GL JSON fails or is blocked
+// Mapbox Vector Styles (when token is provided)
+const MAPBOX_DARK_STYLE = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
+  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+const MAPBOX_SATELLITE_STYLE = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
+  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+// Fallback raster tile style specification if vector GL JSON fails or is offline
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -55,6 +64,60 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
   ],
 };
 
+function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatellite: boolean) {
+  if (map.getSource("trajectories")) return;
+
+  const lineCoordinates = points.length >= 2
+    ? points
+        .filter((p): p is typeof p & { longitude: number; latitude: number } => p.longitude != null && p.latitude != null)
+        .map(({ longitude, latitude }) => [longitude, latitude])
+    : [];
+
+  map.addSource("trajectories", {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: lineCoordinates,
+      },
+    },
+  });
+
+  map.addLayer({
+    id: "trajectory-line-glow",
+    type: "line",
+    source: "trajectories",
+    layout: {
+      "line-join": "round",
+      "line-cap": "round",
+    },
+    paint: {
+      "line-color": isSatellite ? "#38bdf8" : "#f59e0b",
+      "line-width": isSatellite ? 5 : 4,
+      "line-opacity": 0.4,
+      "line-blur": 3,
+    },
+  });
+
+  map.addLayer({
+    id: "trajectory-line",
+    type: "line",
+    source: "trajectories",
+    layout: {
+      "line-join": "round",
+      "line-cap": "round",
+    },
+    paint: {
+      "line-color": isSatellite ? "#7dd3fc" : "#fbbf24",
+      "line-width": 2,
+      "line-opacity": 0.95,
+      "line-dasharray": [2, 1],
+    },
+  });
+}
+
 export function MapGraphic({
   events,
   selected,
@@ -67,8 +130,9 @@ export function MapGraphic({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MapLibreMarker[]>([]);
-  const [mapMode, setMapMode] = useState<"webgl" | "svg">("webgl");
-  const [webGlSupported, setWebGlSupported] = useState(true);
+  const [webGlSupported, setWebGlSupported] = useState<boolean>(() => isWebGLAvailable());
+  const [mapMode, setMapMode] = useState<"webgl" | "svg">(() => (isWebGLAvailable() ? "webgl" : "svg"));
+  const [mapTheme, setMapTheme] = useState<"dark" | "satellite">("dark");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -98,41 +162,44 @@ export function MapGraphic({
     });
     return Array.from(map.values()).map((group) => {
       const topPt = group.find((p) => p.e.id === selected) || group[group.length - 1];
+      const hasSelected = group.some((p) => p.e.id === selected);
+      const allVerified = group.every((p) => p.e.verificationStatus === "verified");
       return {
         x: topPt.x,
         y: topPt.y,
         event: topPt.e,
         count: group.length,
-        hasSelected: group.some((p) => p.e.id === selected),
-        allVerified: group.every((p) => p.e.verificationStatus === "verified"),
+        hasSelected,
+        allVerified,
       };
     });
   }, [coords, selected]);
 
-  // Construct curved trajectory arcs between consecutive chronological locations (SVG)
   const arcs = useMemo(() => {
     if (coords.length < 2) return "";
-    let d = "";
-    for (let i = 0; i < coords.length - 1; i++) {
-      const p1 = coords[i];
-      const p2 = coords[i + 1];
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 0.5) continue;
-
-      const midX = (p1.x + p2.x) / 2;
-      const midY = (p1.y + p2.y) / 2 - Math.min(12, dist * 0.25);
-
-      d += `${d ? " " : ""}M${p1.x.toFixed(2)},${p1.y.toFixed(2)} Q${midX.toFixed(2)},${midY.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
-    }
-    return d;
+    return coords.reduce((acc, curr, i, arr) => {
+      if (i === 0) return `M ${curr.x} ${curr.y}`;
+      const prev = arr[i - 1];
+      const mx = (prev.x + curr.x) / 2;
+      const my = Math.min(prev.y, curr.y) - 6;
+      return `${acc} Q ${mx} ${my} ${curr.x} ${curr.y}`;
+    }, "");
   }, [coords]);
 
-  // Initialize MapLibre GL instance strictly tied to mapMode lifecycle
+  // Transform Request to attach Mapbox access token to all resource requests
+  const transformRequest = useCallback((url: string) => {
+    if (MAPBOX_TOKEN && (url.startsWith("mapbox://") || url.includes("mapbox.com"))) {
+      if (!url.includes("access_token=")) {
+        const separator = url.includes("?") ? "&" : "?";
+        return { url: `${url}${separator}access_token=${MAPBOX_TOKEN}` };
+      }
+    }
+    return { url };
+  }, []);
+
+  // Initialize MapLibre / Mapbox WebGL instance
   useEffect(() => {
-    if (mapMode !== "webgl" || typeof window === "undefined" || !mapContainerRef.current) return;
+    if (mapMode !== "webgl") return;
 
     let isCancelled = false;
     let localMap: MapLibreMap | null = null;
@@ -140,36 +207,32 @@ export function MapGraphic({
 
     async function initMap() {
       try {
-        if (!isWebGLAvailable()) {
-          setWebGlSupported(false);
-          setMapMode("svg");
-          return;
-        }
-
         const { Map } = await import("maplibre-gl");
         if (isCancelled || !mapContainerRef.current) return;
 
         const initialCenter: [number, number] = selectedEvent
           ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Default Levant / Jerusalem coordinates
+          : [35.2137, 31.7683]; // Default Levant coordinates
+
+        const initialStyle = mapTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
 
         const map = new Map({
           container: mapContainerRef.current,
-          style: CARTO_DARK_MATTER_STYLE,
+          style: initialStyle,
           center: initialCenter,
-          zoom: 3.8,
-          pitch: 25,
+          zoom: 4.2,
+          pitch: mapTheme === "satellite" ? 42 : 25,
           attributionControl: { compact: true },
+          transformRequest,
         });
 
         localMap = map;
         mapInstanceRef.current = map;
 
-        // Register style and network error handler to fallback gracefully
         map.on("error", (e) => {
           if (!fallbackAttempted && (e.error?.message?.includes("style") || e.error?.message?.includes("fetch"))) {
             fallbackAttempted = true;
-            console.warn("Switching MapLibre to resilient fallback dark style due to remote style error:", e.error);
+            console.warn("Switching map to resilient fallback dark style due to remote style error:", e.error);
             try {
               map.setStyle(FALLBACK_RASTER_DARK_STYLE);
             } catch {
@@ -179,71 +242,27 @@ export function MapGraphic({
           }
         });
 
-        map.on("load", () => {
+        const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-
-          if (!map.getSource("trajectories")) {
-            const lineCoordinates = points.length >= 2
-              ? points.map((p) => [p.longitude!, p.latitude!])
-              : [];
-
-            map.addSource("trajectories", {
-              type: "geojson",
-              data: {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                  type: "LineString",
-                  coordinates: lineCoordinates,
-                },
-              },
-            });
-
-            map.addLayer({
-              id: "trajectory-line-glow",
-              type: "line",
-              source: "trajectories",
-              layout: {
-                "line-join": "round",
-                "line-cap": "round",
-              },
-              paint: {
-                "line-color": "#f59e0b",
-                "line-width": 4,
-                "line-opacity": 0.35,
-                "line-blur": 3,
-              },
-            });
-
-            map.addLayer({
-              id: "trajectory-line",
-              type: "line",
-              source: "trajectories",
-              layout: {
-                "line-join": "round",
-                "line-cap": "round",
-              },
-              paint: {
-                "line-color": "#fbbf24",
-                "line-width": 2,
-                "line-opacity": 0.9,
-                "line-dasharray": [2, 1],
-              },
-            });
-          }
-
+          addTrajectoriesToMap(map, points, mapTheme === "satellite");
           map.resize();
+        };
+
+        map.on("load", setupMapLayers);
+        map.on("style.load", () => {
+          if (!isCancelled) {
+            addTrajectoriesToMap(map, points, mapTheme === "satellite");
+          }
         });
 
-        // Trigger safe resize after initial layout render
         setTimeout(() => {
           if (!isCancelled && mapInstanceRef.current) {
             mapInstanceRef.current.resize();
           }
-        }, 200);
+        }, 150);
       } catch (err) {
-        console.warn("MapLibre GL failed to initialize, falling back to SVG vector view:", err);
+        console.warn("WebGL Map failed to initialize, falling back to SVG vector view:", err);
         setWebGlSupported(false);
         setMapMode("svg");
       }
@@ -260,9 +279,10 @@ export function MapGraphic({
       mapInstanceRef.current = null;
       setMapLoaded(false);
     };
-  }, [mapMode, points, selectedEvent]);
+  }, [mapMode, mapTheme, points, selectedEvent, transformRequest]);
 
-  // Keep MapLibre canvas dimensions in sync with CSS container layout
+
+  // Keep map canvas dimensions synchronized with container layout shifts
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -276,7 +296,23 @@ export function MapGraphic({
     return () => observer.disconnect();
   }, [isExpanded]);
 
-  // Update MapLibre markers when points or selection change
+  // Toggle between Dark Basemap and Satellite 3D View
+  const toggleMapTheme = () => {
+    if (!mapInstanceRef.current) return;
+    const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
+    setMapTheme(nextTheme);
+
+    const targetStyle = nextTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
+    mapInstanceRef.current.setStyle(targetStyle);
+
+    if (nextTheme === "satellite") {
+      mapInstanceRef.current.easeTo({ pitch: 45, duration: 800 });
+    } else {
+      mapInstanceRef.current.easeTo({ pitch: 25, duration: 800 });
+    }
+  };
+
+  // Update Map markers when points or selection change
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !mapLoaded) return;
 
@@ -304,12 +340,11 @@ export function MapGraphic({
         const isSelected = eventList.some((e) => e.id === selected);
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
-        // Semantic, accessible button element for WCAG AA keyboard operability
         const el = document.createElement("button");
         el.type = "button";
         el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
           isVerified ? "verified" : "provisional"
-        }`;
+        } ${mapTheme === "satellite" ? "satellite-theme" : ""}`;
         el.setAttribute(
           "aria-label",
           `${rep.eventName}, ${rep.city} (${eventList.length} documented record${
@@ -369,9 +404,8 @@ export function MapGraphic({
           },
         });
       }
-
     });
-  }, [points, selected, mapLoaded, mapMode, onSelect]);
+  }, [points, selected, mapLoaded, mapMode, mapTheme, onSelect]);
 
   // Smooth fly-to camera movement on selection change
   useEffect(() => {
@@ -379,32 +413,59 @@ export function MapGraphic({
     mapInstanceRef.current.flyTo({
       center: [selectedEvent.longitude!, selectedEvent.latitude!],
       zoom: 5.5,
-      pitch: 35,
+      pitch: mapTheme === "satellite" ? 45 : 35,
       duration: 1100,
       essential: true,
     });
-  }, [selectedEvent, mapMode]);
+  }, [selectedEvent, mapMode, mapTheme]);
 
   return (
     <div
-      className={`evidence-map-wrapper ${isExpanded ? "expanded-view" : ""}`}
+      className={`evidence-map-wrapper ${isExpanded ? "expanded-view" : ""} ${
+        mapTheme === "satellite" ? "satellite-active" : ""
+      }`}
       role="group"
       aria-label={`Geospatial map showing ${points.length} documented event locations`}
     >
       {/* Map Control Actions Toolbar */}
       <div className="map-toolbar">
-        {webGlSupported && (
+        {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
+        {webGlSupported && mapMode === "webgl" && (
           <button
             type="button"
-            className={`map-tool-btn ${mapMode === "webgl" ? "active" : ""}`}
-            onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
-            title={mapMode === "webgl" ? "Switch to Schematic Basemap" : "Switch to 3D WebGL Vector Map"}
+            className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
+            onClick={toggleMapTheme}
+            title={
+              mapTheme === "satellite"
+                ? "Switch to Dark Forensic Basemap"
+                : "Switch to Mapbox Satellite 3D View"
+            }
+            aria-label={
+              mapTheme === "satellite"
+                ? "Switch to Dark Forensic Basemap"
+                : "Switch to Mapbox Satellite 3D View"
+            }
           >
-            <Layers size={13} />
-            <span>{mapMode === "webgl" ? "3D Vector" : "Schematic"}</span>
+            {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
+            <span>{mapTheme === "satellite" ? "Dark Map" : "Satellite"}</span>
           </button>
         )}
 
+        {/* Fallback Schematic SVG toggle */}
+        {webGlSupported && (
+          <button
+            type="button"
+            className={`map-tool-btn ${mapMode === "svg" ? "active" : ""}`}
+            onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
+            title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
+            aria-label={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
+          >
+            <MapPin size={13} />
+            <span>{mapMode === "svg" ? "Live Map" : "Schematic"}</span>
+          </button>
+        )}
+
+        {/* Enlarge / Collapse */}
         <button
           type="button"
           className="map-tool-btn icon-only"
@@ -425,6 +486,7 @@ export function MapGraphic({
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomIn()}
               aria-label="Zoom in"
+              title="Zoom In"
             >
               <ZoomIn size={13} />
             </button>
@@ -433,6 +495,7 @@ export function MapGraphic({
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomOut()}
               aria-label="Zoom out"
+              title="Zoom Out"
             >
               <ZoomOut size={13} />
             </button>
@@ -443,12 +506,14 @@ export function MapGraphic({
                 if (selectedEvent) {
                   mapInstanceRef.current?.flyTo({
                     center: [selectedEvent.longitude!, selectedEvent.latitude!],
-                    zoom: 3.8,
-                    pitch: 0,
+                    zoom: 4.2,
+                    pitch: mapTheme === "satellite" ? 45 : 0,
+                    bearing: 0,
                   });
                 }
               }}
-              aria-label="Reset orientation"
+              aria-label="Reset orientation to North"
+              title="Reset North Orientation"
             >
               <Compass size={13} />
             </button>
@@ -523,14 +588,6 @@ export function MapGraphic({
           })}
         </div>
       )}
-
-      {/* Legend & Attribution */}
-      <div className="map-legend">
-        <span><i className="confirmed-dot" /> Verified</span>
-        <span><i className="provisional-dot" /> Provisional</span>
-        <span><i className="arc-indicator" /> Trajectory Arc</span>
-        <span className="map-attribution">© OpenStreetMap, © CARTO</span>
-      </div>
     </div>
   );
 }
