@@ -6,7 +6,8 @@ REWIND is engineered with keyboard-first navigation for historians, journalists,
 
 ## 1. Global Timeline Hotkeys
 
-These shortcuts operate anywhere on the timeline console ([`PersonTimeline.tsx`](file:///Users/milesbrown/Github/REWiND/components/rewind/PersonTimeline.tsx) and [`RewindExplorer.tsx`](file:///Users/milesbrown/Github/REWiND/components/rewind/RewindExplorer.tsx)):
+These shortcuts operate anywhere on the timeline console ([`PersonTimeline.tsx`](../../components/rewind/PersonTimeline.tsx) and [`RewindExplorer.tsx`](../../components/rewind/RewindExplorer.tsx)):
+
 
 | Keybinding | Action | Description |
 | :--- | :--- | :--- |
