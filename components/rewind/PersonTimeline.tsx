@@ -340,13 +340,11 @@ export function PersonTimeline({
         <div className="console-date">
           <small>CURRENT EVENT</small>
           <b>
-            {date
-              .toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-              .toUpperCase()}
+            {date.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </b>
         </div>
 

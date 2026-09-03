@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Layers, ZoomIn, ZoomOut } from "lucide-react";
-import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Compass, Layers, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/data/rewind";
 
 // Standard equirectangular projection helper for SVG mode
@@ -28,6 +28,33 @@ function isWebGLAvailable() {
 
 const CARTO_DARK_MATTER_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
+// Fallback raster tile style specification if vector GL JSON fails or is blocked
+const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "carto-dark-raster": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "carto-dark-base",
+      type: "raster",
+      source: "carto-dark-raster",
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
+
 export function MapGraphic({
   events,
   selected,
@@ -43,6 +70,7 @@ export function MapGraphic({
   const [mapMode, setMapMode] = useState<"webgl" | "svg">("webgl");
   const [webGlSupported, setWebGlSupported] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const points = useMemo(
     () => events.filter((e) => e.latitude != null && e.longitude != null),
@@ -102,11 +130,65 @@ export function MapGraphic({
     return d;
   }, [coords]);
 
+  // Helper to attach trajectories layer to map instance
+  const attachTrajectoriesLayer = useCallback((map: MapLibreMap) => {
+    if (map.getSource("trajectories")) return;
+
+    const lineCoordinates = points.length >= 2
+      ? points.map((p) => [p.longitude!, p.latitude!])
+      : [];
+
+    map.addSource("trajectories", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: lineCoordinates,
+        },
+      },
+    });
+
+    map.addLayer({
+      id: "trajectory-line-glow",
+      type: "line",
+      source: "trajectories",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#f59e0b",
+        "line-width": 4,
+        "line-opacity": 0.35,
+        "line-blur": 3,
+      },
+    });
+
+    map.addLayer({
+      id: "trajectory-line",
+      type: "line",
+      source: "trajectories",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#fbbf24",
+        "line-width": 2,
+        "line-opacity": 0.9,
+        "line-dasharray": [2, 1],
+      },
+    });
+  }, [points]);
+
   // Initialize MapLibre GL instance
   useEffect(() => {
     if (mapMode !== "webgl" || typeof window === "undefined" || !mapContainerRef.current) return;
 
     let isCancelled = false;
+    let fallbackAttempted = false;
 
     async function initMap() {
       try {
@@ -121,70 +203,45 @@ export function MapGraphic({
 
         const initialCenter: [number, number] = selectedEvent
           ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Jerusalem default
+          : [35.2137, 31.7683]; // Default to Levant / Jerusalem
 
         const map = new Map({
           container: mapContainerRef.current,
           style: CARTO_DARK_MATTER_STYLE,
           center: initialCenter,
-          zoom: 3.5,
+          zoom: 3.8,
           pitch: 25,
           attributionControl: false,
+        });
+
+        map.on("error", (e) => {
+          // If CARTO vector style encounters fetch/parsing error, fallback to resilient raster dark tiles
+          if (!fallbackAttempted && (e.error?.message?.includes("style") || e.error?.message?.includes("fetch"))) {
+            fallbackAttempted = true;
+            console.warn("Switching MapLibre to resilient fallback dark style due to remote style error:", e.error);
+            try {
+              map.setStyle(FALLBACK_RASTER_DARK_STYLE);
+            } catch {
+              setWebGlSupported(false);
+              setMapMode("svg");
+            }
+          }
         });
 
         map.on("load", () => {
           if (isCancelled) return;
           mapInstanceRef.current = map;
           setMapLoaded(true);
-
-          // Add trajectory line source and layer
-          const lineCoordinates = points.length >= 2
-            ? points.map((p) => [p.longitude!, p.latitude!])
-            : [];
-          map.addSource("trajectories", {
-            type: "geojson",
-            data: {
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "LineString",
-                coordinates: lineCoordinates,
-              },
-            },
-          });
-
-          map.addLayer({
-            id: "trajectory-line-glow",
-            type: "line",
-            source: "trajectories",
-            layout: {
-              "line-join": "round",
-              "line-cap": "round",
-            },
-            paint: {
-              "line-color": "#f59e0b",
-              "line-width": 4,
-              "line-opacity": 0.3,
-              "line-blur": 3,
-            },
-          });
-
-          map.addLayer({
-            id: "trajectory-line",
-            type: "line",
-            source: "trajectories",
-            layout: {
-              "line-join": "round",
-              "line-cap": "round",
-            },
-            paint: {
-              "line-color": "#fbbf24",
-              "line-width": 1.5,
-              "line-opacity": 0.85,
-              "line-dasharray": [2, 1],
-            },
-          });
+          attachTrajectoriesLayer(map);
+          map.resize();
         });
+
+        // Trigger safe resize after initial layout render
+        setTimeout(() => {
+          if (!isCancelled && mapInstanceRef.current) {
+            mapInstanceRef.current.resize();
+          }
+        }, 200);
       } catch (err) {
         console.warn("MapLibre GL failed to initialize, falling back to SVG vector view:", err);
         setWebGlSupported(false);
@@ -199,51 +256,85 @@ export function MapGraphic({
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        setMapLoaded(false);
       }
     };
-  }, [mapMode, points, selectedEvent]);
+  }, [mapMode, attachTrajectoriesLayer, selectedEvent]);
+
+  // Keep MapLibre canvas dimensions in sync with CSS container layout
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.resize();
+      }
+    });
+
+    observer.observe(mapContainerRef.current);
+    return () => observer.disconnect();
+  }, [isExpanded]);
 
   // Update MapLibre markers when points or selection change
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !mapLoaded) return;
 
-    // Clear old markers
+    const map = mapInstanceRef.current;
+
+    // Remove existing markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
     import("maplibre-gl").then(({ Marker }) => {
-      const map = mapInstanceRef.current;
-      if (!map) return;
-
-      // Group nearby points for WebGL markers
-      const webGlClusters = new Map<string, EventRecord[]>();
+      // Group points by location proximity for clean clustering
+      const grouped = new Map<string, typeof points>();
       points.forEach((p) => {
-        const key = `${p.latitude!.toFixed(2)}_${p.longitude!.toFixed(2)}`;
-        const list = webGlClusters.get(key) || [];
+        const key = `${p.latitude?.toFixed(2)}_${p.longitude?.toFixed(2)}`;
+        const list = grouped.get(key) || [];
         list.push(p);
-        webGlClusters.set(key, list);
+        grouped.set(key, list);
       });
 
-      webGlClusters.forEach((clusterEvents) => {
-        const topEvent = clusterEvents.find((e) => e.id === selected) || clusterEvents[clusterEvents.length - 1];
-        const isSelected = clusterEvents.some((e) => e.id === selected);
+      grouped.forEach((eventList) => {
+        const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
+        if (rep.latitude == null || rep.longitude == null) return;
+
+        const isSelected = eventList.some((e) => e.id === selected);
+        const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
         const el = document.createElement("div");
-        el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
-          topEvent.verificationStatus === "verified" ? "verified" : "provisional"
-        }`;
-        el.innerHTML = `
-          <div class="marker-dot"></div>
-          ${clusterEvents.length > 1 ? `<span class="marker-count">${clusterEvents.length}</span>` : ""}
-          <span class="marker-tooltip">${topEvent.city}</span>
-        `;
+        el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${isVerified ? "verified" : "provisional"}`;
+        el.setAttribute("role", "button");
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("aria-label", `${rep.eventName} in ${rep.city} (${eventList.length} records)`);
 
-        el.addEventListener("click", () => {
-          onSelect?.(topEvent.id);
+        const dot = document.createElement("span");
+        dot.className = "marker-dot";
+        el.appendChild(dot);
+
+        if (eventList.length > 1) {
+          const badge = document.createElement("span");
+          badge.className = "marker-count";
+          badge.textContent = String(eventList.length);
+          el.appendChild(badge);
+        }
+
+        const tooltip = document.createElement("div");
+        tooltip.className = "marker-tooltip";
+        tooltip.textContent = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
+        el.appendChild(tooltip);
+
+        const handleClick = () => onSelect?.(rep.id);
+        el.addEventListener("click", handleClick);
+        el.addEventListener("keydown", (evt) => {
+          if (evt.key === "Enter" || evt.key === " ") {
+            evt.preventDefault();
+            handleClick();
+          }
         });
 
         const marker = new Marker({ element: el })
-          .setLngLat([topEvent.longitude!, topEvent.latitude!])
+          .setLngLat([rep.longitude, rep.latitude])
           .addTo(map);
 
         markersRef.current.push(marker);
@@ -274,14 +365,14 @@ export function MapGraphic({
       center: [selectedEvent.longitude!, selectedEvent.latitude!],
       zoom: 5.5,
       pitch: 35,
-      duration: 1200,
+      duration: 1100,
       essential: true,
     });
   }, [selectedEvent, mapMode]);
 
   return (
     <div
-      className="evidence-map-wrapper"
+      className={`evidence-map-wrapper ${isExpanded ? "expanded-view" : ""}`}
       role="group"
       aria-label={`Geospatial map showing ${points.length} documented event locations`}
     >
@@ -289,6 +380,7 @@ export function MapGraphic({
       <div className="map-toolbar">
         {webGlSupported && (
           <button
+            type="button"
             className={`map-tool-btn ${mapMode === "webgl" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             title={mapMode === "webgl" ? "Switch to Schematic Basemap" : "Switch to 3D WebGL Vector Map"}
@@ -298,9 +390,23 @@ export function MapGraphic({
           </button>
         )}
 
+        <button
+          type="button"
+          className="map-tool-btn icon-only"
+          onClick={() => {
+            setIsExpanded((prev) => !prev);
+            setTimeout(() => mapInstanceRef.current?.resize(), 100);
+          }}
+          title={isExpanded ? "Collapse Map" : "Enlarge Map"}
+          aria-label={isExpanded ? "Collapse map view" : "Enlarge map view"}
+        >
+          {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+        </button>
+
         {mapMode === "webgl" && (
           <>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomIn()}
               aria-label="Zoom in"
@@ -308,6 +414,7 @@ export function MapGraphic({
               <ZoomIn size={13} />
             </button>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomOut()}
               aria-label="Zoom out"
@@ -315,12 +422,13 @@ export function MapGraphic({
               <ZoomOut size={13} />
             </button>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
                 if (selectedEvent) {
                   mapInstanceRef.current?.flyTo({
                     center: [selectedEvent.longitude!, selectedEvent.latitude!],
-                    zoom: 3.5,
+                    zoom: 3.8,
                     pitch: 0,
                   });
                 }
@@ -377,6 +485,7 @@ export function MapGraphic({
             const isSelected = cluster.hasSelected;
             return (
               <button
+                type="button"
                 key={cluster.event.id}
                 onClick={() => onSelect?.(cluster.event.id)}
                 style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
@@ -402,9 +511,9 @@ export function MapGraphic({
 
       {/* Legend */}
       <div className="map-legend">
-        <span><i className="confirmed-dot" /> Verified Record</span>
+        <span><i className="confirmed-dot" /> Verified</span>
         <span><i className="provisional-dot" /> Provisional</span>
-        <span><i className="arc-indicator" /> Trajectory Arc</span>
+        <span><i className="arc-indicator" /> Trajectory</span>
       </div>
     </div>
   );
