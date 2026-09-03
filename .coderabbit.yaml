@@ -10,9 +10,14 @@ reviews:
   high_level_summary: true
   poem: false
   review_status: true
-  collapse_walkthrough: false
+  collapse_walkthrough: true
+  path_filters:
+    - "!**/*.md"
+    - "!**/package-lock.json"
+    - "!scratch/**"
+    - "!dist/**"
   auto_review:
-    enabled: true
+    enabled: false # Saves rate limit quotas; summon explicitly via '@coderabbitai review'
     drafts: false
     base_branches:
       - "main"
