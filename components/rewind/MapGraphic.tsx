@@ -138,7 +138,9 @@ export function MapGraphic({
           setMapLoaded(true);
 
           // Add trajectory line source and layer
-          const lineCoordinates = points.map((p) => [p.longitude!, p.latitude!]);
+          const lineCoordinates = points.length >= 2
+            ? points.map((p) => [p.longitude!, p.latitude!])
+            : [];
           map.addSource("trajectories", {
             type: "geojson",
             data: {
@@ -250,12 +252,15 @@ export function MapGraphic({
       // Update trajectory line coordinates
       const source = map.getSource("trajectories") as GeoJSONSource | undefined;
       if (source && "setData" in source) {
+        const lineCoords = points.length >= 2
+          ? points.map((p) => [p.longitude!, p.latitude!])
+          : [];
         source.setData({
           type: "Feature",
           properties: {},
           geometry: {
             type: "LineString",
-            coordinates: points.map((p) => [p.longitude!, p.latitude!]),
+            coordinates: lineCoords,
           },
         });
       }
