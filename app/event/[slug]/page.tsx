@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
 import { eventBySlug, events, people, sourceById } from "@/data/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
+import { EventActions } from "@/components/rewind/EventActions";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,6 +22,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         <time>{date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</time>
         <h1>{event.eventName}</h1><p>{event.summary}</p>
         <div className="detail-tags">{event.eventTypes.map(type => <span key={type}>{type}</span>)}</div>
+        <EventActions event={event} />
       </div>
       <dl className="record-vitals">
         <div><dt><CalendarClock/>Time</dt><dd>{event.localStartTime || "Not established"}</dd><small>{event.timePrecision} precision</small></div>

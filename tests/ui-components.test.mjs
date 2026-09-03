@@ -102,3 +102,38 @@ test("forwards accessibility attributes and valuetext to the slider thumb", asyn
   assert.match(html, /aria-valuemin="0"/);
   assert.match(html, /aria-valuemax="9"/);
 });
+
+test("generates valid BibTeX, APA, and Chicago citations", async () => {
+  const { formatBibTeX, formatAPA, formatChicago, formatJSON } =
+    await vite.ssrLoadModule("/lib/citations.ts");
+
+  const sampleEvent = {
+    id: "evt-1996-election",
+    slug: "1996-first-prime-ministerial-election",
+    eventName: "Victory in Direct Prime Ministerial Election",
+    startDate: "1996-05-29",
+    sourceIds: ["src-knesset-1996"],
+  };
+
+  const sampleSource = {
+    id: "src-knesset-1996",
+    title: "Official Election Protocols",
+    publisher: "Knesset Archives",
+    url: "https://knesset.gov.il/archives/1996",
+  };
+
+  const bibtex = formatBibTeX(sampleEvent, sampleSource);
+  assert.match(bibtex, /@misc\{rewind_evt_1996_election/);
+  assert.match(bibtex, /title = \{Victory in Direct Prime Ministerial Election\}/);
+  assert.match(bibtex, /year = \{1996\}/);
+
+  const apa = formatAPA(sampleEvent, sampleSource);
+  assert.match(apa, /Knesset Archives\. \(1996, May 29\)\. Victory in Direct Prime Ministerial Election/);
+
+  const chicago = formatChicago(sampleEvent, sampleSource);
+  assert.match(chicago, /"Victory in Direct Prime Ministerial Election," Knesset Archives/);
+
+  const json = JSON.parse(formatJSON(sampleEvent, sampleSource));
+  assert.equal(json.id, "evt-1996-election");
+  assert.equal(json.atlasMetadata.generator, "REWIND Evidence Atlas v1.0");
+});
