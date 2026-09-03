@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Shell } from "@/components/rewind/Shell";
+import { z } from "zod";
 
 interface CandidateItem {
   id: string;
@@ -50,11 +53,45 @@ interface Stats {
   autoPublishedCount: number;
 }
 
-interface ParsedCandidateExtraction {
-  summary?: string;
-  eventType?: string;
-  claims?: { subjectMention: string; statement: string }[];
+const CandidatePayloadSchema = z.object({
+  summary: z.string().optional(),
+  eventType: z.string().optional(),
+  venue: z.string().optional(),
+  city: z.string().optional(),
+  claims: z
+    .array(
+      z.object({
+        subjectMention: z.string(),
+        statement: z.string(),
+        claimType: z.string().optional(),
+      })
+    )
+    .optional(),
+  participants: z
+    .array(
+      z.object({
+        name: z.string(),
+        role: z.string().optional(),
+      })
+    )
+    .optional(),
+});
+
+type ParsedCandidateExtraction = z.infer<typeof CandidatePayloadSchema>;
+
+function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
+  try {
+    const json = JSON.parse(raw);
+    const parsed = CandidatePayloadSchema.safeParse(json);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    return typeof json === "object" && json !== null ? (json as ParsedCandidateExtraction) : {};
+  } catch {
+    return {};
+  }
 }
+
 
 export default function EvidenceControlConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -82,24 +119,29 @@ export default function EvidenceControlConsole() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    fetch("/api/admin/evidence")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!isMounted) return;
-        setStats(data.stats);
-        setQueue(data.queue || []);
-        setAudit(data.audit || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (isMounted) setLoading(false);
-      });
-
+    let ignore = false;
+    async function loadInitial() {
+      try {
+        const res = await fetch("/api/admin/evidence");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!ignore) {
+          setStats(data.stats);
+          setQueue(data.queue || []);
+          setAudit(data.audit || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial evidence data:", err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    loadInitial();
     return () => {
-      isMounted = false;
+      ignore = true;
     };
   }, []);
+
 
   async function handleAction(action: "approve" | "merge" | "reject", candidateId: string, targetEventId?: string) {
     try {
@@ -111,27 +153,38 @@ export default function EvidenceControlConsole() {
           candidateId,
           targetEventId,
           reason: "Editorial review sign-off",
-          editorName: "Senior Historical Editor",
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setStatusMessage(`Candidate ${candidateId} successfully ${action}d.`);
         fetchConsoleData();
+        setTimeout(() => setStatusMessage(null), 4000);
+      } else {
+        setStatusMessage(`Error: ${data.error || "Action failed"}`);
         setTimeout(() => setStatusMessage(null), 4000);
       }
     } catch (err) {
       console.error("Action error:", err);
+      setStatusMessage("Network or server error during action execution.");
     }
   }
 
-  const pendingItems = queue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75));
-  const duplicateItems = queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75);
+  const pendingItems = useMemo(
+    () => queue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75)),
+    [queue]
+  );
+  const duplicateItems = useMemo(
+    () => queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75),
+    [queue]
+  );
 
   return (
     <Shell>
-      <main className="evidence-console-main">
+      <div className="evidence-console-main">
         {/* Header */}
+
         <header className="evidence-console-header">
           <div className="header-meta">
             <span className="forensic-tag">
@@ -158,7 +211,7 @@ export default function EvidenceControlConsole() {
         </header>
 
         {statusMessage && (
-          <div className="status-banner">
+          <div className="status-banner" role="status" aria-live="polite">
             <CheckCircle2 size={16} />
             <span>{statusMessage}</span>
           </div>
@@ -269,11 +322,9 @@ export default function EvidenceControlConsole() {
                 </div>
               ) : (
                 <div className="candidate-card-list">
-                  {pendingItems.map((c) => {
-                    let parsed: ParsedCandidateExtraction = {};
-                    try {
-                      parsed = JSON.parse(c.rawExtraction) as ParsedCandidateExtraction;
-                    } catch {}
+                  {pendingItems.map((c: CandidateItem) => {
+                    const parsed = parseCandidateExtraction(c.rawExtraction);
+
 
                     return (
                       <div key={c.id} className="candidate-card">
@@ -352,7 +403,8 @@ export default function EvidenceControlConsole() {
                 </div>
               ) : (
                 <div className="candidate-card-list">
-                  {duplicateItems.map((c) => (
+                  {duplicateItems.map((c: CandidateItem) => (
+
                     <div key={c.id} className="candidate-card duplicate-card">
                       <div className="duplicate-alert-banner">
                         <GitMerge size={15} />
@@ -405,7 +457,7 @@ export default function EvidenceControlConsole() {
           {activeTab === "audit" && (
             <div className="audit-stage">
               <div className="audit-table-card">
-                <table className="audit-table">
+                <table className="audit-table" aria-label="Immutable Evidence Engine Audit Log">
                   <thead>
                     <tr>
                       <th scope="col">Time</th>
@@ -432,8 +484,11 @@ export default function EvidenceControlConsole() {
                         return (
                           <tr key={entry.id}>
                             <td className="time-col">
-                              {new Date(entry.recordedAt).toLocaleTimeString()}
+                              <time dateTime={new Date(entry.recordedAt).toISOString()}>
+                                {new Date(entry.recordedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
+                              </time>
                             </td>
+
                             <td>
                               <span className={`audit-action-pill ${entry.action}`}>
                                 {entry.action}
@@ -456,7 +511,7 @@ export default function EvidenceControlConsole() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </Shell>
   );
 }

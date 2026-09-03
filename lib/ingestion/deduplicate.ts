@@ -37,31 +37,44 @@ export function findDuplicateEvent(
   const candidateDate = candidate.startDate.slice(0, 10);
   const candCity = candidate.city.toLowerCase().replace(/[^\w\s]/g, "").trim();
 
+  let highestMatch: DeduplicationMatch = { isDuplicate: false, similarity: 0.0 };
+
   for (const existing of store.events) {
     const existingDate = existing.startDate.slice(0, 10);
     const existingPlace = store.places.find((p) => p.id === existing.placeId);
     const existingCity = existingPlace?.city.toLowerCase().replace(/[^\w\s]/g, "").trim() || "";
 
-    const cityMatches =
-      !existingCity ||
-      !candCity ||
-      existingCity === candCity ||
-      existingCity.includes(candCity) ||
-      candCity.includes(existingCity);
+    // 1. Date match (required base prerequisite)
+    if (existingDate !== candidateDate) continue;
+    const dateScore = 0.30;
 
-    // Check same date and matching city
-    if (existingDate === candidateDate && cityMatches) {
-      // Calculate title / summary lexical similarity
-      const titleSim = tokenSimilarity(candidate.title, existing.title);
-      const summarySim = tokenSimilarity(candidate.summary, existing.summary);
-      const textSim = Math.max(titleSim, summarySim);
+    // 2. City match
+    let cityScore = 0.0;
+    if (existingCity && candCity) {
+      if (existingCity === candCity || existingCity.includes(candCity) || candCity.includes(existingCity)) {
+        cityScore = 0.20;
+      }
+    } else {
+      cityScore = 0.05; // Neutral when city is unspecified
+    }
 
-      // Same event type
-      const typeMatch = existing.eventType === candidate.eventType ? 0.3 : 0.0;
-      const combinedScore = 0.4 + (textSim * 0.4) + typeMatch;
+    // 3. Event Type match
+    const typeScore = existing.eventType === candidate.eventType ? 0.15 : 0.0;
 
-      if (combinedScore >= 0.65) {
-        return {
+    // 4. Text / lexical similarity
+    const titleSim = tokenSimilarity(candidate.title, existing.title);
+    const summarySim = tokenSimilarity(candidate.summary, existing.summary || "");
+    const textSim = Math.max(titleSim, summarySim);
+    const textScore = textSim * 0.35;
+
+    const combinedScore = dateScore + cityScore + typeScore + textScore;
+
+    // Enforce minimum lexical text similarity (0.20) or near-identical title to prevent collapsing distinct same-day events
+    const hasSufficientLexicalAgreement = textSim >= 0.20 || candidate.title.toLowerCase() === existing.title.toLowerCase();
+
+    if (combinedScore >= 0.70 && hasSufficientLexicalAgreement) {
+      if (combinedScore > highestMatch.similarity) {
+        highestMatch = {
           isDuplicate: true,
           similarity: Math.min(1.0, combinedScore),
           matchedEventId: existing.id,
@@ -71,8 +84,5 @@ export function findDuplicateEvent(
     }
   }
 
-  return {
-    isDuplicate: false,
-    similarity: 0.0,
-  };
+  return highestMatch;
 }

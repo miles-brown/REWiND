@@ -52,7 +52,7 @@ graph LR
    npm run build:vercel
 
    # 4. Automated Tests
-   node --test tests/ui-components.test.mjs
+   node --test tests/*.test.mjs
    ```
 
 4. **Commit**:
@@ -65,15 +65,21 @@ graph LR
    ```
 
 6. **Trigger Automated AI Code Reviews**:
-   - Every time a PR is opened or new commits are pushed to an open PR, automatically trigger a review:
+   - **Gemini AI Review Agent**: Automatically runs in GitHub Actions on every PR push (`.github/workflows/gemini-pr-review.yml`) or locally via `npm run review:gemini`.
+   - **Codex AI Review**:
      ```bash
      gh pr comment <PR_NUMBER> --repo miles-brown/REWiND --body "@codex review"
      ```
-   - Inspect and address any feedback raised by Codex, CodeRabbit, GitHub Copilot, or Gemini.
+   - **CodeRabbit AI Review** (On-Demand to preserve free quotas):
+     ```bash
+     gh pr comment <PR_NUMBER> --repo miles-brown/REWiND --body "@coderabbitai review"
+     ```
+   - Inspect and address all forensic findings raised by Gemini, Codex, CodeRabbit, or GitHub Copilot.
 
 7. **Wait for User Review & Merge Sign-Off**:
    - Provide the PR URL and a clear walkthrough summary to the user.
    - Do **NOT** merge the PR until the user has reviewed and approved it.
+
 
 ---
 

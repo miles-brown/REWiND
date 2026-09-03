@@ -34,9 +34,11 @@ export function evaluatePublicationPolicy(
     };
   }
 
-  // 2. Unresolved or Low-Confidence Entities
-  const hasUnresolvedEntity = entityResolutions.some((e) => !e.personId || e.confidence < 0.95);
-  if (hasUnresolvedEntity) {
+  // 2. Unresolved, Low-Confidence, or Unapproved Entities
+  const hasUnresolvedOrUnapprovedEntity = entityResolutions.some(
+    (e) => !e.personId || e.confidence < 0.95 || !e.isApprovedSubject
+  );
+  if (hasUnresolvedOrUnapprovedEntity) {
     return {
       lane: "human-review",
       ruleId: "REW-POL-UNRESOLVED-ENTITY",
