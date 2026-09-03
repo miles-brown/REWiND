@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Shell } from "@/components/rewind/Shell";
+import { z } from "zod";
 
 interface CandidateItem {
   id: string;
@@ -52,11 +53,45 @@ interface Stats {
   autoPublishedCount: number;
 }
 
-interface ParsedCandidateExtraction {
-  summary?: string;
-  eventType?: string;
-  claims?: { subjectMention: string; statement: string }[];
+const CandidatePayloadSchema = z.object({
+  summary: z.string().optional(),
+  eventType: z.string().optional(),
+  venue: z.string().optional(),
+  city: z.string().optional(),
+  claims: z
+    .array(
+      z.object({
+        subjectMention: z.string(),
+        statement: z.string(),
+        claimType: z.string().optional(),
+      })
+    )
+    .optional(),
+  participants: z
+    .array(
+      z.object({
+        name: z.string(),
+        role: z.string().optional(),
+      })
+    )
+    .optional(),
+});
+
+type ParsedCandidateExtraction = z.infer<typeof CandidatePayloadSchema>;
+
+function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
+  try {
+    const json = JSON.parse(raw);
+    const parsed = CandidatePayloadSchema.safeParse(json);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    return typeof json === "object" && json !== null ? (json as ParsedCandidateExtraction) : {};
+  } catch {
+    return {};
+  }
 }
+
 
 export default function EvidenceControlConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -288,11 +323,8 @@ export default function EvidenceControlConsole() {
               ) : (
                 <div className="candidate-card-list">
                   {pendingItems.map((c: CandidateItem) => {
+                    const parsed = parseCandidateExtraction(c.rawExtraction);
 
-                    let parsed: ParsedCandidateExtraction = {};
-                    try {
-                      parsed = JSON.parse(c.rawExtraction) as ParsedCandidateExtraction;
-                    } catch {}
 
                     return (
                       <div key={c.id} className="candidate-card">
