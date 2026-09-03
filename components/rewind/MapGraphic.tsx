@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Layers, ZoomIn, ZoomOut } from "lucide-react";
-import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/data/rewind";
 
 // Standard equirectangular projection helper for SVG mode
@@ -27,6 +27,33 @@ function isWebGLAvailable() {
 }
 
 const CARTO_DARK_MATTER_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+
+// Fallback raster tile style specification if vector GL JSON fails or is blocked
+const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "carto-dark-raster": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "carto-dark-base",
+      type: "raster",
+      source: "carto-dark-raster",
+      minzoom: 0,
+      maxzoom: 19,
+    },
+  ],
+};
 
 export function MapGraphic({
   events,
@@ -102,11 +129,13 @@ export function MapGraphic({
     return d;
   }, [coords]);
 
-  // Initialize MapLibre GL instance
+  // Initialize MapLibre GL instance strictly tied to mapMode lifecycle
   useEffect(() => {
     if (mapMode !== "webgl" || typeof window === "undefined" || !mapContainerRef.current) return;
 
     let isCancelled = false;
+    let localMap: MapLibreMap | null = null;
+    let fallbackAttempted = false;
 
     async function initMap() {
       try {
@@ -119,9 +148,7 @@ export function MapGraphic({
         const { Map } = await import("maplibre-gl");
         if (isCancelled || !mapContainerRef.current) return;
 
-        const initialCenter: [number, number] = selectedEvent
-          ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Jerusalem default
+        const initialCenter: [number, number] = [35.2137, 31.7683]; // Default Levant / Jerusalem coordinates
 
         const map = new Map({
           container: mapContainerRef.current,
@@ -129,61 +156,77 @@ export function MapGraphic({
           center: initialCenter,
           zoom: 3.5,
           pitch: 25,
-          attributionControl: false,
+          attributionControl: { compact: true },
+        });
+
+        localMap = map;
+        mapInstanceRef.current = map;
+
+        // Register style and network error handler to fallback gracefully
+        map.on("error", (e) => {
+          if (!fallbackAttempted && (e.error?.message?.includes("style") || e.error?.message?.includes("fetch"))) {
+            fallbackAttempted = true;
+            console.warn("MapLibre switching to fallback raster dark tiles due to style error:", e.error);
+            try {
+              map.setStyle(FALLBACK_RASTER_DARK_STYLE);
+            } catch {
+              setWebGlSupported(false);
+              setMapMode("svg");
+            }
+          }
         });
 
         map.on("load", () => {
           if (isCancelled) return;
-          mapInstanceRef.current = map;
           setMapLoaded(true);
 
-          // Add trajectory line source and layer
-          const lineCoordinates = points.length >= 2
-            ? points.map((p) => [p.longitude!, p.latitude!])
-            : [];
-          map.addSource("trajectories", {
-            type: "geojson",
-            data: {
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "LineString",
-                coordinates: lineCoordinates,
+          if (!map.getSource("trajectories")) {
+            map.addSource("trajectories", {
+              type: "geojson",
+              data: {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: [],
+                },
               },
-            },
-          });
+            });
 
-          map.addLayer({
-            id: "trajectory-line-glow",
-            type: "line",
-            source: "trajectories",
-            layout: {
-              "line-join": "round",
-              "line-cap": "round",
-            },
-            paint: {
-              "line-color": "#f59e0b",
-              "line-width": 4,
-              "line-opacity": 0.3,
-              "line-blur": 3,
-            },
-          });
+            map.addLayer({
+              id: "trajectory-line-glow",
+              type: "line",
+              source: "trajectories",
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": "#f59e0b",
+                "line-width": 4,
+                "line-opacity": 0.3,
+                "line-blur": 3,
+              },
+            });
 
-          map.addLayer({
-            id: "trajectory-line",
-            type: "line",
-            source: "trajectories",
-            layout: {
-              "line-join": "round",
-              "line-cap": "round",
-            },
-            paint: {
-              "line-color": "#fbbf24",
-              "line-width": 1.5,
-              "line-opacity": 0.85,
-              "line-dasharray": [2, 1],
-            },
-          });
+            map.addLayer({
+              id: "trajectory-line",
+              type: "line",
+              source: "trajectories",
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": "#fbbf24",
+                "line-width": 1.5,
+                "line-opacity": 0.85,
+                "line-dasharray": [2, 1],
+              },
+            });
+          }
+
+          map.resize();
         });
       } catch (err) {
         console.warn("MapLibre GL failed to initialize, falling back to SVG vector view:", err);
@@ -192,16 +235,19 @@ export function MapGraphic({
       }
     }
 
+
     initMap();
 
     return () => {
       isCancelled = true;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+      if (localMap) {
+        localMap.remove();
+        localMap = null;
       }
+      mapInstanceRef.current = null;
+      setMapLoaded(false);
     };
-  }, [mapMode, points, selectedEvent]);
+  }, [mapMode]);
 
   // Update MapLibre markers when points or selection change
   useEffect(() => {
@@ -227,19 +273,47 @@ export function MapGraphic({
       webGlClusters.forEach((clusterEvents) => {
         const topEvent = clusterEvents.find((e) => e.id === selected) || clusterEvents[clusterEvents.length - 1];
         const isSelected = clusterEvents.some((e) => e.id === selected);
+        const isVerified = clusterEvents.every((e) => e.verificationStatus === "verified");
 
-        const el = document.createElement("div");
+        // Semantic, accessible button element for WCAG AA keyboard operability
+        const el = document.createElement("button");
+        el.type = "button";
         el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
-          topEvent.verificationStatus === "verified" ? "verified" : "provisional"
+          isVerified ? "verified" : "provisional"
         }`;
-        el.innerHTML = `
-          <div class="marker-dot"></div>
-          ${clusterEvents.length > 1 ? `<span class="marker-count">${clusterEvents.length}</span>` : ""}
-          <span class="marker-tooltip">${topEvent.city}</span>
-        `;
+        el.setAttribute(
+          "aria-label",
+          `${topEvent.eventName}, ${topEvent.city} (${clusterEvents.length} documented record${
+            clusterEvents.length > 1 ? "s" : ""
+          })`
+        );
 
-        el.addEventListener("click", () => {
+        const dot = document.createElement("span");
+        dot.className = "marker-dot";
+        el.appendChild(dot);
+
+        if (clusterEvents.length > 1) {
+          const countBadge = document.createElement("span");
+          countBadge.className = "marker-count";
+          countBadge.textContent = String(clusterEvents.length);
+          el.appendChild(countBadge);
+        }
+
+        const tooltip = document.createElement("span");
+        tooltip.className = "marker-tooltip";
+        tooltip.textContent = topEvent.city;
+        el.appendChild(tooltip);
+
+        const handleActivate = () => {
           onSelect?.(topEvent.id);
+        };
+
+        el.addEventListener("click", handleActivate);
+        el.addEventListener("keydown", (evt) => {
+          if (evt.key === "Enter" || evt.key === " ") {
+            evt.preventDefault();
+            handleActivate();
+          }
         });
 
         const marker = new Marker({ element: el })
@@ -289,6 +363,7 @@ export function MapGraphic({
       <div className="map-toolbar">
         {webGlSupported && (
           <button
+            type="button"
             className={`map-tool-btn ${mapMode === "webgl" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             title={mapMode === "webgl" ? "Switch to Schematic Basemap" : "Switch to 3D WebGL Vector Map"}
@@ -301,6 +376,7 @@ export function MapGraphic({
         {mapMode === "webgl" && (
           <>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomIn()}
               aria-label="Zoom in"
@@ -308,6 +384,7 @@ export function MapGraphic({
               <ZoomIn size={13} />
             </button>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => mapInstanceRef.current?.zoomOut()}
               aria-label="Zoom out"
@@ -315,6 +392,7 @@ export function MapGraphic({
               <ZoomOut size={13} />
             </button>
             <button
+              type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
                 if (selectedEvent) {
@@ -377,6 +455,7 @@ export function MapGraphic({
             const isSelected = cluster.hasSelected;
             return (
               <button
+                type="button"
                 key={cluster.event.id}
                 onClick={() => onSelect?.(cluster.event.id)}
                 style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
@@ -400,11 +479,12 @@ export function MapGraphic({
         </div>
       )}
 
-      {/* Legend */}
+      {/* Legend & Attribution */}
       <div className="map-legend">
         <span><i className="confirmed-dot" /> Verified Record</span>
         <span><i className="provisional-dot" /> Provisional</span>
         <span><i className="arc-indicator" /> Trajectory Arc</span>
+        <span className="map-attribution">© OpenStreetMap, © CARTO</span>
       </div>
     </div>
   );
