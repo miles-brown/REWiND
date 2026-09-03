@@ -3,21 +3,21 @@ name: AI Code Review & Verification CI
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
   verify:
-    name: Typecheck, Lint & Automated Tests
+    name: Typecheck, Lint, Build & Automated Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -34,5 +34,8 @@ jobs:
       - name: ESLint Check
         run: npm run lint
 
+      - name: Production Build
+        run: npm run build:vercel
+
       - name: Run Unit Tests
-        run: node --test tests/ui-components.test.mjs
+        run: node --test tests/*.test.mjs
