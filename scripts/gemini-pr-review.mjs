@@ -59,26 +59,49 @@ Provide your review in clean GitHub-Flavored Markdown with:
 - **Review Verdict**: (✅ **APPROVED** / ⚠️ **APPROVED WITH NITS** / ❌ **CHANGES REQUESTED**)`;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 16384,
-        thinkingConfig: {
-          thinkingBudget: 0,
+  
+  let res;
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 16384,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
         },
-      },
-    }),
-  });
+      }),
+    });
 
+    if (res.ok) break;
 
-  if (!res.ok) {
     const errorText = await res.text();
+    if ((res.status === 429 || res.status === 503) && attempts < maxAttempts) {
+      let waitMs = 20000;
+      try {
+        const parsed = JSON.parse(errorText);
+        const retryInfo = parsed?.error?.details?.find((d) => d["@type"]?.includes("RetryInfo"));
+        if (retryInfo?.retryDelay) {
+          const seconds = parseInt(retryInfo.retryDelay, 10);
+          if (!isNaN(seconds)) waitMs = (seconds + 2) * 1000;
+        }
+      } catch {}
+      console.warn(`Gemini rate limited (${res.status}). Waiting ${(waitMs / 1000).toFixed(0)}s before retry ${attempts}/${maxAttempts}...`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
     throw new Error(`Gemini API error ${res.status}: ${errorText}`);
   }
+
 
   const data = await res.json();
   const candidate = data?.candidates?.[0];
