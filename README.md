@@ -1,113 +1,120 @@
-# vinext-starter
+# REWIND — Evidence Atlas
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+<p align="left">
+  <img src="https://img.shields.io/badge/Next.js-16.2.6-black?style=flat&logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19.2.6-blue?style=flat&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9.3-3178C6?style=flat&logo=typescript" alt="TypeScript 5" />
+  <img src="https://img.shields.io/badge/Accessibility-WCAG_2.1_AA-success?style=flat" alt="Accessibility WCAG AA" />
+  <img src="https://img.shields.io/badge/License-MIT-amber?style=flat" alt="License MIT" />
+</p>
 
-## Prerequisites
+**REWIND** is a forensic chronological evidence atlas. It indexes documented historical human actions, speeches, diplomatic encounters, and movements as verifiable spacetime points anchored strictly to primary archival records.
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+---
 
-## Sites Lifecycle
+## 🌟 Core Features
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+### ⏳ 1. Fluid & Fixed Chronological Time Machine
+- **Zero-lag Viewport Scrubber**: Time-console clamped to the viewport bottom with dynamic safe-area padding.
+- **Milestone & Epoch Scrubbing**: Clickable decade milestones (`1940s` ... `2020s`) for rapid macro navigation.
+- **Bidirectional "True REWIND" Mode**: Forward vs Reverse chronological playback with terminal boundary protection.
+- **Shareable Deep-Linking**: Real-time URL query parameter synchronization (`?evt=<slug>`).
 
-This starter does not use `wrangler.jsonc`.
+### 🔀 2. Cross-Timeline Comparison Matrix (`/compare` & `/relationship/[a]/[b]`)
+- Dual synchronized chronological streams comparing two historical figures side-by-side.
+- Automatically calculates and visualizes **Direct Spacetime Intersections**, shared venues, mutual cities, and bilateral encounter cards.
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+### 🗺️ 3. Vector Basemaps & Animated Geodesic Flight Arcs
+- High-fidelity vector continental coastlines (North America, Europe, Africa, Levant/Middle East).
+- Animated glowing geodesic flight trajectories connecting consecutive international movements.
+- Proximity cluster aggregation with density count badges (e.g. `+14` events in Jerusalem).
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+### 🔍 4. Global `⌘K` Command Palette
+- Instant search across **Events**, **People**, **Quotes & Speeches**, **Places**, and **Sources** with keyboard arrow navigation.
 
-## Included Shape
+### 📻 5. Archival Speech & Media Vault
+- Embedded waveform visualizer, verbatim quote excerpts carousel, speaker metadata, and one-click quote copying.
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+### 📜 6. Academic Citation & Provenance Exporter
+- One-click copy and download for **BibTeX**, **APA 7th Edition**, **Chicago 17th Edition**, and structured **JSON** exports on both the timeline and event pages.
 
-## Workspace Auth Headers
+### 🛡️ 7. Forensic Evidentiary & Discrepancy Audit
+- Full breakdown of confidence metrics, temporal/geospatial precision scores, and multi-step verification provenance trails.
 
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
+---
 
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
+## 🎹 Keyboard Shortcuts Cheat Sheet
 
-Treat the full name as optional and fall back to email when it is absent:
+| Key | Action |
+| :--- | :--- |
+| <kbd>→</kbd> / <kbd>←</kbd> | Step forward / backward 1 event |
+| <kbd>Shift</kbd> + <kbd>→</kbd> / <kbd>←</kbd> | Jump forward / backward 5 events |
+| <kbd>Space</kbd> | Play / Pause automated timeline playback |
+| <kbd>Home</kbd> / <kbd>End</kbd> | Jump to earliest / latest documented record |
+| <kbd>R</kbd> | Toggle playback direction between Forward and REWIND |
+| <kbd>?</kbd> | Toggle keyboard shortcut reference banner |
+| <kbd>⌘</kbd> + <kbd>K</kbd> / <kbd>Ctrl</kbd> + <kbd>K</kbd> | Open global search command palette |
 
-```tsx
-import { headers } from "next/headers";
+---
 
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
+## 🚀 Quickstart
 
-  const displayName = fullName ?? email;
-  // ...
-}
+### Prerequisites
+- **Node.js**: `>=22.13.0`
+- **npm**: `>=10.0.0`
+
+### Installation & Local Run
+```bash
+# 1. Clone the repository
+git clone https://github.com/miles-brown/Lifespan.git rewind
+cd rewind
+
+# 2. Install dependencies
+npm install
+
+# 3. Create your local environment configuration
+cp .env.example .env.local
+
+# 4. Start development server
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+---
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- In a Server Component, start sign-in with
-  `<a href={chatGPTSignInPath(returnTo)} target="_top">`. The auth helper
-  module is server-only; do not import it into a Client Component.
-- Do not use `fetch`, XHR, a client-side router, or a framework link that can
-  prefetch the sign-in route. SIWC must start as a top-level navigation.
-- Never request the AuthAPI authorization endpoint directly. The dispatch-owned
-  `/signin-with-chatgpt` route must start the SIWC flow.
-- Use `chatGPTSignOutPath(returnTo)` for browser sign-out links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+## 📚 Documentation Index
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+| Guide | Description |
+| :--- | :--- |
+| [**Architecture & System Overview**](docs/architecture/system-overview.md) | High-level system architecture, client vs server component boundaries, and directory layout. |
+| [**Getting Started**](docs/guides/getting-started.md) | Development setup, configuration, and script definitions. |
+| [**Keyboard Shortcuts**](docs/guides/keyboard-shortcuts.md) | Comprehensive hotkey cheat sheet and accessibility navigation. |
+| [**Forensic Methodology**](docs/METHODOLOGY.md) | Evidence tiers (Tier 1 Primary vs Tier 2 Contemporary Secondary), verification scoring, and coordinate precision rules. |
+| [**Data Schema Contract**](docs/DATA_SCHEMA.md) | TypeScript entity schemas for `EventRecord`, `Person`, `Source`, precision types, and verification ratings. |
+| [**Accessibility Standards**](docs/ACCESSIBILITY.md) | WAI-ARIA slider implementation, live region announcements (`aria-live="polite"`), and reduced-motion guidelines. |
+| [**Contributing Guide**](docs/CONTRIBUTING.md) | Git workflow, conventional commit formatting, and PR submission checklist. |
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+---
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+## 🧪 Verification & Testing Commands
 
-## Diagnostic Commands
+```bash
+# Typecheck TypeScript definitions
+npx tsc --noEmit
 
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build and verify the rendered development-preview metadata
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+# Run ESLint across codebase
+npm run lint
 
-Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
+# Run Next.js production build verification
+npm run build:vercel
 
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
+# Run automated unit test suite
+node --test tests/ui-components.test.mjs
+```
 
-## Learn More
+---
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+## 📄 License
+
+Open-source under the [MIT License](LICENSE).
