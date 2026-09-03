@@ -66,10 +66,14 @@ Provide your review in clean GitHub-Flavored Markdown with:
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     }),
   });
+
 
   if (!res.ok) {
     const errorText = await res.text();
