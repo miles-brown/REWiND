@@ -120,3 +120,16 @@ export interface Source {
   language: string;                             // Language of source material
 }
 ```
+
+---
+
+## 3. Event Model v2 (Knowledge Graph Architecture)
+
+For detailed architectural principles, relational PostgreSQL Drizzle models, tri-state factual indicators, and the complete 35-property field migration matrix from `EventRecord` to `EventV2`, consult:
+
+- **Architectural Specification & Field Matrix**: [EVENT_MODEL_V2.md](./architecture/EVENT_MODEL_V2.md)
+- **TypeScript Entities & Zod Contracts**: [event-v2.ts](../lib/models/event-v2.ts)
+- **Relational PostgreSQL Schema**: [schema-v2.ts](../db/schema-v2.ts)
+- **Bidirectional Migration Adapter**: [event-v2-adapter.ts](../lib/adapters/event-v2-adapter.ts)
+
+
