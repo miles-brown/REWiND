@@ -13,8 +13,8 @@ Thank you for contributing to the **REWIND Evidence Atlas**. Follow these guidel
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/miles-brown/Lifespan.git
-cd Lifespan
+git clone https://github.com/miles-brown/REWiND.git
+cd REWiND
 
 # Install dependencies
 npm install

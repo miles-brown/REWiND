@@ -17,8 +17,8 @@ Ensure your development environment meets the following requirements:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/miles-brown/Lifespan.git rewind
-cd rewind
+git clone https://github.com/miles-brown/REWiND.git
+cd REWiND
 
 # 2. Install dependencies
 npm install
