@@ -71,7 +71,15 @@ export function RewindExplorer() {
 
   return (
     <section className="rewind-workspace" aria-label="Interactive Rewind explorer">
+      {/* Live Region for Screen Readers: announces filter updates and timeline playback status */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {playing
+          ? `Timeline playing ${direction === "backward" ? "in reverse" : "forward"}. Event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`
+          : `Showing ${filtered.length} documented events. Selected event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`}
+      </div>
+
       <div className="workspace-toolbar">
+
         <div className="person-lockup">
           <span className="person-dot" />
           <div>
