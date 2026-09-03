@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Layers, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/data/rewind";
@@ -130,64 +130,12 @@ export function MapGraphic({
     return d;
   }, [coords]);
 
-  // Helper to attach trajectories layer to map instance
-  const attachTrajectoriesLayer = useCallback((map: MapLibreMap) => {
-    if (map.getSource("trajectories")) return;
-
-    const lineCoordinates = points.length >= 2
-      ? points.map((p) => [p.longitude!, p.latitude!])
-      : [];
-
-    map.addSource("trajectories", {
-      type: "geojson",
-      data: {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: lineCoordinates,
-        },
-      },
-    });
-
-    map.addLayer({
-      id: "trajectory-line-glow",
-      type: "line",
-      source: "trajectories",
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": "#f59e0b",
-        "line-width": 4,
-        "line-opacity": 0.35,
-        "line-blur": 3,
-      },
-    });
-
-    map.addLayer({
-      id: "trajectory-line",
-      type: "line",
-      source: "trajectories",
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": "#fbbf24",
-        "line-width": 2,
-        "line-opacity": 0.9,
-        "line-dasharray": [2, 1],
-      },
-    });
-  }, [points]);
-
-  // Initialize MapLibre GL instance
+  // Initialize MapLibre GL instance strictly tied to mapMode lifecycle
   useEffect(() => {
     if (mapMode !== "webgl" || typeof window === "undefined" || !mapContainerRef.current) return;
 
     let isCancelled = false;
+    let localMap: MapLibreMap | null = null;
     let fallbackAttempted = false;
 
     async function initMap() {
@@ -203,7 +151,7 @@ export function MapGraphic({
 
         const initialCenter: [number, number] = selectedEvent
           ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Default to Levant / Jerusalem
+          : [35.2137, 31.7683]; // Default Levant / Jerusalem coordinates
 
         const map = new Map({
           container: mapContainerRef.current,
@@ -211,11 +159,14 @@ export function MapGraphic({
           center: initialCenter,
           zoom: 3.8,
           pitch: 25,
-          attributionControl: false,
+          attributionControl: { compact: true },
         });
 
+        localMap = map;
+        mapInstanceRef.current = map;
+
+        // Register style and network error handler to fallback gracefully
         map.on("error", (e) => {
-          // If CARTO vector style encounters fetch/parsing error, fallback to resilient raster dark tiles
           if (!fallbackAttempted && (e.error?.message?.includes("style") || e.error?.message?.includes("fetch"))) {
             fallbackAttempted = true;
             console.warn("Switching MapLibre to resilient fallback dark style due to remote style error:", e.error);
@@ -230,9 +181,58 @@ export function MapGraphic({
 
         map.on("load", () => {
           if (isCancelled) return;
-          mapInstanceRef.current = map;
           setMapLoaded(true);
-          attachTrajectoriesLayer(map);
+
+          if (!map.getSource("trajectories")) {
+            const lineCoordinates = points.length >= 2
+              ? points.map((p) => [p.longitude!, p.latitude!])
+              : [];
+
+            map.addSource("trajectories", {
+              type: "geojson",
+              data: {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: lineCoordinates,
+                },
+              },
+            });
+
+            map.addLayer({
+              id: "trajectory-line-glow",
+              type: "line",
+              source: "trajectories",
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": "#f59e0b",
+                "line-width": 4,
+                "line-opacity": 0.35,
+                "line-blur": 3,
+              },
+            });
+
+            map.addLayer({
+              id: "trajectory-line",
+              type: "line",
+              source: "trajectories",
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": "#fbbf24",
+                "line-width": 2,
+                "line-opacity": 0.9,
+                "line-dasharray": [2, 1],
+              },
+            });
+          }
+
           map.resize();
         });
 
@@ -253,13 +253,14 @@ export function MapGraphic({
 
     return () => {
       isCancelled = true;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        setMapLoaded(false);
+      if (localMap) {
+        localMap.remove();
+        localMap = null;
       }
+      mapInstanceRef.current = null;
+      setMapLoaded(false);
     };
-  }, [mapMode, attachTrajectoriesLayer, selectedEvent]);
+  }, [mapMode, points, selectedEvent]);
 
   // Keep MapLibre canvas dimensions in sync with CSS container layout
   useEffect(() => {
@@ -298,43 +299,54 @@ export function MapGraphic({
       grouped.forEach((eventList) => {
         const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
         if (rep.latitude == null || rep.longitude == null) return;
+        const { longitude, latitude } = rep;
 
         const isSelected = eventList.some((e) => e.id === selected);
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
-        const el = document.createElement("div");
-        el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${isVerified ? "verified" : "provisional"}`;
-        el.setAttribute("role", "button");
-        el.setAttribute("tabindex", "0");
-        el.setAttribute("aria-label", `${rep.eventName} in ${rep.city} (${eventList.length} records)`);
+        // Semantic, accessible button element for WCAG AA keyboard operability
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
+          isVerified ? "verified" : "provisional"
+        }`;
+        el.setAttribute(
+          "aria-label",
+          `${rep.eventName}, ${rep.city} (${eventList.length} documented record${
+            eventList.length > 1 ? "s" : ""
+          })`
+        );
 
         const dot = document.createElement("span");
         dot.className = "marker-dot";
         el.appendChild(dot);
 
         if (eventList.length > 1) {
-          const badge = document.createElement("span");
-          badge.className = "marker-count";
-          badge.textContent = String(eventList.length);
-          el.appendChild(badge);
+          const countBadge = document.createElement("span");
+          countBadge.className = "marker-count";
+          countBadge.textContent = String(eventList.length);
+          el.appendChild(countBadge);
         }
 
-        const tooltip = document.createElement("div");
+        const tooltip = document.createElement("span");
         tooltip.className = "marker-tooltip";
         tooltip.textContent = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
         el.appendChild(tooltip);
 
-        const handleClick = () => onSelect?.(rep.id);
-        el.addEventListener("click", handleClick);
+        const handleActivate = () => {
+          onSelect?.(rep.id);
+        };
+
+        el.addEventListener("click", handleActivate);
         el.addEventListener("keydown", (evt) => {
           if (evt.key === "Enter" || evt.key === " ") {
             evt.preventDefault();
-            handleClick();
+            handleActivate();
           }
         });
 
         const marker = new Marker({ element: el })
-          .setLngLat([rep.longitude, rep.latitude])
+          .setLngLat([longitude, latitude])
           .addTo(map);
 
         markersRef.current.push(marker);
@@ -344,7 +356,9 @@ export function MapGraphic({
       const source = map.getSource("trajectories") as GeoJSONSource | undefined;
       if (source && "setData" in source) {
         const lineCoords = points.length >= 2
-          ? points.map((p) => [p.longitude!, p.latitude!])
+          ? points
+              .filter((p): p is typeof p & { longitude: number; latitude: number } => p.longitude != null && p.latitude != null)
+              .map(({ longitude, latitude }) => [longitude, latitude])
           : [];
         source.setData({
           type: "Feature",
@@ -355,6 +369,7 @@ export function MapGraphic({
           },
         });
       }
+
     });
   }, [points, selected, mapLoaded, mapMode, onSelect]);
 
@@ -509,11 +524,12 @@ export function MapGraphic({
         </div>
       )}
 
-      {/* Legend */}
+      {/* Legend & Attribution */}
       <div className="map-legend">
         <span><i className="confirmed-dot" /> Verified</span>
         <span><i className="provisional-dot" /> Provisional</span>
-        <span><i className="arc-indicator" /> Trajectory</span>
+        <span><i className="arc-indicator" /> Trajectory Arc</span>
+        <span className="map-attribution">© OpenStreetMap, © CARTO</span>
       </div>
     </div>
   );

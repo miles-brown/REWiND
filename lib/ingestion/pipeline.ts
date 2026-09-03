@@ -1,8 +1,9 @@
 import { getRelationalStore } from "@/lib/db/client";
-import type {
-  ExtractedCandidateEvent,
-  RawEvidenceItem,
-  IngestionResult,
+import {
+  ExtractedCandidateEventSchema,
+  type ExtractedCandidateEvent,
+  type RawEvidenceItem,
+  type IngestionResult,
 } from "./types";
 import { resolveEntity, resolvePlace } from "./resolve";
 import { calculateEventFingerprint, findDuplicateEvent } from "./deduplicate";
@@ -10,9 +11,11 @@ import { evaluatePublicationPolicy } from "./policy-evaluator";
 import { recordAuditEvent } from "./audit";
 
 export function processCandidateEvent(
-  candidate: ExtractedCandidateEvent,
+  rawCandidate: ExtractedCandidateEvent,
   source: RawEvidenceItem
 ): IngestionResult {
+  // Validate candidate schema strictly (calendar dates, range validation, field lengths)
+  const candidate = ExtractedCandidateEventSchema.parse(rawCandidate);
   const store = getRelationalStore();
 
   // 1. Resolve Entities
@@ -169,11 +172,32 @@ export function processCandidateEvent(
       );
     }
   } else {
-    // HUMAN REVIEW QUEUE PATH: Store in candidateEvents
+    // HUMAN REVIEW QUEUE PATH: Idempotent insertion by fingerprint
+    const existingPending = store.candidateEvents.find(
+      (c) => c.fingerprint === fingerprint && c.status === "pending"
+    );
+
+    if (existingPending) {
+      // Reuse existing pending candidate without duplicating queue
+      const auditEntry = store.auditLog[0];
+      return {
+        candidateId: existingPending.id,
+        fingerprint,
+        lane: policy.lane,
+        publishedEventId: undefined,
+        deduplication,
+        policy,
+        auditId: auditEntry ? auditEntry.id : 0,
+      };
+    }
+
+    // Embed sourceId with rawExtraction payload so approval preserves citation
+    const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
+
     store.candidateEvents.unshift({
       id: candidateId,
       fingerprint,
-      rawExtraction: JSON.stringify(candidate),
+      rawExtraction: rawPayload,
       suggestedTitle: candidate.title,
       suggestedDate: candidate.startDate,
       suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
