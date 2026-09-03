@@ -424,7 +424,11 @@ export default function EvidenceControlConsole() {
                             className="action-btn approve"
                             onClick={() => handleAction("approve", c.id)}
                           >
-                            <CheckCircle2 size={14} />
+                            {submittingCandidateId === c.id ? (
+                              <RefreshCw size={14} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={14} />
+                            )}
                             <span>{submittingCandidateId === c.id ? "Publishing..." : "Approve & Publish"}</span>
                           </button>
                           <button
@@ -437,6 +441,7 @@ export default function EvidenceControlConsole() {
                             <span>Reject</span>
                           </button>
                         </div>
+
 
                       </div>
                     );
@@ -481,9 +486,14 @@ export default function EvidenceControlConsole() {
                           className="action-btn merge"
                           onClick={() => handleAction("merge", c.id, c.duplicateMatchId || undefined)}
                         >
-                          <GitMerge size={14} />
+                          {submittingCandidateId === c.id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <GitMerge size={14} />
+                          )}
                           <span>{submittingCandidateId === c.id ? "Merging..." : "Merge Claims into Existing Record"}</span>
                         </button>
+
                         <button
                           type="button"
                           disabled={submittingCandidateId === c.id}
