@@ -1,0 +1,66 @@
+import assert from "node:assert/strict";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+import { createServer } from "vite";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const vite = await createServer({
+  appType: "custom",
+  configFile: false,
+  root,
+  resolve: { alias: { "@": root } },
+  server: { middlewareMode: true },
+});
+
+after(async () => {
+  await vite.close();
+});
+
+test("exports Supabase client configurations and server factory", async () => {
+  const { isSupabaseConfigured, createRewindBrowserClient } = await vite.ssrLoadModule("/lib/supabase/client.ts");
+  const { getSupabaseServerClient, getRewindServerClient, isSupabaseServerConfigured } = await vite.ssrLoadModule("/lib/supabase/server.ts");
+
+  assert.equal(typeof isSupabaseConfigured, "boolean");
+  assert.equal(typeof isSupabaseServerConfigured, "boolean");
+  assert.equal(typeof getSupabaseServerClient, "function");
+  assert.equal(typeof getRewindServerClient, "function");
+  assert.equal(typeof createRewindBrowserClient, "function");
+
+  const serverClient = getSupabaseServerClient();
+  const rewindClient = getRewindServerClient();
+  if (isSupabaseServerConfigured) {
+    assert.ok(serverClient !== null);
+    assert.ok(rewindClient !== null);
+  } else {
+    assert.equal(serverClient, null);
+    assert.equal(rewindClient, null);
+  }
+
+});
+
+test("provides healthy database instance and in-memory store fallback", async () => {
+  const { getDb, getRelationalStore, isLiveDbConnected } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  assert.equal(typeof isLiveDbConnected, "boolean");
+  assert.equal(typeof getDb, "function");
+
+  const store = getRelationalStore();
+  assert.ok(store.people.length > 0);
+  assert.ok(store.events.length > 0);
+  assert.ok(store.sources.length > 0);
+  assert.ok(store.places.length > 0);
+});
+
+test("verifies PostgreSQL schema entities and table definitions", async () => {
+  const schema = await vite.ssrLoadModule("/db/schema.ts");
+
+  assert.ok(schema.people);
+  assert.ok(schema.places);
+  assert.ok(schema.events);
+  assert.ok(schema.sources);
+  assert.ok(schema.claims);
+  assert.ok(schema.candidateEvents);
+  assert.ok(schema.reviewDecisions);
+  assert.ok(schema.auditLog);
+  assert.ok(schema.coverageProgrammes);
+});

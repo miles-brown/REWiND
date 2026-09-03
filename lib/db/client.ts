@@ -1,5 +1,26 @@
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "@/db/schema";
 import { people, events, sources } from "@/data/rewind";
+
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+export const isLiveDbConnected = Boolean(
+  connectionString && (connectionString.startsWith("postgres://") || connectionString.startsWith("postgresql://"))
+);
+
+// Global Drizzle ORM client connected to live PostgreSQL / Supabase
+let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
+
+export function getDb() {
+  if (liveDb) return liveDb;
+  if (isLiveDbConnected && connectionString) {
+    const client = postgres(connectionString, { max: 10, prepare: false });
+    liveDb = drizzle(client, { schema });
+    return liveDb;
+  }
+  return null;
+}
 
 // In-memory relational state cache used when a live PostgreSQL instance is not configured
 export interface MemoryRelationalStore {
@@ -141,7 +162,6 @@ function initializeSeedStore(): MemoryRelationalStore {
       aliasType: "id",
     },
   ]);
-
 
   const seedPlaces: (typeof schema.places.$inferSelect)[] = Array.from(
     new Map(
