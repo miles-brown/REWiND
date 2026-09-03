@@ -114,11 +114,16 @@ export const events = pgTable("events", {
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   description: text("description"),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date"),
-  temporalPrecision: text("temporal_precision").default("exact-day").notNull(),
+  // Forensic Archival Date Representation:
+  // Historical events span variable temporal resolutions (e.g. "1948", "1993-09", "1996-07-09", or "1996-07-09T14:30:00Z").
+  // Postgres DATE/TIMESTAMP types coerce partial dates to artificial timestamps; hence validated ISO-8601 text
+  // paired with temporalPrecision ('year' | 'month' | 'exact-day' | 'exact-minute') enforces archival fidelity.
+  startDate: text("start_date").notNull(), // ISO-8601 calendar date or timestamp (validated by Zod & CI)
+  endDate: text("end_date"), // Optional upper bound for multi-day summits / treaties
+  temporalPrecision: text("temporal_precision").default("exact-day").notNull(), // exact-minute, exact-day, month, year, decade
   placeId: text("place_id").references(() => places.id),
   verificationStatus: text("verification_status").default("verified").notNull(), // verified, provisional, disputed
+
   confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
   publicationStatus: text("publication_status").default("published").notNull(), // published, provisional, queued, rejected
   publicationLane: text("publication_lane").default("auto-publish").notNull(), // auto-publish, provisional, human-review

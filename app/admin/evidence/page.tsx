@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+
 import {
   AlertCircle,
   CheckCircle2,
@@ -82,24 +84,29 @@ export default function EvidenceControlConsole() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    fetch("/api/admin/evidence")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!isMounted) return;
-        setStats(data.stats);
-        setQueue(data.queue || []);
-        setAudit(data.audit || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (isMounted) setLoading(false);
-      });
-
+    let ignore = false;
+    async function loadInitial() {
+      try {
+        const res = await fetch("/api/admin/evidence");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!ignore) {
+          setStats(data.stats);
+          setQueue(data.queue || []);
+          setAudit(data.audit || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial evidence data:", err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    loadInitial();
     return () => {
-      isMounted = false;
+      ignore = true;
     };
   }, []);
+
 
   async function handleAction(action: "approve" | "merge" | "reject", candidateId: string, targetEventId?: string) {
     try {
@@ -111,7 +118,6 @@ export default function EvidenceControlConsole() {
           candidateId,
           targetEventId,
           reason: "Editorial review sign-off",
-          editorName: "Senior Historical Editor",
         }),
       });
 
@@ -130,8 +136,14 @@ export default function EvidenceControlConsole() {
     }
   }
 
-  const pendingItems = queue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75));
-  const duplicateItems = queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75);
+  const pendingItems = useMemo(
+    () => queue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75)),
+    [queue]
+  );
+  const duplicateItems = useMemo(
+    () => queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75),
+    [queue]
+  );
 
   return (
     <Shell>
@@ -164,7 +176,7 @@ export default function EvidenceControlConsole() {
         </header>
 
         {statusMessage && (
-          <div className="status-banner">
+          <div className="status-banner" role="status" aria-live="polite">
             <CheckCircle2 size={16} />
             <span>{statusMessage}</span>
           </div>
@@ -275,7 +287,8 @@ export default function EvidenceControlConsole() {
                 </div>
               ) : (
                 <div className="candidate-card-list">
-                  {pendingItems.map((c) => {
+                  {pendingItems.map((c: CandidateItem) => {
+
                     let parsed: ParsedCandidateExtraction = {};
                     try {
                       parsed = JSON.parse(c.rawExtraction) as ParsedCandidateExtraction;
@@ -358,7 +371,8 @@ export default function EvidenceControlConsole() {
                 </div>
               ) : (
                 <div className="candidate-card-list">
-                  {duplicateItems.map((c) => (
+                  {duplicateItems.map((c: CandidateItem) => (
+
                     <div key={c.id} className="candidate-card duplicate-card">
                       <div className="duplicate-alert-banner">
                         <GitMerge size={15} />
@@ -438,8 +452,11 @@ export default function EvidenceControlConsole() {
                         return (
                           <tr key={entry.id}>
                             <td className="time-col">
-                              {new Date(entry.recordedAt).toLocaleTimeString()}
+                              <time dateTime={new Date(entry.recordedAt).toISOString()}>
+                                {new Date(entry.recordedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
+                              </time>
                             </td>
+
                             <td>
                               <span className={`audit-action-pill ${entry.action}`}>
                                 {entry.action}
