@@ -5,14 +5,24 @@ import { Slider as SliderPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+interface SliderProps
+  extends React.ComponentProps<typeof SliderPrimitive.Root> {
+  getAriaValueText?: (value: number, index: number) => string
+  getAriaLabel?: (index: number) => string
+}
+
 function Slider({
   className,
   defaultValue,
   value,
   min = 0,
   max = 100,
+  getAriaValueText,
+  getAriaLabel,
+  "aria-label": ariaLabel,
+  "aria-valuetext": ariaValueText,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: SliderProps) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -49,15 +59,25 @@ function Slider({
           )}
         />
       </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
-        <SliderPrimitive.Thumb
-          data-slot="slider-thumb"
-          key={index}
-          className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-        />
-      ))}
+      {Array.from({ length: _values.length }, (_, index) => {
+        const thumbValue = _values[index]
+        const thumbValueText = getAriaValueText
+          ? getAriaValueText(thumbValue, index)
+          : ariaValueText
+        const thumbLabel = getAriaLabel ? getAriaLabel(index) : ariaLabel
+
+        return (
+          <SliderPrimitive.Thumb
+            data-slot="slider-thumb"
+            key={index}
+            aria-label={thumbLabel}
+            aria-valuetext={thumbValueText}
+            className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+          />
+        )
+      })}
     </SliderPrimitive.Root>
   )
 }
 
-export { Slider }
+export { Slider, type SliderProps }

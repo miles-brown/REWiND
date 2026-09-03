@@ -83,3 +83,22 @@ test("renders sidebar skeletons deterministically", async () => {
   assert.equal(first, second);
   assert.match(first, /--skeleton-width:70%/);
 });
+
+test("forwards accessibility attributes and valuetext to the slider thumb", async () => {
+  const { Slider } = await vite.ssrLoadModule("/components/ui/slider.tsx");
+  const html = renderToStaticMarkup(
+    React.createElement(Slider, {
+      "aria-label": "Timeline event position",
+      "aria-valuetext": "1 of 10: 1949-10-21, Event Title",
+      value: [0],
+      min: 0,
+      max: 9,
+    }),
+  );
+
+  assert.match(html, /role="slider"/);
+  assert.match(html, /aria-label="Timeline event position"/);
+  assert.match(html, /aria-valuetext="1 of 10: 1949-10-21, Event Title"/);
+  assert.match(html, /aria-valuemin="0"/);
+  assert.match(html, /aria-valuemax="9"/);
+});
