@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
   getEvidentiaryStats,
   getCandidateQueue,
@@ -7,6 +8,23 @@ import {
   rejectCandidate,
 } from "@/lib/evidence-service";
 import { getAuditTrail } from "@/lib/ingestion/audit";
+
+const AdminReviewActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("approve"),
+    candidateId: z.string().min(1, "candidateId is required"),
+  }),
+  z.object({
+    action: z.literal("merge"),
+    candidateId: z.string().min(1, "candidateId is required"),
+    targetEventId: z.string().min(1, "targetEventId is required for merge"),
+  }),
+  z.object({
+    action: z.literal("reject"),
+    candidateId: z.string().min(1, "candidateId is required"),
+    reason: z.string().optional(),
+  }),
+]);
 
 function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editorActor: string } {
   const authHeader = req.headers.get("authorization");
@@ -51,35 +69,39 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, candidateId, targetEventId, reason } = body;
-
-    if (!candidateId || typeof candidateId !== "string") {
-      return NextResponse.json({ success: false, error: "Missing required candidateId" }, { status: 400 });
+    const parsed = AdminReviewActionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid request payload",
+          details: parsed.error.format(),
+        },
+        { status: 400 }
+      );
     }
 
+    const data = parsed.data;
     const editorActor = auth.editorActor;
 
-    if (action === "approve") {
-      const res = approveCandidate(candidateId, editorActor);
+    if (data.action === "approve") {
+      const res = approveCandidate(data.candidateId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
       return NextResponse.json(res, { status: 200 });
     }
 
-    if (action === "merge") {
-      if (!targetEventId || typeof targetEventId !== "string") {
-        return NextResponse.json({ success: false, error: "Missing required targetEventId for merge" }, { status: 400 });
-      }
-      const res = mergeCandidate(candidateId, targetEventId, editorActor);
+    if (data.action === "merge") {
+      const res = mergeCandidate(data.candidateId, data.targetEventId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
       return NextResponse.json(res, { status: 200 });
     }
 
-    if (action === "reject") {
-      const res = rejectCandidate(candidateId, typeof reason === "string" ? reason : "Editorial rejection", editorActor);
+    if (data.action === "reject") {
+      const res = rejectCandidate(data.candidateId, data.reason || "Editorial rejection", editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -92,3 +114,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
+
