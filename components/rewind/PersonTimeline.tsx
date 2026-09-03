@@ -12,9 +12,11 @@ import {
   Gauge,
   HelpCircle,
   MapPin,
+  MessageSquareQuote,
   Quote,
   RotateCcw,
   RotateCw,
+  ShieldAlert,
   SkipBack,
   SkipForward,
 } from "lucide-react";
@@ -23,6 +25,8 @@ import type { EventRecord, Person } from "@/data/rewind";
 import { people, sourceById } from "@/data/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
+import { MediaDrawer } from "./MediaDrawer";
+import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
 export function PersonTimeline({
   person,
@@ -55,6 +59,8 @@ export function PersonTimeline({
   const [speed, setSpeed] = useState(1600);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [citeOpen, setCiteOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
   // Milestone epochs (earliest event in each distinct decade)
@@ -282,6 +288,24 @@ export function PersonTimeline({
                 <Quote size={14} />
                 <span>Cite</span>
               </button>
+              {event.quotes && event.quotes.length > 0 && (
+                <button
+                  className="cite-btn highlight"
+                  onClick={() => setMediaOpen(true)}
+                  aria-label="Open speech quotes and audio excerpts"
+                >
+                  <MessageSquareQuote size={14} />
+                  <span>Quotes ({event.quotes.length})</span>
+                </button>
+              )}
+              <button
+                className="cite-btn"
+                onClick={() => setAuditOpen(true)}
+                aria-label="Open forensic evidentiary audit"
+              >
+                <ShieldAlert size={14} />
+                <span>Audit</span>
+              </button>
               {source && (
                 <a
                   href={source.url}
@@ -447,6 +471,18 @@ export function PersonTimeline({
         event={event}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
+      />
+
+      <MediaDrawer
+        event={event}
+        isOpen={mediaOpen}
+        onClose={() => setMediaOpen(false)}
+      />
+
+      <DiscrepancyViewer
+        event={event}
+        isOpen={auditOpen}
+        onClose={() => setAuditOpen(false)}
       />
     </section>
   );

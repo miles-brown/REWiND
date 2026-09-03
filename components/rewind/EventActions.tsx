@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Link as LinkIcon, Quote } from "lucide-react";
+import { Check, Link as LinkIcon, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
 import type { EventRecord } from "@/data/rewind";
 import { CitationModal } from "./CitationModal";
+import { MediaDrawer } from "./MediaDrawer";
+import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
 export function EventActions({ event }: { event: EventRecord }) {
   const [citeOpen, setCiteOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {
@@ -16,6 +20,8 @@ export function EventActions({ event }: { event: EventRecord }) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const hasQuotes = event.quotes && event.quotes.length > 0;
 
   return (
     <>
@@ -28,6 +34,27 @@ export function EventActions({ event }: { event: EventRecord }) {
           <Quote size={14} />
           <span>Cite Event</span>
         </button>
+
+        {hasQuotes && (
+          <button
+            className="event-action-btn highlight"
+            onClick={() => setMediaOpen(true)}
+            aria-label="Open speech excerpts and audio"
+          >
+            <MessageSquareQuote size={14} />
+            <span>Quotes & Audio ({event.quotes.length})</span>
+          </button>
+        )}
+
+        <button
+          className="event-action-btn"
+          onClick={() => setAuditOpen(true)}
+          aria-label="View forensic audit and provenance trail"
+        >
+          <ShieldAlert size={14} />
+          <span>Forensic Audit</span>
+        </button>
+
         <button
           className="event-action-btn"
           onClick={handleCopyLink}
@@ -42,6 +69,18 @@ export function EventActions({ event }: { event: EventRecord }) {
         event={event}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
+      />
+
+      <MediaDrawer
+        event={event}
+        isOpen={mediaOpen}
+        onClose={() => setMediaOpen(false)}
+      />
+
+      <DiscrepancyViewer
+        event={event}
+        isOpen={auditOpen}
+        onClose={() => setAuditOpen(false)}
       />
     </>
   );
