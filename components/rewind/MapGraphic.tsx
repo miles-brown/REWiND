@@ -324,8 +324,9 @@ export function MapGraphic({
 
     import("maplibre-gl").then(({ Marker }) => {
       // Group points by location proximity for clean clustering
-      const grouped = new Map<string, typeof points>();
+      const grouped = new Map<string, EventRecord[]>();
       points.forEach((p) => {
+
         const key = `${p.latitude?.toFixed(2)}_${p.longitude?.toFixed(2)}`;
         const list = grouped.get(key) || [];
         list.push(p);
