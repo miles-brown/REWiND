@@ -25,18 +25,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action, candidateId, targetEventId, reason, editorName } = body;
 
+    if (!candidateId || typeof candidateId !== "string") {
+      return NextResponse.json({ error: "Missing required candidateId" }, { status: 400 });
+    }
+
     if (action === "approve") {
       const res = approveCandidate(candidateId, editorName);
       return NextResponse.json(res);
     }
 
     if (action === "merge") {
+      if (!targetEventId || typeof targetEventId !== "string") {
+        return NextResponse.json({ error: "Missing required targetEventId for merge" }, { status: 400 });
+      }
       const res = mergeCandidate(candidateId, targetEventId, editorName);
       return NextResponse.json(res);
     }
 
     if (action === "reject") {
-      const res = rejectCandidate(candidateId, reason, editorName);
+      const res = rejectCandidate(candidateId, reason || "Editorial rejection", editorName);
       return NextResponse.json(res);
     }
 

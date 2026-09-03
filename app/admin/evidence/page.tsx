@@ -146,6 +146,7 @@ export default function EvidenceControlConsole() {
 
           <div className="header-actions">
             <button
+              type="button"
               className="refresh-btn"
               onClick={fetchConsoleData}
               title="Refresh Data"
@@ -217,8 +218,11 @@ export default function EvidenceControlConsole() {
         </section>
 
         {/* Tab Navigation */}
-        <div className="console-tabs-nav">
+        <div className="console-tabs-nav" role="tablist" aria-label="Evidence Console Views">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "queue"}
             className={`tab-btn ${activeTab === "queue" ? "active" : ""}`}
             onClick={() => setActiveTab("queue")}
           >
@@ -228,6 +232,9 @@ export default function EvidenceControlConsole() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "duplicates"}
             className={`tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
             onClick={() => setActiveTab("duplicates")}
           >
@@ -237,6 +244,9 @@ export default function EvidenceControlConsole() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "audit"}
             className={`tab-btn ${activeTab === "audit" ? "active" : ""}`}
             onClick={() => setActiveTab("audit")}
           >
@@ -307,6 +317,7 @@ export default function EvidenceControlConsole() {
 
                         <div className="candidate-actions">
                           <button
+                            type="button"
                             className="action-btn approve"
                             onClick={() => handleAction("approve", c.id)}
                           >
@@ -314,6 +325,7 @@ export default function EvidenceControlConsole() {
                             <span>Approve & Publish</span>
                           </button>
                           <button
+                            type="button"
                             className="action-btn reject"
                             onClick={() => handleAction("reject", c.id)}
                           >
@@ -358,6 +370,7 @@ export default function EvidenceControlConsole() {
 
                       <div className="candidate-actions">
                         <button
+                          type="button"
                           className="action-btn merge"
                           onClick={() => handleAction("merge", c.id, c.duplicateMatchId || undefined)}
                         >
@@ -365,6 +378,7 @@ export default function EvidenceControlConsole() {
                           <span>Merge Claims into Existing Record</span>
                         </button>
                         <button
+                          type="button"
                           className="action-btn approve"
                           onClick={() => handleAction("approve", c.id)}
                         >
@@ -372,6 +386,7 @@ export default function EvidenceControlConsole() {
                           <span>Publish as Separate Event</span>
                         </button>
                         <button
+                          type="button"
                           className="action-btn reject"
                           onClick={() => handleAction("reject", c.id)}
                         >
@@ -393,11 +408,11 @@ export default function EvidenceControlConsole() {
                 <table className="audit-table">
                   <thead>
                     <tr>
-                      <th>Time</th>
-                      <th>Action</th>
-                      <th>Rule / Decision</th>
-                      <th>Target Event / Candidate</th>
-                      <th>Details</th>
+                      <th scope="col">Time</th>
+                      <th scope="col">Action</th>
+                      <th scope="col">Rule / Decision</th>
+                      <th scope="col">Target Event / Candidate</th>
+                      <th scope="col">Details</th>
                     </tr>
                   </thead>
                   <tbody>
