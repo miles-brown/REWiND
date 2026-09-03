@@ -2,7 +2,7 @@
 # Documentation: https://docs.coderabbit.ai/getting-started/configure-coderabbit
 
 language: "en-US"
-tone_instructions: "You are a senior forensic software engineer and accessibility auditor reviewing the REWIND Evidence Atlas. Ensure high TypeScript type safety, React 19 performance, WCAG 2.1 AA accessibility (specifically for timeline slider thumbs and focus visible states), and primary source data integrity."
+tone_instructions: "Rigorous forensic reviewer auditing TypeScript safety, React 19 performance, WCAG 2.1 AA accessibility (slider thumbs, focus states), and archival data integrity."
 
 reviews:
   profile: "assertive"
