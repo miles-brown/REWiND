@@ -79,6 +79,17 @@ const CandidatePayloadSchema = z.object({
 
 type ParsedCandidateExtraction = z.infer<typeof CandidatePayloadSchema>;
 
+const auditDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
 function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
   try {
     const json = JSON.parse(raw);
@@ -87,9 +98,17 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
       return parsed.data;
     }
     console.warn("Candidate rawExtraction failed strict Zod schema validation:", parsed.error.issues);
-    return typeof json === "object" && json !== null ? (json as ParsedCandidateExtraction) : {};
+    return {
+      summary: typeof json?.summary === "string" ? json.summary : undefined,
+      eventType: typeof json?.eventType === "string" ? json.eventType : undefined,
+      claims: [],
+      participants: [],
+    };
   } catch {
-    return {};
+    return {
+      claims: [],
+      participants: [],
+    };
   }
 }
 
@@ -109,7 +128,11 @@ export default function EvidenceControlConsole() {
     try {
       const res = await fetch("/api/admin/evidence");
       if (!res.ok) {
-        setErrorMessage(`Failed to fetch console data (HTTP ${res.status}). Please check API connectivity.`);
+        if (res.status === 401) {
+          setErrorMessage("Unauthorized: Admin credentials required to access the evidentiary review console.");
+        } else {
+          setErrorMessage(`Failed to fetch console data (HTTP ${res.status}). Please check API connectivity.`);
+        }
         return;
       }
       const data = await res.json();
@@ -123,6 +146,7 @@ export default function EvidenceControlConsole() {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     let ignore = false;
@@ -519,8 +543,9 @@ export default function EvidenceControlConsole() {
                           <tr key={entry.id}>
                             <td className="time-col">
                               <time dateTime={new Date(entry.recordedAt).toISOString()}>
-                                {new Date(entry.recordedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
+                                {auditDateFormatter.format(new Date(entry.recordedAt))}
                               </time>
+
                             </td>
 
                             <td>

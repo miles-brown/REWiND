@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { z } from "zod";
 import {
   getEvidentiaryStats,
@@ -26,25 +27,42 @@ const AdminReviewActionSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
+function timingSafeCompare(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) {
+    // Constant-time dummy comparison to prevent length timing leaks
+    crypto.timingSafeEqual(aBuf, aBuf);
+    return false;
+  }
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
 function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editorActor: string } {
   const authHeader = req.headers.get("authorization");
   const sessionSecret = process.env.SESSION_SECRET;
 
-  // In production, enforce token or secret presence if configured
+  // In production, enforce constant-time bearer token verification against SESSION_SECRET
   if (process.env.NODE_ENV === "production" && sessionSecret) {
-    if (!authHeader || !authHeader.includes(sessionSecret)) {
+    if (!authHeader) {
+      return { isAuthorized: false, editorActor: "Unauthorized" };
+    }
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match ? match[1].trim() : "";
+    if (!token || !timingSafeCompare(token, sessionSecret)) {
       return { isAuthorized: false, editorActor: "Unauthorized" };
     }
   }
 
-  // Derive editor actor from authenticated header or default to verified editor
+  // Derive editor actor supporting international names (e.g., O'Connor, René, Al-Mansoor)
   const customActor = req.headers.get("x-editor-user");
-  const editorActor = customActor && /^[a-zA-Z0-9 ._-]{3,50}$/.test(customActor)
+  const editorActor = customActor && /^[\p{L}\p{N} ._'’-]{3,60}$/u.test(customActor)
     ? customActor
     : "Authenticated Senior Editor";
 
   return { isAuthorized: true, editorActor };
 }
+
 
 export async function GET() {
   const stats = getEvidentiaryStats();
