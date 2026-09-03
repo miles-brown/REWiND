@@ -8,3 +8,11 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
+
+export function createRewindBrowserClient() {
+  if (!isSupabaseConfigured) return null;
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    db: { schema: "rewind" },
+  });
+}
+

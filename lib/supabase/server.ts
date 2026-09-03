@@ -16,3 +16,19 @@ export function getSupabaseServerClient() {
     },
   });
 }
+
+export function getRewindServerClient() {
+  if (!isSupabaseServerConfigured) {
+    return null;
+  }
+  return createClient(supabaseUrl!, supabaseKey!, {
+    db: {
+      schema: "rewind",
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+

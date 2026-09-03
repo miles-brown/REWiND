@@ -17,12 +17,14 @@ after(async () => {
 });
 
 test("exports Supabase client configurations and server factory", async () => {
-  const { isSupabaseConfigured } = await vite.ssrLoadModule("/lib/supabase/client.ts");
-  const { getSupabaseServerClient, isSupabaseServerConfigured } = await vite.ssrLoadModule("/lib/supabase/server.ts");
+  const { isSupabaseConfigured, createRewindBrowserClient } = await vite.ssrLoadModule("/lib/supabase/client.ts");
+  const { getSupabaseServerClient, getRewindServerClient, isSupabaseServerConfigured } = await vite.ssrLoadModule("/lib/supabase/server.ts");
 
   assert.equal(typeof isSupabaseConfigured, "boolean");
   assert.equal(typeof isSupabaseServerConfigured, "boolean");
   assert.equal(typeof getSupabaseServerClient, "function");
+  assert.equal(typeof getRewindServerClient, "function");
+  assert.equal(typeof createRewindBrowserClient, "function");
 });
 
 test("provides healthy database instance and in-memory store fallback", async () => {
