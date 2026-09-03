@@ -41,9 +41,19 @@ test("validates candidate event and raw evidence schemas with Zod", async () => 
   const parsed = ExtractedCandidateEventSchema.parse(validCandidate);
   assert.equal(parsed.eventType, "speech-plenary");
   assert.equal(parsed.participants.length, 1);
+
+  // Rejects invalid calendar dates
+  assert.throws(() => {
+    ExtractedCandidateEventSchema.parse({ ...validCandidate, startDate: "2011-02-30" });
+  });
+
+  // Rejects backwards date ranges
+  assert.throws(() => {
+    ExtractedCandidateEventSchema.parse({ ...validCandidate, startDate: "2011-09-23", endDate: "2011-09-20" });
+  });
 });
 
-test("resolves known entities and gazetteer places with high confidence", async () => {
+test("resolves known entities and gazetteer places with high confidence and avoids surname collisions", async () => {
   const { resolveEntity, resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
 
   const netanyahuRes = resolveEntity("Prime Minister Benjamin Netanyahu");
@@ -51,9 +61,18 @@ test("resolves known entities and gazetteer places with high confidence", async 
   assert.equal(netanyahuRes.isApprovedSubject, true);
   assert.ok(netanyahuRes.confidence >= 0.95);
 
+  // Surname collision protection: "Hillary Clinton" should not match "Bill Clinton"
+  const hillaryRes = resolveEntity("Hillary Clinton");
+  assert.equal(hillaryRes.personId, null);
+
   const placeRes = resolvePlace("White House", "Washington, D.C.", "United States");
   assert.ok(placeRes.city.includes("Washington"));
   assert.ok(placeRes.confidence >= 0.9);
+
+  // Empty strings should not match first gazetteer entry at 0.98 confidence
+  const emptyPlaceRes = resolvePlace("", "", "");
+  assert.equal(emptyPlaceRes.city, "Unknown");
+  assert.ok(emptyPlaceRes.confidence <= 0.85);
 });
 
 test("evaluates publication lanes deterministically according to policy", async () => {
@@ -81,6 +100,12 @@ test("evaluates publication lanes deterministically according to policy", async 
   // Tier A -> Auto-Publish
   const tierAPolicy = evaluatePublicationPolicy(candidate, "tier-a", resolved);
   assert.equal(tierAPolicy.lane, "auto-publish");
+
+  // Unapproved subject -> Human Review
+  const unapprovedPolicy = evaluatePublicationPolicy(candidate, "tier-a", [
+    { personId: "someone", canonicalName: "Unapproved Subject", confidence: 1.0, isApprovedSubject: false },
+  ]);
+  assert.equal(unapprovedPolicy.lane, "human-review");
 
   // Tier C -> Provisional
   const tierCPolicy = evaluatePublicationPolicy(candidate, "tier-c", resolved);
@@ -155,4 +180,49 @@ test("detects duplicate events and merges corroborating claims without duplicate
   // Should identify duplicate and merge into the same event ID
   assert.equal(dispatch2.deduplication.isDuplicate, true);
   assert.equal(dispatch2.publishedEventId, dispatch1.publishedEventId);
+});
+
+test("enforces one-time candidate approval transitions and claim persistence", async () => {
+  const { approveCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const testCandId = `cand-test-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testCandId,
+    fingerprint: `fp_test_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Test Editorial Candidate",
+      summary: "Candidate requiring editorial review",
+      startDate: "2024-01-15",
+      eventType: "speech-plenary",
+      sourceId: "src-un-test",
+      claims: [{ claimType: "presence", statement: "Speaker present at podium" }],
+    }),
+    suggestedTitle: "Test Editorial Candidate",
+    suggestedDate: "2024-01-15",
+    suggestedPlace: "Jerusalem",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  // 1. Initial approval succeeds
+  const appResult = approveCandidate(testCandId, "Senior Editor");
+  assert.equal(appResult.success, true);
+  assert.ok(appResult.eventId);
+
+  // Claims must be persisted
+  const persistedClaim = store.claims.find((c) => c.eventId === appResult.eventId);
+  assert.ok(persistedClaim, "Approved candidate claims must be persisted to store.claims");
+
+  // 2. Second approval on same candidate must be rejected
+  const reApproveResult = approveCandidate(testCandId, "Senior Editor");
+  assert.equal(reApproveResult.success, false);
+  assert.match(reApproveResult.error, /already approved/);
 });

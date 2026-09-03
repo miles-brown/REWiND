@@ -35,6 +35,14 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   const candidate = store.candidateEvents.find((c) => c.id === candidateId);
   if (!candidate) return { success: false, error: "Candidate not found" };
 
+  // Ensure one-time pending-to-terminal transition
+  if (candidate.status !== "pending") {
+    return {
+      success: false,
+      error: `Candidate is already ${candidate.status} and cannot be approved again`,
+    };
+  }
+
   candidate.status = "approved";
 
   // Parse candidate extraction
@@ -65,6 +73,37 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     updatedAt: new Date(),
   });
 
+  // Persist reviewed claims and source attribution during approval
+  const sourceId = data.sourceId || "src-editorial-approval";
+  if (Array.isArray(data.claims)) {
+    data.claims.forEach(
+      (
+        clm: {
+          subjectMention?: string;
+          claimType?: string;
+          statement?: string;
+          claimedTime?: string;
+          claimedVenue?: string;
+          supportingExcerpt?: string;
+        },
+        idx: number
+      ) => {
+        store.claims.push({
+          id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
+          eventId: eventSlug,
+          subjectId: null,
+          claimType: clm.claimType || "presence",
+          statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
+          claimedTime: clm.claimedTime || candidate.suggestedDate,
+          claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
+          sourceId,
+          confidence: "confirmed",
+          supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+        });
+      }
+    );
+  }
+
   recordAuditEvent(
     "reviewed-approved",
     "REW-REV-MANUAL-SIGN-OFF",
@@ -72,6 +111,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       candidateId,
       publishedEventId: eventSlug,
       approvedBy: editorName,
+      sourceId,
     },
     eventSlug,
     candidateId
@@ -87,24 +127,44 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
   if (!candidate || !targetEvent) return { success: false, error: "Candidate or target event not found" };
 
+  if (candidate.status !== "pending") {
+    return {
+      success: false,
+      error: `Candidate is already ${candidate.status} and cannot be merged`,
+    };
+  }
+
   candidate.status = "merged";
 
   const data = JSON.parse(candidate.rawExtraction);
+  const sourceId = data.sourceId || null;
+
   if (Array.isArray(data.claims)) {
-    data.claims.forEach((clm: { claimType?: string; statement?: string; claimedTime?: string; claimedVenue?: string; supportingExcerpt?: string }, idx: number) => {
-      store.claims.push({
-        id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
-        eventId: targetEventId,
-        subjectId: null,
-        claimType: clm.claimType || "presence",
-        statement: clm.statement || "Corroborating claim",
-        claimedTime: clm.claimedTime || null,
-        claimedVenue: clm.claimedVenue || null,
-        sourceId: null,
-        confidence: "confirmed",
-        supportingExcerpt: clm.supportingExcerpt || null,
-      });
-    });
+    data.claims.forEach(
+      (
+        clm: {
+          claimType?: string;
+          statement?: string;
+          claimedTime?: string;
+          claimedVenue?: string;
+          supportingExcerpt?: string;
+        },
+        idx: number
+      ) => {
+        store.claims.push({
+          id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
+          eventId: targetEventId,
+          subjectId: null,
+          claimType: clm.claimType || "presence",
+          statement: clm.statement || "Corroborating claim",
+          claimedTime: clm.claimedTime || null,
+          claimedVenue: clm.claimedVenue || null,
+          sourceId,
+          confidence: "confirmed",
+          supportingExcerpt: clm.supportingExcerpt || null,
+        });
+      }
+    );
   }
 
   recordAuditEvent(
@@ -114,6 +174,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       candidateId,
       targetEventId,
       mergedBy: editorName,
+      sourceId,
     },
     targetEventId,
     candidateId
@@ -126,6 +187,13 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
   const store = getRelationalStore();
   const candidate = store.candidateEvents.find((c) => c.id === candidateId);
   if (!candidate) return { success: false, error: "Candidate not found" };
+
+  if (candidate.status !== "pending") {
+    return {
+      success: false,
+      error: `Candidate is already ${candidate.status} and cannot be rejected again`,
+    };
+  }
 
   candidate.status = "rejected";
   candidate.rejectionReason = reason;

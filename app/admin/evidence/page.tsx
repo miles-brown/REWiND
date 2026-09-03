@@ -115,13 +115,18 @@ export default function EvidenceControlConsole() {
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setStatusMessage(`Candidate ${candidateId} successfully ${action}d.`);
         fetchConsoleData();
+        setTimeout(() => setStatusMessage(null), 4000);
+      } else {
+        setStatusMessage(`Error: ${data.error || "Action failed"}`);
         setTimeout(() => setStatusMessage(null), 4000);
       }
     } catch (err) {
       console.error("Action error:", err);
+      setStatusMessage("Network or server error during action execution.");
     }
   }
 
@@ -130,8 +135,9 @@ export default function EvidenceControlConsole() {
 
   return (
     <Shell>
-      <main className="evidence-console-main">
+      <div className="evidence-console-main">
         {/* Header */}
+
         <header className="evidence-console-header">
           <div className="header-meta">
             <span className="forensic-tag">
@@ -405,7 +411,7 @@ export default function EvidenceControlConsole() {
           {activeTab === "audit" && (
             <div className="audit-stage">
               <div className="audit-table-card">
-                <table className="audit-table">
+                <table className="audit-table" aria-label="Immutable Evidence Engine Audit Log">
                   <thead>
                     <tr>
                       <th scope="col">Time</th>
@@ -456,7 +462,7 @@ export default function EvidenceControlConsole() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </Shell>
   );
 }

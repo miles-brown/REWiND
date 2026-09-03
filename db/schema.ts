@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   doublePrecision,
   integer,
@@ -7,6 +8,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+
 
 // ==========================================
 // 1. Coverage Programmes & Person Entities
@@ -106,7 +108,8 @@ export const placeAliases = pgTable("place_aliases", {
 export const events = pgTable("events", {
   id: text("id").primaryKey(), // e.g. "evt-1996-07-09-netanyahu-clinton-wh"
   slug: text("slug").unique().notNull(),
-  parentId: text("parent_id"), // Self-referencing parent summit or state visit
+  parentId: text("parent_id").references((): AnyPgColumn => events.id), // Self-referencing parent summit or state visit
+
   eventType: text("event_type").notNull(), // bilateral-meeting, multilateral-summit, speech-plenary, etc.
   title: text("title").notNull(),
   summary: text("summary").notNull(),
