@@ -79,6 +79,17 @@ const CandidatePayloadSchema = z.object({
 
 type ParsedCandidateExtraction = z.infer<typeof CandidatePayloadSchema>;
 
+const auditDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
 function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
   try {
     const json = JSON.parse(raw);
@@ -86,12 +97,20 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
     if (parsed.success) {
       return parsed.data;
     }
-    return typeof json === "object" && json !== null ? (json as ParsedCandidateExtraction) : {};
+    console.warn("Candidate rawExtraction failed strict Zod schema validation:", parsed.error.issues);
+    return {
+      summary: typeof json?.summary === "string" ? json.summary : undefined,
+      eventType: typeof json?.eventType === "string" ? json.eventType : undefined,
+      claims: [],
+      participants: [],
+    };
   } catch {
-    return {};
+    return {
+      claims: [],
+      participants: [],
+    };
   }
 }
-
 
 export default function EvidenceControlConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -100,30 +119,47 @@ export default function EvidenceControlConsole() {
   const [activeTab, setActiveTab] = useState<"queue" | "auto" | "duplicates" | "audit">("queue");
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submittingCandidateId, setSubmittingCandidateId] = useState<string | null>(null);
 
   const fetchConsoleData = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const res = await fetch("/api/admin/evidence");
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data.stats);
-        setQueue(data.queue || []);
-        setAudit(data.audit || []);
+      if (!res.ok) {
+        if (res.status === 401) {
+          setErrorMessage("Unauthorized: Admin credentials required to access the evidentiary review console.");
+        } else {
+          setErrorMessage(`Failed to fetch console data (HTTP ${res.status}). Please check API connectivity.`);
+        }
+        return;
       }
+      const data = await res.json();
+      setStats(data.stats);
+      setQueue(data.queue || []);
+      setAudit(data.audit || []);
     } catch (err) {
       console.error("Failed to fetch evidence console data:", err);
+      setErrorMessage("Network error: Unable to connect to evidentiary engine API.");
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     let ignore = false;
     async function loadInitial() {
       try {
         const res = await fetch("/api/admin/evidence");
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!ignore) {
+            setErrorMessage(`Failed to fetch initial evidence data (HTTP ${res.status}).`);
+            setLoading(false);
+          }
+          return;
+        }
         const data = await res.json();
         if (!ignore) {
           setStats(data.stats);
@@ -133,7 +169,10 @@ export default function EvidenceControlConsole() {
         }
       } catch (err) {
         console.error("Failed to fetch initial evidence data:", err);
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setErrorMessage("Network error: Unable to connect to evidentiary engine API.");
+          setLoading(false);
+        }
       }
     }
     loadInitial();
@@ -142,8 +181,9 @@ export default function EvidenceControlConsole() {
     };
   }, []);
 
-
   async function handleAction(action: "approve" | "merge" | "reject", candidateId: string, targetEventId?: string) {
+    setSubmittingCandidateId(candidateId);
+    setErrorMessage(null);
     try {
       const res = await fetch("/api/admin/evidence", {
         method: "POST",
@@ -168,6 +208,8 @@ export default function EvidenceControlConsole() {
     } catch (err) {
       console.error("Action error:", err);
       setStatusMessage("Network or server error during action execution.");
+    } finally {
+      setSubmittingCandidateId(null);
     }
   }
 
@@ -179,6 +221,7 @@ export default function EvidenceControlConsole() {
     () => queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75),
     [queue]
   );
+
 
   return (
     <Shell>
@@ -210,12 +253,20 @@ export default function EvidenceControlConsole() {
           </div>
         </header>
 
+        {errorMessage && (
+          <div className="status-banner error" role="alert" aria-live="assertive">
+            <AlertCircle size={16} />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {statusMessage && (
           <div className="status-banner" role="status" aria-live="polite">
             <CheckCircle2 size={16} />
             <span>{statusMessage}</span>
           </div>
         )}
+
 
         {/* 5 Top Stat Cards */}
         <section className="evidence-stats-grid">
@@ -369,14 +420,20 @@ export default function EvidenceControlConsole() {
                         <div className="candidate-actions">
                           <button
                             type="button"
+                            disabled={submittingCandidateId === c.id}
                             className="action-btn approve"
                             onClick={() => handleAction("approve", c.id)}
                           >
-                            <CheckCircle2 size={14} />
-                            <span>Approve & Publish</span>
+                            {submittingCandidateId === c.id ? (
+                              <RefreshCw size={14} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={14} />
+                            )}
+                            <span>{submittingCandidateId === c.id ? "Publishing..." : "Approve & Publish"}</span>
                           </button>
                           <button
                             type="button"
+                            disabled={submittingCandidateId === c.id}
                             className="action-btn reject"
                             onClick={() => handleAction("reject", c.id)}
                           >
@@ -384,6 +441,8 @@ export default function EvidenceControlConsole() {
                             <span>Reject</span>
                           </button>
                         </div>
+
+
                       </div>
                     );
                   })}
@@ -423,14 +482,21 @@ export default function EvidenceControlConsole() {
                       <div className="candidate-actions">
                         <button
                           type="button"
+                          disabled={submittingCandidateId === c.id}
                           className="action-btn merge"
                           onClick={() => handleAction("merge", c.id, c.duplicateMatchId || undefined)}
                         >
-                          <GitMerge size={14} />
-                          <span>Merge Claims into Existing Record</span>
+                          {submittingCandidateId === c.id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <GitMerge size={14} />
+                          )}
+                          <span>{submittingCandidateId === c.id ? "Merging..." : "Merge Claims into Existing Record"}</span>
                         </button>
+
                         <button
                           type="button"
+                          disabled={submittingCandidateId === c.id}
                           className="action-btn approve"
                           onClick={() => handleAction("approve", c.id)}
                         >
@@ -439,6 +505,7 @@ export default function EvidenceControlConsole() {
                         </button>
                         <button
                           type="button"
+                          disabled={submittingCandidateId === c.id}
                           className="action-btn reject"
                           onClick={() => handleAction("reject", c.id)}
                         >
@@ -446,6 +513,7 @@ export default function EvidenceControlConsole() {
                           <span>Reject</span>
                         </button>
                       </div>
+
                     </div>
                   ))}
                 </div>
@@ -485,8 +553,9 @@ export default function EvidenceControlConsole() {
                           <tr key={entry.id}>
                             <td className="time-col">
                               <time dateTime={new Date(entry.recordedAt).toISOString()}>
-                                {new Date(entry.recordedAt).toISOString().replace("T", " ").slice(0, 19)} UTC
+                                {auditDateFormatter.format(new Date(entry.recordedAt))}
                               </time>
+
                             </td>
 
                             <td>
