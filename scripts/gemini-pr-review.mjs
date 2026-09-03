@@ -66,7 +66,7 @@ Provide your review in clean GitHub-Flavored Markdown with:
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       },
     }),
   });
@@ -77,9 +77,19 @@ Provide your review in clean GitHub-Flavored Markdown with:
   }
 
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = data?.candidates?.[0];
+  const parts = candidate?.content?.parts || [];
+  
+  // Filter out thinking parts if present and join all response text segments
+  const textParts = parts.filter((p) => !p.thought && typeof p.text === "string").map((p) => p.text);
+  const text = textParts.length > 0 ? textParts.join("\n").trim() : parts.map((p) => p.text || "").join("\n").trim();
+
   if (!text) {
     throw new Error("No response text returned by Gemini API");
+  }
+
+  if (candidate?.finishReason === "MAX_TOKENS") {
+    console.warn("Warning: Gemini response reached MAX_TOKENS ceiling.");
   }
 
   return text;
