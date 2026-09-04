@@ -58,11 +58,13 @@ export function RewindExplorer() {
     return () => clearInterval(timer);
   }, [playing, speed, direction, filtered.length]);
 
-  const safeIndex = Math.min(index, Math.max(0, filtered.length - 1));
-  const event = filtered[safeIndex] || events[0];
-  const source = sourceById(event.sourceIds[0]);
+
+  const hasEvents = filtered.length > 0;
+  const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
+  const event = hasEvents ? filtered[safeIndex] : null;
+  const source = event ? sourceById(event.sourceIds[0]) : null;
   const types = Array.from(new Set(events.flatMap((e) => e.eventTypes))).sort();
-  const date = new Date(event.startDate + "T12:00:00");
+  const date = event ? new Date(event.startDate + "T12:00:00") : null;
 
   const choose = (id: string) => {
     const i = filtered.findIndex((e) => e.id === id);
@@ -73,9 +75,11 @@ export function RewindExplorer() {
     <section className="rewind-workspace" aria-label="Interactive Rewind explorer">
       {/* Live Region for Screen Readers: announces filter updates and timeline playback status */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {playing
-          ? `Timeline playing ${direction === "backward" ? "in reverse" : "forward"}. Event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`
-          : `Showing ${filtered.length} documented events. Selected event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`}
+        {hasEvents && event
+          ? playing
+            ? `Timeline playing ${direction === "backward" ? "in reverse" : "forward"}. Event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`
+            : `Showing ${filtered.length} documented events. Selected event ${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName} in ${event.city}.`
+          : "Showing 0 documented events. No events match the selected filters."}
       </div>
 
       <div className="workspace-toolbar">
@@ -96,6 +100,7 @@ export function RewindExplorer() {
               onChange={(e) => {
                 setType(e.target.value);
                 setIndex(0);
+                setPlaying(false);
               }}
             >
               <option>All</option>
@@ -111,6 +116,7 @@ export function RewindExplorer() {
               onChange={(e) => {
                 setStatus(e.target.value);
                 setIndex(0);
+                setPlaying(false);
               }}
             >
               <option value="all">All evidence</option>
@@ -123,6 +129,7 @@ export function RewindExplorer() {
               setType("All");
               setStatus("all");
               setIndex(0);
+              setPlaying(false);
             }}
             aria-label="Clear filters"
           >
@@ -136,82 +143,106 @@ export function RewindExplorer() {
       </div>
 
       <div className="workspace-main">
-        <MapGraphic events={filtered} selected={event.id} onSelect={choose} />
-        <article className="selected-event" aria-live="polite">
-          <div className="record-label">
-            <span>{event.id.replace("evt-", "EVENT ")}</span>
-            <span className={`status ${event.verificationStatus}`}>
-              {event.verificationStatus}
-            </span>
-          </div>
-          <time dateTime={event.startDate}>
-            {date.toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </time>
-          <h1>{event.eventName}</h1>
-          <p className="event-place">
-            <MapPin />
-            {event.venueName || event.city}
-            <small>
-              {event.city}, {event.country} · {event.locationPrecision} precision
-            </small>
-          </p>
-          <div className="detail-tags">
-            {event.eventTypes.map((t) => (
-              <span key={t}>{t}</span>
-            ))}
-          </div>
-          <div className="evidence-summary">
-            <div>
-              <small>PRIMARY EVIDENCE</small>
-              <b>{source?.title}</b>
-              <span>{source?.publisher}</span>
+        <MapGraphic events={filtered} selected={event?.id ?? ""} onSelect={choose} />
+        {hasEvents && event ? (
+          <article className="selected-event" aria-live="polite">
+            <div className="record-label">
+              <span>{event.id.replace("evt-", "EVENT ")}</span>
+              <span className={`status ${event.verificationStatus}`}>
+                {event.verificationStatus}
+              </span>
             </div>
-            <div className="evidence-actions">
+            <time dateTime={event.startDate}>
+              {date?.toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </time>
+            <h1>{event.eventName}</h1>
+            <p className="event-place">
+              <MapPin />
+              {event.venueName || event.city}
+              <small>
+                {event.city}, {event.country} · {event.locationPrecision} precision
+              </small>
+            </p>
+            <div className="detail-tags">
+              {event.eventTypes.map((t) => (
+                <span key={t}>{t}</span>
+              ))}
+            </div>
+            <div className="evidence-summary">
+              <div>
+                <small>PRIMARY EVIDENCE</small>
+                <b>{source?.title}</b>
+                <span>{source?.publisher}</span>
+              </div>
+              <div className="evidence-actions">
+                <button
+                  className="cite-btn"
+                  onClick={() => setCiteOpen(true)}
+                  aria-label="Cite this record"
+                >
+                  <Quote size={13} />
+                  <span>Cite</span>
+                </button>
+                <a
+                  href={source?.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open primary source"
+                >
+                  <ExternalLink />
+                </a>
+              </div>
+            </div>
+            <dl className="event-facts">
+              <div>
+                <dt>Date</dt>
+                <dd>{event.datePrecision}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{event.localStartTime || "Not established"}</dd>
+              </div>
+              <div>
+                <dt>Confidence</dt>
+                <dd>{event.confidence}</dd>
+              </div>
+              <div>
+                <dt>Medium</dt>
+                <dd>{event.medium.join(", ")}</dd>
+              </div>
+            </dl>
+            <Link className="primary-link" href={`/event/${event.slug}`}>
+              Open event and evidence <ArrowRight />
+            </Link>
+          </article>
+        ) : (
+          <article className="selected-event empty-explorer-state" aria-live="polite">
+            <div className="empty-explorer-content">
+              <RotateCcw size={32} />
+              <h2>No documented events found</h2>
+              <p>
+                No events match your selected filters. Adjust your event type or verification status to inspect timeline records.
+              </p>
               <button
-                className="cite-btn"
-                onClick={() => setCiteOpen(true)}
-                aria-label="Cite this record"
+                type="button"
+                className="reset-filters-btn"
+                onClick={() => {
+                  setType("All");
+                  setStatus("all");
+                  setIndex(0);
+                  setPlaying(false);
+                }}
               >
-                <Quote size={13} />
-                <span>Cite</span>
+                Reset filters
               </button>
-              <a
-                href={source?.url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Open primary source"
-              >
-                <ExternalLink />
-              </a>
             </div>
-          </div>
-          <dl className="event-facts">
-            <div>
-              <dt>Date</dt>
-              <dd>{event.datePrecision}</dd>
-            </div>
-            <div>
-              <dt>Time</dt>
-              <dd>{event.localStartTime || "Not established"}</dd>
-            </div>
-            <div>
-              <dt>Confidence</dt>
-              <dd>{event.confidence}</dd>
-            </div>
-            <div>
-              <dt>Medium</dt>
-              <dd>{event.medium.join(", ")}</dd>
-            </div>
-          </dl>
-          <Link className="primary-link" href={`/event/${event.slug}`}>
-            Open event and evidence <ArrowRight />
-          </Link>
-        </article>
+          </article>
+        )}
       </div>
 
       <div className="rewind-console">
@@ -219,18 +250,20 @@ export function RewindExplorer() {
           <small>REWIND TO</small>
           <b>
             {date
-              .toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-              .toUpperCase()}
+              ? date
+                  .toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                  .toUpperCase()
+              : "—"}
           </b>
         </div>
         <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
-            disabled={safeIndex === 0}
+            disabled={!hasEvents || safeIndex === 0}
             aria-label="Previous event"
           >
             <ChevronLeft />
@@ -238,8 +271,9 @@ export function RewindExplorer() {
           <button
             className="main-play"
             onClick={() => setPlaying(!playing)}
+            disabled={!hasEvents}
             aria-pressed={playing}
-            aria-label={playing ? "Pause timeline" : "Play timeline"}
+            aria-label={!hasEvents ? "Playback unavailable" : playing ? "Pause timeline" : "Play timeline"}
           >
             {playing ? <CirclePause /> : <CirclePlay />}
           </button>
@@ -247,7 +281,7 @@ export function RewindExplorer() {
             onClick={() =>
               setIndex((i) => Math.min(filtered.length - 1, i + 1))
             }
-            disabled={safeIndex === filtered.length - 1}
+            disabled={!hasEvents || safeIndex >= filtered.length - 1}
             aria-label="Next event"
           >
             <ChevronRight />
@@ -259,6 +293,7 @@ export function RewindExplorer() {
             onClick={() =>
               setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
             }
+            disabled={!hasEvents}
             aria-pressed={direction === "backward"}
             aria-label={`Playback direction: ${direction}`}
             title={direction === "forward" ? "Forward Mode" : "REWIND Mode"}
@@ -269,9 +304,11 @@ export function RewindExplorer() {
         <div className="slider-wrap">
           <Slider
             aria-label="Timeline event position"
-            aria-valuetext={`${safeIndex + 1} of ${filtered.length}: ${
-              event.startDate
-            }, ${event.eventName}`}
+            aria-valuetext={
+              hasEvents && event
+                ? `${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName}`
+                : "No events available"
+            }
             getAriaValueText={(val) => {
               const ev = filtered[val];
               return ev ? `Event ${val + 1} of ${filtered.length}: ${ev.startDate}, ${ev.eventName}` : "";
@@ -281,12 +318,15 @@ export function RewindExplorer() {
             max={Math.max(0, filtered.length - 1)}
             step={1}
             value={[safeIndex]}
-            onValueChange={(v) => setIndex(v[0])}
+            disabled={!hasEvents}
+            onValueChange={(v) => {
+              if (hasEvents) setIndex(v[0]);
+            }}
           />
           <div>
-            <span>{filtered[0]?.startDate.slice(0, 4)}</span>
-            <b>{event.startDate.slice(0, 4)}</b>
-            <span>{filtered.at(-1)?.startDate.slice(0, 4)}</span>
+            <span>{filtered[0]?.startDate.slice(0, 4) || "—"}</span>
+            <b>{event?.startDate.slice(0, 4) || "—"}</b>
+            <span>{filtered.at(-1)?.startDate.slice(0, 4) || "—"}</span>
           </div>
         </div>
         <label className="speed">
@@ -294,6 +334,7 @@ export function RewindExplorer() {
           <span className="sr-only">Playback speed</span>
           <select
             value={speed}
+            disabled={!hasEvents}
             onChange={(e) => setSpeed(Number(e.target.value))}
           >
             <option value="2200">0.5×</option>
@@ -301,20 +342,32 @@ export function RewindExplorer() {
             <option value="750">2×</option>
           </select>
         </label>
-        <Link
-          href={`/person/benjamin-netanyahu/${event.startDate.slice(0, 4)}`}
-          className="calendar-jump"
-          aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
-        >
-          <CalendarDays />
-        </Link>
+        {event ? (
+          <Link
+            href={`/person/benjamin-netanyahu/${event.startDate.slice(0, 4)}`}
+            className="calendar-jump"
+            aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
+          >
+            <CalendarDays />
+          </Link>
+        ) : (
+          <span
+            className="calendar-jump disabled"
+            aria-disabled="true"
+            title="Year view unavailable"
+          >
+            <CalendarDays />
+          </span>
+        )}
       </div>
 
-      <CitationModal
-        event={event}
-        isOpen={citeOpen}
-        onClose={() => setCiteOpen(false)}
-      />
+      {event && (
+        <CitationModal
+          event={event}
+          isOpen={citeOpen}
+          onClose={() => setCiteOpen(false)}
+        />
+      )}
     </section>
   );
 }

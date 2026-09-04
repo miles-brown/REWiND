@@ -145,6 +145,60 @@ svg { flex: 0 0 auto; }
 .primary-link svg, .external-primary svg { width: 16px; }
 .primary-link:hover, .external-primary:hover { background: #173c47; }
 
+/* Explorer Zero-Match Empty State */
+.empty-explorer-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.empty-explorer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 380px;
+  margin: auto;
+  color: #475569;
+}
+.empty-explorer-content svg {
+  color: var(--muted);
+}
+.empty-explorer-content h2 {
+  margin: 0;
+  font: 700 20px/1.2 var(--display);
+  color: var(--ink);
+}
+.empty-explorer-content p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+.reset-filters-btn {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: #f8fafc;
+  border-radius: 8px;
+  font: 600 12px var(--sans);
+  border: 0;
+  cursor: pointer;
+  transition: opacity .15s ease, transform .15s ease;
+}
+.reset-filters-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.calendar-jump.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Modern Timeline Console & Bottom Toolbar */
 .rewind-console { min-height: 110px; display: grid; grid-template-columns: 190px auto minmax(220px,1fr) auto auto; align-items: center; gap: 20px; padding: 18px clamp(20px,5vw,76px); background: rgba(10,22,30,.94); border-top: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(20px); box-shadow: 0 -12px 35px rgba(0,0,0,.45); }
 .console-date small { display: block; color: #94a3b8; font: 600 10px var(--sans); letter-spacing: .08em; text-transform: uppercase; }

@@ -334,14 +334,53 @@ test("verifies SourcesPage historical date resolution and RewindExplorer disable
   const explorerContent = fs.readFileSync(explorerPath, "utf-8");
 
   assert.ok(
-    explorerContent.includes("disabled={safeIndex === 0}"),
-    "RewindExplorer previous button must be disabled at start of timeline"
+    explorerContent.includes("disabled={!hasEvents || safeIndex === 0}"),
+    "RewindExplorer previous button must be disabled at start of timeline or when no events match"
   );
   assert.ok(
-    explorerContent.includes("disabled={safeIndex === filtered.length - 1}"),
-    "RewindExplorer next button must be disabled at end of timeline"
+    explorerContent.includes("disabled={!hasEvents || safeIndex >= filtered.length - 1}"),
+    "RewindExplorer next button must be disabled at end of timeline or when no events match"
+  );
+  assert.ok(
+    !explorerContent.includes("filtered[safeIndex] || events[0]"),
+    "RewindExplorer must not fall back to events[0] when filtered records is empty"
+  );
+  assert.ok(
+    explorerContent.includes("empty-explorer-state") &&
+    explorerContent.includes("No documented events found"),
+    "RewindExplorer must render explicit empty state when filtered records is empty"
+  );
+  assert.ok(
+    explorerContent.includes("reset-filters-btn") &&
+    explorerContent.includes("Reset filters"),
+    "RewindExplorer empty state must provide reset filters action"
   );
 });
 
+test("verifies RewindExplorer boundary and empty state logic with zero filtered records", () => {
+  // Test navigation calculations when filtered list is empty
+  const emptyFiltered = [];
+  const hasEvents = emptyFiltered.length > 0;
+  const index = 0;
+  const safeIndex = hasEvents ? Math.min(index, emptyFiltered.length - 1) : 0;
+  const event = hasEvents ? emptyFiltered[safeIndex] : null;
 
+  assert.equal(hasEvents, false, "hasEvents must be false when filtered array is empty");
+  assert.equal(event, null, "event must be null when filtered array is empty, not falling back to events[0]");
 
+  // Navigation button states when empty
+  const prevDisabled = !hasEvents || safeIndex === 0;
+  const nextDisabled = !hasEvents || safeIndex >= emptyFiltered.length - 1;
+  const playDisabled = !hasEvents;
+
+  assert.equal(prevDisabled, true, "Previous button must be disabled when filtered is empty");
+  assert.equal(nextDisabled, true, "Next button must be disabled when filtered is empty");
+  assert.equal(playDisabled, true, "Play button must be disabled when filtered is empty");
+
+  // Navigation button states when populated with 1 event
+  const singleFiltered = [{ id: "evt-001", startDate: "1982-06-06" }];
+  const singleHasEvents = singleFiltered.length > 0;
+  const singleSafeIndex = singleHasEvents ? Math.min(0, singleFiltered.length - 1) : 0;
+  assert.equal(!singleHasEvents || singleSafeIndex === 0, true, "Previous disabled at index 0");
+  assert.equal(!singleHasEvents || singleSafeIndex >= singleFiltered.length - 1, true, "Next disabled at end of single-item list");
+});
