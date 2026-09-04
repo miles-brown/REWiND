@@ -49,7 +49,7 @@ ${changedFiles.join("\n")}
 
 Git Diff:
 \`\`\`diff
-${diff.slice(0, 50000)}
+${diff.slice(0, 300000)}
 \`\`\`
 
 Provide your review in clean GitHub-Flavored Markdown with:
