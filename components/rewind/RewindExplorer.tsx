@@ -22,9 +22,17 @@ import { events, sourceById } from "@/data/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
-export function RewindExplorer() {
-  const [type, setType] = useState("All");
-  const [status, setStatus] = useState("all");
+export interface RewindExplorerProps {
+  initialType?: string;
+  initialStatus?: string;
+}
+
+export function RewindExplorer({
+  initialType = "All",
+  initialStatus = "all",
+}: RewindExplorerProps = {}) {
+  const [type, setType] = useState(initialType);
+  const [status, setStatus] = useState(initialStatus);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [citeOpen, setCiteOpen] = useState(false);
 

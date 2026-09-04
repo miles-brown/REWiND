@@ -3,6 +3,8 @@ import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -357,30 +359,23 @@ test("verifies SourcesPage historical date resolution and RewindExplorer disable
   );
 });
 
-test("verifies RewindExplorer boundary and empty state logic with zero filtered records", () => {
-  // Test navigation calculations when filtered list is empty
-  const emptyFiltered = [];
-  const hasEvents = emptyFiltered.length > 0;
-  const index = 0;
-  const safeIndex = hasEvents ? Math.min(index, emptyFiltered.length - 1) : 0;
-  const event = hasEvents ? emptyFiltered[safeIndex] : null;
+test("verifies RewindExplorer boundary and empty state logic with zero filtered records", async () => {
+  const { RewindExplorer } = await vite.ssrLoadModule("/components/rewind/RewindExplorer.tsx");
+  const html = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialType: "NonExistentType",
+      initialStatus: "nonexistent",
+    })
+  );
 
-  assert.equal(hasEvents, false, "hasEvents must be false when filtered array is empty");
-  assert.equal(event, null, "event must be null when filtered array is empty, not falling back to events[0]");
+  // Assert empty state rendering
+  assert.match(html, /class="[^"]*empty-explorer-state[^"]*"/, "RewindExplorer must render .empty-explorer-state container");
+  assert.match(html, /No documented events found/, "RewindExplorer must render empty state heading");
+  assert.match(html, /Reset filters/, "RewindExplorer must provide a reset filters button");
+  assert.doesNotMatch(html, /Open event and evidence/, "RewindExplorer must not render event details or fall back to events[0]");
 
-  // Navigation button states when empty
-  const prevDisabled = !hasEvents || safeIndex === 0;
-  const nextDisabled = !hasEvents || safeIndex >= emptyFiltered.length - 1;
-  const playDisabled = !hasEvents;
-
-  assert.equal(prevDisabled, true, "Previous button must be disabled when filtered is empty");
-  assert.equal(nextDisabled, true, "Next button must be disabled when filtered is empty");
-  assert.equal(playDisabled, true, "Play button must be disabled when filtered is empty");
-
-  // Navigation button states when populated with 1 event
-  const singleFiltered = [{ id: "evt-001", startDate: "1982-06-06" }];
-  const singleHasEvents = singleFiltered.length > 0;
-  const singleSafeIndex = singleHasEvents ? Math.min(0, singleFiltered.length - 1) : 0;
-  assert.equal(!singleHasEvents || singleSafeIndex === 0, true, "Previous disabled at index 0");
-  assert.equal(!singleHasEvents || singleSafeIndex >= singleFiltered.length - 1, true, "Next disabled at end of single-item list");
+  // Verify previous, next, and play controls are disabled
+  assert.match(html, /<button[^>]*aria-label="Previous event"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Previous event"/, "Previous button must be disabled when 0 records match");
+  assert.match(html, /<button[^>]*aria-label="Next event"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Next event"/, "Next button must be disabled when 0 records match");
+  assert.match(html, /<button[^>]*aria-label="Playback unavailable"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Playback unavailable"/, "Play button must be disabled and indicate playback unavailable");
 });
