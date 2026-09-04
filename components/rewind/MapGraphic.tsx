@@ -81,10 +81,7 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
         coordinates: lineCoordinates,
       },
     });
-    return;
-  }
-
-  if (!map.getSource("trajectories")) {
+  } else if (!existingSource) {
     map.addSource("trajectories", {
       type: "geojson",
       data: {
@@ -98,25 +95,7 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
     });
   }
 
-  if (!map.getLayer("trajectory-line-glow")) {
-    map.addLayer({
-      id: "trajectory-line-glow",
-      type: "line",
-      source: "trajectories",
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": isSatellite ? "#38bdf8" : "#f59e0b",
-        "line-width": isSatellite ? 5 : 4,
-        "line-opacity": 0.4,
-        "line-blur": 3,
-      },
-    });
-  }
-
-  if (!map.getLayer("trajectory-line")) {
+  if (map.getSource("trajectories") && !map.getLayer("trajectory-line")) {
     map.addLayer({
       id: "trajectory-line",
       type: "line",
@@ -155,13 +134,14 @@ export function MapGraphic({
 
   // Mount-only detection of WebGL to ensure consistent SSR and client hydration
   useEffect(() => {
-    const supported = isWebGLAvailable();
-    if (supported) {
-      requestAnimationFrame(() => {
+    const handle = requestAnimationFrame(() => {
+      const supported = isWebGLAvailable();
+      if (supported) {
         setWebGlSupported(true);
         setMapMode("webgl");
-      });
-    }
+      }
+    });
+    return () => cancelAnimationFrame(handle);
   }, []);
 
   const points = useMemo(
@@ -289,6 +269,7 @@ export function MapGraphic({
             console.warn("Switching map to resilient fallback dark style due to remote style error:", e.error);
             try {
               map.setStyle(FALLBACK_RASTER_DARK_STYLE);
+              setMapTheme("dark");
             } catch {
               setWebGlSupported(false);
               setMapMode("svg");
@@ -334,7 +315,6 @@ export function MapGraphic({
       setMapLoaded(false);
     };
   }, [mapMode, transformRequest]);
-
 
   // Keep map canvas dimensions synchronized with container layout shifts
   useEffect(() => {
@@ -486,8 +466,15 @@ export function MapGraphic({
         mapTheme === "satellite" ? "satellite-active" : ""
       }`}
       role="group"
-      aria-label={`Geospatial map showing ${points.length} documented event locations`}
+      aria-label={`Geospatial map showing ${points.length} documented event locations and chronological trajectories`}
     >
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {selected && selectedEvent && selectedEvent.id === selected
+          ? `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}`
+          : ""}
+      </div>
+
       {/* Map Control Actions Toolbar */}
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
@@ -508,9 +495,7 @@ export function MapGraphic({
             aria-label={
               !MAPBOX_TOKEN
                 ? "Satellite view requires Mapbox token"
-                : mapTheme === "satellite"
-                ? "Switch to Dark Forensic Basemap"
-                : "Switch to Mapbox Satellite 3D View"
+                : "Mapbox Satellite 3D layer"
             }
           >
             {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
@@ -526,7 +511,7 @@ export function MapGraphic({
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             aria-pressed={mapMode === "svg"}
             title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
-            aria-label={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
+            aria-label="Schematic vector map mode"
           >
             <MapPin size={13} />
             <span>{mapMode === "svg" ? "Live Map" : "Schematic"}</span>
@@ -572,16 +557,16 @@ export function MapGraphic({
               type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
-                const center: [number, number] =
-                  selectedEvent?.longitude != null && selectedEvent?.latitude != null
-                    ? [selectedEvent.longitude, selectedEvent.latitude]
-                    : [35.2137, 31.7683];
-                mapInstanceRef.current?.flyTo({
-                  center,
-                  zoom: 4.2,
+                if (!mapInstanceRef.current) return;
+                const flyOptions: { pitch: number; bearing: number; center?: [number, number]; zoom?: number } = {
                   pitch: mapTheme === "satellite" ? 45 : 0,
                   bearing: 0,
-                });
+                };
+                if (selectedEvent && selectedEvent.longitude != null && selectedEvent.latitude != null) {
+                  flyOptions.center = [selectedEvent.longitude, selectedEvent.latitude];
+                  flyOptions.zoom = 4.2;
+                }
+                mapInstanceRef.current.flyTo(flyOptions);
               }}
               aria-label="Reset orientation to North"
               title="Reset North Orientation"
@@ -597,8 +582,8 @@ export function MapGraphic({
         <div
           ref={mapContainerRef}
           className="webgl-map-container"
-          role="application"
-          aria-label="Interactive Mapbox geospatial canvas"
+          role="region"
+          aria-label="Interactive geospatial map surface"
         />
       ) : (
         /* SVG Vector Schematic Map Mode */
@@ -648,12 +633,13 @@ export function MapGraphic({
                 className={`map-point ${isSelected ? "selected" : ""} ${
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
-                aria-label={`${isSelected ? "Selected location: " : ""}${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city} (${cluster.count} documented record${cluster.count > 1 ? "s" : ""})`}
                 aria-pressed={isSelected}
+                aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city} (${cluster.count} documented event${cluster.count > 1 ? "s" : ""})`}
               >
-                <i aria-hidden="true" />
-                {cluster.count > 1 && <b className="cluster-badge" aria-hidden="true">{cluster.count}</b>}
-                <span aria-hidden="true">
+                <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>
+                <i />
+                {cluster.count > 1 && <b className="cluster-badge">{cluster.count}</b>}
+                <span>
                   {isSelected
                     ? `${cluster.event.city} (${cluster.count})`
                     : cluster.count > 3

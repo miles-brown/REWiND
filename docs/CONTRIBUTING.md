@@ -56,3 +56,5 @@ npm test
    - `docs: add forensic evidence methodology`
 2. **Accessibility Verification**: Ensure all new interactive controls include proper `aria-label`, keyboard handlers, and visible focus rings.
 3. **Source Rigor**: Any new event records added to `data/rewind.ts` must include valid `sourceIds` referencing authenticated archival materials.
+4. **Technical Backlog**: Review unresolved review items and architectural tasks in [TECHNICAL_BACKLOG.md](./TECHNICAL_BACKLOG.md).
+
