@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Confidence, Precision, Verification } from "@/lib/rewind";
+import type { Confidence, Precision, Verification, EventRecord } from "@/lib/rewind";
 
 // ==========================================
 // 1. Enums & Core Tri-State Types
@@ -261,6 +261,7 @@ export interface EventPerson {
   id: string;
   eventId: string;
   personId: string;
+  personName?: string;
   involvementType: InvolvementType;
   roleLabel: string;
   capacityTitle?: string;
@@ -475,6 +476,51 @@ export const LocationPrecisionV2Schema = z.enum([
   "unknown",
 ]);
 
+export const InvolvementTypeSchema = z.enum([
+  "speaker",
+  "attendee",
+  "host",
+  "guest",
+  "visitor",
+  "interviewee",
+  "interviewer",
+  "moderator",
+  "panelist",
+  "performer",
+  "presenter",
+  "chair",
+  "delegate",
+  "signatory",
+  "witness",
+  "audience-member",
+  "staff",
+  "producer",
+  "director",
+  "crew",
+  "camera-operator",
+  "photographer",
+  "security",
+  "official",
+  "advisor",
+  "aide",
+  "translator",
+  "representative",
+  "participant",
+  "other",
+]);
+
+export const EpistemicBasisSchema = z.enum([
+  "official",
+  "directly-observed",
+  "contemporary-report",
+  "archival-record",
+  "derived",
+  "inferred",
+  "estimated",
+  "user-entered",
+  "unknown",
+]);
+
 export const EventPersonLocationSourceSchema = z.object({
   id: z.string(),
   eventPersonLocationId: z.string(),
@@ -495,7 +541,7 @@ export const EventPersonLocationSchema = z.object({
   localStartTime: z.string().optional(),
   localEndTime: z.string().optional(),
   isPrincipalLocation: z.boolean(),
-  locationBasis: z.string(),
+  locationBasis: EpistemicBasisSchema,
   confidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
   sourceIds: z.array(z.string()),
   sources: z.array(EventPersonLocationSourceSchema).optional(),
@@ -527,12 +573,17 @@ export const EventPersonSchema = z.object({
   id: z.string(),
   eventId: z.string(),
   personId: z.string(),
-  involvementType: z.string(),
+  personName: z.string().optional(),
+  involvementType: InvolvementTypeSchema,
   roleLabel: z.string(),
   capacityTitle: z.string().optional(),
   attendanceMode: z.enum(["physical", "remote-live", "remote-recorded", "telephone", "written", "proxy"]),
+  presenceExtent: z.enum(["entire-event", "partial", "keynote-only", "opening-ceremony", "arrival-only"]).optional(),
+  arrivalTime: z.string().optional(),
+  departureTime: z.string().optional(),
   presenceConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
   roleConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
+  notes: z.string().optional(),
   locations: z.array(EventPersonLocationSchema).optional(),
   representations: z.array(EventPersonOrganisationSchema).optional(),
 });

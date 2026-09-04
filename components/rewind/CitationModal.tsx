@@ -9,11 +9,13 @@ type Format = "bibtex" | "apa" | "chicago" | "json";
 
 export function CitationModal({
   event,
-  isOpen,
+  source: explicitSource,
+  isOpen = true,
   onClose,
 }: {
   event: EventRecord;
-  isOpen: boolean;
+  source?: SourceRecord;
+  isOpen?: boolean;
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<Format>("bibtex");
@@ -21,7 +23,15 @@ export function CitationModal({
 
   if (!isOpen) return null;
 
-  const source: SourceRecord | undefined = event.sources?.[0];
+  const source: SourceRecord =
+    explicitSource ||
+    event.sources?.[0] || {
+      id: event.sourceIds?.[0] || "src-primary",
+      title: event.eventName,
+      publisher: "REWIND Archival Register",
+      sourceType: "archival-document",
+      classification: "primary",
+    };
 
   let text = "";
   if (format === "bibtex") text = formatBibTeX(event, source);

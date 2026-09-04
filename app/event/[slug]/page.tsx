@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getEvents, getSourceById } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
@@ -10,21 +10,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const event = await getEventBySlug(slug);
   if (!event) notFound();
 
-  // Load surrounding events for pagination
-  const eventsResult = await getEvents({ limit: 100 });
-  const allEvents = eventsResult.data;
-  const index = allEvents.findIndex((e) => e.slug === slug);
-  const prev = index > 0 ? allEvents[index - 1] : undefined;
-  const next = index >= 0 && index < allEvents.length - 1 ? allEvents[index + 1] : undefined;
+  // Load surrounding events for chronological navigation
+  const { prev, next } = await getAdjacentEvents(event.startDate, event.id);
 
-  // Load attached source details
-  const sources = await Promise.all(
-    event.sourceIds.map(async (id) => {
-      const res = await getSourceById(id);
-      return res ? res.source : null;
-    })
-  );
-  const validSources = sources.filter(Boolean);
+  // Load attached source details in a single batched query
+  const validSources = event.sourceIds.length > 0
+    ? await getSourcesByIds(event.sourceIds)
+    : [];
 
   const date = new Date(event.startDate.includes("T") ? event.startDate : event.startDate + "T12:00:00");
 

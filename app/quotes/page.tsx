@@ -65,7 +65,7 @@ export default async function QuotesPage() {
               <blockquote style={{ fontSize: "1.1rem", fontStyle: "italic", margin: "0 0 0.75rem" }}>“{q.quote}”</blockquote>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "var(--text-muted, #888)" }}>
                 <span><b>{q.speakerName || "Documented Speaker"}</b> · {q.language?.toUpperCase()}</span>
-                {q.eventId && <Link href={`/event/${q.eventId}`}>View Event <ArrowRight size={12} /></Link>}
+                {(q.eventSlug || q.eventId) && <Link href={`/event/${q.eventSlug || q.eventId}`}>View Event <ArrowRight size={12} /></Link>}
               </div>
             </article>
           ))}

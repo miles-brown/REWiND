@@ -69,7 +69,9 @@ test("verifies SourcesPage module export and comprehensive filtering support", a
 });
 
 test("verifies SourcesPage accessibility and search criteria compliance", () => {
-  const sourcesPagePath = path.join(root, "app/sources/page.tsx");
+  const sourcesPagePath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
+    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
+    : path.join(root, "app/sources/page.tsx");
   const content = fs.readFileSync(sourcesPagePath, "utf-8");
 
   // ARIA pressed attributes
@@ -166,7 +168,9 @@ test("verifies PersonTimeline slider ARIA attributes and semantic dateTime forma
     "Slider must supply getAriaLabel callback for screen readers"
   );
 
-  const sourcesPath = path.join(root, "app/sources/page.tsx");
+  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
+    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
+    : path.join(root, "app/sources/page.tsx");
   const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
   assert.ok(
     sourcesContent.includes('dateTime={isoDate || undefined}'),
@@ -316,7 +320,9 @@ test("verifies MapGraphic lifecycle resilience and expanded keyboard Escape list
 });
 
 test("verifies SourcesPage historical date resolution and RewindExplorer disabled boundary states", () => {
-  const sourcesPath = path.join(root, "app/sources/page.tsx");
+  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
+    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
+    : path.join(root, "app/sources/page.tsx");
   const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
 
   assert.ok(
@@ -404,8 +410,11 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
     "PersonTimeline must set aria-valuemin, aria-valuemax, and aria-valuenow on Slider"
   );
 
-  // 2. Semantic KPI definition list in app/sources/page.tsx
-  const sourcesContent = fs.readFileSync(path.join(root, "app/sources/page.tsx"), "utf-8");
+  // 2. Semantic KPI definition list in SourcesCatalog.tsx
+  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
+    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
+    : path.join(root, "app/sources/page.tsx");
+  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
   assert.ok(
     sourcesContent.includes('<dl className="sources-kpi-bar" aria-label="Sources register summary metrics">'),
     "Sources page must use semantic <dl> list for KPI summary metrics"

@@ -19,35 +19,44 @@ export interface EventRecord {
   slug: string;
   eventName: string;
   startDate: string;
-  endDate?: string;
-  datePrecision?: string;
-  timePrecision?: string;
-  localStartTime?: string;
-  locationPrecision?: string;
+  endDate?: string | null;
+  datePrecision?: Precision | string;
+  timePrecision?: Precision | string;
+  localStartTime?: string | null;
+  localEndTime?: string | null;
+  timezone?: string | null;
+  locationPrecision?: "venue" | "city" | "country" | "unknown" | string;
   city: string;
+  region?: string | null;
   country: string;
-  venueName?: string;
+  venueName?: string | null;
+  address?: string | null;
+  platform?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   summary: string;
-  description?: string;
+  description?: string | null;
   verificationStatus: Verification;
   confidenceScore?: number;
-  confidence?: string;
+  confidence?: Confidence | string;
+  scope?: "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media" | string;
+  organisations?: string[];
   sourceIds: string[];
   participants: Participant[];
   categories?: string[];
   eventTypes?: string[];
   medium?: string[];
-  notes?: string;
+  notes?: string | null;
   provenance?: string[];
   reviewedAt?: string;
   sources?: SourceRecord[];
+  media?: { kind: string; label: string; url: string }[];
+  conflictingClaims?: string[];
   quotes?: {
     text: string;
     speaker: string;
     language: string;
-    timestamp?: string;
+    timestamp?: string | null;
   }[];
 }
 
@@ -97,6 +106,7 @@ export interface SourceRecord {
 export interface QuoteRecord {
   id: string;
   eventId: string;
+  eventSlug?: string;
   speakerId: string;
   speakerName?: string;
   quote: string;

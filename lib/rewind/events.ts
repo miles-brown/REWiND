@@ -40,6 +40,75 @@ function mapDatabaseEvent(
 }
 
 /**
+ * Hydrates an array of raw event rows with places, participants, and source references.
+ */
+async function hydrateEventRows(
+  supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>,
+  eventRows: Record<string, unknown>[]
+): Promise<EventRecord[]> {
+  if (!eventRows || eventRows.length === 0) return [];
+
+  const eventIds = eventRows.map((e) => String(e.id || ""));
+  const placeIds = Array.from(new Set(eventRows.map((e) => e.place_id ? String(e.place_id) : "").filter(Boolean)));
+
+  // Fetch places
+  const placesMap = new Map();
+  if (placeIds.length > 0) {
+    const { data: placeRows } = await supabase
+      .from("places")
+      .select("id, venue, city, country, latitude, longitude")
+      .in("id", placeIds);
+    (placeRows || []).forEach((p) => placesMap.set(p.id, p));
+  }
+
+  // Fetch participants
+  const participantsMap = new Map<string, Participant[]>();
+  const { data: participantRows } = await supabase
+    .from("event_people")
+    .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
+    .in("event_id", eventIds);
+
+  const personIds = Array.from(new Set((participantRows || []).map((p) => p.person_id)));
+  const personNames = new Map<string, string>();
+  if (personIds.length > 0) {
+    const { data: peopleData } = await supabase
+      .from("people")
+      .select("id, canonical_name, display_name")
+      .in("id", personIds);
+    (peopleData || []).forEach((p) => personNames.set(p.id, p.display_name || p.canonical_name));
+  }
+
+  (participantRows || []).forEach((p) => {
+    const list = participantsMap.get(p.event_id) || [];
+    list.push({
+      personId: p.person_id,
+      name: personNames.get(p.person_id) || p.person_id,
+      role: p.role_label,
+      presenceConfidence: p.presence_confidence,
+      capacityTitle: p.capacity_title || undefined,
+      attendanceMode: p.attendance_mode || "physical",
+    });
+    participantsMap.set(p.event_id, list);
+  });
+
+  // Fetch source IDs
+  const sourcesMap = new Map<string, string[]>();
+  const { data: sourceRows } = await supabase
+    .from("event_sources")
+    .select("event_id, source_id")
+    .in("event_id", eventIds);
+  (sourceRows || []).forEach((s) => {
+    const list = sourcesMap.get(s.event_id) || [];
+    list.push(s.source_id);
+    sourcesMap.set(s.event_id, list);
+  });
+
+  return eventRows.map((row) =>
+    mapDatabaseEvent(row, placesMap, participantsMap, sourcesMap)
+  );
+}
+
+/**
  * Retrieves a paginated list of published events with optional filtering.
  */
 export async function getEvents(params: EventFilters = {}): Promise<PaginatedResult<EventRecord>> {
@@ -79,15 +148,64 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       query = query.eq("verification_status", params.verification);
     }
 
+    if (params.category && params.category !== "All") {
+      query = query.or(`event_type.ilike.%${params.category}%,title.ilike.%${params.category}%`);
+    }
+
+    if (params.personSlug) {
+      const { data: personData } = await supabase
+        .from("people")
+        .select("id")
+        .eq("slug", params.personSlug)
+        .maybeSingle();
+
+      if (!personData) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: null,
+        };
+      }
+
+      const { data: participation } = await supabase
+        .from("event_people")
+        .select("event_id")
+        .eq("person_id", personData.id);
+
+      const eventIds = (participation || []).map((p) => p.event_id);
+      if (eventIds.length === 0) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: null,
+        };
+      }
+      query = query.in("id", eventIds);
+    }
+
     if (params.placeSlug) {
       const { data: placeData } = await supabase
         .from("places")
         .select("id")
         .eq("slug", params.placeSlug)
         .maybeSingle();
-      if (placeData) {
-        query = query.eq("place_id", placeData.id);
+      if (!placeData) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: null,
+        };
       }
+      query = query.eq("place_id", placeData.id);
     }
 
     query = query.range(offset, offset + pageSize - 1);
@@ -108,73 +226,16 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     if (!eventRows || eventRows.length === 0) {
       return {
         data: [],
-        count: 0,
+        count: count || 0,
         page,
         pageSize,
-        totalPages: 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
         error: null,
       };
     }
 
-    const eventIds = eventRows.map((e) => e.id);
-    const placeIds = Array.from(new Set(eventRows.map((e) => e.place_id).filter(Boolean)));
-
-    // Fetch places
-    const placesMap = new Map();
-    if (placeIds.length > 0) {
-      const { data: placeRows } = await supabase
-        .from("places")
-        .select("id, venue, city, country, latitude, longitude")
-        .in("id", placeIds);
-      (placeRows || []).forEach((p) => placesMap.set(p.id, p));
-    }
-
-    // Fetch participants
-    const participantsMap = new Map<string, Participant[]>();
-    const { data: participantRows } = await supabase
-      .from("event_people")
-      .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
-      .in("event_id", eventIds);
-
-    const personIds = Array.from(new Set((participantRows || []).map((p) => p.person_id)));
-    const personNames = new Map<string, string>();
-    if (personIds.length > 0) {
-      const { data: peopleData } = await supabase
-        .from("people")
-        .select("id, canonical_name, display_name")
-        .in("id", personIds);
-      (peopleData || []).forEach((p) => personNames.set(p.id, p.display_name || p.canonical_name));
-    }
-
-    (participantRows || []).forEach((p) => {
-      const list = participantsMap.get(p.event_id) || [];
-      list.push({
-        personId: p.person_id,
-        name: personNames.get(p.person_id) || p.person_id,
-        role: p.role_label,
-        presenceConfidence: p.presence_confidence,
-        capacityTitle: p.capacity_title || undefined,
-        attendanceMode: p.attendance_mode || "physical",
-      });
-      participantsMap.set(p.event_id, list);
-    });
-
-    // Fetch source IDs
-    const sourcesMap = new Map<string, string[]>();
-    const { data: sourceRows } = await supabase
-      .from("event_sources")
-      .select("event_id, source_id")
-      .in("event_id", eventIds);
-    (sourceRows || []).forEach((s) => {
-      const list = sourcesMap.get(s.event_id) || [];
-      list.push(s.source_id);
-      sourcesMap.set(s.event_id, list);
-    });
-
+    const events = await hydrateEventRows(supabase, eventRows);
     const total = count || 0;
-    const events = eventRows.map((row) =>
-      mapDatabaseEvent(row, placesMap, participantsMap, sourcesMap)
-    );
 
     return {
       data: events,
@@ -193,6 +254,29 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       totalPages: 0,
       error: err instanceof Error ? err.message : "Unknown database error",
     };
+  }
+}
+
+/**
+ * Retrieves events by an array of event IDs, fully hydrated.
+ */
+export async function getEventsByIds(ids: string[]): Promise<EventRecord[]> {
+  if (!ids || ids.length === 0) return [];
+  try {
+    const supabase = await createClient();
+    if (!supabase) return [];
+
+    const { data: eventRows, error } = await supabase
+      .from("events")
+      .select("*")
+      .in("id", ids)
+      .eq("publication_status", "published")
+      .order("start_date", { ascending: false });
+
+    if (error || !eventRows) return [];
+    return hydrateEventRows(supabase, eventRows);
+  } catch {
+    return [];
   }
 }
 
@@ -286,6 +370,51 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
 }
 
 /**
+ * Retrieves adjacent chronological events around a specific event.
+ */
+export async function getAdjacentEvents(
+  startDate: string,
+  currentId: string
+): Promise<{ prev: EventRecord | null; next: EventRecord | null }> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return { prev: null, next: null };
+
+    // Previous event (earlier in time)
+    const { data: prevRows } = await supabase
+      .from("events")
+      .select("*")
+      .eq("publication_status", "published")
+      .or(`start_date.lt.${startDate},and(start_date.eq.${startDate},id.lt.${currentId})`)
+      .order("start_date", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1);
+
+    // Next event (later in time)
+    const { data: nextRows } = await supabase
+      .from("events")
+      .select("*")
+      .eq("publication_status", "published")
+      .or(`start_date.gt.${startDate},and(start_date.eq.${startDate},id.gt.${currentId})`)
+      .order("start_date", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1);
+
+    const [prevEvents, nextEvents] = await Promise.all([
+      hydrateEventRows(supabase, prevRows || []),
+      hydrateEventRows(supabase, nextRows || []),
+    ]);
+
+    return {
+      prev: prevEvents[0] || null,
+      next: nextEvents[0] || null,
+    };
+  } catch {
+    return { prev: null, next: null };
+  }
+}
+
+/**
  * Retrieves verified events for home highlights.
  */
 export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
@@ -294,7 +423,7 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 }
 
 /**
- * Retrieves events associated with a specific person slug.
+ * Retrieves events associated with a specific person slug, fully hydrated.
  */
 export async function getEventsByPerson(personSlug: string): Promise<EventRecord[]> {
   try {
@@ -325,20 +454,7 @@ export async function getEventsByPerson(personSlug: string): Promise<EventRecord
       .order("start_date", { ascending: true });
 
     if (!eventRows || eventRows.length === 0) return [];
-
-    const placeIds = Array.from(new Set(eventRows.map((e) => e.place_id).filter(Boolean)));
-    const placesMap = new Map();
-    if (placeIds.length > 0) {
-      const { data: placeRows } = await supabase
-        .from("places")
-        .select("id, venue, city, country, latitude, longitude")
-        .in("id", placeIds);
-      (placeRows || []).forEach((p) => placesMap.set(p.id, p));
-    }
-
-    return eventRows.map((row) =>
-      mapDatabaseEvent(row, placesMap, new Map(), new Map())
-    );
+    return hydrateEventRows(supabase, eventRows);
   } catch {
     return [];
   }

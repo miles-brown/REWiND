@@ -19,6 +19,17 @@ import type { EventRecord, SourceRecord } from "@/lib/rewind";
 type SortOption = "events-desc" | "date-desc" | "date-asc" | "title-asc" | "publisher-asc";
 type ViewMode = "table" | "cards";
 
+export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; displayDate: string } {
+  const raw = s.publicationDate || s.accessedDate || "";
+  if (!raw) return { isoDate: null, displayDate: "Undated" };
+  const d = new Date(raw.includes("T") ? raw : raw + "T12:00:00");
+  if (isNaN(d.getTime())) return { isoDate: raw, displayDate: raw };
+  return {
+    isoDate: raw,
+    displayDate: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+  };
+}
+
 export function SourcesCatalog({
   sources = [],
   events = [],
@@ -67,7 +78,8 @@ export function SourcesCatalog({
           const matchTitle = s.title.toLowerCase().includes(q);
           const matchPub = s.publisher.toLowerCase().includes(q);
           const matchId = s.id.toLowerCase().includes(q);
-          if (!matchTitle && !matchPub && !matchId) return false;
+          const matchUrl = s.url ? s.url.toLowerCase().includes(q) : false;
+          if (!matchTitle && !matchPub && !matchId && !matchUrl) return false;
         }
 
         if (classificationFilter !== "all" && s.classification !== classificationFilter) {
@@ -150,24 +162,24 @@ export function SourcesCatalog({
           Filter by tier, provenance, or publisher to inspect the archival chain of custody.
         </p>
 
-        <div className="sources-kpi-bar" role="region" aria-label="Sources register summary metrics">
+        <dl className="sources-kpi-bar" aria-label="Sources register summary metrics">
           <div className="source-kpi">
-            <span className="kpi-num">{sources.length}</span>
-            <span className="kpi-label">Documented Records</span>
+            <dt className="kpi-label">Documented Records</dt>
+            <dd className="kpi-num">{sources.length}</dd>
           </div>
           <div className="source-kpi highlight">
-            <span className="kpi-num">{primaryPercent}%</span>
-            <span className="kpi-label">Primary Tier-A Evidence</span>
+            <dt className="kpi-label">Primary Tier-A Evidence</dt>
+            <dd className="kpi-num">{primaryPercent}%</dd>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{publishers.length}</span>
-            <span className="kpi-label">Archival Publishers</span>
+            <dt className="kpi-label">Archival Publishers</dt>
+            <dd className="kpi-num">{publishers.length}</dd>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{totalEvidencedLinks}</span>
-            <span className="kpi-label">Total Corroborated Claims</span>
+            <dt className="kpi-label">Total Corroborated Claims</dt>
+            <dd className="kpi-num">{totalEvidencedLinks}</dd>
           </div>
-        </div>
+        </dl>
       </header>
 
       <div className="sources-control-console">
@@ -194,13 +206,14 @@ export function SourcesCatalog({
             )}
           </div>
 
-          <div className="sources-view-toggles">
+          <div className="sources-view-toggles" role="toolbar" aria-label="Catalog layout mode">
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               onClick={() => setViewMode("table")}
               title="Table View"
               aria-label="Switch to Table view"
+              aria-pressed={viewMode === "table"}
             >
               <List size={15} />
               <span>Table</span>
@@ -211,6 +224,7 @@ export function SourcesCatalog({
               onClick={() => setViewMode("cards")}
               title="Dossier Card View"
               aria-label="Switch to Dossier Card view"
+              aria-pressed={viewMode === "cards"}
             >
               <Grid size={15} />
               <span>Cards</span>
@@ -221,11 +235,12 @@ export function SourcesCatalog({
         <div className="sources-filter-row">
           <div className="filter-group">
             <span className="filter-group-label">Evidence Tier</span>
-            <div className="filter-pill-cluster">
+            <div className="filter-pill-cluster" role="group" aria-label="Evidence tier filter">
               <button
                 type="button"
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("all")}
+                aria-pressed={classificationFilter === "all"}
               >
                 All ({sources.length})
               </button>
@@ -233,6 +248,7 @@ export function SourcesCatalog({
                 type="button"
                 className={`filter-pill primary ${classificationFilter === "primary" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("primary")}
+                aria-pressed={classificationFilter === "primary"}
               >
                 <ShieldCheck size={12} />
                 <span>Primary ({sources.filter((s) => s.classification === "primary").length})</span>
@@ -241,6 +257,7 @@ export function SourcesCatalog({
                 type="button"
                 className={`filter-pill secondary ${classificationFilter === "secondary" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("secondary")}
+                aria-pressed={classificationFilter === "secondary"}
               >
                 <span>Secondary ({sources.filter((s) => s.classification === "secondary").length})</span>
               </button>
@@ -248,14 +265,14 @@ export function SourcesCatalog({
           </div>
 
           <div className="filter-select-wrap">
-            <label htmlFor="source-type-select">Source Type</label>
+            <label htmlFor="source-type-select">Record Type</label>
             <select
               id="source-type-select"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               className="sources-select"
             >
-              <option value="all">All Record Types</option>
+              <option value="all">All Types ({sourceTypes.length})</option>
               {sourceTypes.map((t) => (
                 <option key={t} value={t}>
                   {t.replace(/-/g, " ")} ({sources.filter((s) => s.sourceType === t).length})
@@ -265,7 +282,7 @@ export function SourcesCatalog({
           </div>
 
           <div className="filter-select-wrap">
-            <label htmlFor="source-pub-select">Publisher</label>
+            <label htmlFor="source-pub-select">Archival Publisher</label>
             <select
               id="source-pub-select"
               value={publisherFilter}
@@ -305,19 +322,19 @@ export function SourcesCatalog({
               title="Reset all active search and filter constraints"
             >
               <RotateCcw size={13} />
-              <span>Reset</span>
+              <span>Reset filters</span>
             </button>
           )}
         </div>
 
-        <div className="sources-results-meta" aria-live="polite">
+        <div className="sources-results-meta" role="status" aria-live="polite" aria-atomic="true">
           Showing <b>{filteredSources.length}</b> of {sources.length} records
           {isFiltered && <span className="active-filter-hint"> (Filtered)</span>}
         </div>
       </div>
 
       {filteredSources.length === 0 ? (
-        <div className="sources-empty-state">
+        <div className="sources-empty-state" role="status" aria-live="polite">
           <BookOpen size={42} />
           <h3>No matching records located</h3>
           <p>
@@ -325,11 +342,9 @@ export function SourcesCatalog({
               ? "The canonical Supabase source register is ready. Primary sources will appear here as research is added in Milestone B."
               : "No documentary sources match your current search and filter parameters."}
           </p>
-          {isFiltered && (
-            <button type="button" className="action-btn" onClick={resetFilters}>
-              Clear all filters
-            </button>
-          )}
+          <button type="button" className="action-btn reset" onClick={resetFilters}>
+            Clear all filters
+          </button>
         </div>
       ) : viewMode === "table" ? (
         <div className="sources-table-container">
@@ -347,7 +362,7 @@ export function SourcesCatalog({
             <tbody>
               {filteredSources.map((s) => {
                 const eventCount = sourceEventMap.get(s.id) || 0;
-                const displayDate = s.publicationDate || s.accessedDate || "—";
+                const { isoDate, displayDate } = getSourceDateInfo(s);
                 const isVideo = s.sourceType.includes("video");
 
                 return (
@@ -380,7 +395,7 @@ export function SourcesCatalog({
                       </span>
                     </td>
                     <td className="col-date">
-                      <time className="source-time-val">{displayDate}</time>
+                      <time className="source-time-val" dateTime={isoDate || undefined}>{displayDate}</time>
                     </td>
                     <td className="col-events">
                       <span className="event-count-badge">
@@ -422,7 +437,7 @@ export function SourcesCatalog({
         <div className="sources-card-grid">
           {filteredSources.map((s) => {
             const eventCount = sourceEventMap.get(s.id) || 0;
-            const displayDate = s.publicationDate || s.accessedDate || "—";
+            const { isoDate, displayDate } = getSourceDateInfo(s);
             const isVideo = s.sourceType.includes("video");
 
             return (
@@ -450,7 +465,7 @@ export function SourcesCatalog({
 
                 <div className="card-publisher-row">
                   <span className="publisher-name">{s.publisher}</span>
-                  <span className="card-date">{displayDate}</span>
+                  <time className="card-date" dateTime={isoDate || undefined}>{displayDate}</time>
                 </div>
 
                 <div className="card-footer">

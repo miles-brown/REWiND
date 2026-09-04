@@ -30,12 +30,12 @@ export function EventExplorer({
       .filter((e) => {
         if (year && !e.startDate.startsWith(year)) return false;
         if (status !== "all" && e.verificationStatus !== status) return false;
+        const allTypes = Array.from(new Set([...(e.eventTypes || []), ...(e.categories || [])]));
         if (type !== "All") {
-          const allTypes = [...(e.eventTypes || []), ...(e.categories || [])];
           if (!allTypes.includes(type)) return false;
         }
         if (query.trim()) {
-          const target = `${e.eventName} ${e.city} ${e.country} ${(e.eventTypes || []).join(" ")}`.toLowerCase();
+          const target = `${e.eventName} ${e.city} ${e.country} ${allTypes.join(" ")}`.toLowerCase();
           if (!target.includes(query.toLowerCase())) return false;
         }
         return true;

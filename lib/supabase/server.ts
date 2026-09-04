@@ -8,13 +8,11 @@ const supabaseAnonKey =
   "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-export const isSupabaseServerConfigured = Boolean(
-  supabaseUrl && (supabaseAnonKey || serviceRoleKey)
-);
+export const isSupabaseServerConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 /**
  * Creates a server-side Supabase client for Server Components, Server Actions,
- * and Route Handlers with automatic cookie handling.
+ * and Route Handlers with automatic cookie handling using public credentials.
  */
 export async function createClient() {
   if (!isSupabaseServerConfigured) {
@@ -23,7 +21,7 @@ export async function createClient() {
 
   try {
     const cookieStore = await cookies();
-    return createServerClient(supabaseUrl, supabaseAnonKey || serviceRoleKey, {
+    return createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -41,7 +39,7 @@ export async function createClient() {
     });
   } catch {
     // In background scripts, tests, or non-request contexts where cookies() is unavailable
-    return createServerClient(supabaseUrl, supabaseAnonKey || serviceRoleKey, {
+    return createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         getAll: () => [],
         setAll: () => {},
@@ -75,11 +73,11 @@ export function createAdminClient() {
 }
 
 /**
- * Compatibility helper for existing server client calls.
+ * Compatibility helper for existing server client calls using public credentials.
  */
 export function getSupabaseServerClient() {
   if (!isSupabaseServerConfigured) return null;
-  return createServerClient(supabaseUrl, supabaseAnonKey || serviceRoleKey, {
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll: () => [],
       setAll: () => {},
@@ -97,4 +95,3 @@ export function getSupabaseServerClient() {
 export function getRewindServerClient() {
   return getSupabaseServerClient();
 }
-

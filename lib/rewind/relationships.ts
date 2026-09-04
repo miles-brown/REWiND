@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPersonBySlug } from "./people";
 import type { EventRecord, PersonRecord } from "./types";
-import { getEvents } from "./events";
+import { getEventsByIds } from "./events";
 
 export interface RelationshipItem {
   id: string;
@@ -21,16 +21,20 @@ export interface PairwiseRelationshipData {
 }
 
 /**
- * Retrieves the diplomatic co-appearance network across all monitored individuals.
+ * Retrieves the diplomatic co-appearance network across all monitored individuals,
+ * restricted strictly to verified and published events.
  */
 export async function getRelationships(): Promise<RelationshipItem[]> {
   try {
     const supabase = await createClient();
     if (!supabase) return [];
 
+    // Filter participations by verified and published events
     const { data: participations, error } = await supabase
       .from("event_people")
-      .select("event_id, person_id, role_label");
+      .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
+      .eq("events.verification_status", "verified")
+      .eq("events.publication_status", "published");
 
     if (error || !participations || participations.length === 0) return [];
 
@@ -135,11 +139,7 @@ export async function getRelationshipBetween(
       .map((p) => p.event_id)
       .filter((id) => eventsA.has(id));
 
-    let sharedEvents: EventRecord[] = [];
-    if (sharedIds.length > 0) {
-      const allEvents = await getEvents({ limit: 100 });
-      sharedEvents = allEvents.data.filter((e) => sharedIds.includes(e.id));
-    }
+    const sharedEvents: EventRecord[] = sharedIds.length > 0 ? await getEventsByIds(sharedIds) : [];
 
     return {
       personA,

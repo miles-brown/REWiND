@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
@@ -24,27 +24,43 @@ const DEFAULT_ACTIONS: ResultItem[] = [
     href: "/people",
   },
   {
-    id: "action-events",
-    category: "Events",
-    title: "Documented Events",
-    subtitle: "Search bilateral summits, plenary speeches, and appearances",
-    badge: "Atlas",
-    href: "/events",
-  },
-  {
     id: "action-sources",
     category: "Sources",
-    title: "Primary Source Catalog",
-    subtitle: "Browse official transcripts, government archives, and broadcasts",
-    badge: "Evidence",
+    title: "Archival Primary Sources",
+    subtitle: "Verified repository records, transcripts, and press releases",
+    badge: "Registry",
     href: "/sources",
+  },
+  {
+    id: "action-relationships",
+    category: "People",
+    title: "Diplomatic Relationships",
+    subtitle: "Spacetime co-presence and bilateral meeting network",
+    badge: "Analysis",
+    href: "/relationships",
+  },
+  {
+    id: "action-compare",
+    category: "Events",
+    title: "Timeline Comparison",
+    subtitle: "Side-by-side chronological analysis of multiple figures",
+    badge: "Analysis",
+    href: "/compare",
+  },
+  {
+    id: "action-quotes",
+    category: "Quotes",
+    title: "Archival Quote Register",
+    subtitle: "Attributable speeches, statements, and verified transcripts",
+    badge: "Registry",
+    href: "/quotes",
   },
   {
     id: "action-places",
     category: "Places",
-    title: "Gazetteer & Venues",
-    subtitle: "Explore global diplomatic locations and meeting grounds",
-    badge: "Gazetteer",
+    title: "Geographic Atlas",
+    subtitle: "Documented venues, capitals, and event coordinates",
+    badge: "Registry",
     href: "/places",
   },
   {
@@ -69,6 +85,7 @@ export function CommandPalette({
   const [searchResults, setSearchResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const searchRequestIdRef = useRef(0);
 
   const trimmed = query.trim();
   const results = trimmed ? searchResults : DEFAULT_ACTIONS;
@@ -79,12 +96,15 @@ export function CommandPalette({
       return;
     }
 
+    const requestId = ++searchRequestIdRef.current;
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`);
+        if (requestId !== searchRequestIdRef.current) return;
         if (res.ok) {
           const json = await res.json();
+          if (requestId !== searchRequestIdRef.current) return;
           const items: ResultItem[] = (json.results || []).map((r: { id: string; type: string; title: string; subtitle?: string; badge?: string; url: string }) => {
             let cat: ResultItem["category"] = "Events";
             if (r.type === "person") cat = "People";
@@ -104,11 +124,15 @@ export function CommandPalette({
       } catch {
         // Fallback gracefully on network error
       } finally {
-        setIsLoading(false);
+        if (requestId === searchRequestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const activeIndex = selectedIndex >= results.length ? 0 : selectedIndex;

@@ -83,17 +83,6 @@ export function RewindExplorer({
     return () => clearInterval(timer);
   }, [playing, speed, direction, filtered.length]);
 
-  if (initialEvents.length === 0) {
-    return (
-      <section className="rewind-workspace" aria-label="Interactive Rewind explorer">
-        <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
-          <h2>No Events Recorded</h2>
-          <p>There are currently no documented events in the evidence corpus.</p>
-        </div>
-      </section>
-    );
-  }
-
   const hasEvents = filtered.length > 0;
   const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
   const event = hasEvents ? filtered[safeIndex] : null;

@@ -27,34 +27,40 @@ export function TimelineComparison({
   const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
 
-  const personA = people.find((p) => p.slug === slugA) || people[0];
-  const personB = people.find((p) => p.slug === slugB) || people[1] || people[0];
+  const personA = people.find((p) => p.slug === slugA);
+  const personB = people.find((p) => p.slug === slugB);
 
   const eventsA = useMemo(
     () =>
-      events
-        .filter((e) => e.participants.some((p) => p.personId === personA?.id))
-        .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+      personA
+        ? events
+            .filter((e) => e.participants.some((p) => p.personId === personA.id))
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        : [],
     [events, personA]
   );
 
   const eventsB = useMemo(
     () =>
-      events
-        .filter((e) => e.participants.some((p) => p.personId === personB?.id))
-        .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+      personB
+        ? events
+            .filter((e) => e.participants.some((p) => p.personId === personB.id))
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        : [],
     [events, personB]
   );
 
   const intersections = useMemo(
     () =>
-      events
-        .filter(
-          (e) =>
-            e.participants.some((p) => p.personId === personA?.id) &&
-            e.participants.some((p) => p.personId === personB?.id)
-        )
-        .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+      personA && personB
+        ? events
+            .filter(
+              (e) =>
+                e.participants.some((p) => p.personId === personA.id) &&
+                e.participants.some((p) => p.personId === personB.id)
+            )
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        : [],
     [events, personA, personB]
   );
 
@@ -63,6 +69,28 @@ export function TimelineComparison({
     const citiesB = new Set(eventsB.map((e) => e.city));
     return Array.from(citiesA).filter((c) => citiesB.has(c));
   }, [eventsA, eventsB]);
+
+  if (!personA || !personB || people.length < 2) {
+    return (
+      <div
+        className="zero-state"
+        style={{
+          padding: "4rem 2rem",
+          textAlign: "center",
+          border: "1px dashed var(--border-subtle, #333)",
+          borderRadius: "8px",
+          margin: "2rem auto",
+          maxWidth: "600px",
+        }}
+      >
+        <Users size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+        <h2>Pairwise Comparison Unavailable</h2>
+        <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+          At least two documented figures are required to perform a bilateral spacetime comparison.
+        </p>
+      </div>
+    );
+  }
 
   if (people.length === 0) {
     return (

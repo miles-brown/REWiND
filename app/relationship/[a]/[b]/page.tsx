@@ -1,8 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
-import { getPersonBySlug, getPeople, getEvents, getSources } from "@/lib/rewind";
+import {
+  getPersonBySlug,
+  getPeople,
+  getEventsByPerson,
+  getSources,
+  type EventRecord,
+} from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
+
+function getMonogram(name: string): string {
+  if (!name) return "—";
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default async function RelationshipPage({
   params,
@@ -10,15 +24,22 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const [pa, pb, people, eventsRes, sources] = await Promise.all([
+  const [pa, pb, people, eventsA, eventsB, sources] = await Promise.all([
     getPersonBySlug(a),
     getPersonBySlug(b),
     getPeople(),
-    getEvents({ limit: 1000 }),
+    getEventsByPerson(a),
+    getEventsByPerson(b),
     getSources(),
   ]);
 
   if (!pa || !pb) notFound();
+
+  // Combine and deduplicate events for both people
+  const eventMap = new Map<string, EventRecord>();
+  eventsA.forEach((e) => eventMap.set(e.id, e));
+  eventsB.forEach((e) => eventMap.set(e.id, e));
+  const relationshipEvents = Array.from(eventMap.values());
 
   return (
     <div className="page-shell relationship-page">
@@ -33,11 +54,7 @@ export default async function RelationshipPage({
 
       <header className="relationship-hero">
         <span className="person-monogram large">
-          {pa.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+          {getMonogram(pa.name)}
         </span>
         <div>
           <span className="eyebrow">DOCUMENTED INTERSECTIONS</span>
@@ -49,11 +66,7 @@ export default async function RelationshipPage({
           </p>
         </div>
         <span className="person-monogram large">
-          {pb.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+          {getMonogram(pb.name)}
         </span>
       </header>
 
@@ -61,7 +74,7 @@ export default async function RelationshipPage({
         initialPersonA={pa.slug}
         initialPersonB={pb.slug}
         people={people}
-        events={eventsRes.data}
+        events={relationshipEvents}
         sources={sources}
       />
     </div>

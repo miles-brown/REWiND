@@ -57,7 +57,9 @@ export function MediaDrawer({
             </div>
             <div className="player-meta">
               <b>{event.eventName} — Historical Recording</b>
-              <small>{(event.medium || []).join(" · ")} · {event.startDate}</small>
+              <small>
+                {[...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
+              </small>
             </div>
             <button
               className={`player-toggle-btn ${isPlayingAudio ? "playing" : ""}`}

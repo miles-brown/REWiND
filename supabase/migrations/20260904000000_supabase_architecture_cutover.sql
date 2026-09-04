@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.people (
   programme_id text REFERENCES public.coverage_programmes(id),
   is_living boolean DEFAULT true NOT NULL,
   monitoring_priority text DEFAULT 'normal' NOT NULL,
-  publication_status text DEFAULT 'published' NOT NULL,
+  publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
   wikidata_id text,
   viaf_id text,
   avatar_url text,
@@ -154,10 +154,10 @@ CREATE TABLE IF NOT EXISTS public.events (
   place_id text REFERENCES public.places(id),
   venue_id text REFERENCES public.venues(id),
   address_id text REFERENCES public.addresses(id),
-  verification_status text DEFAULT 'verified' NOT NULL,
+  verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
   confidence_score double precision DEFAULT 1.0 NOT NULL,
-  publication_status text DEFAULT 'published' NOT NULL,
-  publication_lane text DEFAULT 'auto-publish' NOT NULL,
+  publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
+  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'human-review', 'quarantine', 'withheld')),
   significance_score integer DEFAULT 80 NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -294,6 +294,23 @@ CREATE TABLE IF NOT EXISTS public.event_sources (
   is_primary boolean DEFAULT true NOT NULL
 );
 
+-- Foreign key constraints for source references on prior tables
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_event_titles_source') THEN
+    ALTER TABLE public.event_titles
+      ADD CONSTRAINT fk_event_titles_source
+      FOREIGN KEY (source_id) REFERENCES public.sources(id)
+      ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_event_location_sequences_source') THEN
+    ALTER TABLE public.event_location_sequences
+      ADD CONSTRAINT fk_event_location_sequences_source
+      FOREIGN KEY (source_id) REFERENCES public.sources(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.claims (
   id text PRIMARY KEY,
   event_id text NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
@@ -381,9 +398,15 @@ CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events(place_id);
 CREATE INDEX IF NOT EXISTS idx_events_publication_status ON public.events(publication_status);
 
 CREATE INDEX IF NOT EXISTS idx_places_slug ON public.places(slug);
+CREATE INDEX IF NOT EXISTS idx_event_titles_event_id ON public.event_titles(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_people_event_id ON public.event_people(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_people_person_id ON public.event_people(person_id);
 CREATE INDEX IF NOT EXISTS idx_event_person_locations_event_person_id ON public.event_person_locations(event_person_id);
+CREATE INDEX IF NOT EXISTS idx_event_person_orgs_event_person_id ON public.event_person_organisations(event_person_id);
+CREATE INDEX IF NOT EXISTS idx_event_organisations_event_id ON public.event_organisations(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_broadcasts_event_id ON public.event_broadcasts(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_topics_event_id ON public.event_topics(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_location_seq_event_id ON public.event_location_sequences(event_id);
 
 CREATE INDEX IF NOT EXISTS idx_event_sources_event_id ON public.event_sources(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_sources_source_id ON public.event_sources(source_id);
@@ -391,6 +414,7 @@ CREATE INDEX IF NOT EXISTS idx_claims_event_id ON public.claims(event_id);
 CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_event_id ON public.quotes(event_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes(speaker_id);
+CREATE INDEX IF NOT EXISTS idx_media_assets_event_id ON public.media_assets(event_id);
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) & ACCESS CONTROL
@@ -471,51 +495,78 @@ BEGIN
     CREATE POLICY "Allow public read on event_series" ON public.event_series FOR SELECT TO anon, authenticated USING (true);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_titles' AND policyname = 'Allow public read on event_titles') THEN
-    CREATE POLICY "Allow public read on event_titles" ON public.event_titles FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_titles" ON public.event_titles FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_titles.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_people' AND policyname = 'Allow public read on event_people') THEN
-    CREATE POLICY "Allow public read on event_people" ON public.event_people FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_people" ON public.event_people FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_people.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_locations' AND policyname = 'Allow public read on event_person_locations') THEN
-    CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated
+      USING (
+        public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        AND EXISTS (
+          SELECT 1 FROM public.event_people ep
+          JOIN public.events e ON e.id = ep.event_id
+          WHERE ep.id = event_person_locations.event_person_id
+          AND e.publication_status = 'published'
+        )
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_organisations' AND policyname = 'Allow public read on event_person_organisations') THEN
-    CREATE POLICY "Allow public read on event_person_organisations" ON public.event_person_organisations FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_person_organisations" ON public.event_person_organisations FOR SELECT TO anon, authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.event_people ep
+          JOIN public.events e ON e.id = ep.event_id
+          WHERE ep.id = event_person_organisations.event_person_id
+          AND e.publication_status = 'published'
+        )
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_organisations' AND policyname = 'Allow public read on event_organisations') THEN
-    CREATE POLICY "Allow public read on event_organisations" ON public.event_organisations FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_organisations" ON public.event_organisations FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_organisations.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_broadcasts' AND policyname = 'Allow public read on event_broadcasts') THEN
-    CREATE POLICY "Allow public read on event_broadcasts" ON public.event_broadcasts FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_broadcasts" ON public.event_broadcasts FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_broadcasts.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_topics' AND policyname = 'Allow public read on event_topics') THEN
-    CREATE POLICY "Allow public read on event_topics" ON public.event_topics FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_topics" ON public.event_topics FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_topics.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_location_sequences' AND policyname = 'Allow public read on event_location_sequences') THEN
-    CREATE POLICY "Allow public read on event_location_sequences" ON public.event_location_sequences FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_location_sequences" ON public.event_location_sequences FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_location_sequences.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'sources' AND policyname = 'Allow public read on sources') THEN
     CREATE POLICY "Allow public read on sources" ON public.sources FOR SELECT TO anon, authenticated USING (true);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_sources' AND policyname = 'Allow public read on event_sources') THEN
-    CREATE POLICY "Allow public read on event_sources" ON public.event_sources FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on event_sources" ON public.event_sources FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_sources.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'claims' AND policyname = 'Allow public read on claims') THEN
-    CREATE POLICY "Allow public read on claims" ON public.claims FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on claims" ON public.claims FOR SELECT TO anon, authenticated
+      USING (event_id IS NULL OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Allow public read on quotes') THEN
-    CREATE POLICY "Allow public read on quotes" ON public.quotes FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on quotes" ON public.quotes FOR SELECT TO anon, authenticated
+      USING (event_id IS NULL OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = quotes.event_id AND e.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'media_assets' AND policyname = 'Allow public read on media_assets') THEN
-    CREATE POLICY "Allow public read on media_assets" ON public.media_assets FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on media_assets" ON public.media_assets FOR SELECT TO anon, authenticated
+      USING (event_id IS NULL OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = media_assets.event_id AND e.publication_status = 'published'));
   END IF;
 END $$;
 
 -- Explicit Grants for PostgREST Data API exposure
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 
--- Revoke access to internal administrative/review tables from public roles
-REVOKE ALL ON public.candidate_events FROM anon;
-REVOKE ALL ON public.review_decisions FROM anon;
-REVOKE ALL ON public.audit_log FROM anon;
-REVOKE ALL ON public.source_fetches FROM anon;
+-- Revoke access to internal administrative/review tables from public and authenticated roles
+REVOKE ALL ON public.candidate_events FROM anon, authenticated;
+REVOKE ALL ON public.review_decisions FROM anon, authenticated;
+REVOKE ALL ON public.audit_log FROM anon, authenticated;
+REVOKE ALL ON public.source_fetches FROM anon, authenticated;

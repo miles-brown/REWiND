@@ -482,7 +482,7 @@ export function MapGraphic({
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
+            onClick={MAPBOX_TOKEN && MAPBOX_SATELLITE_STYLE ? toggleMapTheme : undefined}
             disabled={!MAPBOX_TOKEN}
             aria-pressed={mapTheme === "satellite"}
             title={

@@ -28,13 +28,13 @@ export async function getQuotes(): Promise<QuoteRecord[]> {
       (people || []).forEach((p) => speakerMap.set(p.id, p.display_name || p.canonical_name));
     }
 
-    const eventMap = new Map<string, { title: string; date: string }>();
+    const eventMap = new Map<string, { slug: string; title: string; date: string }>();
     if (eventIds.length > 0) {
       const { data: events } = await supabase
         .from("events")
-        .select("id, title, start_date")
+        .select("id, slug, title, start_date")
         .in("id", eventIds);
-      (events || []).forEach((e) => eventMap.set(e.id, { title: e.title, date: e.start_date }));
+      (events || []).forEach((e) => eventMap.set(e.id, { slug: e.slug, title: e.title, date: e.start_date }));
     }
 
     return quotesData.map((q) => {
@@ -42,6 +42,7 @@ export async function getQuotes(): Promise<QuoteRecord[]> {
       return {
         id: q.id,
         eventId: q.event_id,
+        eventSlug: evt?.slug || q.event_id,
         speakerId: q.speaker_id,
         speakerName: speakerMap.get(q.speaker_id) || q.speaker_id,
         quote: q.quote,
