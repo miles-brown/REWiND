@@ -136,8 +136,8 @@ test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", 
 
   // Satellite token safeguard
   assert.ok(
-    content.includes("disabled={!MAPBOX_TOKEN}"),
-    "Satellite toggle button must be disabled when MAPBOX_TOKEN is empty"
+    content.includes("disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}"),
+    "Satellite toggle button must be disabled when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
   );
 });
 

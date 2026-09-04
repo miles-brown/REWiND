@@ -483,18 +483,18 @@ export function MapGraphic({
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
             onClick={MAPBOX_TOKEN && MAPBOX_SATELLITE_STYLE ? toggleMapTheme : undefined}
-            disabled={!MAPBOX_TOKEN}
+            disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}
             aria-pressed={mapTheme === "satellite"}
             title={
-              !MAPBOX_TOKEN
-                ? "Satellite view requires Mapbox token"
+              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
+                ? "Satellite view requires Mapbox token and style configuration"
                 : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }
             aria-label={
-              !MAPBOX_TOKEN
-                ? "Satellite view requires Mapbox token"
+              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
+                ? "Satellite view requires Mapbox token and style configuration"
                 : "Mapbox Satellite 3D layer"
             }
           >

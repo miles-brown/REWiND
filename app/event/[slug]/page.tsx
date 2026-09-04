@@ -41,7 +41,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <h1>{event.eventName}</h1>
           <p>{event.summary}</p>
           <div className="detail-tags">
-            {(event.eventTypes || event.categories || []).map((type) => (
+            {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
               <span key={type}>{type}</span>
             ))}
           </div>
