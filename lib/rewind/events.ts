@@ -379,11 +379,22 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
       .eq("event_id", eventId);
     const sourceIds = (eventSourcesRows || []).map((s) => s.source_id);
 
+    const sourceEntitiesMap = new Map<string, SourceRecord>();
+    if (sourceIds.length > 0) {
+      const { data: rawSources } = await supabase
+        .from("sources")
+        .select("*")
+        .in("id", sourceIds);
+      (rawSources || []).forEach((src) => {
+        sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+      });
+    }
+
     const placesMap = new Map([[eventRow.place_id, placeData]]);
     const participantsMap = new Map([[eventId, participants]]);
     const sourcesMap = new Map([[eventId, sourceIds]]);
 
-    return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap);
+    return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap);
   } catch {
     return null;
   }
