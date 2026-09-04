@@ -379,3 +379,61 @@ test("verifies RewindExplorer boundary and empty state logic with zero filtered 
   assert.match(html, /<button[^>]*aria-label="Next event"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Next event"/, "Next button must be disabled when 0 records match");
   assert.match(html, /<button[^>]*aria-label="Playback unavailable"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Playback unavailable"/, "Play button must be disabled and indicate playback unavailable");
 });
+
+test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and scoped buttons", () => {
+  // 1. Slider ARIA attributes in RewindExplorer and PersonTimeline
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  assert.ok(
+    explorerContent.includes("aria-valuemin={0}"),
+    "RewindExplorer must set aria-valuemin on Slider"
+  );
+  assert.ok(
+    explorerContent.includes("aria-valuemax={Math.max(0, filtered.length - 1)}"),
+    "RewindExplorer must set dynamic aria-valuemax on Slider"
+  );
+  assert.ok(
+    explorerContent.includes("aria-valuenow={hasEvents ? safeIndex : 0}"),
+    "RewindExplorer must set dynamic aria-valuenow on Slider"
+  );
+
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    timelineContent.includes("aria-valuemin={0}") &&
+    timelineContent.includes("aria-valuemax={Math.max(0, ordered.length - 1)}") &&
+    timelineContent.includes("aria-valuenow={ordered.length ? safeIndex : 0}"),
+    "PersonTimeline must set aria-valuemin, aria-valuemax, and aria-valuenow on Slider"
+  );
+
+  // 2. Semantic KPI definition list in app/sources/page.tsx
+  const sourcesContent = fs.readFileSync(path.join(root, "app/sources/page.tsx"), "utf-8");
+  assert.ok(
+    sourcesContent.includes('<dl className="sources-kpi-bar" aria-label="Sources register summary metrics">'),
+    "Sources page must use semantic <dl> list for KPI summary metrics"
+  );
+  assert.ok(
+    sourcesContent.includes('<dt className="kpi-label">') && sourcesContent.includes('<dd className="kpi-num">'),
+    "Sources page KPI bar must use semantic <dt> labels and <dd> values"
+  );
+
+  // 3. Live announcement regions for dynamic content
+  assert.ok(
+    sourcesContent.includes('role="status" aria-live="polite" aria-atomic="true"'),
+    "Sources page must provide polite live announcement region for filter updates"
+  );
+  assert.ok(
+    explorerContent.includes('role="status" aria-live="polite" aria-atomic="true"'),
+    "RewindExplorer must provide polite live announcement region for playback updates"
+  );
+
+  // 4. Scoped CSS for reset filters buttons
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+  assert.ok(
+    cssContent.includes(".empty-explorer-content .reset-filters-btn"),
+    "globals.css must scope Explorer empty state reset button to avoid collisions"
+  );
+  assert.ok(
+    cssContent.includes(".sources-filter-row .reset-filters-btn"),
+    "globals.css must scope Sources filter reset button to avoid collisions"
+  );
+});
+

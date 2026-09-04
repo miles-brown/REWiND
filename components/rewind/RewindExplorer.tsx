@@ -312,6 +312,9 @@ export function RewindExplorer({
         <div className="slider-wrap">
           <Slider
             aria-label="Timeline event position"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, filtered.length - 1)}
+            aria-valuenow={hasEvents ? safeIndex : 0}
             aria-valuetext={
               hasEvents && event
                 ? `${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName}`

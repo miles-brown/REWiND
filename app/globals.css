@@ -175,7 +175,7 @@ svg { flex: 0 0 auto; }
   line-height: 1.5;
   color: #475569;
 }
-.reset-filters-btn {
+.empty-explorer-content .reset-filters-btn {
   margin-top: 6px;
   display: inline-flex;
   align-items: center;
@@ -189,9 +189,13 @@ svg { flex: 0 0 auto; }
   cursor: pointer;
   transition: opacity .15s ease, transform .15s ease;
 }
-.reset-filters-btn:hover {
+.empty-explorer-content .reset-filters-btn:hover {
   opacity: 0.9;
   transform: translateY(-1px);
+}
+.empty-explorer-content .reset-filters-btn:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
 }
 .calendar-jump.disabled {
   opacity: 0.35;
@@ -888,9 +892,9 @@ svg { flex: 0 0 auto; }
 .sources-select { background: #071017; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 7px; color: #f8fafc; font-size: 12px; padding: 6px 10px; min-width: 150px; cursor: pointer; }
 .sources-select:focus { outline: none; border-color: #f59e0b; }
 
-.reset-filters-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px dashed rgba(255, 255, 255, 0.2); color: #94a3b8; font-size: 11px; padding: 6px 10px; border-radius: 6px; cursor: pointer; margin-top: 14px; transition: all 0.12s; }
-.reset-filters-btn:hover { background: rgba(255, 255, 255, 0.08); color: #f8fafc; border-style: solid; }
-.reset-filters-btn:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+.sources-filter-row .reset-filters-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px dashed rgba(255, 255, 255, 0.2); color: #94a3b8; font-size: 11px; padding: 6px 10px; border-radius: 6px; cursor: pointer; margin-top: 14px; transition: all 0.12s; }
+.sources-filter-row .reset-filters-btn:hover { background: rgba(255, 255, 255, 0.08); color: #f8fafc; border-style: solid; }
+.sources-filter-row .reset-filters-btn:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
 
 .sources-results-meta { font-size: 12px; color: #94a3b8; font-family: var(--sans); }
 .active-filter-hint { color: #f59e0b; font-weight: 600; }
