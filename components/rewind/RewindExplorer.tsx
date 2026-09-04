@@ -22,19 +22,29 @@ import { events, sourceById } from "@/data/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
+export const DEFAULT_EXPLORER_TYPE = "All";
+export const DEFAULT_EXPLORER_STATUS = "all";
+
 export interface RewindExplorerProps {
   initialType?: string;
   initialStatus?: string;
 }
 
 export function RewindExplorer({
-  initialType = "All",
-  initialStatus = "all",
+  initialType = DEFAULT_EXPLORER_TYPE,
+  initialStatus = DEFAULT_EXPLORER_STATUS,
 }: RewindExplorerProps = {}) {
   const [type, setType] = useState(initialType);
   const [status, setStatus] = useState(initialStatus);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [citeOpen, setCiteOpen] = useState(false);
+
+  const resetFilters = () => {
+    setType(DEFAULT_EXPLORER_TYPE);
+    setStatus(DEFAULT_EXPLORER_STATUS);
+    setIndex(0);
+    setPlaying(false);
+  };
 
   const filtered = useMemo(
     () =>
@@ -239,12 +249,7 @@ export function RewindExplorer({
               <button
                 type="button"
                 className="reset-filters-btn"
-                onClick={() => {
-                  setType("All");
-                  setStatus("all");
-                  setIndex(0);
-                  setPlaying(false);
-                }}
+                onClick={resetFilters}
               >
                 Reset filters
               </button>
