@@ -2,6 +2,29 @@ export type Precision = "exact" | "day" | "month" | "year" | "range" | "unknown"
 export type Verification = "verified" | "provisional" | "disputed";
 export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
 
+export type ClaimStatus =
+  | "ESTABLISHED"
+  | "STRONGLY SUPPORTED"
+  | "SUPPORTED"
+  | "PROVISIONAL"
+  | "UNVERIFIED"
+  | "DISPUTED"
+  | "CONTRADICTED"
+  | "DEMONSTRABLY FALSE"
+  | "UNKNOWN";
+
+export type EpistemicClass =
+  | "observed fact"
+  | "documented fact"
+  | "derived/computed fact"
+  | "attributed assertion"
+  | "expert interpretation"
+  | "editorial inference"
+  | "opinion"
+  | "allegation"
+  | "disputed proposition"
+  | "unknown";
+
 export interface Participant {
   personId: string;
   slug?: string;
@@ -13,6 +36,41 @@ export interface Participant {
   latitude?: number | null;
   longitude?: number | null;
   coordinatePrecision?: string;
+}
+
+export interface ClaimEvidenceRecord {
+  id: string;
+  claimId: string;
+  sourceId: string;
+  sourceTitle?: string;
+  sourcePublisher?: string;
+  sourceUrl?: string;
+  evidenceForm: string;
+  evidenceStrength: string;
+  directness: "direct" | "inferential";
+  citationLocator?: string;
+  supportingExcerpt?: string;
+  contradictsClaim: boolean;
+}
+
+export interface ClaimRecord {
+  id: string;
+  eventId?: string;
+  subjectEntityType?: string;
+  subjectEntityId?: string;
+  claimType: string;
+  statement: string;
+  claimedTime?: string;
+  claimedVenue?: string;
+  sourceId?: string;
+  confidence: string;
+  claimStatus: ClaimStatus;
+  epistemicClass: EpistemicClass;
+  legalStatus?: string;
+  isAttributedOnly: boolean;
+  attributionSpeakerId?: string;
+  supportingExcerpt?: string;
+  evidence?: ClaimEvidenceRecord[];
 }
 
 export interface EventRecord {
@@ -29,7 +87,24 @@ export interface EventRecord {
   timePrecision?: Precision | string;
   localStartTime?: string | null;
   localEndTime?: string | null;
+  utcStartTime?: string | null;
+  utcEndTime?: string | null;
+  dayOfWeek?: string | null;
   timezone?: string | null;
+  timezoneId?: string | null;
+  utcOffsetSeconds?: number | null;
+  timezoneAbbreviation?: string | null;
+  dstObserved?: boolean | null;
+  timezoneConfidence?: string | null;
+  timeConversionMethod?: string | null;
+  timeStandard?: string | null;
+  durationSeconds?: number | null;
+  durationPrecision?: string | null;
+  durationBasis?: string | null;
+  holidayApplicable?: boolean | null;
+  holidayName?: string | null;
+  holidayType?: string | null;
+  holidayJurisdiction?: string | null;
   locationPrecision?: "venue" | "city" | "country" | "unknown" | string;
   city: string;
   region?: string | null;
@@ -69,12 +144,67 @@ export interface EventRecord {
   sources?: SourceRecord[];
   media?: { kind: string; label: string; url: string }[];
   conflictingClaims?: string[];
+  claims?: ClaimRecord[];
   quotes?: {
     text: string;
     speaker: string;
     language: string;
     timestamp?: string | null;
   }[];
+}
+
+export interface PersonEducation {
+  id: string;
+  personId: string;
+  institution: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  qualification?: string;
+  subject?: string;
+  degree?: string;
+  honours?: string;
+  completedStatus: "completed" | "not completed" | "honorary" | "in progress";
+  sourceId?: string;
+}
+
+export interface PersonCareer {
+  id: string;
+  personId: string;
+  organisationName: string;
+  positionTitle: string;
+  occupationCategory?: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  appointmentMethod?: string;
+  predecessor?: string;
+  successor?: string;
+  notes?: string;
+  sourceId?: string;
+}
+
+export interface PersonAward {
+  id: string;
+  personId: string;
+  awardName: string;
+  awardingBody: string;
+  category?: string;
+  awardYear?: number;
+  result: "winner" | "honouree" | "nominee" | "finalist";
+  citationReason?: string;
+  sourceId?: string;
+}
+
+export interface PersonWork {
+  id: string;
+  personId: string;
+  workTitle: string;
+  workType: string;
+  releaseDate?: string;
+  publisherOrVenue?: string;
+  significanceNote?: string;
+  sourceId?: string;
 }
 
 export interface PersonRecord {
@@ -84,12 +214,30 @@ export interface PersonRecord {
   canonicalName: string;
   displayName: string;
   description: string;
+  fullBirthName?: string;
   birth?: string;
   death?: string;
   nationality?: string;
+  citizenship?: string[];
+  nationalIdentity?: string;
+  ethnicity?: string;
+  ancestry?: string;
+  religion?: string;
+  religiousDenomination?: string;
+  religionStatus?: string;
+  languages?: string[];
   classification: string;
+  notabilityBasis?: string;
+  inclusionBasis?: string[];
+  inclusionRationale?: string;
+  culturalImpactSummary?: string;
+  achievements?: { milestone: string; year?: number; evidence?: string }[];
   avatarUrl?: string;
   eventCount?: number;
+  education?: PersonEducation[];
+  career?: PersonCareer[];
+  awards?: PersonAward[];
+  works?: PersonWork[];
 }
 
 export interface PlaceRecord {
@@ -113,11 +261,15 @@ export interface SourceRecord {
   author?: string;
   sourceType: string;
   classification: "primary" | "secondary";
+  sourceLevel?: "primary" | "near-primary" | "secondary" | "tertiary" | "discovery-only";
   tier?: string;
   publicationDate?: string;
   accessedDate?: string;
   language?: string;
   trustScore?: number;
+  independenceStatus?: "independent" | "partially independent" | "syndicated" | "derived from another source" | "same organisation" | "official self-report" | "unknown";
+  derivedFromSourceId?: string;
+  sourceQuality?: string;
 }
 
 export interface QuoteRecord {

@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople, sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import { mapDatabaseSource } from "./sources";
 import type { Confidence, EventFilters, EventRecord, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
+import { deriveDayOfWeek } from "./temporal";
+import { getClaimsByEvent } from "./claims";
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
   (fallbackSources || []).map((s) => [
@@ -26,13 +28,17 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     .map((sId) => fallbackSourceMap.get(sId))
     .filter((s): s is SourceRecord => Boolean(s));
 
+  const startDate = e.startDate;
+  const dayOfWeek = deriveDayOfWeek(startDate) || undefined;
+
   return {
     id: e.id,
     slug: e.slug,
     eventName: e.eventName,
-    startDate: e.startDate,
+    startDate,
     endDate: e.endDate || null,
     datePrecision: (e.datePrecision || "exact-day") as Precision,
+    dayOfWeek,
     city: e.city || "Unknown",
     country: e.country || "Unknown",
     venueName: e.venueName || null,
@@ -54,6 +60,7 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
     quotes: e.quotes,
+    claims: [],
   };
 }
 
@@ -140,14 +147,37 @@ export function mapDatabaseEvent(
   const sources = sourceEntitiesMap
     ? sourceIds.map((sId) => sourceEntitiesMap.get(sId)).filter((s): s is SourceRecord => Boolean(s))
     : undefined;
+  const startDate = String(row.start_date || "");
+  const dayOfWeek = row.day_of_week ? String(row.day_of_week) : deriveDayOfWeek(startDate) || undefined;
 
   return {
     id,
     slug: String(row.slug || id),
     eventName: String(row.title || "Untitled Event"),
-    startDate: String(row.start_date || ""),
+    startDate,
     endDate: row.end_date ? String(row.end_date) : undefined,
     datePrecision: (String(row.temporal_precision || "exact-day")) as Precision,
+    timePrecision: row.time_precision ? String(row.time_precision) : undefined,
+    localStartTime: row.local_start_time ? String(row.local_start_time) : undefined,
+    localEndTime: row.local_end_time ? String(row.local_end_time) : undefined,
+    utcStartTime: row.utc_start_time ? String(row.utc_start_time) : undefined,
+    utcEndTime: row.utc_end_time ? String(row.utc_end_time) : undefined,
+    dayOfWeek,
+    timezoneId: row.timezone_id ? String(row.timezone_id) : undefined,
+    utcOffsetSeconds: typeof row.utc_offset_seconds === "number" ? row.utc_offset_seconds : undefined,
+    timezoneAbbreviation: row.timezone_abbreviation ? String(row.timezone_abbreviation) : undefined,
+    dstObserved: typeof row.dst_observed === "boolean" ? row.dst_observed : undefined,
+    timezoneConfidence: row.timezone_confidence ? String(row.timezone_confidence) : undefined,
+    timeConversionMethod: row.time_conversion_method ? String(row.time_conversion_method) : undefined,
+    timeStandard: row.time_standard ? String(row.time_standard) : undefined,
+    durationSeconds: typeof row.duration_seconds === "number" ? row.duration_seconds : undefined,
+    durationPrecision: row.duration_precision ? String(row.duration_precision) : undefined,
+    durationBasis: row.duration_basis ? String(row.duration_basis) : undefined,
+    holidayApplicable: typeof row.holiday_applicable === "boolean" ? row.holiday_applicable : undefined,
+    holidayName: row.holiday_name ? String(row.holiday_name) : undefined,
+    holidayType: row.holiday_type ? String(row.holiday_type) : undefined,
+    holidayJurisdiction: row.holiday_jurisdiction ? String(row.holiday_jurisdiction) : undefined,
+    locationPrecision: row.location_precision ? String(row.location_precision) : undefined,
     city: place.city || "Unknown",
     country: place.country || "Unknown",
     venueName: place.venue || undefined,
@@ -592,7 +622,11 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
         const participantsMap = new Map([[eventId, participants]]);
         const sourcesMap = new Map([[eventId, sourceIds]]);
 
-        return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap);
+        const eventRecord = mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap);
+        const claims = await getClaimsByEvent(eventId);
+        eventRecord.claims = claims;
+
+        return eventRecord;
     }
 
     const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);

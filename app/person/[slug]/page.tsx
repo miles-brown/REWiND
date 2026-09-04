@@ -10,6 +10,8 @@ import {
 import { getPersonTimeline } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
+import { InclusionBadge } from "@/components/rewind/InclusionBadge";
+import { BiographicalSection } from "@/components/rewind/BiographicalSection";
 
 export default async function PersonPage({
   params,
@@ -59,7 +61,11 @@ export default async function PersonPage({
         <PersonCoverageNav slug={person.slug} records={linked} />
       </header>
 
+      <InclusionBadge person={person} />
+
       <PersonTimeline person={person} records={linked} />
+
+      <BiographicalSection person={person} />
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">

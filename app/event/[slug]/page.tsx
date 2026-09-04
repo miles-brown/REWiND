@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, Exter
 import { getEventBySlug, getAdjacentEvents, getSourcesByIds } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
+import { TemporalBadge } from "@/components/rewind/TemporalBadge";
+import { ClaimInspector } from "@/components/rewind/ClaimInspector";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -71,8 +73,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         </dl>
       </header>
 
+      <TemporalBadge event={event} />
+
       <section className="record-body">
         <div className="record-main">
+          <ClaimInspector claims={event.claims || []} />
+
           <section>
             <span className="eyebrow">LOCATION</span>
             <h2>Documented position</h2>
