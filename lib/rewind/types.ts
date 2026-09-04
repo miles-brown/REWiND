@@ -4,6 +4,7 @@ export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
 
 export interface Participant {
   personId: string;
+  slug?: string;
   name: string;
   role?: string;
   presenceConfidence?: string;

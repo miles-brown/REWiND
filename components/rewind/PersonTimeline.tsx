@@ -179,15 +179,6 @@ export function PersonTimeline({
     event.sources?.[0] ||
     (event.sourceIds?.[0]
       ? sources.find((s) => s.id === event.sourceIds[0])
-      : undefined) ||
-    (event.sourceIds?.[0]
-      ? {
-          id: event.sourceIds[0],
-          title: event.eventName,
-          publisher: "Archival Register",
-          sourceType: "official-record",
-          classification: "primary",
-        }
       : undefined);
 
   const isDateOnly =
@@ -290,7 +281,9 @@ export function PersonTimeline({
                 <Link
                   key={participant.personId}
                   href={`/person/${
-                    participant.personId.replace(/^p-/, "") || person.slug
+                    participant.slug ||
+                    participant.personId.replace(/^p-/, "") ||
+                    person.slug
                   }`}
                 >
                   {participant.name}
@@ -309,14 +302,16 @@ export function PersonTimeline({
               </span>
             </div>
             <div className="evidence-actions">
-              <button
-                className="cite-btn"
-                onClick={() => setCiteOpen(true)}
-                aria-label="Cite this historical record"
-              >
-                <Quote size={14} />
-                <span>Cite</span>
-              </button>
+              {source && (
+                <button
+                  className="cite-btn"
+                  onClick={() => setCiteOpen(true)}
+                  aria-label="Cite this historical record"
+                >
+                  <Quote size={14} />
+                  <span>Cite</span>
+                </button>
+              )}
               {event.quotes && event.quotes.length > 0 && (
                 <button
                   className="cite-btn highlight"
@@ -509,12 +504,14 @@ export function PersonTimeline({
         </label>
       </div>
 
-      <CitationModal
-        event={event}
-        source={source}
-        isOpen={citeOpen}
-        onClose={() => setCiteOpen(false)}
-      />
+      {source && (
+        <CitationModal
+          event={event}
+          source={source}
+          isOpen={citeOpen}
+          onClose={() => setCiteOpen(false)}
+        />
+      )}
 
       <MediaDrawer
         event={event}

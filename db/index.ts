@@ -12,11 +12,11 @@ const isValidConnectionString = Boolean(
 function isLocalDatabaseHost(connStr: string): boolean {
   try {
     const url = new URL(connStr);
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
     return (
-      url.hostname === "localhost" ||
-      url.hostname === "127.0.0.1" ||
-      url.hostname === "::1" ||
-      url.hostname.endsWith(".local")
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1"
     );
   } catch {
     return false;

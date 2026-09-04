@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import type { EventRecord, SourceRecord } from "./types";
 
 export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
@@ -19,6 +20,33 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   };
 }
 
+function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
+  let fb = (fallbackSources || []).map((s) => ({
+    id: s.id,
+    title: s.title,
+    publisher: s.publisher,
+    sourceType: s.sourceType,
+    classification: s.classification,
+    tier: (s.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
+    url: s.url,
+    publicationDate: s.publicationDate,
+    accessedDate: s.accessedDate,
+    language: s.language,
+  }));
+
+  if (filters.tier) {
+    fb = fb.filter((s) => s.tier === filters.tier);
+  }
+  if (filters.type) {
+    fb = fb.filter((s) => s.sourceType === filters.type);
+  }
+  if (filters.search && filters.search.trim()) {
+    const term = filters.search.trim().toLowerCase();
+    fb = fb.filter((s) => s.title.toLowerCase().includes(term) || s.publisher.toLowerCase().includes(term));
+  }
+  return fb;
+}
+
 /**
  * Retrieves primary and corroborating sources from Supabase with status and error reporting.
  */
@@ -27,39 +55,35 @@ export async function getSourcesWithStatus(
 ): Promise<{ data: SourceRecord[]; error: string | null }> {
   try {
     const supabase = await createClient();
-    if (!supabase) {
-      return { data: [], error: "Supabase connection is not configured." };
+    if (supabase) {
+      let query = supabase
+        .from("sources")
+        .select("*")
+        .order("trust_score", { ascending: false });
+
+      if (filters.tier) {
+        query = query.eq("tier", filters.tier);
+      }
+
+      if (filters.type) {
+        query = query.eq("source_type", filters.type);
+      }
+
+      if (filters.search && filters.search.trim()) {
+        const term = filters.search.trim();
+        const escaped = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        query = query.or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`);
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        return { data: data.map(mapDatabaseSource), error: null };
+      }
     }
 
-    let query = supabase
-      .from("sources")
-      .select("*")
-      .order("trust_score", { ascending: false });
-
-    if (filters.tier) {
-      query = query.eq("tier", filters.tier);
-    }
-
-    if (filters.type) {
-      query = query.eq("source_type", filters.type);
-    }
-
-    if (filters.search && filters.search.trim()) {
-      const term = filters.search.trim();
-      query = query.or(`title.ilike.%${term}%,publisher.ilike.%${term}%`);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      return { data: [], error: error.message };
-    }
-    if (!data) {
-      return { data: [], error: null };
-    }
-
-    return { data: data.map(mapDatabaseSource), error: null };
-  } catch (err) {
-    return { data: [], error: err instanceof Error ? err.message : "Unknown database error" };
+    return { data: getFallbackSources(filters), error: null };
+  } catch {
+    return { data: getFallbackSources(filters), error: null };
   }
 }
 
@@ -74,28 +98,70 @@ export async function getSources(
 }
 
 /**
- * Fast aggregate query returning counts of published events linked to each source ID.
+ * Fast aggregate query returning counts of published events linked to each source ID with error reporting.
  */
-export async function getSourceEventCounts(): Promise<Record<string, number>> {
+export async function getSourceEventCountsWithStatus(): Promise<{
+  data: Record<string, number>;
+  error: string | null;
+}> {
   try {
     const supabase = await createClient();
-    if (!supabase) return {};
+    if (!supabase) return { data: {}, error: null };
 
-    const { data, error } = await supabase
-      .from("event_sources")
-      .select("source_id");
+    let allRows: { source_id: string }[] = [];
+    const batchSize = 1000;
+    let page = 0;
+    let hasMore = true;
+    let queryError: string | null = null;
 
-    if (error || !data) return {};
+    while (hasMore) {
+      const from = page * batchSize;
+      const to = from + batchSize - 1;
+      const { data, error } = await supabase
+        .from("event_sources")
+        .select("source_id")
+        .range(from, to);
+
+      if (error) {
+        queryError = error.message;
+        hasMore = false;
+        break;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allRows = allRows.concat(data as { source_id: string }[]);
+      if (data.length < batchSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
+
+    if (queryError) {
+      return { data: {}, error: queryError };
+    }
 
     const counts: Record<string, number> = {};
-    for (const row of data) {
+    for (const row of allRows) {
       const sId = String(row.source_id);
       counts[sId] = (counts[sId] || 0) + 1;
     }
-    return counts;
-  } catch {
-    return {};
+    return { data: counts, error: null };
+  } catch (err) {
+    return { data: {}, error: err instanceof Error ? err.message : "Failed to load source counts" };
   }
+}
+
+/**
+ * Fast aggregate query returning counts of published events linked to each source ID.
+ */
+export async function getSourceEventCounts(): Promise<Record<string, number>> {
+  const res = await getSourceEventCountsWithStatus();
+  return res.data;
 }
 
 /**
@@ -127,36 +193,76 @@ export async function getSourceById(
 ): Promise<{ source: SourceRecord; events: EventRecord[] } | null> {
   try {
     const supabase = await createClient();
-    if (!supabase) return null;
+    if (supabase) {
+      const { data: s, error } = await supabase
+        .from("sources")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
 
-    const { data: s, error } = await supabase
-      .from("sources")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+      if (!error && s) {
+        const source = mapDatabaseSource(s);
 
-    if (error || !s) return null;
+        // Find referencing events via relational join
+        const { data: eventSources } = await supabase
+          .from("event_sources")
+          .select("event_id")
+          .eq("source_id", id);
 
-    const source = mapDatabaseSource(s);
+        const eventIds = (eventSources || []).map((es) => es.event_id);
+        let events: EventRecord[] = [];
+        if (eventIds.length > 0) {
+          const { getEventsByIds } = await import("./events");
+          events = await getEventsByIds(eventIds);
+        }
 
-    // Find referencing events via relational join
-    const { data: eventSources } = await supabase
-      .from("event_sources")
-      .select("event_id")
-      .eq("source_id", id);
-
-    const eventIds = (eventSources || []).map((es) => es.event_id);
-    let events: EventRecord[] = [];
-    if (eventIds.length > 0) {
-      const { getEventsByIds } = await import("./events");
-      events = await getEventsByIds(eventIds);
+        return {
+          source,
+          events,
+        };
+      }
     }
 
+    const fbSrc = fallbackSources.find((s) => s.id === id);
+    if (!fbSrc) return null;
+    const { getAllEvents } = await import("./events");
+    const all = await getAllEvents();
+    const linked = all.filter((e) => e.sourceIds.includes(id));
     return {
-      source,
-      events,
+      source: {
+        id: fbSrc.id,
+        title: fbSrc.title,
+        publisher: fbSrc.publisher,
+        sourceType: fbSrc.sourceType,
+        classification: fbSrc.classification,
+        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
+        url: fbSrc.url,
+        publicationDate: fbSrc.publicationDate,
+        accessedDate: fbSrc.accessedDate,
+        language: fbSrc.language,
+      },
+      events: linked,
     };
   } catch {
-    return null;
+    const fbSrc = fallbackSources.find((s) => s.id === id);
+    if (!fbSrc) return null;
+    const { getAllEvents } = await import("./events");
+    const all = await getAllEvents();
+    const linked = all.filter((e) => e.sourceIds.includes(id));
+    return {
+      source: {
+        id: fbSrc.id,
+        title: fbSrc.title,
+        publisher: fbSrc.publisher,
+        sourceType: fbSrc.sourceType,
+        classification: fbSrc.classification,
+        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
+        url: fbSrc.url,
+        publicationDate: fbSrc.publicationDate,
+        accessedDate: fbSrc.accessedDate,
+        language: fbSrc.language,
+      },
+      events: linked,
+    };
   }
 }

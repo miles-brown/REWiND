@@ -1,6 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
+import { people as fallbackPeople } from "@/archive/legacy-data/rewind";
 import { getEventsByPerson } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
+
+function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    canonicalName: p.name,
+    displayName: p.name,
+    description: p.description,
+    birth: p.birth,
+    death: p.death,
+    classification: "politician",
+  };
+}
 
 /**
  * Retrieves all monitored historical people from Supabase.
@@ -8,36 +23,40 @@ import type { EventRecord, PersonRecord } from "./types";
 export async function getPeople(params: { limit?: number } = {}): Promise<PersonRecord[]> {
   try {
     const supabase = await createClient();
-    if (!supabase) return [];
+    if (supabase) {
+      let query = supabase
+        .from("people")
+        .select("*")
+        .eq("publication_status", "published")
+        .order("canonical_name", { ascending: true });
 
-    let query = supabase
-      .from("people")
-      .select("*")
-      .eq("publication_status", "published")
-      .order("canonical_name", { ascending: true });
+      if (params.limit) {
+        query = query.limit(params.limit);
+      }
 
-    if (params.limit) {
-      query = query.limit(params.limit);
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        return data.map((p) => ({
+          id: p.id,
+          slug: p.slug,
+          name: p.display_name || p.canonical_name,
+          canonicalName: p.canonical_name,
+          displayName: p.display_name,
+          description: p.primary_role || p.summary || "",
+          birth: p.birth_date || undefined,
+          death: p.death_date || undefined,
+          nationality: p.nationality || undefined,
+          classification: p.classification,
+          avatarUrl: p.avatar_url || undefined,
+        }));
+      }
     }
 
-    const { data, error } = await query;
-    if (error || !data) return [];
-
-    return data.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      name: p.display_name || p.canonical_name,
-      canonicalName: p.canonical_name,
-      displayName: p.display_name,
-      description: p.primary_role || p.summary || "",
-      birth: p.birth_date || undefined,
-      death: p.death_date || undefined,
-      nationality: p.nationality || undefined,
-      classification: p.classification,
-      avatarUrl: p.avatar_url || undefined,
-    }));
+    const fallbackList = fallbackPeople.map(mapFallbackPerson);
+    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   } catch {
-    return [];
+    const fallbackList = fallbackPeople.map(mapFallbackPerson);
+    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   }
 }
 
@@ -47,32 +66,36 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
 export async function getPersonBySlug(slug: string): Promise<PersonRecord | null> {
   try {
     const supabase = await createClient();
-    if (!supabase) return null;
+    if (supabase) {
+      const { data: p, error } = await supabase
+        .from("people")
+        .select("*")
+        .eq("slug", slug)
+        .eq("publication_status", "published")
+        .maybeSingle();
 
-    const { data: p, error } = await supabase
-      .from("people")
-      .select("*")
-      .eq("slug", slug)
-      .eq("publication_status", "published")
-      .maybeSingle();
+      if (!error && p) {
+        return {
+          id: p.id,
+          slug: p.slug,
+          name: p.display_name || p.canonical_name,
+          canonicalName: p.canonical_name,
+          displayName: p.display_name,
+          description: p.primary_role || p.summary || "",
+          birth: p.birth_date || undefined,
+          death: p.death_date || undefined,
+          nationality: p.nationality || undefined,
+          classification: p.classification,
+          avatarUrl: p.avatar_url || undefined,
+        };
+      }
+    }
 
-    if (error || !p) return null;
-
-    return {
-      id: p.id,
-      slug: p.slug,
-      name: p.display_name || p.canonical_name,
-      canonicalName: p.canonical_name,
-      displayName: p.display_name,
-      description: p.primary_role || p.summary || "",
-      birth: p.birth_date || undefined,
-      death: p.death_date || undefined,
-      nationality: p.nationality || undefined,
-      classification: p.classification,
-      avatarUrl: p.avatar_url || undefined,
-    };
+    const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+    return fb ? mapFallbackPerson(fb) : null;
   } catch {
-    return null;
+    const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+    return fb ? mapFallbackPerson(fb) : null;
   }
 }
 

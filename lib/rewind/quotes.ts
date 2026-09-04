@@ -28,19 +28,25 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
 
     const speakerMap = new Map<string, string>();
     if (speakerIds.length > 0) {
-      const { data: people } = await supabase
+      const { data: people, error: peopleError } = await supabase
         .from("people")
         .select("id, display_name, canonical_name")
         .in("id", speakerIds);
+      if (peopleError) {
+        return { data: [], error: peopleError.message };
+      }
       (people || []).forEach((p) => speakerMap.set(p.id, p.display_name || p.canonical_name));
     }
 
     const eventMap = new Map<string, { slug: string; title: string; date: string }>();
     if (eventIds.length > 0) {
-      const { data: events } = await supabase
+      const { data: events, error: eventsError } = await supabase
         .from("events")
         .select("id, slug, title, start_date")
         .in("id", eventIds);
+      if (eventsError) {
+        return { data: [], error: eventsError.message };
+      }
       (events || []).forEach((e) => eventMap.set(e.id, { slug: e.slug, title: e.title, date: e.start_date }));
     }
 

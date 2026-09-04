@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
-import { getEvents, getQuotesWithStatus } from "@/lib/rewind";
+import { getAllEventsWithStatus, getQuotesWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Archival Quotes — REWIND Evidence Atlas",
@@ -10,7 +10,7 @@ export const metadata = {
 export default async function QuotesPage() {
   const [quotesResult, eventsResult] = await Promise.all([
     getQuotesWithStatus(),
-    getEvents({ limit: 50 }),
+    getAllEventsWithStatus(),
   ]);
 
   const quotes = quotesResult.data;

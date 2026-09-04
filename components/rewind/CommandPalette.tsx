@@ -93,12 +93,14 @@ export function CommandPalette({
   useEffect(() => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
+      searchRequestIdRef.current++;
       return;
     }
 
     const requestId = ++searchRequestIdRef.current;
     const timer = setTimeout(async () => {
       setIsLoading(true);
+      setSearchResults([]);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`);
         if (requestId !== searchRequestIdRef.current) return;
@@ -120,9 +122,13 @@ export function CommandPalette({
             };
           });
           setSearchResults(items);
+        } else {
+          setSearchResults([]);
         }
       } catch {
-        // Fallback gracefully on network error
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults([]);
+        }
       } finally {
         if (requestId === searchRequestIdRef.current) {
           setIsLoading(false);
@@ -181,8 +187,13 @@ export function CommandPalette({
             autoFocus
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
+              const val = e.target.value;
+              setQuery(val);
               setSelectedIndex(0);
+              if (!val.trim()) {
+                setSearchResults([]);
+                setIsLoading(false);
+              }
             }}
             onKeyDown={handleKeyDown}
             placeholder="Search events, quotes, participants, venues, sources…"
@@ -194,7 +205,15 @@ export function CommandPalette({
             </span>
           )}
           {query ? (
-            <button className="search-clear-btn" onClick={() => setQuery("")} aria-label="Clear query">
+            <button
+              className="search-clear-btn"
+              onClick={() => {
+                setQuery("");
+                setSearchResults([]);
+                setIsLoading(false);
+              }}
+              aria-label="Clear query"
+            >
               <X size={15} />
             </button>
           ) : (

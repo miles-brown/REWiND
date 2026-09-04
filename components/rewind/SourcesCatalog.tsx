@@ -35,11 +35,13 @@ export function SourcesCatalog({
   events = [],
   sourceEventCounts,
   loaderError,
+  eventMetricsError,
 }: {
   sources?: SourceRecord[];
   events?: EventRecord[];
   sourceEventCounts?: Record<string, number>;
   loaderError?: string | null;
+  eventMetricsError?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>("all");
@@ -184,7 +186,7 @@ export function SourcesCatalog({
           </div>
           <div className="source-kpi">
             <dt className="kpi-label">Total Corroborated Claims</dt>
-            <dd className="kpi-num">{totalEvidencedLinks}</dd>
+            <dd className="kpi-num">{eventMetricsError ? "—" : totalEvidencedLinks}</dd>
           </div>
         </dl>
       </header>
@@ -341,7 +343,11 @@ export function SourcesCatalog({
       </div>
 
       {filteredSources.length === 0 ? (
-        <div className="sources-empty-state" role="status" aria-live="polite">
+        <div
+          className="sources-empty-state"
+          role={loaderError ? "alert" : "status"}
+          aria-live={loaderError ? "assertive" : "polite"}
+        >
           <BookOpen size={42} />
           <h3>{loaderError ? "Source register unavailable" : "No matching records located"}</h3>
           <p>
@@ -409,10 +415,16 @@ export function SourcesCatalog({
                       <time className="source-time-val" dateTime={isoDate || undefined}>{displayDate}</time>
                     </td>
                     <td className="col-events">
-                      <span className="event-count-badge">
-                        <b>{eventCount}</b>
-                        <small>{eventCount === 1 ? "event" : "events"}</small>
-                      </span>
+                      {eventMetricsError ? (
+                        <span className="event-count-badge dimmed" title="Event metrics unavailable">
+                          <b>—</b>
+                        </span>
+                      ) : (
+                        <span className="event-count-badge">
+                          <b>{eventCount}</b>
+                          <small>{eventCount === 1 ? "event" : "events"}</small>
+                        </span>
+                      )}
                     </td>
                     <td className="col-actions">
                       <div className="source-action-links">
@@ -481,7 +493,13 @@ export function SourcesCatalog({
 
                 <div className="card-footer">
                   <span className="card-evidenced-count">
-                    Corroborates <strong>{eventCount}</strong> {eventCount === 1 ? "event" : "events"}
+                    {eventMetricsError ? (
+                      <span>Citations unavailable</span>
+                    ) : (
+                      <>
+                        Corroborates <strong>{eventCount}</strong> {eventCount === 1 ? "event" : "events"}
+                      </>
+                    )}
                   </span>
                   <div className="card-btns">
                     {s.url && (

@@ -13,11 +13,11 @@ function isValidSupabaseUrl(rawUrl: string): boolean {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol === "https:") return true;
-    if (
-      parsed.protocol === "http:" &&
-      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
-    ) {
-      return true;
+    if (parsed.protocol === "http:") {
+      const host = parsed.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+      if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        return true;
+      }
     }
     return false;
   } catch {

@@ -1,5 +1,6 @@
-import { getAllEvents, getSourcesWithStatus, getSourceEventCounts } from "@/lib/rewind";
+import { getAllEventsWithStatus, getSourcesWithStatus, getSourceEventCountsWithStatus } from "@/lib/rewind";
 import { SourcesCatalog } from "@/components/rewind/SourcesCatalog";
+import type { EventRecord } from "@/lib/rewind";
 
 export const metadata = {
   title: "Archival Sources Register — REWIND Evidence Atlas",
@@ -8,18 +9,31 @@ export const metadata = {
 };
 
 export default async function SourcesPage() {
-  const [sourcesResult, events, sourceEventCounts] = await Promise.all([
+  const [sourcesResult, countsResult] = await Promise.all([
     getSourcesWithStatus(),
-    getAllEvents(),
-    getSourceEventCounts(),
+    getSourceEventCountsWithStatus(),
   ]);
+
+  let events: EventRecord[] = [];
+  let eventsError: string | null = null;
+  const hasCounts = Object.keys(countsResult.data).length > 0;
+
+  // Only perform the full events retrieval if counts are empty (fallback mode)
+  if (!hasCounts && !countsResult.error) {
+    const eventsResult = await getAllEventsWithStatus();
+    events = eventsResult.data;
+    eventsError = eventsResult.error;
+  }
+
+  const eventMetricsError = countsResult.error || eventsError;
 
   return (
     <SourcesCatalog
       sources={sourcesResult.data}
       events={events}
-      sourceEventCounts={sourceEventCounts}
+      sourceEventCounts={countsResult.data}
       loaderError={sourcesResult.error}
+      eventMetricsError={eventMetricsError}
     />
   );
 }
