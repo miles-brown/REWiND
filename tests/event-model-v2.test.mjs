@@ -327,10 +327,11 @@ test("verifies participants with empty personId receive unique namespaced keys a
     country: "United States",
     latitude: 40.7499,
     longitude: -73.9674,
-    locationPrecision: "exact",
+    locationPrecision: "venue",
     participants: [
       { personId: "", name: "Anonymous Delegate A", role: "delegate", presenceConfidence: "confirmed" },
       { personId: "", name: "Anonymous Delegate B", role: "attendee", presenceConfidence: "confirmed" },
+      { personId: "participant-0", name: "Known Delegate Named participant-0", role: "speaker", presenceConfidence: "confirmed" },
     ],
     organisations: [],
     notes: null,
@@ -347,27 +348,37 @@ test("verifies participants with empty personId receive unique namespaced keys a
   };
 
   const v2 = upgradeLegacyToV2(legacyWithEmptyPersonIds);
-  assert.equal(v2.people.length, 2);
+  assert.equal(v2.people.length, 3);
 
-  const [p0, p1] = v2.people;
+  const [p0, p1, p2] = v2.people;
   assert.notEqual(p0.id, p1.id, "Participant IDs must be distinct");
-  assert.equal(p0.id, "ep-evt-empty-person-test-participant-0");
-  assert.equal(p1.id, "ep-evt-empty-person-test-participant-1");
+  assert.notEqual(p0.id, p2.id, "Fallback ID must not collide with explicit ID matching fallback pattern");
+  assert.notEqual(p1.id, p2.id, "Participant IDs must be distinct");
+  assert.equal(p0.id, "ep-evt-empty-person-test-fallback-0");
+  assert.equal(p1.id, "ep-evt-empty-person-test-fallback-1");
+  assert.equal(p2.id, "ep-evt-empty-person-test-p-participant-0");
 
   assert.equal(p0.locations.length, 1);
   assert.equal(p1.locations.length, 1);
+  assert.equal(p2.locations.length, 1);
 
   const loc0 = p0.locations[0];
   const loc1 = p1.locations[0];
+  const loc2 = p2.locations[0];
   assert.notEqual(loc0.id, loc1.id, "Location IDs must be distinct");
-  assert.equal(loc0.id, "epl-evt-empty-person-test-participant-0-0");
-  assert.equal(loc1.id, "epl-evt-empty-person-test-participant-1-0");
+  assert.notEqual(loc0.id, loc2.id, "Location IDs must not collide");
+  assert.equal(loc0.id, "epl-evt-empty-person-test-fallback-0-0");
+  assert.equal(loc1.id, "epl-evt-empty-person-test-fallback-1-0");
+  assert.equal(loc2.id, "epl-evt-empty-person-test-p-participant-0-0");
   assert.equal(loc0.eventPersonId, p0.id);
   assert.equal(loc1.eventPersonId, p1.id);
+  assert.equal(loc2.eventPersonId, p2.id);
 
   // Check location sources
   assert.equal(loc0.sources[0].eventPersonLocationId, loc0.id);
   assert.equal(loc1.sources[0].eventPersonLocationId, loc1.id);
+  assert.equal(loc2.sources[0].eventPersonLocationId, loc2.id);
   assert.notEqual(loc0.sources[0].id, loc1.sources[0].id, "Location source IDs must be distinct");
+  assert.notEqual(loc0.sources[0].id, loc2.sources[0].id, "Location source IDs must be distinct");
 });
 

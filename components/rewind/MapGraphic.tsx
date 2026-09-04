@@ -93,7 +93,9 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
         },
       },
     });
+  }
 
+  if (map.getSource("trajectories") && !map.getLayer("trajectory-line")) {
     map.addLayer({
       id: "trajectory-line",
       type: "line",
@@ -493,9 +495,7 @@ export function MapGraphic({
             aria-label={
               !MAPBOX_TOKEN
                 ? "Satellite view requires Mapbox token"
-                : mapTheme === "satellite"
-                ? "Switch to Dark Forensic Basemap"
-                : "Switch to Mapbox Satellite 3D View"
+                : "Mapbox Satellite 3D layer"
             }
           >
             {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
@@ -511,7 +511,7 @@ export function MapGraphic({
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             aria-pressed={mapMode === "svg"}
             title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
-            aria-label={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
+            aria-label="Schematic vector map mode"
           >
             <MapPin size={13} />
             <span>{mapMode === "svg" ? "Live Map" : "Schematic"}</span>
@@ -557,14 +557,16 @@ export function MapGraphic({
               type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
+                if (!mapInstanceRef.current) return;
+                const flyOptions: { pitch: number; bearing: number; center?: [number, number]; zoom?: number } = {
+                  pitch: mapTheme === "satellite" ? 45 : 0,
+                  bearing: 0,
+                };
                 if (selectedEvent && selectedEvent.longitude != null && selectedEvent.latitude != null) {
-                  mapInstanceRef.current?.flyTo({
-                    center: [selectedEvent.longitude, selectedEvent.latitude],
-                    zoom: 4.2,
-                    pitch: mapTheme === "satellite" ? 45 : 0,
-                    bearing: 0,
-                  });
+                  flyOptions.center = [selectedEvent.longitude, selectedEvent.latitude];
+                  flyOptions.zoom = 4.2;
                 }
+                mapInstanceRef.current.flyTo(flyOptions);
               }}
               aria-label="Reset orientation to North"
               title="Reset North Orientation"
@@ -577,7 +579,12 @@ export function MapGraphic({
 
       {/* WebGL Interactive Map Container */}
       {mapMode === "webgl" ? (
-        <div ref={mapContainerRef} className="webgl-map-container" />
+        <div
+          ref={mapContainerRef}
+          className="webgl-map-container"
+          role="region"
+          aria-label="Interactive geospatial map surface"
+        />
       ) : (
         /* SVG Vector Schematic Map Mode */
         <div className="evidence-map">
@@ -627,7 +634,7 @@ export function MapGraphic({
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
                 aria-pressed={isSelected}
-                aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}
+                aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city} (${cluster.count} documented event${cluster.count > 1 ? "s" : ""})`}
               >
                 <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>
                 <i />

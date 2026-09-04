@@ -102,7 +102,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
   // Derive initial person participation records
   const people: EventPerson[] = legacy.participants.map((p, idx) => {
     const inv = inferInvolvementType(p.role);
-    const participantKey = p.personId || `participant-${idx}`;
+    const participantKey = p.personId ? `p-${p.personId}` : `fallback-${idx}`;
     return {
       id: `ep-${legacy.id}-${participantKey}`,
       eventId: legacy.id,
