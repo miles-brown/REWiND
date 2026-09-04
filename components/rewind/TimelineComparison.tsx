@@ -3,38 +3,47 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftRight, ArrowRight, Calendar, CheckCircle2, CircleDashed, ExternalLink, MapPin, Sparkles, Users } from "lucide-react";
-import { events, people, sourceById } from "@/data/rewind";
+import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
 export function TimelineComparison({
   initialPersonA = "benjamin-netanyahu",
   initialPersonB = "bill-clinton",
+  people = [],
+  events = [],
+  sources = [],
 }: {
   initialPersonA?: string;
   initialPersonB?: string;
+  people?: PersonRecord[];
+  events?: EventRecord[];
+  sources?: SourceRecord[];
 }) {
   const [slugA, setSlugA] = useState(initialPersonA);
   const [slugB, setSlugB] = useState(initialPersonB);
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
 
+  const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
+  const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
+
   const personA = people.find((p) => p.slug === slugA) || people[0];
-  const personB = people.find((p) => p.slug === slugB) || people[2];
+  const personB = people.find((p) => p.slug === slugB) || people[1] || people[0];
 
   const eventsA = useMemo(
     () =>
       events
-        .filter((e) => e.participants.some((p) => p.personId === personA.id))
+        .filter((e) => e.participants.some((p) => p.personId === personA?.id))
         .sort((a, b) => a.startDate.localeCompare(b.startDate)),
-    [personA]
+    [events, personA]
   );
 
   const eventsB = useMemo(
     () =>
       events
-        .filter((e) => e.participants.some((p) => p.personId === personB.id))
+        .filter((e) => e.participants.some((p) => p.personId === personB?.id))
         .sort((a, b) => a.startDate.localeCompare(b.startDate)),
-    [personB]
+    [events, personB]
   );
 
   const intersections = useMemo(
@@ -42,11 +51,11 @@ export function TimelineComparison({
       events
         .filter(
           (e) =>
-            e.participants.some((p) => p.personId === personA.id) &&
-            e.participants.some((p) => p.personId === personB.id)
+            e.participants.some((p) => p.personId === personA?.id) &&
+            e.participants.some((p) => p.personId === personB?.id)
         )
         .sort((a, b) => a.startDate.localeCompare(b.startDate)),
-    [personA, personB]
+    [events, personA, personB]
   );
 
   const sharedCities = useMemo(() => {
@@ -54,6 +63,16 @@ export function TimelineComparison({
     const citiesB = new Set(eventsB.map((e) => e.city));
     return Array.from(citiesA).filter((c) => citiesB.has(c));
   }, [eventsA, eventsB]);
+
+  if (people.length === 0) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>No Figures Recorded</h2>
+        <p>The evidence atlas database does not currently contain documented historical figures for comparison.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="comparison-workspace">
@@ -161,7 +180,7 @@ export function TimelineComparison({
                 </div>
                 <div className="encounter-cards-list">
                   {intersections.map((event) => {
-                    const source = sourceById(event.sourceIds[0]);
+                    const source = event.sources?.[0] || sourceById(event.sourceIds?.[0]);
                     return (
                       <article key={event.id} className="encounter-card">
                         <div className="encounter-card-header">

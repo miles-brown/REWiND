@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
-import { personBySlug } from "@/data/rewind";
+import { getPersonBySlug, getPeople, getEvents, getSources } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
 export default async function RelationshipPage({
@@ -10,8 +10,14 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const pa = personBySlug(a);
-  const pb = personBySlug(b);
+  const [pa, pb, people, eventsRes, sources] = await Promise.all([
+    getPersonBySlug(a),
+    getPersonBySlug(b),
+    getPeople(),
+    getEvents({ limit: 1000 }),
+    getSources(),
+  ]);
+
   if (!pa || !pb) notFound();
 
   return (
@@ -51,7 +57,13 @@ export default async function RelationshipPage({
         </span>
       </header>
 
-      <TimelineComparison initialPersonA={pa.slug} initialPersonB={pb.slug} />
+      <TimelineComparison
+        initialPersonA={pa.slug}
+        initialPersonB={pb.slug}
+        people={people}
+        events={eventsRes.data}
+        sources={sources}
+      />
     </div>
   );
 }

@@ -21,8 +21,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import type { EventRecord, Person } from "@/data/rewind";
-import { people, sourceById } from "@/data/rewind";
+import type { EventRecord, PersonRecord as Person } from "@/lib/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -174,7 +173,7 @@ export function PersonTimeline({
   }
 
   const event = ordered[safeIndex];
-  const source = sourceById(event.sourceIds[0]);
+  const source = event.sources?.[0];
   const date = new Date(event.startDate + "T12:00:00");
 
   const choose = (id: string) => {
@@ -259,7 +258,7 @@ export function PersonTimeline({
             </small>
           </p>
           <div className="detail-tags">
-            {event.eventTypes.map((type) => (
+            {event.eventTypes?.map((type) => (
               <span key={type}>{type}</span>
             ))}
           </div>
@@ -270,8 +269,7 @@ export function PersonTimeline({
                 <Link
                   key={participant.personId}
                   href={`/person/${
-                    people.find((item) => item.id === participant.personId)?.slug ||
-                    person.slug
+                    participant.personId.replace(/^p-/, "") || person.slug
                   }`}
                 >
                   {participant.name}
@@ -285,7 +283,8 @@ export function PersonTimeline({
               <small>EVIDENCE</small>
               <b>{source?.title}</b>
               <span>
-                {source?.publisher} · {event.medium.join(", ")}
+                {source?.publisher}
+                {event.medium?.length ? ` · ${event.medium.join(", ")}` : ""}
               </span>
             </div>
             <div className="evidence-actions">

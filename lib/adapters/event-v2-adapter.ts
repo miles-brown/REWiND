@@ -1,4 +1,4 @@
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/archive/legacy-data/rewind";
 import type {
   EventEditorialControls,
   EventFactualFlags,

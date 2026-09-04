@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Download, FileText, X } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
-import { sourceById } from "@/data/rewind";
+import type { EventRecord, SourceRecord } from "@/lib/rewind";
 import { formatAPA, formatBibTeX, formatChicago, formatJSON } from "@/lib/citations";
 
 type Format = "bibtex" | "apa" | "chicago" | "json";
@@ -22,7 +21,7 @@ export function CitationModal({
 
   if (!isOpen) return null;
 
-  const source = sourceById(event.sourceIds[0]);
+  const source: SourceRecord | undefined = event.sources?.[0];
 
   let text = "";
   if (format === "bibtex") text = formatBibTeX(event, source);

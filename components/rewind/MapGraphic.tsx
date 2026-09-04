@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Globe, Layers, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {

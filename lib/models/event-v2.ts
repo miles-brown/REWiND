@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Confidence, EventRecord, Precision, Verification } from "@/data/rewind";
+import type { Confidence, Precision, Verification } from "@/lib/rewind";
 
 // ==========================================
 // 1. Enums & Core Tri-State Types

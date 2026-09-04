@@ -1,12 +1,19 @@
 import { ArrowLeftRight } from "lucide-react";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
+import { getPeople, getEvents, getSources } from "@/lib/rewind";
 
 export const metadata = {
   title: "Compare Historical Chronologies | REWIND Evidence Atlas",
   description: "Cross-timeline intersection analysis and side-by-side chronological comparisons of historical figures.",
 };
 
-export default function ComparePage() {
+export default async function ComparePage() {
+  const [people, eventsRes, sources] = await Promise.all([
+    getPeople(),
+    getEvents({ limit: 1000 }),
+    getSources(),
+  ]);
+
   return (
     <div className="page-shell compare-page">
       <header className="page-hero">
@@ -22,6 +29,9 @@ export default function ComparePage() {
       <TimelineComparison
         initialPersonA="benjamin-netanyahu"
         initialPersonB="bill-clinton"
+        people={people}
+        events={eventsRes.data}
+        sources={sources}
       />
     </div>
   );

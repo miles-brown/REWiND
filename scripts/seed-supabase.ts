@@ -1,7 +1,16 @@
+/**
+ * DEPRECATED / ARCHIVED SCRIPT
+ *
+ * CRITICAL ARCHITECTURAL DIRECTIVE:
+ * Do NOT seed legacy prototype records from data/rewind.ts into production Supabase.
+ * The production Supabase database must be populated afresh with Event Model v2
+ * research records. This script is preserved for historical reference only.
+ */
+
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../db/schema";
-import { people, events, sources } from "../data/rewind";
+import { people, events, sources } from "../archive/legacy-data/rewind";
 
 async function main() {
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;

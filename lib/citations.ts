@@ -1,4 +1,4 @@
-import type { EventRecord, Source } from "@/data/rewind";
+import type { EventRecord, SourceRecord as Source } from "@/lib/rewind";
 
 export function formatBibTeX(event: EventRecord, source?: Source): string {
   const year = event.startDate.slice(0, 4);
