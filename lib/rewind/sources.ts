@@ -76,14 +76,20 @@ export async function getSourcesWithStatus(
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return { data: data.map(mapDatabaseSource), error: null };
+      }
+      if (error) {
+        return { data: getFallbackSources(filters), error: error.message };
       }
     }
 
     return { data: getFallbackSources(filters), error: null };
-  } catch {
-    return { data: getFallbackSources(filters), error: null };
+  } catch (err) {
+    return {
+      data: getFallbackSources(filters),
+      error: err instanceof Error ? err.message : "Failed to load sources",
+    };
   }
 }
 
@@ -120,6 +126,7 @@ export async function getSourceEventCountsWithStatus(): Promise<{
       const { data, error } = await supabase
         .from("event_sources")
         .select("source_id")
+        .order("id", { ascending: true })
         .range(from, to);
 
       if (error) {

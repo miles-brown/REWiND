@@ -43,8 +43,8 @@ function formatDate(dateStr: string): string {
 }
 
 export function TimelineComparison({
-  initialPersonA = "benjamin-netanyahu",
-  initialPersonB = "bill-clinton",
+  initialPersonA = "",
+  initialPersonB = "",
   people = [],
   events = [],
   sources = [],
@@ -56,7 +56,7 @@ export function TimelineComparison({
   sources?: SourceRecord[];
 }) {
   const [slugA, setSlugA] = useState(initialPersonA);
-  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(initialPersonB);
+  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(initialPersonB || undefined);
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -73,9 +73,14 @@ export function TimelineComparison({
     return map;
   }, [people]);
 
+  const effectiveSlugA = useMemo(() => {
+    if (slugA) return slugA;
+    return people[0]?.slug || "";
+  }, [slugA, people]);
+
   const personA = useMemo(
-    () => peopleMap.get(slugA) || people.find((p) => p.slug === slugA),
-    [peopleMap, people, slugA]
+    () => (effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : undefined),
+    [peopleMap, people, effectiveSlugA]
   );
 
   // Calculate co-attendees for Person A: figures who share at least 1 event with Person A
@@ -187,7 +192,7 @@ export function TimelineComparison({
   const recommendedLeaders = useMemo(() => {
     if (!people.length) return [];
     return people
-      .filter((p) => p.slug !== slugA)
+      .filter((p) => p.slug !== effectiveSlugA)
       .map((p) => {
         const pEvents = events.filter((e) =>
           (e.participants || []).some((part) => isParticipantMatch(part, p))
@@ -200,7 +205,7 @@ export function TimelineComparison({
         return { person: p, eventCount: pEvents.length, coCount };
       })
       .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
-  }, [events, people, slugA]);
+  }, [events, people, effectiveSlugA]);
 
   const topRecommendedLeader = recommendedLeaders[0]?.person;
 
@@ -233,7 +238,7 @@ export function TimelineComparison({
               <select
                 id="figure-1-select"
                 className="selector-select"
-                value={slugA}
+                value={effectiveSlugA}
                 onChange={(e) => {
                   setSlugA(e.target.value);
                   setExplicitSlugB(undefined);
@@ -256,7 +261,7 @@ export function TimelineComparison({
               type="button"
               onClick={() => {
                 if (personB) {
-                  const prevA = slugA;
+                  const prevA = effectiveSlugA;
                   setSlugA(slugB);
                   setExplicitSlugB(prevA);
                 }
@@ -375,10 +380,10 @@ export function TimelineComparison({
           </div>
 
           {/* Mode Tabs */}
-          <div className="comparison-mode-tabs" role="tablist">
+          <div className="comparison-mode-tabs" role="group" aria-label="Comparison display modes">
             <button
-              role="tab"
-              aria-selected={activeTab === "intersections"}
+              type="button"
+              aria-pressed={activeTab === "intersections"}
               className={`comp-tab ${activeTab === "intersections" ? "active" : ""}`}
               onClick={() => setActiveTab("intersections")}
             >
@@ -386,8 +391,8 @@ export function TimelineComparison({
               <span>Shared Joint Chronology ({intersections.length})</span>
             </button>
             <button
-              role="tab"
-              aria-selected={activeTab === "sideBySide"}
+              type="button"
+              aria-pressed={activeTab === "sideBySide"}
               className={`comp-tab ${activeTab === "sideBySide" ? "active" : ""}`}
               onClick={() => setActiveTab("sideBySide")}
             >

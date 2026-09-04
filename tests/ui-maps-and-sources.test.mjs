@@ -469,7 +469,7 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
   );
 });
 
-test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalization", () => {
+test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalization", async () => {
   const root = process.cwd();
 
   // 1. Slider ARIA fallbacks
@@ -501,6 +501,39 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     rewindContent.includes("{event && (") && rewindContent.includes('className="calendar-jump"'),
     "RewindExplorer must conditionally render calendar-jump link when event is active and omit when null"
   );
+  const { RewindExplorer } = await vite.ssrLoadModule("/components/rewind/RewindExplorer.tsx");
+  const nullHtml = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialEvents: [],
+      sources: [],
+    })
+  );
+  assert.ok(
+    !nullHtml.includes("calendar-jump"),
+    "RewindExplorer must omit calendar-jump link when event is null"
+  );
+  const sampleEvent = {
+    id: "sample-event-active",
+    slug: "sample-event-active",
+    eventName: "Active Event",
+    startDate: "1998-10-23",
+    city: "Washington",
+    country: "United States",
+    summary: "Sample Event Summary",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    eventTypes: ["diplomatic"],
+  };
+  const activeHtml = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialEvents: [sampleEvent],
+      sources: [],
+    })
+  );
+  assert.ok(
+    activeHtml.includes("calendar-jump"),
+    "RewindExplorer must render calendar-jump link when event is active"
+  );
 
   // 4. CitationModal forensic warning
   const citeContent = fs.readFileSync(path.join(root, "components/rewind/CitationModal.tsx"), "utf-8");
@@ -515,6 +548,27 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     eventsContent.includes("confidence: (row.confidence as Confidence)") &&
     eventsContent.includes("datePrecision: (String(row.temporal_precision || \"exact-day\")) as Precision"),
     "lib/rewind/events.ts must map canonical confidence and datePrecision defaults"
+  );
+  const { mapDatabaseEvent } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const modEvt = mapDatabaseEvent({
+    id: "evt-mod",
+    confidence: null,
+    confidence_score: 0.65,
+  });
+  assert.equal(
+    modEvt.confidence,
+    "moderate",
+    "mapDatabaseEvent must fall back to 'moderate' when confidence is null and confidence_score < 0.7"
+  );
+  const confEvt = mapDatabaseEvent({
+    id: "evt-conf",
+    confidence: null,
+    confidence_score: 0.85,
+  });
+  assert.equal(
+    confEvt.confidence,
+    "confirmed",
+    "mapDatabaseEvent must fall back to 'confirmed' when confidence is null and confidence_score >= 0.7"
   );
 
   // 6. Forensic Rigor: confidence and temporal precision fallbacks across components

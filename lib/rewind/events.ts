@@ -125,11 +125,11 @@ function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<Eve
 /**
  * Maps raw database event row and related joins into an application EventRecord.
  */
-function mapDatabaseEvent(
+export function mapDatabaseEvent(
   row: Record<string, unknown>,
-  placesMap: Map<string, { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null }>,
-  participantsMap: Map<string, Participant[]>,
-  sourcesMap: Map<string, string[]>,
+  placesMap: Map<string, { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null }> = new Map(),
+  participantsMap: Map<string, Participant[]> = new Map(),
+  sourcesMap: Map<string, string[]> = new Map(),
   sourceEntitiesMap?: Map<string, SourceRecord>
 ): EventRecord {
   const id = String(row.id || "");
@@ -178,14 +178,21 @@ async function hydrateEventRows(
   const eventIds = eventRows.map((e) => String(e.id || ""));
   const placeIds = Array.from(new Set(eventRows.map((e) => e.place_id ? String(e.place_id) : "").filter(Boolean)));
 
-  // Fetch places
+  // Fetch places with chunking
   const placesMap = new Map();
   if (placeIds.length > 0) {
-    const { data: placeRows } = await supabase
-      .from("places")
-      .select("id, venue, city, country, latitude, longitude")
-      .in("id", placeIds);
-    (placeRows || []).forEach((p) => placesMap.set(p.id, p));
+    const chunkSize = 1000;
+    for (let i = 0; i < placeIds.length; i += chunkSize) {
+      const chunk = placeIds.slice(i, i + chunkSize);
+      const { data: placeRows, error: placeError } = await supabase
+        .from("places")
+        .select("id, venue, city, country, latitude, longitude")
+        .in("id", chunk);
+      if (placeError) {
+        throw placeError;
+      }
+      (placeRows || []).forEach((p) => placesMap.set(p.id, p));
+    }
   }
 
   // Fetch participants with pagination to exceed Supabase 1,000-row limit
@@ -202,8 +209,13 @@ async function hydrateEventRows(
         .from("event_people")
         .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
         .in("event_id", eventIds)
+        .order("event_id", { ascending: true })
+        .order("person_id", { ascending: true })
         .range(from, to);
-      if (error || !data || data.length === 0) {
+      if (error) {
+        throw error;
+      }
+      if (!data || data.length === 0) {
         break;
       }
       participantRows = participantRows.concat(data);
@@ -228,14 +240,21 @@ async function hydrateEventRows(
   const personNames = new Map<string, string>();
   const personSlugs = new Map<string, string>();
   if (personIds.length > 0) {
-    const { data: peopleData } = await supabase
-      .from("people")
-      .select("id, slug, canonical_name, display_name")
-      .in("id", personIds);
-    (peopleData || []).forEach((p) => {
-      personNames.set(p.id, p.display_name || p.canonical_name);
-      personSlugs.set(p.id, p.slug);
-    });
+    const chunkSize = 1000;
+    for (let i = 0; i < personIds.length; i += chunkSize) {
+      const chunk = personIds.slice(i, i + chunkSize);
+      const { data: peopleData, error: peopleError } = await supabase
+        .from("people")
+        .select("id, slug, canonical_name, display_name")
+        .in("id", chunk);
+      if (peopleError) {
+        throw peopleError;
+      }
+      (peopleData || []).forEach((p) => {
+        personNames.set(p.id, p.display_name || p.canonical_name);
+        personSlugs.set(p.id, p.slug);
+      });
+    }
   }
 
   typedParticipants.forEach((p) => {
@@ -267,8 +286,13 @@ async function hydrateEventRows(
         .from("event_sources")
         .select("event_id, source_id")
         .in("event_id", eventIds)
+        .order("event_id", { ascending: true })
+        .order("source_id", { ascending: true })
         .range(from, to);
-      if (error || !data || data.length === 0) {
+      if (error) {
+        throw error;
+      }
+      if (!data || data.length === 0) {
         break;
       }
       sourceRows = sourceRows.concat(data);
@@ -288,13 +312,21 @@ async function hydrateEventRows(
 
   const sourceEntitiesMap = new Map<string, SourceRecord>();
   if (allSourceIds.size > 0) {
-    const { data: rawSources } = await supabase
-      .from("sources")
-      .select("*")
-      .in("id", Array.from(allSourceIds));
-    (rawSources || []).forEach((src) => {
-      sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
-    });
+    const sourceIdList = Array.from(allSourceIds);
+    const chunkSize = 1000;
+    for (let i = 0; i < sourceIdList.length; i += chunkSize) {
+      const chunk = sourceIdList.slice(i, i + chunkSize);
+      const { data: rawSources, error: sourcesError } = await supabase
+        .from("sources")
+        .select("*")
+        .in("id", chunk);
+      if (sourcesError) {
+        throw sourcesError;
+      }
+      (rawSources || []).forEach((src) => {
+        sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+      });
+    }
   }
 
   return eventRows.map((row) =>
@@ -320,7 +352,8 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       .from("events")
       .select("*", { count: "exact" })
       .eq("publication_status", "published")
-      .order("start_date", { ascending: false });
+      .order("start_date", { ascending: false })
+      .order("id", { ascending: true });
 
     if (params.search && params.search.trim()) {
       const term = params.search.trim();
@@ -411,7 +444,14 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (!eventRows || eventRows.length === 0) {
-      return getFallbackEventsResult(params);
+      return {
+        data: [],
+        count: 0,
+        page,
+        pageSize,
+        totalPages: 0,
+        error: null,
+      };
     }
 
     const events = await hydrateEventRows(supabase, eventRows);
@@ -467,7 +507,9 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
         .eq("publication_status", "published")
         .maybeSingle();
 
-      if (!error && eventRow) {
+      if (error || !eventRow) {
+        return null;
+      }
         const eventId = eventRow.id;
 
         // Fetch place
@@ -551,14 +593,12 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
         const sourcesMap = new Map([[eventId, sourceIds]]);
 
         return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap);
-      }
     }
 
     const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);
     return fb ? mapFallbackEvent(fb) : null;
   } catch {
-    const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);
-    return fb ? mapFallbackEvent(fb) : null;
+    return null;
   }
 }
 
@@ -621,47 +661,39 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 export async function getEventsByPerson(personSlug: string): Promise<EventRecord[]> {
   try {
     const supabase = await createClient();
-    if (!supabase) return [];
+    if (supabase) {
+      const { data: person, error: personError } = await supabase
+        .from("people")
+        .select("id")
+        .eq("slug", personSlug)
+        .maybeSingle();
 
-    const { data: person } = await supabase
-      .from("people")
-      .select("id")
-      .eq("slug", personSlug)
-      .maybeSingle();
+      if (personError || !person) return [];
 
-    if (!person) return [];
+      const { data: participations, error: partError } = await supabase
+        .from("event_people")
+        .select("event_id")
+        .eq("person_id", person.id);
 
-    const { data: participations } = await supabase
-      .from("event_people")
-      .select("event_id")
-      .eq("person_id", person.id);
+      if (partError || !participations) return [];
 
-    const eventIds = (participations || []).map((p) => p.event_id);
-    if (eventIds.length === 0) return [];
+      const eventIds = participations.map((p) => p.event_id);
+      if (eventIds.length === 0) return [];
 
-    const { data: eventRows } = await supabase
-      .from("events")
-      .select("*")
-      .in("id", eventIds)
-      .eq("publication_status", "published")
-      .order("start_date", { ascending: true });
+      const { data: eventRows, error: eventsError } = await supabase
+        .from("events")
+        .select("*")
+        .in("id", eventIds)
+        .eq("publication_status", "published")
+        .order("start_date", { ascending: true })
+        .order("id", { ascending: true });
 
-    if (!eventRows || eventRows.length === 0) {
-      const fbPerson = fallbackPeople.find((p) => p.slug === personSlug || p.id === personSlug);
-      if (fbPerson) {
-        return fallbackEvents
-          .filter((e) =>
-            (e.participants || []).some(
-              (p) => p.personId === fbPerson.id || p.personId === fbPerson.slug
-            )
-          )
-          .map(mapFallbackEvent)
-          .sort((a, b) => a.startDate.localeCompare(b.startDate));
+      if (eventsError || !eventRows || eventRows.length === 0) {
+        return [];
       }
-      return [];
+      return hydrateEventRows(supabase, eventRows);
     }
-    return hydrateEventRows(supabase, eventRows);
-  } catch {
+
     const fbPerson = fallbackPeople.find((p) => p.slug === personSlug || p.id === personSlug);
     if (fbPerson) {
       return fallbackEvents
@@ -674,6 +706,8 @@ export async function getEventsByPerson(personSlug: string): Promise<EventRecord
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
     }
     return [];
+  } catch {
+    return [];
   }
 }
 
@@ -684,22 +718,24 @@ export async function getEventYears(): Promise<number[]> {
   try {
     const supabase = await createClient();
     if (supabase) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("events")
         .select("start_date")
         .eq("publication_status", "published")
         .order("start_date", { ascending: true });
 
-      if (data && data.length > 0) {
-        const years = new Set<number>();
-        data.forEach((row) => {
-          if (row.start_date && row.start_date.length >= 4) {
-            const year = parseInt(row.start_date.slice(0, 4), 10);
-            if (!isNaN(year)) years.add(year);
-          }
-        });
-        return Array.from(years).sort((a, b) => a - b);
+      if (error) {
+        return [];
       }
+
+      const years = new Set<number>();
+      (data || []).forEach((row) => {
+        if (row.start_date && row.start_date.length >= 4) {
+          const year = parseInt(row.start_date.slice(0, 4), 10);
+          if (!isNaN(year)) years.add(year);
+        }
+      });
+      return Array.from(years).sort((a, b) => a - b);
     }
 
     const years = new Set<number>();
@@ -711,14 +747,7 @@ export async function getEventYears(): Promise<number[]> {
     });
     return Array.from(years).sort((a, b) => a - b);
   } catch {
-    const years = new Set<number>();
-    fallbackEvents.forEach((e) => {
-      if (e.startDate && e.startDate.length >= 4) {
-        const year = parseInt(e.startDate.slice(0, 4), 10);
-        if (!isNaN(year)) years.add(year);
-      }
-    });
-    return Array.from(years).sort((a, b) => a - b);
+    return [];
   }
 }
 
@@ -743,6 +772,7 @@ export async function getAllEventsWithStatus(): Promise<{ data: EventRecord[]; e
           .select("*")
           .eq("publication_status", "published")
           .order("start_date", { ascending: false })
+          .order("id", { ascending: true })
           .range(from, to);
 
         if (error) {
@@ -766,14 +796,23 @@ export async function getAllEventsWithStatus(): Promise<{ data: EventRecord[]; e
 
       if (queryError) {
         return {
-          data: fallbackEvents.map(mapFallbackEvent).sort((a, b) => b.startDate.localeCompare(a.startDate)),
+          data: [],
           error: queryError,
         };
       }
 
-      if (allRows.length > 0) {
+      if (allRows.length === 0) {
+        return { data: [], error: null };
+      }
+
+      try {
         const hydrated = await hydrateEventRows(supabase, allRows);
         return { data: hydrated, error: null };
+      } catch (hydrationError) {
+        return {
+          data: [],
+          error: hydrationError instanceof Error ? hydrationError.message : "Failed to hydrate events",
+        };
       }
     }
 
@@ -783,7 +822,7 @@ export async function getAllEventsWithStatus(): Promise<{ data: EventRecord[]; e
     };
   } catch (err) {
     return {
-      data: fallbackEvents.map(mapFallbackEvent).sort((a, b) => b.startDate.localeCompare(a.startDate)),
+      data: [],
       error: err instanceof Error ? err.message : "Failed to load events",
     };
   }

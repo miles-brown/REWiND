@@ -13,7 +13,7 @@ function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
     description: p.description,
     birth: p.birth,
     death: p.death,
-    classification: "politician",
+    classification: (p as { classification?: string }).classification || "unknown",
   };
 }
 
@@ -35,7 +35,7 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data.map((p) => ({
           id: p.id,
           slug: p.slug,
@@ -46,7 +46,7 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
           birth: p.birth_date || undefined,
           death: p.death_date || undefined,
           nationality: p.nationality || undefined,
-          classification: p.classification,
+          classification: p.classification || "unknown",
           avatarUrl: p.avatar_url || undefined,
         }));
       }
@@ -74,7 +74,12 @@ export async function getPersonBySlug(slug: string): Promise<PersonRecord | null
         .eq("publication_status", "published")
         .maybeSingle();
 
-      if (!error && p) {
+      if (error) {
+        const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+        return fb ? mapFallbackPerson(fb) : null;
+      }
+
+      if (p) {
         return {
           id: p.id,
           slug: p.slug,
@@ -85,10 +90,12 @@ export async function getPersonBySlug(slug: string): Promise<PersonRecord | null
           birth: p.birth_date || undefined,
           death: p.death_date || undefined,
           nationality: p.nationality || undefined,
-          classification: p.classification,
+          classification: p.classification || "unknown",
           avatarUrl: p.avatar_url || undefined,
         };
       }
+
+      return null;
     }
 
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);

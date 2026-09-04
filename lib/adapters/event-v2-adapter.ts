@@ -315,7 +315,12 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
       ? [...compat.medium]
       : (v2.factualFlags?.televised === "yes" ? ["broadcast"] : ["official-record"]),
     confidence: v2.confidence || "confirmed",
-    verificationStatus: v2.verificationStatus || "unverified",
+    verificationStatus:
+      v2.verificationStatus === "verified" ||
+      v2.verificationStatus === "provisional" ||
+      v2.verificationStatus === "disputed"
+        ? v2.verificationStatus
+        : "provisional",
     sourceIds: Array.isArray(v2.sourceIds) ? [...v2.sourceIds] : [],
     quotes: Array.isArray(compat?.quotes) ? [...compat.quotes] : [],
     media: Array.isArray(compat?.media) ? [...compat.media] : [],

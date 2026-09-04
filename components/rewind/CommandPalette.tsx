@@ -188,10 +188,13 @@ export function CommandPalette({
             value={query}
             onChange={(e) => {
               const val = e.target.value;
+              searchRequestIdRef.current++;
               setQuery(val);
               setSelectedIndex(0);
-              if (!val.trim()) {
-                setSearchResults([]);
+              setSearchResults([]);
+              if (val.trim()) {
+                setIsLoading(true);
+              } else {
                 setIsLoading(false);
               }
             }}
@@ -208,7 +211,9 @@ export function CommandPalette({
             <button
               className="search-clear-btn"
               onClick={() => {
+                searchRequestIdRef.current++;
                 setQuery("");
+                setSelectedIndex(0);
                 setSearchResults([]);
                 setIsLoading(false);
               }}

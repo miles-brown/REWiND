@@ -27,6 +27,7 @@ function getFallbackRelationships(): RelationshipItem[] {
 
   const pairCounts = new Map<string, number>();
   for (const e of fallbackEvents) {
+    if (e.verificationStatus !== "verified") continue;
     const pSlugs = Array.from(
       new Set(
         (e.participants || [])
@@ -76,7 +77,11 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
         .eq("events.verification_status", "verified")
         .eq("events.publication_status", "published");
 
-      if (!error && participations && participations.length > 0) {
+      if (error) {
+        return getFallbackRelationships();
+      }
+
+      if (participations) {
         // Group persons by event
         const eventPersons = new Map<string, string[]>();
         participations.forEach((p) => {
@@ -98,48 +103,48 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
           }
         }
 
-        if (pairCounts.size > 0) {
-          // Fetch person names
-          const allPersonIds = Array.from(
-            new Set(
-              Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
-            )
-          );
-          const { data: people } = await supabase
-            .from("people")
-            .select("id, slug, display_name, canonical_name")
-            .in("id", allPersonIds);
-
-          const personMap = new Map<string, { slug: string; name: string }>();
-          (people || []).forEach((p) => {
-            personMap.set(p.id, {
-              slug: p.slug,
-              name: p.display_name || p.canonical_name,
-            });
-          });
-
-          const relationships: RelationshipItem[] = [];
-          for (const [key, count] of pairCounts.entries()) {
-            const [idA, idB] = key.split("::");
-            const personA = personMap.get(idA);
-            const personB = personMap.get(idB);
-            if (!personA || !personB) continue;
-
-            relationships.push({
-              id: `${personA.slug}-${personB.slug}`,
-              source: personA.slug,
-              target: personB.slug,
-              sourceName: personA.name,
-              targetName: personB.name,
-              sharedEventsCount: count,
-              types: ["diplomatic-meeting"],
-            });
-          }
-
-          if (relationships.length > 0) {
-            return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
-          }
+        if (pairCounts.size === 0) {
+          return [];
         }
+
+        // Fetch person names
+        const allPersonIds = Array.from(
+          new Set(
+            Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
+          )
+        );
+        const { data: people } = await supabase
+          .from("people")
+          .select("id, slug, display_name, canonical_name")
+          .in("id", allPersonIds);
+
+        const personMap = new Map<string, { slug: string; name: string }>();
+        (people || []).forEach((p) => {
+          personMap.set(p.id, {
+            slug: p.slug,
+            name: p.display_name || p.canonical_name,
+          });
+        });
+
+        const relationships: RelationshipItem[] = [];
+        for (const [key, count] of pairCounts.entries()) {
+          const [idA, idB] = key.split("::");
+          const personA = personMap.get(idA);
+          const personB = personMap.get(idB);
+          if (!personA || !personB) continue;
+
+          relationships.push({
+            id: `${personA.slug}-${personB.slug}`,
+            source: personA.slug,
+            target: personB.slug,
+            sourceName: personA.name,
+            targetName: personB.name,
+            sharedEventsCount: count,
+            types: ["diplomatic-meeting"],
+          });
+        }
+
+        return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
       }
     }
 
@@ -182,15 +187,21 @@ export async function getRelationshipBetween(
         .filter((id) => eventsA.has(id));
 
       if (sharedIds.length > 0) {
-        const sharedEvents: EventRecord[] = await getEventsByIds(sharedIds);
+        const fetchedEvents = await getEventsByIds(sharedIds);
+        const sharedEvents: EventRecord[] = fetchedEvents.filter(
+          (e) => e.verificationStatus === "verified"
+        );
         return { personA, personB, sharedEvents };
       }
+
+      return { personA, personB, sharedEvents: [] };
     }
 
     // Fallback: check shared events across all events
     const all = await getAllEvents();
     const shared = all.filter(
       (e) =>
+        e.verificationStatus === "verified" &&
         (e.participants || []).some((p) => p.personId === personA.id || p.personId === personA.slug) &&
         (e.participants || []).some((p) => p.personId === personB.id || p.personId === personB.slug)
     );

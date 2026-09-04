@@ -67,6 +67,7 @@ export function EventActions({ event }: { event: EventRecord }) {
 
       <CitationModal
         event={event}
+        source={event.sources?.[0]}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
       />
