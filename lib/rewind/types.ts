@@ -38,7 +38,7 @@ export interface EventRecord {
   description?: string | null;
   verificationStatus: Verification;
   confidenceScore?: number;
-  confidence?: Confidence | string;
+  confidence?: Confidence | string | null;
   scope?: "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media" | string;
   organisations?: string[];
   sourceIds: string[];

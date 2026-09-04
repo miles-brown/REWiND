@@ -134,7 +134,7 @@ export function RewindExplorer({
           </label>
           <label>
             <CalendarDays size={14} />
-            <span className="sr-only">Verification filter</span>
+            <span className="sr-only">Verification status</span>
             <select
               value={status}
               onChange={(e) => {
@@ -201,22 +201,26 @@ export function RewindExplorer({
                 <span>{source?.publisher}</span>
               </div>
               <div className="evidence-actions">
-                <button
-                  className="cite-btn"
-                  onClick={() => setCiteOpen(true)}
-                  aria-label="Cite this record"
-                >
-                  <Quote size={13} />
-                  <span>Cite</span>
-                </button>
-                <a
-                  href={source?.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Open primary source"
-                >
-                  <ExternalLink />
-                </a>
+                {source && (
+                  <button
+                    className="cite-btn"
+                    onClick={() => setCiteOpen(true)}
+                    aria-label="Cite this record"
+                  >
+                    <Quote size={13} />
+                    <span>Cite</span>
+                  </button>
+                )}
+                {source?.url && (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open primary source"
+                  >
+                    <ExternalLink />
+                  </a>
+                )}
               </div>
             </div>
             <dl className="event-facts">

@@ -222,7 +222,15 @@ CREATE TABLE IF NOT EXISTS public.event_person_organisations (
 CREATE TABLE IF NOT EXISTS public.event_organisations (
   id serial PRIMARY KEY,
   event_id text NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
-  organisation_id text NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE
+  organisation_id text NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+  relationship_type text NOT NULL CHECK (relationship_type IN (
+    'organiser', 'co-organiser', 'host', 'institutional-host', 'producer',
+    'co-producer', 'promoter', 'commissioner', 'sponsor', 'partner',
+    'participant', 'delegation', 'venue-owner', 'venue-operator', 'security',
+    'press', 'broadcaster', 'streamer', 'publisher', 'governing-body',
+    'affiliate', 'other'
+  )),
+  role_label text
 );
 
 CREATE TABLE IF NOT EXISTS public.event_broadcasts (
@@ -294,6 +302,14 @@ CREATE TABLE IF NOT EXISTS public.event_sources (
   is_primary boolean DEFAULT true NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.event_person_location_sources (
+  id serial PRIMARY KEY,
+  event_person_location_id integer NOT NULL REFERENCES public.event_person_locations(id) ON DELETE CASCADE,
+  source_id text NOT NULL REFERENCES public.sources(id) ON DELETE CASCADE,
+  is_primary boolean DEFAULT true NOT NULL,
+  CONSTRAINT uq_event_person_location_sources UNIQUE (event_person_location_id, source_id)
+);
+
 -- Foreign key constraints for source references on prior tables
 DO $$
 BEGIN
@@ -303,9 +319,9 @@ BEGIN
       FOREIGN KEY (source_id) REFERENCES public.sources(id)
       ON DELETE SET NULL;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_event_location_sequences_source') THEN
-    ALTER TABLE public.event_location_sequences
-      ADD CONSTRAINT fk_event_location_sequences_source
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_event_broadcasts_source') THEN
+    ALTER TABLE public.event_broadcasts
+      ADD CONSTRAINT fk_event_broadcasts_source
       FOREIGN KEY (source_id) REFERENCES public.sources(id)
       ON DELETE SET NULL;
   END IF;
@@ -410,6 +426,8 @@ CREATE INDEX IF NOT EXISTS idx_event_location_seq_event_id ON public.event_locat
 
 CREATE INDEX IF NOT EXISTS idx_event_sources_event_id ON public.event_sources(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_sources_source_id ON public.event_sources(source_id);
+CREATE INDEX IF NOT EXISTS idx_event_person_location_sources_loc_id ON public.event_person_location_sources(event_person_location_id);
+CREATE INDEX IF NOT EXISTS idx_event_person_location_sources_source_id ON public.event_person_location_sources(source_id);
 CREATE INDEX IF NOT EXISTS idx_claims_event_id ON public.claims(event_id);
 CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_event_id ON public.quotes(event_id);
@@ -443,6 +461,7 @@ ALTER TABLE public.event_location_sequences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.source_fetches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_person_location_sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.claims ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
@@ -471,19 +490,60 @@ BEGIN
     CREATE POLICY "Allow public read on coverage_programmes" ON public.coverage_programmes FOR SELECT TO anon, authenticated USING (true);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'person_aliases' AND policyname = 'Allow public read on person_aliases') THEN
-    CREATE POLICY "Allow public read on person_aliases" ON public.person_aliases FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on person_aliases" ON public.person_aliases FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.people p WHERE p.id = person_aliases.person_id AND p.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'person_roles' AND policyname = 'Allow public read on person_roles') THEN
-    CREATE POLICY "Allow public read on person_roles" ON public.person_roles FOR SELECT TO anon, authenticated USING (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'addresses' AND policyname = 'Allow public read on addresses') THEN
-    CREATE POLICY "Allow public read on addresses" ON public.addresses FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on person_roles" ON public.person_roles FOR SELECT TO anon, authenticated
+      USING (EXISTS (SELECT 1 FROM public.people p WHERE p.id = person_roles.person_id AND p.publication_status = 'published'));
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'venues' AND policyname = 'Allow public read on venues') THEN
-    CREATE POLICY "Allow public read on venues" ON public.venues FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on venues" ON public.venues FOR SELECT TO anon, authenticated
+      USING (
+        EXISTS (SELECT 1 FROM public.events e WHERE e.venue_id = venues.id AND e.publication_status = 'published')
+        OR EXISTS (
+          SELECT 1 FROM public.event_person_locations epl
+          JOIN public.event_people ep ON ep.id = epl.event_person_id
+          JOIN public.events e ON e.id = ep.event_id
+          WHERE epl.venue_id = venues.id
+          AND e.publication_status = 'published'
+          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        )
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'venue_areas' AND policyname = 'Allow public read on venue_areas') THEN
-    CREATE POLICY "Allow public read on venue_areas" ON public.venue_areas FOR SELECT TO anon, authenticated USING (true);
+    CREATE POLICY "Allow public read on venue_areas" ON public.venue_areas FOR SELECT TO anon, authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.event_person_locations epl
+          JOIN public.event_people ep ON ep.id = epl.event_person_id
+          JOIN public.events e ON e.id = ep.event_id
+          WHERE epl.venue_area_id = venue_areas.id
+          AND e.publication_status = 'published'
+          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        )
+      );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'addresses' AND policyname = 'Allow public read on addresses') THEN
+    CREATE POLICY "Allow public read on addresses" ON public.addresses FOR SELECT TO anon, authenticated
+      USING (
+        EXISTS (SELECT 1 FROM public.events e WHERE e.address_id = addresses.id AND e.publication_status = 'published')
+        OR EXISTS (
+          SELECT 1 FROM public.venues v
+          WHERE v.address_id = addresses.id
+          AND (
+            EXISTS (SELECT 1 FROM public.events e WHERE e.venue_id = v.id AND e.publication_status = 'published')
+            OR EXISTS (
+              SELECT 1 FROM public.event_person_locations epl
+              JOIN public.event_people ep ON ep.id = epl.event_person_id
+              JOIN public.events e ON e.id = ep.event_id
+              WHERE epl.venue_id = v.id
+              AND e.publication_status = 'published'
+              AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+            )
+          )
+        )
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'places' AND policyname = 'Allow public read on places') THEN
     CREATE POLICY "Allow public read on places" ON public.places FOR SELECT TO anon, authenticated USING (true);
@@ -547,6 +607,19 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_sources' AND policyname = 'Allow public read on event_sources') THEN
     CREATE POLICY "Allow public read on event_sources" ON public.event_sources FOR SELECT TO anon, authenticated
       USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_sources.event_id AND e.publication_status = 'published'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_location_sources' AND policyname = 'Allow public read on event_person_location_sources') THEN
+    CREATE POLICY "Allow public read on event_person_location_sources" ON public.event_person_location_sources FOR SELECT TO anon, authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.event_person_locations epl
+          JOIN public.event_people ep ON ep.id = epl.event_person_id
+          JOIN public.events e ON e.id = ep.event_id
+          WHERE epl.id = event_person_location_sources.event_person_location_id
+          AND e.publication_status = 'published'
+          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        )
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'claims' AND policyname = 'Allow public read on claims') THEN
     CREATE POLICY "Allow public read on claims" ON public.claims FOR SELECT TO anon, authenticated

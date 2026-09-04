@@ -9,6 +9,20 @@ const isValidConnectionString = Boolean(
     (connectionString.startsWith("postgres://") || connectionString.startsWith("postgresql://"))
 );
 
+function isLocalDatabaseHost(connStr: string): boolean {
+  try {
+    const url = new URL(connStr);
+    return (
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "::1" ||
+      url.hostname.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+}
+
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 /**
@@ -21,7 +35,12 @@ export function getDb() {
     return null;
   }
   try {
-    const client = postgres(connectionString, { max: 10, prepare: false });
+    const isLocal = isLocalDatabaseHost(connectionString);
+    const client = postgres(connectionString, {
+      max: 10,
+      prepare: false,
+      ssl: isLocal ? false : "require",
+    });
     dbInstance = drizzle(client, { schema });
     return dbInstance;
   } catch {

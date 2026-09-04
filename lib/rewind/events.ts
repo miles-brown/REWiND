@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { EventFilters, EventRecord, PaginatedResult, Participant } from "./types";
+import { mapDatabaseSource } from "./sources";
+import type { EventFilters, EventRecord, PaginatedResult, Participant, SourceRecord } from "./types";
 
 /**
  * Maps raw database event row and related joins into an application EventRecord.
@@ -8,13 +9,17 @@ function mapDatabaseEvent(
   row: Record<string, unknown>,
   placesMap: Map<string, { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null }>,
   participantsMap: Map<string, Participant[]>,
-  sourcesMap: Map<string, string[]>
+  sourcesMap: Map<string, string[]>,
+  sourceEntitiesMap?: Map<string, SourceRecord>
 ): EventRecord {
   const id = String(row.id || "");
   const placeId = row.place_id ? String(row.place_id) : "";
   const place = placesMap.get(placeId) || {};
   const participants = participantsMap.get(id) || [];
   const sourceIds = sourcesMap.get(id) || [];
+  const sources = sourceEntitiesMap
+    ? sourceIds.map((sId) => sourceEntitiesMap.get(sId)).filter((s): s is SourceRecord => Boolean(s))
+    : undefined;
 
   return {
     id,
@@ -33,6 +38,7 @@ function mapDatabaseEvent(
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "verified",
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 1.0,
     sourceIds,
+    sources,
     participants,
     categories: [String(row.event_type || "diplomatic")],
     eventTypes: [String(row.event_type || "historical-action")],
@@ -91,8 +97,9 @@ async function hydrateEventRows(
     participantsMap.set(p.event_id, list);
   });
 
-  // Fetch source IDs
+  // Fetch source IDs and source records
   const sourcesMap = new Map<string, string[]>();
+  const allSourceIds = new Set<string>();
   const { data: sourceRows } = await supabase
     .from("event_sources")
     .select("event_id, source_id")
@@ -101,10 +108,22 @@ async function hydrateEventRows(
     const list = sourcesMap.get(s.event_id) || [];
     list.push(s.source_id);
     sourcesMap.set(s.event_id, list);
+    allSourceIds.add(s.source_id);
   });
 
+  const sourceEntitiesMap = new Map<string, SourceRecord>();
+  if (allSourceIds.size > 0) {
+    const { data: rawSources } = await supabase
+      .from("sources")
+      .select("*")
+      .in("id", Array.from(allSourceIds));
+    (rawSources || []).forEach((src) => {
+      sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+    });
+  }
+
   return eventRows.map((row) =>
-    mapDatabaseEvent(row, placesMap, participantsMap, sourcesMap)
+    mapDatabaseEvent(row, placesMap, participantsMap, sourcesMap, sourceEntitiesMap)
   );
 }
 
@@ -485,6 +504,49 @@ export async function getEventYears(): Promise<number[]> {
     });
 
     return Array.from(years).sort((a, b) => a - b);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Retrieves all published events, automatically paginating internally.
+ */
+export async function getAllEvents(): Promise<EventRecord[]> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return [];
+
+    let allRows: Record<string, unknown>[] = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("publication_status", "published")
+        .order("start_date", { ascending: false })
+        .range(from, to);
+
+      if (error || !data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allRows = allRows.concat(data);
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
+
+    if (allRows.length === 0) return [];
+    return hydrateEventRows(supabase, allRows);
   } catch {
     return [];
   }

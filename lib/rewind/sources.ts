@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { getEventsByIds } from "./events";
 import type { EventRecord, SourceRecord } from "./types";
 
-function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
+export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   return {
     id: String(s.id || ""),
     title: String(s.title || ""),
@@ -21,14 +20,16 @@ function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
 }
 
 /**
- * Retrieves primary and corroborating sources from Supabase with optional filters.
+ * Retrieves primary and corroborating sources from Supabase with status and error reporting.
  */
-export async function getSources(
+export async function getSourcesWithStatus(
   filters: { tier?: string; type?: string; search?: string } = {}
-): Promise<SourceRecord[]> {
+): Promise<{ data: SourceRecord[]; error: string | null }> {
   try {
     const supabase = await createClient();
-    if (!supabase) return [];
+    if (!supabase) {
+      return { data: [], error: "Supabase connection is not configured." };
+    }
 
     let query = supabase
       .from("sources")
@@ -49,11 +50,51 @@ export async function getSources(
     }
 
     const { data, error } = await query;
-    if (error || !data) return [];
+    if (error) {
+      return { data: [], error: error.message };
+    }
+    if (!data) {
+      return { data: [], error: null };
+    }
 
-    return data.map(mapDatabaseSource);
+    return { data: data.map(mapDatabaseSource), error: null };
+  } catch (err) {
+    return { data: [], error: err instanceof Error ? err.message : "Unknown database error" };
+  }
+}
+
+/**
+ * Retrieves primary and corroborating sources from Supabase with optional filters.
+ */
+export async function getSources(
+  filters: { tier?: string; type?: string; search?: string } = {}
+): Promise<SourceRecord[]> {
+  const res = await getSourcesWithStatus(filters);
+  return res.data;
+}
+
+/**
+ * Fast aggregate query returning counts of published events linked to each source ID.
+ */
+export async function getSourceEventCounts(): Promise<Record<string, number>> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return {};
+
+    const { data, error } = await supabase
+      .from("event_sources")
+      .select("source_id");
+
+    if (error || !data) return {};
+
+    const counts: Record<string, number> = {};
+    for (const row of data) {
+      const sId = String(row.source_id);
+      counts[sId] = (counts[sId] || 0) + 1;
+    }
+    return counts;
   } catch {
-    return [];
+    return {};
   }
 }
 
@@ -105,7 +146,11 @@ export async function getSourceById(
       .eq("source_id", id);
 
     const eventIds = (eventSources || []).map((es) => es.event_id);
-    const events = eventIds.length > 0 ? await getEventsByIds(eventIds) : [];
+    let events: EventRecord[] = [];
+    if (eventIds.length > 0) {
+      const { getEventsByIds } = await import("./events");
+      events = await getEventsByIds(eventIds);
+    }
 
     return {
       source,

@@ -21,7 +21,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import type { EventRecord, PersonRecord as Person } from "@/lib/rewind";
+import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -30,9 +30,11 @@ import { DiscrepancyViewer } from "./DiscrepancyViewer";
 export function PersonTimeline({
   person,
   records,
+  sources = [],
 }: {
   person: Person;
   records: EventRecord[];
+  sources?: SourceRecord[];
 }) {
   const ordered = useMemo(
     () => [...records].sort((a, b) => a.startDate.localeCompare(b.startDate)),
@@ -173,8 +175,27 @@ export function PersonTimeline({
   }
 
   const event = ordered[safeIndex];
-  const source = event.sources?.[0];
-  const date = new Date(event.startDate + "T12:00:00");
+  const source =
+    event.sources?.[0] ||
+    (event.sourceIds?.[0]
+      ? sources.find((s) => s.id === event.sourceIds[0])
+      : undefined) ||
+    (event.sourceIds?.[0]
+      ? {
+          id: event.sourceIds[0],
+          title: event.eventName,
+          publisher: "Archival Register",
+          sourceType: "official-record",
+          classification: "primary",
+        }
+      : undefined);
+
+  const isDateOnly =
+    Boolean(event.startDate) &&
+    !event.startDate.includes("T") &&
+    !event.startDate.includes(":");
+  const dateStr = isDateOnly ? `${event.startDate}T12:00:00` : event.startDate;
+  const date = dateStr ? new Date(dateStr) : new Date();
 
   const choose = (id: string) => {
     const next = ordered.findIndex((record) => record.id === id);
@@ -314,12 +335,12 @@ export function PersonTimeline({
                 <ShieldAlert size={14} />
                 <span>Audit</span>
               </button>
-              {source && (
+              {source?.url && (
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label={`Open source from ${source.publisher}`}
+                  aria-label={`Open source from ${source.publisher || "archive"}`}
                 >
                   <ExternalLink />
                 </a>
@@ -490,6 +511,7 @@ export function PersonTimeline({
 
       <CitationModal
         event={event}
+        source={source}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
       />

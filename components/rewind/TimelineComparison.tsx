@@ -70,6 +70,16 @@ export function TimelineComparison({
     return Array.from(citiesA).filter((c) => citiesB.has(c));
   }, [eventsA, eventsB]);
 
+  if (people.length === 0) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>No Figures Recorded</h2>
+        <p>The evidence atlas database does not currently contain documented historical figures for comparison.</p>
+      </div>
+    );
+  }
+
   if (!personA || !personB || people.length < 2) {
     return (
       <div
@@ -88,16 +98,6 @@ export function TimelineComparison({
         <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
           At least two documented figures are required to perform a bilateral spacetime comparison.
         </p>
-      </div>
-    );
-  }
-
-  if (people.length === 0) {
-    return (
-      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
-        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
-        <h2>No Figures Recorded</h2>
-        <p>The evidence atlas database does not currently contain documented historical figures for comparison.</p>
       </div>
     );
   }

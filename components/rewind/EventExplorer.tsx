@@ -91,7 +91,7 @@ export function EventExplorer({
         </label>
       </div>
 
-      <div className="result-line">
+      <div className="result-line" role="status" aria-live="polite" aria-atomic="true">
         <b>{result.length}</b> matching documented records {year && <>in <b>{year}</b></>}
       </div>
 

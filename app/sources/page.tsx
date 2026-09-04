@@ -1,4 +1,4 @@
-import { getEvents, getSources } from "@/lib/rewind";
+import { getAllEvents, getSourcesWithStatus, getSourceEventCounts } from "@/lib/rewind";
 import { SourcesCatalog } from "@/components/rewind/SourcesCatalog";
 
 export const metadata = {
@@ -8,10 +8,18 @@ export const metadata = {
 };
 
 export default async function SourcesPage() {
-  const [sources, eventsResult] = await Promise.all([
-    getSources(),
-    getEvents({ limit: 100 }),
+  const [sourcesResult, events, sourceEventCounts] = await Promise.all([
+    getSourcesWithStatus(),
+    getAllEvents(),
+    getSourceEventCounts(),
   ]);
 
-  return <SourcesCatalog sources={sources} events={eventsResult.data} />;
+  return (
+    <SourcesCatalog
+      sources={sourcesResult.data}
+      events={events}
+      sourceEventCounts={sourceEventCounts}
+      loaderError={sourcesResult.error}
+    />
+  );
 }

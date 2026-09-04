@@ -204,7 +204,7 @@ svg { flex: 0 0 auto; }
 }
 
 /* Modern Timeline Console & Bottom Toolbar */
-.rewind-console { min-height: 110px; display: grid; grid-template-columns: 190px auto minmax(220px,1fr) auto auto; align-items: center; gap: 20px; padding: 18px clamp(20px,5vw,76px); background: rgba(10,22,30,.94); border-top: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(20px); box-shadow: 0 -12px 35px rgba(0,0,0,.45); }
+.rewind-console { position: sticky; z-index: 30; bottom: 0; min-height: 110px; display: grid; grid-template-columns: 190px auto minmax(220px,1fr) auto auto; align-items: center; gap: 20px; padding: 18px clamp(20px,5vw,76px); background: rgba(10,22,30,.94); border-top: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(20px); box-shadow: 0 -12px 35px rgba(0,0,0,.45); }
 .console-date small { display: block; color: #94a3b8; font: 600 10px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
 .console-date b { display: block; margin-top: 4px; color: #f8fafc; font: 700 16px var(--sans); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .play-controls { display: flex; gap: 7px; align-items: center; }

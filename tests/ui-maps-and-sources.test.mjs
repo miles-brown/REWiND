@@ -24,11 +24,11 @@ test("verifies app/admin/evidence/page.tsx does not duplicate Shell wrapper", ()
   const adminPagePath = path.join(root, "app/admin/evidence/page.tsx");
   const content = fs.readFileSync(adminPagePath, "utf-8");
   assert.ok(
-    !content.includes("<Shell>"),
+    !/<Shell\b[^>]*>|<\/Shell>/.test(content),
     "app/admin/evidence/page.tsx must not contain inner <Shell> wrapper"
   );
   assert.ok(
-    !content.includes('import { Shell } from "@/components/rewind/Shell";'),
+    !/import\s+{[^}]*\bShell\b[^}]*}\s+from\s+["']@\/components\/rewind\/Shell["']/.test(content),
     "app/admin/evidence/page.tsx must not import Shell"
   );
 });
@@ -41,8 +41,23 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
     "PersonTimeline.tsx must not contain DRAG TO REWIND CHRONOLOGY"
   );
   assert.ok(
+    !/color\s*:\s*["']?red/i.test(content) && !/text-red/i.test(content),
+    "PersonTimeline.tsx must not contain inline or class-based red text styling"
+  );
+  assert.ok(
     content.includes('className="status-left"'),
     "PersonTimeline.tsx must wrap live indicator in status-left to prevent grid collision with status-right-tools"
+  );
+
+  const cssPath = path.join(root, "app/globals.css");
+  const cssContent = fs.readFileSync(cssPath, "utf-8");
+  assert.ok(
+    cssContent.includes(".person-time-console { position: sticky; z-index: 30; bottom: 0; }"),
+    "globals.css must anchor .person-time-console to bottom: 0 with sticky positioning"
+  );
+  assert.ok(
+    cssContent.includes(".rewind-console { position: sticky; z-index: 30; bottom: 0;"),
+    "globals.css must anchor .rewind-console to bottom: 0 with sticky positioning"
   );
 });
 
@@ -69,10 +84,12 @@ test("verifies SourcesPage module export and comprehensive filtering support", a
 });
 
 test("verifies SourcesPage accessibility and search criteria compliance", () => {
-  const sourcesPagePath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
-    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
-    : path.join(root, "app/sources/page.tsx");
-  const content = fs.readFileSync(sourcesPagePath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const content = fs.readFileSync(sourcesCatalogPath, "utf-8");
 
   // ARIA pressed attributes
   assert.ok(
@@ -168,10 +185,12 @@ test("verifies PersonTimeline slider ARIA attributes and semantic dateTime forma
     "Slider must supply getAriaLabel callback for screen readers"
   );
 
-  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
-    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
-    : path.join(root, "app/sources/page.tsx");
-  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
   assert.ok(
     sourcesContent.includes('dateTime={isoDate || undefined}'),
     "Sources page must render machine-readable dateTime on time elements"
@@ -320,10 +339,12 @@ test("verifies MapGraphic lifecycle resilience and expanded keyboard Escape list
 });
 
 test("verifies SourcesPage historical date resolution and RewindExplorer disabled boundary states", () => {
-  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
-    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
-    : path.join(root, "app/sources/page.tsx");
-  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
 
   assert.ok(
     sourcesContent.includes("getSourceDateInfo"),
@@ -411,10 +432,12 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
   );
 
   // 2. Semantic KPI definition list in SourcesCatalog.tsx
-  const sourcesPath = fs.existsSync(path.join(root, "components/rewind/SourcesCatalog.tsx"))
-    ? path.join(root, "components/rewind/SourcesCatalog.tsx")
-    : path.join(root, "app/sources/page.tsx");
-  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
   assert.ok(
     sourcesContent.includes('<dl className="sources-kpi-bar" aria-label="Sources register summary metrics">'),
     "Sources page must use semantic <dl> list for KPI summary metrics"

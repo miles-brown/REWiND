@@ -33,9 +33,13 @@ export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; di
 export function SourcesCatalog({
   sources = [],
   events = [],
+  sourceEventCounts,
+  loaderError,
 }: {
   sources?: SourceRecord[];
   events?: EventRecord[];
+  sourceEventCounts?: Record<string, number>;
+  loaderError?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>("all");
@@ -46,6 +50,9 @@ export function SourcesCatalog({
 
   // Precompute event linkage counts
   const sourceEventMap = useMemo(() => {
+    if (sourceEventCounts && Object.keys(sourceEventCounts).length > 0) {
+      return new Map(Object.entries(sourceEventCounts));
+    }
     const map = new Map<string, number>();
     for (const e of events) {
       for (const sId of e.sourceIds || []) {
@@ -53,7 +60,7 @@ export function SourcesCatalog({
       }
     }
     return map;
-  }, [events]);
+  }, [events, sourceEventCounts]);
 
   // Compute publishers and types
   const publishers = useMemo(() => {
@@ -336,15 +343,19 @@ export function SourcesCatalog({
       {filteredSources.length === 0 ? (
         <div className="sources-empty-state" role="status" aria-live="polite">
           <BookOpen size={42} />
-          <h3>No matching records located</h3>
+          <h3>{loaderError ? "Source register unavailable" : "No matching records located"}</h3>
           <p>
-            {sources.length === 0
+            {loaderError
+              ? "Unable to connect to the archival source database. Please verify the connection or try again later."
+              : sources.length === 0
               ? "The canonical Supabase source register is ready. Primary sources will appear here as research is added in Milestone B."
               : "No documentary sources match your current search and filter parameters."}
           </p>
-          <button type="button" className="action-btn reset" onClick={resetFilters}>
-            Clear all filters
-          </button>
+          {!loaderError && (
+            <button type="button" className="action-btn reset" onClick={resetFilters}>
+              Clear all filters
+            </button>
+          )}
         </div>
       ) : viewMode === "table" ? (
         <div className="sources-table-container">

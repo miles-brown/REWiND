@@ -2,19 +2,26 @@ import { createClient } from "@/lib/supabase/server";
 import type { QuoteRecord } from "./types";
 
 /**
- * Retrieves archival quotes linked to historical events and speakers.
+ * Retrieves archival quotes linked to historical events and speakers with status and error reporting.
  */
-export async function getQuotes(): Promise<QuoteRecord[]> {
+export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; error: string | null }> {
   try {
     const supabase = await createClient();
-    if (!supabase) return [];
+    if (!supabase) {
+      return { data: [], error: "Supabase connection is not configured." };
+    }
 
     const { data: quotesData, error } = await supabase
       .from("quotes")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error || !quotesData || quotesData.length === 0) return [];
+    if (error) {
+      return { data: [], error: error.message };
+    }
+    if (!quotesData || quotesData.length === 0) {
+      return { data: [], error: null };
+    }
 
     const speakerIds = Array.from(new Set(quotesData.map((q) => q.speaker_id)));
     const eventIds = Array.from(new Set(quotesData.map((q) => q.event_id)));
@@ -37,7 +44,7 @@ export async function getQuotes(): Promise<QuoteRecord[]> {
       (events || []).forEach((e) => eventMap.set(e.id, { slug: e.slug, title: e.title, date: e.start_date }));
     }
 
-    return quotesData.map((q) => {
+    const records = quotesData.map((q) => {
       const evt = eventMap.get(q.event_id);
       return {
         id: q.id,
@@ -54,7 +61,17 @@ export async function getQuotes(): Promise<QuoteRecord[]> {
         eventDate: evt?.date,
       };
     });
-  } catch {
-    return [];
+
+    return { data: records, error: null };
+  } catch (err) {
+    return { data: [], error: err instanceof Error ? err.message : "Unknown database error" };
   }
+}
+
+/**
+ * Retrieves archival quotes linked to historical events and speakers.
+ */
+export async function getQuotes(): Promise<QuoteRecord[]> {
+  const res = await getQuotesWithStatus();
+  return res.data;
 }

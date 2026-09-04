@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, MessageSquareQuote, Quote } from "lucide-react";
-import { getEvents, getQuotes } from "@/lib/rewind";
+import { ArrowRight, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
+import { getEvents, getQuotesWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Archival Quotes — REWIND Evidence Atlas",
@@ -8,10 +8,13 @@ export const metadata = {
 };
 
 export default async function QuotesPage() {
-  const [quotes, eventsResult] = await Promise.all([
-    getQuotes(),
+  const [quotesResult, eventsResult] = await Promise.all([
+    getQuotesWithStatus(),
     getEvents({ limit: 50 }),
   ]);
+
+  const quotes = quotesResult.data;
+  const loaderError = quotesResult.error || eventsResult.error;
 
   const speechEvents = eventsResult.data.filter((e) =>
     (e.eventTypes || []).some((t) => /Speech|Statement|Interview|Press|bilateral|plenary/i.test(t))
@@ -39,7 +42,26 @@ export default async function QuotesPage() {
         </div>
       </div>
 
-      {quotes.length === 0 && speechEvents.length === 0 ? (
+      {loaderError ? (
+        <div
+          className="zero-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <ShieldAlert size={36} style={{ margin: "0 auto 1rem", opacity: 0.6, color: "var(--accent-warning, #eab308)" }} />
+          <h2>Speech Register Unavailable</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The speech and quotation database is currently unreachable. Please verify database connectivity or try again later.
+          </p>
+        </div>
+      ) : quotes.length === 0 && speechEvents.length === 0 ? (
         <div
           className="zero-state"
           style={{

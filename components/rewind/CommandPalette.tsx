@@ -201,6 +201,13 @@ export function CommandPalette({
             <kbd className="search-kbd">ESC</kbd>
           )}
         </div>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {isLoading
+            ? "Searching archival records…"
+            : trimmed
+            ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
+            : ""}
+        </div>
         <div className="command-palette-results" aria-live="polite">
           {query && !results.length && (
             <div className="empty-copy">

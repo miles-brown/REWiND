@@ -8,7 +8,26 @@ const supabaseAnonKey =
   "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-export const isSupabaseServerConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+function isValidSupabaseUrl(rawUrl: string): boolean {
+  if (!rawUrl) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "https:") return true;
+    if (
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export const isSupabaseServerConfigured = Boolean(
+  supabaseUrl && supabaseAnonKey && isValidSupabaseUrl(supabaseUrl)
+);
 
 /**
  * Creates a server-side Supabase client for Server Components, Server Actions,
@@ -57,7 +76,7 @@ export async function createClient() {
  * Strictly server-only. NEVER expose service_role in NEXT_PUBLIC_ variables.
  */
 export function createAdminClient() {
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!isValidSupabaseUrl(supabaseUrl) || !serviceRoleKey) {
     return null;
   }
   return createServerClient(supabaseUrl, serviceRoleKey, {

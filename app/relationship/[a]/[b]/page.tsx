@@ -4,9 +4,8 @@ import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import {
   getPersonBySlug,
   getPeople,
-  getEventsByPerson,
+  getAllEvents,
   getSources,
-  type EventRecord,
 } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
@@ -24,22 +23,15 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const [pa, pb, people, eventsA, eventsB, sources] = await Promise.all([
+  const [pa, pb, people, allEvents, sources] = await Promise.all([
     getPersonBySlug(a),
     getPersonBySlug(b),
     getPeople(),
-    getEventsByPerson(a),
-    getEventsByPerson(b),
+    getAllEvents(),
     getSources(),
   ]);
 
   if (!pa || !pb) notFound();
-
-  // Combine and deduplicate events for both people
-  const eventMap = new Map<string, EventRecord>();
-  eventsA.forEach((e) => eventMap.set(e.id, e));
-  eventsB.forEach((e) => eventMap.set(e.id, e));
-  const relationshipEvents = Array.from(eventMap.values());
 
   return (
     <div className="page-shell relationship-page">
@@ -74,7 +66,7 @@ export default async function RelationshipPage({
         initialPersonA={pa.slug}
         initialPersonB={pb.slug}
         people={people}
-        events={relationshipEvents}
+        events={allEvents}
         sources={sources}
       />
     </div>
