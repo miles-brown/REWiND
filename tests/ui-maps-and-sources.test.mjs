@@ -133,3 +133,43 @@ test("verifies filter label contrast in app/globals.css", () => {
   );
 });
 
+test("verifies MapMarker accessibility and tooltip aria-hidden safeguard", () => {
+  const mapGraphicPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapGraphicPath, "utf-8");
+
+  assert.ok(
+    content.includes('el.setAttribute("aria-label", ariaLabelText)'),
+    "Map marker element must have informative dynamic aria-label"
+  );
+  assert.ok(
+    content.includes('el.setAttribute("aria-pressed", isSelected ? "true" : "false")'),
+    "Map marker element must expose aria-pressed selection state"
+  );
+  assert.ok(
+    content.includes('tooltip.setAttribute("aria-hidden", "true")'),
+    "Tooltip must be aria-hidden to prevent redundant screen reader announcements"
+  );
+});
+
+test("verifies PersonTimeline slider ARIA attributes and semantic dateTime formatting", () => {
+  const timelinePath = path.join(root, "components/rewind/PersonTimeline.tsx");
+  const timelineContent = fs.readFileSync(timelinePath, "utf-8");
+
+  assert.ok(
+    timelineContent.includes("getAriaValueText="),
+    "Slider must supply getAriaValueText callback for screen readers"
+  );
+  assert.ok(
+    timelineContent.includes("getAriaLabel="),
+    "Slider must supply getAriaLabel callback for screen readers"
+  );
+
+  const sourcesPath = path.join(root, "app/sources/page.tsx");
+  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  assert.ok(
+    sourcesContent.includes('dateTime={rawDate || undefined}'),
+    "Sources page must render machine-readable dateTime on time elements"
+  );
+});
+
+

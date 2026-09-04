@@ -447,6 +447,11 @@ export function PersonTimeline({
             aria-valuetext={`${safeIndex + 1} of ${ordered.length}: ${
               event.startDate
             }, ${event.eventName}`}
+            getAriaValueText={(val) => {
+              const ev = ordered[val];
+              return ev ? `Event ${val + 1} of ${ordered.length}: ${ev.startDate}, ${ev.eventName}` : "";
+            }}
+            getAriaLabel={() => `${person.name} timeline chronology slider`}
             min={0}
             max={Math.max(0, ordered.length - 1)}
             step={1}

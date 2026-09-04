@@ -364,27 +364,31 @@ export function MapGraphic({
         el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
           isVerified ? "verified" : "provisional"
         } ${mapTheme === "satellite" ? "satellite-theme" : ""}`;
-        el.setAttribute(
-          "aria-label",
-          `${rep.eventName}, ${rep.city} (${eventList.length} documented record${
-            eventList.length > 1 ? "s" : ""
-          })`
-        );
+        const tooltipText = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
+        const ariaLabelText = `${isSelected ? "Selected location: " : ""}${rep.eventName}, ${rep.city} (${eventList.length} documented record${
+          eventList.length > 1 ? "s" : ""
+        })${rep.venueName ? `, Venue: ${rep.venueName}` : ""}`;
+
+        el.setAttribute("aria-label", ariaLabelText);
+        el.setAttribute("aria-pressed", isSelected ? "true" : "false");
 
         const dot = document.createElement("span");
         dot.className = "marker-dot";
+        dot.setAttribute("aria-hidden", "true");
         el.appendChild(dot);
 
         if (eventList.length > 1) {
           const countBadge = document.createElement("span");
           countBadge.className = "marker-count";
           countBadge.textContent = String(eventList.length);
+          countBadge.setAttribute("aria-hidden", "true");
           el.appendChild(countBadge);
         }
 
         const tooltip = document.createElement("span");
         tooltip.className = "marker-tooltip";
-        tooltip.textContent = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
+        tooltip.textContent = tooltipText;
+        tooltip.setAttribute("aria-hidden", "true");
         el.appendChild(tooltip);
 
         const handleActivate = () => {

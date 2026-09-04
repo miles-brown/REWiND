@@ -346,7 +346,8 @@ export default function SourcesPage() {
             <tbody>
               {filteredSources.map((s) => {
                 const eventCount = sourceEventMap.get(s.id) || 0;
-                const displayDate = s.publicationDate || s.originalDate || s.accessedDate || "—";
+                const rawDate = s.publicationDate || s.originalDate || s.accessedDate || "";
+                const displayDate = rawDate || "—";
                 const isVideo = s.sourceType.includes("video");
 
                 return (
@@ -379,7 +380,7 @@ export default function SourcesPage() {
                       </span>
                     </td>
                     <td className="col-date">
-                      <time className="source-time-val">{displayDate}</time>
+                      <time className="source-time-val" dateTime={rawDate || undefined}>{displayDate}</time>
                     </td>
                     <td className="col-events">
                       <span className="event-count-badge">
@@ -422,7 +423,8 @@ export default function SourcesPage() {
         <div className="sources-card-grid">
           {filteredSources.map((s) => {
             const eventCount = sourceEventMap.get(s.id) || 0;
-            const displayDate = s.publicationDate || s.originalDate || s.accessedDate || "—";
+            const rawDate = s.publicationDate || s.originalDate || s.accessedDate || "";
+            const displayDate = rawDate || "—";
             const isVideo = s.sourceType.includes("video");
 
             return (
@@ -450,7 +452,7 @@ export default function SourcesPage() {
 
                 <div className="card-publisher-row">
                   <span className="publisher-name">{s.publisher}</span>
-                  <span className="card-date">{displayDate}</span>
+                  <time className="card-date" dateTime={rawDate || undefined}>{displayDate}</time>
                 </div>
 
                 <div className="card-footer">
