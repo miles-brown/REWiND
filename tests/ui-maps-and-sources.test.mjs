@@ -516,6 +516,32 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     eventsContent.includes("datePrecision: (String(row.temporal_precision || \"exact-day\")) as Precision"),
     "lib/rewind/events.ts must map canonical confidence and datePrecision defaults"
   );
+
+  // 6. Forensic Rigor: confidence and temporal precision fallbacks across components
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    cardContent.includes('event.confidence || "confirmed"') &&
+    cardContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
+    "EventCard must apply consistent confidence and temporal precision fallbacks"
+  );
+  assert.ok(
+    timelineContent.includes('event.confidence || "confirmed"') &&
+    timelineContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
+    "PersonTimeline must apply consistent confidence and temporal precision fallbacks"
+  );
+
+  // 7. TimelineComparison performance optimization & interactive empty state
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    compContent.includes("peopleMap = useMemo(") &&
+    compContent.includes("peopleMap.get(p.personId)"),
+    "TimelineComparison must pre-index people in a map for O(1) co-attendee lookups"
+  );
+  assert.ok(
+    compContent.includes("comparison-primary-switch-btn") &&
+    compContent.includes("comparison-cycle-grid"),
+    "TimelineComparison empty state must render prominent CTA switch button and candidate cycle grid"
+  );
 });
 
 

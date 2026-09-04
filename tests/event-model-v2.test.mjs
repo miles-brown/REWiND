@@ -382,3 +382,53 @@ test("verifies participants with empty personId receive unique namespaced keys a
   assert.notEqual(loc0.sources[0].id, loc2.sources[0].id, "Location source IDs must be distinct");
 });
 
+test("defensively handles null and undefined array fields in legacy records without crashing", async () => {
+  const { upgradeLegacyToV2, projectV2ToLegacy } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const dirtyLegacy = {
+    id: "evt-dirty-data",
+    slug: "dirty-data",
+    eventName: "Conference on Middle East Peace",
+    summary: "Diplomatic conference summary",
+    startDate: "1991-10-30",
+    city: "Madrid",
+    country: "Spain",
+    verificationStatus: "verified",
+    // Intentionally pass undefined or null fields that might occur in unclean legacy migrations
+    eventTypes: undefined,
+    categories: null,
+    medium: undefined,
+    organisations: null,
+    sourceIds: undefined,
+    quotes: null,
+    media: undefined,
+    provenance: null,
+    conflictingClaims: undefined,
+    participants: undefined,
+  };
+
+  // Must not throw TypeError on nullish/undefined fields
+  const v2 = upgradeLegacyToV2(dirtyLegacy);
+  assert.ok(v2);
+  assert.ok(Array.isArray(v2.sourceIds));
+  assert.ok(Array.isArray(v2.people));
+  assert.ok(Array.isArray(v2.organisations));
+  assert.ok(Array.isArray(v2.topics));
+  assert.ok(Array.isArray(v2.compatibilityPayload.eventTypes));
+  assert.ok(Array.isArray(v2.compatibilityPayload.medium));
+
+  // Must project back to legacy cleanly with all required array fields populated
+  const projected = projectV2ToLegacy(v2);
+  assert.ok(projected);
+  assert.ok(Array.isArray(projected.sourceIds));
+  assert.ok(Array.isArray(projected.categories));
+  assert.ok(Array.isArray(projected.eventTypes));
+  assert.ok(Array.isArray(projected.participants));
+  assert.ok(Array.isArray(projected.organisations));
+  assert.ok(Array.isArray(projected.medium));
+  assert.ok(Array.isArray(projected.quotes));
+  assert.ok(Array.isArray(projected.conflictingClaims));
+  assert.equal(projected.confidence, "confirmed");
+  assert.equal(projected.datePrecision, "exact");
+});
+

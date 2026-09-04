@@ -226,7 +226,7 @@ export function RewindExplorer({
             <dl className="event-facts">
               <div>
                 <dt>Date</dt>
-                <dd>{event.datePrecision}</dd>
+                <dd>{event.timePrecision || event.datePrecision || "exact-day"}</dd>
               </div>
               <div>
                 <dt>Time</dt>
@@ -234,7 +234,7 @@ export function RewindExplorer({
               </div>
               <div>
                 <dt>Confidence</dt>
-                <dd>{event.confidence}</dd>
+                <dd>{event.confidence || "confirmed"}</dd>
               </div>
               <div>
                 <dt>Medium</dt>

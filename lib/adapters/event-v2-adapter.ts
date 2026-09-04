@@ -127,8 +127,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 isPrincipalLocation: true,
                 locationBasis: "archival-record",
                 confidence: (legacy.confidence as Confidence) || "confirmed",
-                sourceIds: legacy.sourceIds,
-                sources: legacy.sourceIds.map((sid, sIdx) => ({
+                sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
+                sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
                   id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
                   eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
                   sourceId: sid,
@@ -148,13 +148,13 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     openToPress: legacy.scope === "press" || legacy.scope === "public" ? "yes" : "unknown",
     ticketed: "unknown",
     invitationOnly: legacy.scope === "diplomatic" ? "yes" : "unknown",
-    televised: legacy.medium?.some((m) => /broadcast|video|television/i.test(m)) ? "yes" : "unknown",
+    televised: (legacy.medium || []).some((m) => /broadcast|video|television/i.test(m)) ? "yes" : "unknown",
     broadcastLive: "unknown",
     streamedOnline: "unknown",
-    audioRecorded: legacy.medium?.some((m) => /audio|radio/i.test(m)) ? "yes" : "unknown",
-    videoRecorded: legacy.medium?.some((m) => /video|broadcast|television/i.test(m)) ? "yes" : "unknown",
-    photographed: legacy.medium?.some((m) => /photo/i.test(m)) ? "yes" : "unknown",
-    transcriptAvailable: legacy.medium?.some((m) => /transcript/i.test(m)) ? "yes" : "unknown",
+    audioRecorded: (legacy.medium || []).some((m) => /audio|radio/i.test(m)) ? "yes" : "unknown",
+    videoRecorded: (legacy.medium || []).some((m) => /video|broadcast|television/i.test(m)) ? "yes" : "unknown",
+    photographed: (legacy.medium || []).some((m) => /photo/i.test(m)) ? "yes" : "unknown",
+    transcriptAvailable: (legacy.medium || []).some((m) => /transcript/i.test(m)) ? "yes" : "unknown",
     fullRecordingKnown: "unknown",
     exactStartTimeKnown: legacy.localStartTime != null,
     exactEndTimeKnown: legacy.localEndTime != null,
@@ -179,7 +179,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     parentEventNeeded: false,
     personRolesIncomplete: people.some((p) => !p.roleLabel),
     organisationsIncomplete: (legacy.organisations?.length ?? 0) === 0,
-    broadcastResearchIncomplete: !legacy.medium?.includes("broadcast"),
+    broadcastResearchIncomplete: !(legacy.medium || []).includes("broadcast"),
     locationInferred: legacy.locationPrecision === "city" || legacy.locationPrecision === "country",
     timeInferred: legacy.timePrecision !== "exact",
     titleEditorial: true,
@@ -220,7 +220,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     locationPrecision: mapLegacyLocationPrecision(legacy.locationPrecision || "unknown"),
     verificationStatus: legacy.verificationStatus,
     confidence: (legacy.confidence as Confidence) || "confirmed",
-    sourceIds: legacy.sourceIds || [],
+    sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
     reviewedAt: legacy.reviewedAt || new Date().toISOString(),
     researchNotes: legacy.notes ?? null,
     factualFlags,
@@ -239,16 +239,16 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       relationshipType: "primary-topic",
     })),
     compatibilityPayload: {
-      categories: legacy.categories ? [...legacy.categories] : [],
-      eventTypes: legacy.eventTypes ? [...legacy.eventTypes] : [],
+      categories: Array.isArray(legacy.categories) ? [...legacy.categories] : [],
+      eventTypes: Array.isArray(legacy.eventTypes) ? [...legacy.eventTypes] : [],
       platform: legacy.platform ?? null,
       address: legacy.address ?? null,
       scope: legacy.scope,
-      medium: legacy.medium ? [...legacy.medium] : [],
-      quotes: legacy.quotes ? [...legacy.quotes] : [],
-      media: legacy.media ? [...legacy.media] : [],
-      provenance: legacy.provenance ? [...legacy.provenance] : [],
-      conflictingClaims: legacy.conflictingClaims ? [...legacy.conflictingClaims] : [],
+      medium: Array.isArray(legacy.medium) ? [...legacy.medium] : [],
+      quotes: Array.isArray(legacy.quotes) ? [...legacy.quotes] : [],
+      media: Array.isArray(legacy.media) ? [...legacy.media] : [],
+      provenance: Array.isArray(legacy.provenance) ? [...legacy.provenance] : [],
+      conflictingClaims: Array.isArray(legacy.conflictingClaims) ? [...legacy.conflictingClaims] : [],
     },
     eventName: legacy.eventName, // preserved for backward-compatibility
   };
@@ -276,15 +276,19 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     slug: v2.slug,
     eventName: v2.eventName || v2.canonicalTitle,
     summary: v2.summary,
-    categories: compat ? [...compat.categories] : v2.topics?.map((t) => t.topicId) || ["Historical"],
-    eventTypes: compat ? [...compat.eventTypes] : [v2.hierarchyType || "Event"],
+    categories: Array.isArray(compat?.categories)
+      ? [...compat.categories]
+      : (v2.topics?.map((t) => t.topicId) || ["Historical"]),
+    eventTypes: Array.isArray(compat?.eventTypes)
+      ? [...compat.eventTypes]
+      : [v2.hierarchyType || "Event"],
     startDate: v2.startDate,
     endDate: v2.endDate || null,
     localStartTime: v2.localStartTime || null,
     localEndTime: v2.localEndTime || null,
     timezone: v2.timezone || null,
-    datePrecision: v2.datePrecision,
-    timePrecision: v2.timePrecision,
+    datePrecision: v2.datePrecision || "exact-day",
+    timePrecision: v2.timePrecision || v2.datePrecision || "exact-day",
     platform: compat ? compat.platform : (v2.eventSeriesId || null),
     venueName: v2.venueName || null,
     address: compat ? compat.address : null,
@@ -294,24 +298,33 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     latitude: v2.latitude,
     longitude: v2.longitude,
     locationPrecision: legacyPrecision,
-    participants:
-      v2.people?.map((p) => ({
-        personId: p.personId,
-        name: p.personName || p.personId || p.roleLabel,
-        role: p.capacityTitle || p.roleLabel,
-        presenceConfidence: p.presenceConfidence,
-      })) || [],
-    organisations: v2.organisations?.map((o) => o.organisationId) || [],
+    participants: Array.isArray(v2.people)
+      ? v2.people.map((p) => ({
+          personId: p.personId,
+          name: p.personName || p.personId || p.roleLabel,
+          role: p.capacityTitle || p.roleLabel,
+          presenceConfidence: p.presenceConfidence,
+        }))
+      : [],
+    organisations: Array.isArray(v2.organisations)
+      ? v2.organisations.map((o) => o.organisationId)
+      : [],
     notes: v2.researchNotes || null,
-    scope: compat ? compat.scope : (v2.factualFlags.publicEvent === "yes" ? "public" : "diplomatic"),
-    medium: compat?.medium ? [...compat.medium] : (v2.factualFlags.televised === "yes" ? ["broadcast"] : ["official-record"]),
-    confidence: v2.confidence,
-    verificationStatus: v2.verificationStatus,
-    sourceIds: v2.sourceIds,
-    quotes: compat?.quotes ? [...compat.quotes] : [],
-    media: compat?.media ? [...compat.media] : [],
-    provenance: compat?.provenance ? [...compat.provenance] : ["Event Model v2 Archival Migration"],
-    conflictingClaims: compat?.conflictingClaims ? [...compat.conflictingClaims] : [],
-    reviewedAt: v2.reviewedAt,
+    scope: compat?.scope || (v2.factualFlags?.publicEvent === "yes" ? "public" : "diplomatic"),
+    medium: Array.isArray(compat?.medium)
+      ? [...compat.medium]
+      : (v2.factualFlags?.televised === "yes" ? ["broadcast"] : ["official-record"]),
+    confidence: v2.confidence || "confirmed",
+    verificationStatus: v2.verificationStatus || "unverified",
+    sourceIds: Array.isArray(v2.sourceIds) ? [...v2.sourceIds] : [],
+    quotes: Array.isArray(compat?.quotes) ? [...compat.quotes] : [],
+    media: Array.isArray(compat?.media) ? [...compat.media] : [],
+    provenance: Array.isArray(compat?.provenance)
+      ? [...compat.provenance]
+      : ["Event Model v2 Archival Migration"],
+    conflictingClaims: Array.isArray(compat?.conflictingClaims)
+      ? [...compat.conflictingClaims]
+      : [],
+    reviewedAt: v2.reviewedAt || new Date().toISOString(),
   };
 }

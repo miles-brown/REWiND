@@ -63,7 +63,20 @@ export function TimelineComparison({
   const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
 
-  const personA = people.find((p) => p.slug === slugA);
+  // Pre-index people by both ID and slug for O(1) lookups (Forensic Performance optimization)
+  const peopleMap = useMemo(() => {
+    const map = new Map<string, PersonRecord>();
+    people.forEach((p) => {
+      if (p.id) map.set(p.id, p);
+      if (p.slug) map.set(p.slug, p);
+    });
+    return map;
+  }, [people]);
+
+  const personA = useMemo(
+    () => peopleMap.get(slugA) || people.find((p) => p.slug === slugA),
+    [peopleMap, people, slugA]
+  );
 
   // Calculate co-attendees for Person A: figures who share at least 1 event with Person A
   const coAttendeesWithCounts = useMemo(() => {
@@ -78,7 +91,7 @@ export function TimelineComparison({
     eventsWithA.forEach((e) => {
       (e.participants || []).forEach((p) => {
         if (!isParticipantMatch(p, personA)) {
-          const match = people.find((x) => x.id === p.personId || x.slug === p.personId);
+          const match = peopleMap.get(p.personId);
           if (match) {
             counts.set(match.slug, (counts.get(match.slug) || 0) + 1);
           }
@@ -88,12 +101,12 @@ export function TimelineComparison({
 
     return Array.from(counts.entries())
       .map(([slug, count]) => {
-        const person = people.find((p) => p.slug === slug)!;
-        return { person, count };
+        const person = peopleMap.get(slug);
+        return person ? { person, count } : null;
       })
-      .filter((item) => Boolean(item.person))
+      .filter((item): item is { person: PersonRecord; count: number } => item !== null)
       .sort((a, b) => b.count - a.count);
-  }, [events, people, personA]);
+  }, [events, peopleMap, personA]);
 
   // Derive effective Person B: prioritize explicit user selection if still valid, otherwise default to top co-attendee
   const slugB = useMemo(() => {
@@ -104,7 +117,10 @@ export function TimelineComparison({
     return coAttendeesWithCounts[0].person.slug;
   }, [coAttendeesWithCounts, explicitSlugB]);
 
-  const personB = people.find((p) => p.slug === slugB);
+  const personB = useMemo(
+    () => (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : undefined),
+    [peopleMap, people, slugB]
+  );
 
   const eventsA = useMemo(
     () =>
@@ -166,6 +182,27 @@ export function TimelineComparison({
     const end = intersections[intersections.length - 1].startDate.slice(0, 4);
     return start === end ? start : `${start} – ${end}`;
   }, [intersections]);
+
+  // Candidate leaders with rich co-attendance records for empty state cycling (Forensic UX enhancement)
+  const recommendedLeaders = useMemo(() => {
+    if (!people.length) return [];
+    return people
+      .filter((p) => p.slug !== slugA)
+      .map((p) => {
+        const pEvents = events.filter((e) =>
+          (e.participants || []).some((part) => isParticipantMatch(part, p))
+        );
+        const coCount = events.filter(
+          (e) =>
+            (e.participants || []).some((part) => isParticipantMatch(part, p)) &&
+            (e.participants || []).length > 1
+        ).length;
+        return { person: p, eventCount: pEvents.length, coCount };
+      })
+      .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
+  }, [events, people, slugA]);
+
+  const topRecommendedLeader = recommendedLeaders[0]?.person;
 
   if (people.length === 0) {
     return (
@@ -417,18 +454,24 @@ export function TimelineComparison({
                         return (
                           <article key={event.id} className="encounter-card">
                             <div className="encounter-card-header">
-                              <span className="encounter-date-pill">
+                              <span
+                                className="encounter-date-pill"
+                                title={`Temporal precision: ${event.timePrecision || event.datePrecision || "exact-day"}`}
+                              >
                                 <Calendar size={13} />
                                 <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
                               </span>
 
-                              <span className={`status ${event.verificationStatus}`}>
+                              <span
+                                className={`status ${event.verificationStatus || "verified"}`}
+                                title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "confirmed"} · ${event.timePrecision || event.datePrecision || "exact-day"} precision`}
+                              >
                                 {event.verificationStatus === "verified" ? (
                                   <CheckCircle2 size={12} />
                                 ) : (
                                   <CircleDashed size={12} />
                                 )}
-                                {event.verificationStatus}
+                                {event.verificationStatus || "verified"}
                               </span>
                             </div>
 
@@ -582,26 +625,59 @@ export function TimelineComparison({
 
       {/* If Person A has no co-attendees at all */}
       {personA && coAttendeesWithCounts.length === 0 && (
-        <div className="zero-state" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <Users size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+        <div className="comparison-zero-state" role="region" aria-label="No joint encounters indexed">
+          <div className="comparison-zero-icon">
+            <Users size={28} />
+          </div>
           <h2>No Joint Encounters Indexed for {personA.name}</h2>
-          <p style={{ maxWidth: "520px", margin: "0.5rem auto 1.5rem" }}>
-            The current evidence atlas does not list any verified co-appearances for {personA.name} with other indexed figures. Try selecting another historical leader:
+          <p>
+            The current evidence atlas does not list any verified co-appearances for {personA.name} with other indexed figures. Switch to another historical leader with rich bilateral encounters:
           </p>
-          <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
-            {people.slice(0, 4).map((p) => (
+
+          <div className="comparison-zero-cta-group">
+            {topRecommendedLeader && (
               <button
-                key={p.slug}
                 type="button"
-                className="coattendee-pill"
+                className="comparison-primary-switch-btn"
                 onClick={() => {
-                  setSlugA(p.slug);
+                  setSlugA(topRecommendedLeader.slug);
                   setExplicitSlugB(undefined);
                 }}
+                aria-label={`Switch to ${topRecommendedLeader.name} (${recommendedLeaders[0].coCount} joint encounters)`}
               >
-                <span>{p.name}</span>
+                <Sparkles size={16} />
+                <span>Switch to {topRecommendedLeader.name}</span>
+                <span className="cta-badge">{recommendedLeaders[0].coCount} joint encounters</span>
+                <ArrowRight size={16} />
               </button>
-            ))}
+            )}
+
+            <div className="comparison-cycle-grid" role="group" aria-label="Other historical figures with documented bilateral encounters">
+              {recommendedLeaders.slice(0, 4).map((item) => (
+                <button
+                  key={item.person.slug}
+                  type="button"
+                  className="comparison-cycle-card"
+                  onClick={() => {
+                    setSlugA(item.person.slug);
+                    setExplicitSlugB(undefined);
+                  }}
+                  aria-label={`Select ${item.person.name} with ${item.coCount} joint encounters`}
+                >
+                  <span className="person-monogram">
+                    {item.person.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </span>
+                  <div>
+                    <b>{item.person.name}</b>
+                    <small>{item.coCount} joint encounters</small>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

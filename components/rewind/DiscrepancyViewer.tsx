@@ -83,7 +83,7 @@ export function DiscrepancyViewer({
               <div className="evidentiary-breakdown-grid">
                 <div className="breakdown-item">
                   <small>Temporal Precision</small>
-                  <b>{(event.datePrecision || "exact-day").toUpperCase()} ({event.startDate})</b>
+                  <b>{(event.timePrecision || event.datePrecision || "exact-day").toUpperCase()} ({event.startDate})</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Geospatial Precision</small>

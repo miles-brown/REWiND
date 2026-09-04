@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- REWIND EVIDENCE ATLAS — CANONICAL SUPABASE SCHEMA (EVENT MODEL V2)
 -- Architecture Cutover Migration (Milestone A)
+-- Migration Timestamp: 20240904000000 (Conventional ISO-8601 YYYYMMDDHHMMSS sequence)
 -- ==============================================================================
 -- Strict Rule: Architecture Cutover only. Zero records imported from prototype.
 

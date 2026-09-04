@@ -248,8 +248,17 @@ export function PersonTimeline({
         <article className="person-event-stage" key={event.id} aria-live="polite">
           <div className="person-event-kicker">
             <span>{event.startDate.slice(0, 4)}</span>
-            <span className={`status ${event.verificationStatus}`}>
-              {event.verificationStatus}
+            <span
+              className={`status ${event.verificationStatus || "verified"}`}
+              title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "confirmed"}`}
+            >
+              {event.verificationStatus || "verified"}
+            </span>
+            <span
+              className="kicker-confidence-badge"
+              title={`Confidence level: ${event.confidence || "confirmed"}`}
+            >
+              {event.confidence || "confirmed"}
             </span>
           </div>
           <time dateTime={event.startDate}>
@@ -260,17 +269,23 @@ export function PersonTimeline({
               year: "numeric",
             })}
             {event.localStartTime ? ` · ${event.localStartTime}` : ""}
+            <span
+              className="time-precision-tag"
+              title={`${event.timePrecision || event.datePrecision || "exact-day"} precision`}
+            >
+              ({event.timePrecision || event.datePrecision || "exact-day"})
+            </span>
           </time>
           <h2>{event.eventName}</h2>
           <p className="event-place">
             <MapPin />
             {event.venueName || event.city}
             <small>
-              {event.city}, {event.country} · {event.locationPrecision} precision
+              {event.city}, {event.country} · {event.locationPrecision || "venue"} precision
             </small>
           </p>
           <div className="detail-tags">
-            {event.eventTypes?.map((type) => (
+            {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
               <span key={type}>{type}</span>
             ))}
           </div>
