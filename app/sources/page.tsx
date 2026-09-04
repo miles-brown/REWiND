@@ -158,24 +158,24 @@ export default function SourcesPage() {
         </p>
 
         {/* Forensic Stats Bar */}
-        <div className="sources-kpi-bar" role="region" aria-label="Sources register summary metrics">
+        <dl className="sources-kpi-bar" aria-label="Sources register summary metrics">
           <div className="source-kpi">
-            <span className="kpi-num">{sources.length}</span>
-            <span className="kpi-label">Documented Records</span>
+            <dd className="kpi-num">{sources.length}</dd>
+            <dt className="kpi-label">Documented Records</dt>
           </div>
           <div className="source-kpi highlight">
-            <span className="kpi-num">{primaryPercent}%</span>
-            <span className="kpi-label">Primary Tier-A Evidence</span>
+            <dd className="kpi-num">{primaryPercent}%</dd>
+            <dt className="kpi-label">Primary Tier-A Evidence</dt>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{publishers.length}</span>
-            <span className="kpi-label">Archival Publishers</span>
+            <dd className="kpi-num">{publishers.length}</dd>
+            <dt className="kpi-label">Archival Publishers</dt>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{totalEvidencedLinks}</span>
-            <span className="kpi-label">Total Corroborated Claims</span>
+            <dd className="kpi-num">{totalEvidencedLinks}</dd>
+            <dt className="kpi-label">Total Corroborated Claims</dt>
           </div>
-        </div>
+        </dl>
       </header>
 
       {/* Interactive Controls & Filters */}
@@ -330,6 +330,13 @@ export default function SourcesPage() {
           )}
         </div>
 
+        {/* Live Region for Screen Readers */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {isFiltered
+            ? `Filtered sources: showing ${filteredSources.length} of ${sources.length} primary documents.`
+            : `Showing all ${sources.length} archival primary documents.`}
+        </div>
+
         <div className="sources-results-meta" aria-live="polite">
           Showing <b>{filteredSources.length}</b> of {sources.length} records
           {isFiltered && <span className="active-filter-hint"> (Filtered)</span>}
@@ -338,7 +345,7 @@ export default function SourcesPage() {
 
       {/* Main Content Area */}
       {filteredSources.length === 0 ? (
-        <div className="sources-empty-state">
+        <div className="sources-empty-state" role="status" aria-live="polite">
           <BookOpen size={42} />
           <h3>No matching records located</h3>
           <p>No documentary sources match your current search and filter parameters.</p>
