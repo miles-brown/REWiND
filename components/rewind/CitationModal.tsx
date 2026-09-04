@@ -23,6 +23,13 @@ export function CitationModal({
 
   if (!isOpen) return null;
 
+  const isFallback = !explicitSource && !event.sources?.[0];
+  if (isFallback) {
+    console.warn(
+      `[CitationModal] Forensic warning: Event "${event.id}" (${event.eventName}) has no resolved source records. Falling back to synthetic archival citation.`
+    );
+  }
+
   const source: SourceRecord =
     explicitSource ||
     event.sources?.[0] || {

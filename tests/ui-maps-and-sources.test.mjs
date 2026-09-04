@@ -469,3 +469,53 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
   );
 });
 
+test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalization", () => {
+  const root = process.cwd();
+
+  // 1. Slider ARIA fallbacks
+  const sliderContent = fs.readFileSync(path.join(root, "components/ui/slider.tsx"), "utf-8");
+  assert.ok(
+    sliderContent.includes("ariaValueText ?? String(thumbValue)"),
+    "Slider must guarantee fallback aria-valuetext on thumb"
+  );
+  assert.ok(
+    sliderContent.includes('ariaLabel ?? "Timeline position"'),
+    "Slider must guarantee fallback aria-label on thumb"
+  );
+
+  // 2. Canonical eventTypes prioritization
+  const cardContent = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
+  assert.ok(
+    cardContent.includes("event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])"),
+    "EventCard must prioritize canonical eventTypes over legacy categories"
+  );
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/EventExplorer.tsx"), "utf-8");
+  assert.ok(
+    explorerContent.includes("e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])"),
+    "EventExplorer must prioritize canonical eventTypes over legacy categories"
+  );
+
+  // 3. RewindExplorer conditional year jump
+  const rewindContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  assert.ok(
+    rewindContent.includes("{event && (") && rewindContent.includes('className="calendar-jump"'),
+    "RewindExplorer must conditionally render calendar-jump link when event is active and omit when null"
+  );
+
+  // 4. CitationModal forensic warning
+  const citeContent = fs.readFileSync(path.join(root, "components/rewind/CitationModal.tsx"), "utf-8");
+  assert.ok(
+    citeContent.includes("[CitationModal] Forensic warning:"),
+    "CitationModal must log forensic warning when falling back to synthetic source"
+  );
+
+  // 5. lib/rewind/events.ts confidence and datePrecision mappings
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsContent.includes("confidence: (row.confidence as Confidence)") &&
+    eventsContent.includes("datePrecision: (String(row.temporal_precision || \"exact-day\")) as Precision"),
+    "lib/rewind/events.ts must map canonical confidence and datePrecision defaults"
+  );
+});
+
+

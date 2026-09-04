@@ -366,6 +366,15 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
+        {event && (
+          <Link
+            href={`/person/benjamin-netanyahu/${event.startDate.slice(0, 4)}`}
+            className="calendar-jump"
+            aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
+          >
+            <CalendarDays />
+          </Link>
+        )}
       </div>
 
       {citeOpen && event && source && (

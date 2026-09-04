@@ -20,7 +20,8 @@ export function EventExplorer({
   const types = useMemo(() => {
     const set = new Set<string>();
     initialEvents.forEach((e) => {
-      (e.eventTypes || e.categories || []).forEach((t) => set.add(t));
+      const tags = e.eventTypes?.length ? e.eventTypes : (e.categories ?? []);
+      tags.forEach((t) => set.add(t));
     });
     return Array.from(set).sort();
   }, [initialEvents]);
@@ -30,7 +31,7 @@ export function EventExplorer({
       .filter((e) => {
         if (year && !e.startDate.startsWith(year)) return false;
         if (status !== "all" && e.verificationStatus !== status) return false;
-        const allTypes = Array.from(new Set([...(e.eventTypes || []), ...(e.categories || [])]));
+        const allTypes = e.eventTypes?.length ? e.eventTypes : (e.categories ?? []);
         if (type !== "All") {
           if (!allTypes.includes(type)) return false;
         }

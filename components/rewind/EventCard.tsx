@@ -27,7 +27,7 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
         {event.venueName || event.city}, {event.country}
       </p>
       <div className="card-tags">
-        {(event.eventTypes || event.categories || []).slice(0, 3).map((t) => (
+        {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).slice(0, 3).map((t) => (
           <span key={t}>{t}</span>
         ))}
       </div>

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { mapDatabaseSource } from "./sources";
-import type { EventFilters, EventRecord, PaginatedResult, Participant, SourceRecord } from "./types";
+import type { Confidence, EventFilters, EventRecord, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 
 /**
  * Maps raw database event row and related joins into an application EventRecord.
@@ -14,7 +14,7 @@ function mapDatabaseEvent(
 ): EventRecord {
   const id = String(row.id || "");
   const placeId = row.place_id ? String(row.place_id) : "";
-  const place = placesMap.get(placeId) || {};
+  const place = (placeId && placesMap.get(placeId)) || {};
   const participants = participantsMap.get(id) || [];
   const sourceIds = sourcesMap.get(id) || [];
   const sources = sourceEntitiesMap
@@ -27,7 +27,7 @@ function mapDatabaseEvent(
     eventName: String(row.title || "Untitled Event"),
     startDate: String(row.start_date || ""),
     endDate: row.end_date ? String(row.end_date) : undefined,
-    datePrecision: String(row.temporal_precision || "exact-day"),
+    datePrecision: (String(row.temporal_precision || "exact-day")) as Precision,
     city: place.city || "Unknown",
     country: place.country || "Unknown",
     venueName: place.venue || undefined,
@@ -36,6 +36,7 @@ function mapDatabaseEvent(
     summary: String(row.summary || ""),
     description: row.description ? String(row.description) : undefined,
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "verified",
+    confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" && row.confidence_score < 0.7 ? "moderate" : "confirmed"),
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 1.0,
     sourceIds,
     sources,

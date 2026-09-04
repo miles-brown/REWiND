@@ -20,6 +20,10 @@ export interface EventRecord {
   eventName: string;
   startDate: string;
   endDate?: string | null;
+  /**
+   * Temporal resolution of the event start date (e.g. 'exact', 'day', 'month', 'year', 'exact-day').
+   * Normalized with a sensible default ('exact-day') by the data mapping layer.
+   */
   datePrecision?: Precision | string;
   timePrecision?: Precision | string;
   localStartTime?: string | null;
@@ -38,12 +42,24 @@ export interface EventRecord {
   description?: string | null;
   verificationStatus: Verification;
   confidenceScore?: number;
+  /**
+   * Evaluated confidence tier for this event record.
+   * Normalized by the data layer to 'confirmed', 'strong', 'moderate', or 'limited'.
+   */
   confidence?: Confidence | string | null;
   scope?: "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media" | string;
   organisations?: string[];
   sourceIds: string[];
   participants: Participant[];
+  /**
+   * Legacy categorization tags retained for backward compatibility with historical registers.
+   * New consumers should prefer canonical `eventTypes`.
+   */
   categories?: string[];
+  /**
+   * Canonical event taxonomy tags (e.g. 'diplomatic', 'press-conference', 'investigation').
+   * Populated as the primary taxonomy by the data mapping layer.
+   */
   eventTypes?: string[];
   medium?: string[];
   notes?: string | null;
