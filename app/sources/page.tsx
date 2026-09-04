@@ -113,6 +113,7 @@ export default function SourcesPage() {
 
   // Forensic Metrics
   const primaryCount = useMemo(() => sources.filter((s) => s.classification === "primary").length, []);
+  const secondaryCount = sources.length - primaryCount;
   const primaryPercent = Math.round((primaryCount / sources.length) * 100);
   const totalEvidencedLinks = useMemo(
     () => sources.reduce((sum, s) => sum + (sourceEventMap.get(s.id) || 0), 0),
@@ -234,7 +235,7 @@ export default function SourcesPage() {
                 onClick={() => setClassificationFilter("primary")}
               >
                 <ShieldCheck size={12} />
-                <span>Primary ({sources.filter((s) => s.classification === "primary").length})</span>
+                <span>Primary ({primaryCount})</span>
               </button>
               <button
                 type="button"
@@ -242,7 +243,7 @@ export default function SourcesPage() {
                 aria-pressed={classificationFilter === "secondary"}
                 onClick={() => setClassificationFilter("secondary")}
               >
-                <span>Secondary ({sources.filter((s) => s.classification === "secondary").length})</span>
+                <span>Secondary ({secondaryCount})</span>
               </button>
             </div>
           </div>
@@ -325,7 +326,7 @@ export default function SourcesPage() {
           <BookOpen size={42} />
           <h3>No matching records located</h3>
           <p>No documentary sources match your current search and filter parameters.</p>
-          <button type="button" className="action-btn" onClick={resetFilters}>
+          <button type="button" className="action-btn reset" onClick={resetFilters}>
             Clear all filters
           </button>
         </div>

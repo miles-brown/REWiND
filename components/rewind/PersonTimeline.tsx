@@ -241,7 +241,7 @@ export function PersonTimeline({
               {event.verificationStatus}
             </span>
           </div>
-          <time>
+          <time dateTime={event.startDate}>
             {date.toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -357,7 +357,7 @@ export function PersonTimeline({
           </b>
         </div>
 
-        <div className="play-controls" aria-label="Timeline playback controls">
+        <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
             onClick={() => moveTo(0)}
             disabled={safeIndex === 0}
@@ -376,6 +376,7 @@ export function PersonTimeline({
             className="main-play"
             onClick={() => setPlaying((value) => !value)}
             disabled={isPlayDisabled}
+            aria-pressed={playing}
             aria-label={
               playing
                 ? "Pause timeline"
@@ -405,6 +406,7 @@ export function PersonTimeline({
             onClick={() =>
               setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
             }
+            aria-pressed={direction === "backward"}
             aria-label={`Playback direction: ${direction}. Click to toggle.`}
             title={direction === "forward" ? "Forward Mode" : "REWIND Mode (Reverse)"}
           >
@@ -414,7 +416,7 @@ export function PersonTimeline({
         </div>
 
         <div className="slider-wrap">
-          <div className="epoch-rail" aria-label="Jump to decade milestones">
+          <div className="epoch-rail" role="group" aria-label="Jump to decade milestones">
             {epochs.map((ep) => {
               const isActive =
                 safeIndex >= ep.index &&
@@ -428,6 +430,7 @@ export function PersonTimeline({
                   className={`epoch-badge ${isActive ? "active" : ""}`}
                   onClick={() => moveTo(ep.index)}
                   aria-label={`Jump to ${ep.decade}`}
+                  aria-pressed={isActive}
                 >
                   {ep.decade}
                 </button>

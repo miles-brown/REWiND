@@ -451,7 +451,7 @@ export function MapGraphic({
       aria-label={`Geospatial map showing ${points.length} documented event locations`}
     >
       {/* Map Control Actions Toolbar */}
-      <div className="map-toolbar">
+      <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
         {webGlSupported && mapMode === "webgl" && (
           <button
@@ -459,6 +459,7 @@ export function MapGraphic({
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
             onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
             disabled={!MAPBOX_TOKEN}
+            aria-pressed={mapTheme === "satellite"}
             title={
               !MAPBOX_TOKEN
                 ? "Satellite view requires Mapbox token"
@@ -485,6 +486,7 @@ export function MapGraphic({
             type="button"
             className={`map-tool-btn ${mapMode === "svg" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
+            aria-pressed={mapMode === "svg"}
             title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
             aria-label={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
           >
@@ -501,6 +503,7 @@ export function MapGraphic({
             setIsExpanded((prev) => !prev);
             setTimeout(() => mapInstanceRef.current?.resize(), 100);
           }}
+          aria-pressed={isExpanded}
           title={isExpanded ? "Collapse Map" : "Enlarge Map"}
           aria-label={isExpanded ? "Collapse map view" : "Enlarge map view"}
         >
@@ -531,14 +534,16 @@ export function MapGraphic({
               type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
-                if (selectedEvent) {
-                  mapInstanceRef.current?.flyTo({
-                    center: [selectedEvent.longitude!, selectedEvent.latitude!],
-                    zoom: 4.2,
-                    pitch: mapTheme === "satellite" ? 45 : 0,
-                    bearing: 0,
-                  });
-                }
+                const center: [number, number] =
+                  selectedEvent?.longitude != null && selectedEvent?.latitude != null
+                    ? [selectedEvent.longitude, selectedEvent.latitude]
+                    : [35.2137, 31.7683];
+                mapInstanceRef.current?.flyTo({
+                  center,
+                  zoom: 4.2,
+                  pitch: mapTheme === "satellite" ? 45 : 0,
+                  bearing: 0,
+                });
               }}
               aria-label="Reset orientation to North"
               title="Reset North Orientation"
@@ -551,7 +556,12 @@ export function MapGraphic({
 
       {/* WebGL Interactive Map Container */}
       {mapMode === "webgl" ? (
-        <div ref={mapContainerRef} className="webgl-map-container" />
+        <div
+          ref={mapContainerRef}
+          className="webgl-map-container"
+          role="application"
+          aria-label="Interactive Mapbox geospatial canvas"
+        />
       ) : (
         /* SVG Vector Schematic Map Mode */
         <div className="evidence-map">
@@ -600,11 +610,12 @@ export function MapGraphic({
                 className={`map-point ${isSelected ? "selected" : ""} ${
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
-                aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}
+                aria-label={`${isSelected ? "Selected location: " : ""}${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city} (${cluster.count} documented record${cluster.count > 1 ? "s" : ""})`}
+                aria-pressed={isSelected}
               >
-                <i />
-                {cluster.count > 1 && <b className="cluster-badge">{cluster.count}</b>}
-                <span>
+                <i aria-hidden="true" />
+                {cluster.count > 1 && <b className="cluster-badge" aria-hidden="true">{cluster.count}</b>}
+                <span aria-hidden="true">
                   {isSelected
                     ? `${cluster.event.city} (${cluster.count})`
                     : cluster.count > 3

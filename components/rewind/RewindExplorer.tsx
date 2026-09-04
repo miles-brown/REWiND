@@ -144,7 +144,7 @@ export function RewindExplorer() {
               {event.verificationStatus}
             </span>
           </div>
-          <time>
+          <time dateTime={event.startDate}>
             {date.toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -227,7 +227,7 @@ export function RewindExplorer() {
               .toUpperCase()}
           </b>
         </div>
-        <div className="play-controls">
+        <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
             aria-label="Previous event"
@@ -237,6 +237,7 @@ export function RewindExplorer() {
           <button
             className="main-play"
             onClick={() => setPlaying(!playing)}
+            aria-pressed={playing}
             aria-label={playing ? "Pause timeline" : "Play timeline"}
           >
             {playing ? <CirclePause /> : <CirclePlay />}
@@ -256,6 +257,7 @@ export function RewindExplorer() {
             onClick={() =>
               setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
             }
+            aria-pressed={direction === "backward"}
             aria-label={`Playback direction: ${direction}`}
             title={direction === "forward" ? "Forward Mode" : "REWIND Mode"}
           >
@@ -268,6 +270,11 @@ export function RewindExplorer() {
             aria-valuetext={`${safeIndex + 1} of ${filtered.length}: ${
               event.startDate
             }, ${event.eventName}`}
+            getAriaValueText={(val) => {
+              const ev = filtered[val];
+              return ev ? `Event ${val + 1} of ${filtered.length}: ${ev.startDate}, ${ev.eventName}` : "";
+            }}
+            getAriaLabel={() => "Timeline event position"}
             min={0}
             max={Math.max(0, filtered.length - 1)}
             step={1}

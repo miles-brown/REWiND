@@ -170,6 +170,103 @@ test("verifies PersonTimeline slider ARIA attributes and semantic dateTime forma
     sourcesContent.includes('dateTime={rawDate || undefined}'),
     "Sources page must render machine-readable dateTime on time elements"
   );
+  assert.ok(
+    sourcesContent.includes('className="action-btn reset"'),
+    "Sources empty state button must have reset modifier class"
+  );
 });
+
+test("verifies MapGraphic.tsx toolbar ARIA semantics and SVG marker attributes", () => {
+  const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapPath, "utf-8");
+
+  assert.ok(
+    content.includes('className="map-toolbar" role="toolbar" aria-label="Map view controls"'),
+    "Map toolbar must have role='toolbar' and aria-label"
+  );
+  assert.ok(
+    content.includes('aria-pressed={mapTheme === "satellite"}'),
+    "Satellite theme toggle must expose aria-pressed state"
+  );
+  assert.ok(
+    content.includes('aria-pressed={mapMode === "svg"}'),
+    "Schematic map toggle must expose aria-pressed state"
+  );
+  assert.ok(
+    content.includes("aria-pressed={isExpanded}"),
+    "Enlarge/collapse button must expose aria-pressed state"
+  );
+  assert.ok(
+    content.includes("aria-pressed={isSelected}"),
+    "SVG cluster marker must expose aria-pressed state"
+  );
+});
+
+test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles and dateTime", () => {
+  const timelinePath = path.join(root, "components/rewind/PersonTimeline.tsx");
+  const timelineContent = fs.readFileSync(timelinePath, "utf-8");
+  assert.ok(
+    timelineContent.includes('role="toolbar" aria-label="Timeline playback controls"'),
+    "PersonTimeline play controls must have role='toolbar'"
+  );
+  assert.ok(
+    timelineContent.includes("aria-pressed={playing}"),
+    "PersonTimeline main play button must expose aria-pressed"
+  );
+  assert.ok(
+    timelineContent.includes('aria-pressed={direction === "backward"}'),
+    "PersonTimeline direction button must expose aria-pressed"
+  );
+  assert.ok(
+    timelineContent.includes('role="group" aria-label="Jump to decade milestones"'),
+    "PersonTimeline epoch rail must have role='group'"
+  );
+  assert.ok(
+    timelineContent.includes("<time dateTime={event.startDate}>"),
+    "PersonTimeline event detail must render machine-readable ISO-8601 dateTime"
+  );
+
+  const explorerPath = path.join(root, "components/rewind/RewindExplorer.tsx");
+  const explorerContent = fs.readFileSync(explorerPath, "utf-8");
+  assert.ok(
+    explorerContent.includes('role="toolbar" aria-label="Timeline playback controls"'),
+    "RewindExplorer play controls must have role='toolbar'"
+  );
+  assert.ok(
+    explorerContent.includes("aria-pressed={playing}"),
+    "RewindExplorer play button must expose aria-pressed"
+  );
+  assert.ok(
+    explorerContent.includes('aria-pressed={direction === "backward"}'),
+    "RewindExplorer direction button must expose aria-pressed"
+  );
+  assert.ok(
+    explorerContent.includes("<time dateTime={event.startDate}>"),
+    "RewindExplorer event detail must render machine-readable ISO-8601 dateTime"
+  );
+});
+
+test("verifies CSS deduping and enhanced contrast tokens in app/globals.css", () => {
+  const cssPath = path.join(root, "app/globals.css");
+  const content = fs.readFileSync(cssPath, "utf-8");
+
+  // Evidence Review Console comment appears only once
+  const occurrences = content.split("/* --- Evidence Review Console --- */").length - 1;
+  assert.equal(occurrences, 1, "Evidence Review Console CSS block must not be duplicated");
+
+  assert.ok(
+    content.includes(".action-btn.reset {"),
+    "globals.css must define .action-btn.reset styling for empty state actions"
+  );
+  assert.ok(
+    content.includes(".card-view-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.18); color: #fbbf24;"),
+    "globals.css must style .card-view-btn with high-contrast #fbbf24"
+  );
+  assert.ok(
+    content.includes(".map-tool-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }"),
+    "globals.css must define disabled state for map-tool-btn"
+  );
+});
+
 
 
