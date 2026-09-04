@@ -35,7 +35,7 @@ const MAPBOX_DARK_STYLE = MAPBOX_TOKEN
 
 const MAPBOX_SATELLITE_STYLE = MAPBOX_TOKEN
   ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
-  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+  : "";
 
 // Fallback raster tile style specification if vector GL JSON fails or is offline
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
@@ -59,63 +59,57 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
       type: "raster",
       source: "carto-dark-raster",
       minzoom: 0,
-      maxzoom: 19,
+      maxzoom: 20,
     },
   ],
 };
 
 function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatellite: boolean) {
-  if (map.getSource("trajectories")) return;
-
   const lineCoordinates = points.length >= 2
     ? points
         .filter((p): p is typeof p & { longitude: number; latitude: number } => p.longitude != null && p.latitude != null)
         .map(({ longitude, latitude }) => [longitude, latitude])
     : [];
 
-  map.addSource("trajectories", {
-    type: "geojson",
-    data: {
+  const existingSource = map.getSource("trajectories") as GeoJSONSource | undefined;
+  if (existingSource && "setData" in existingSource) {
+    existingSource.setData({
       type: "Feature",
       properties: {},
       geometry: {
         type: "LineString",
         coordinates: lineCoordinates,
       },
-    },
-  });
+    });
+  } else if (!existingSource) {
+    map.addSource("trajectories", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: lineCoordinates,
+        },
+      },
+    });
 
-  map.addLayer({
-    id: "trajectory-line-glow",
-    type: "line",
-    source: "trajectories",
-    layout: {
-      "line-join": "round",
-      "line-cap": "round",
-    },
-    paint: {
-      "line-color": isSatellite ? "#38bdf8" : "#f59e0b",
-      "line-width": isSatellite ? 5 : 4,
-      "line-opacity": 0.4,
-      "line-blur": 3,
-    },
-  });
-
-  map.addLayer({
-    id: "trajectory-line",
-    type: "line",
-    source: "trajectories",
-    layout: {
-      "line-join": "round",
-      "line-cap": "round",
-    },
-    paint: {
-      "line-color": isSatellite ? "#7dd3fc" : "#fbbf24",
-      "line-width": 2,
-      "line-opacity": 0.95,
-      "line-dasharray": [2, 1],
-    },
-  });
+    map.addLayer({
+      id: "trajectory-line",
+      type: "line",
+      source: "trajectories",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": isSatellite ? "#7dd3fc" : "#fbbf24",
+        "line-width": 2,
+        "line-opacity": 0.95,
+        "line-dasharray": [2, 1],
+      },
+    });
+  }
 }
 
 export function MapGraphic({
@@ -136,12 +130,12 @@ export function MapGraphic({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Detect WebGL capability client-side after hydration to avoid SSR mismatch
+  // Mount-only detection of WebGL to ensure consistent SSR and client hydration
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
-      const available = isWebGLAvailable();
-      setWebGlSupported(available);
-      if (available) {
+      const supported = isWebGLAvailable();
+      if (supported) {
+        setWebGlSupported(true);
         setMapMode("webgl");
       }
     });
@@ -162,6 +156,29 @@ export function MapGraphic({
     () => points.find((e) => e.id === selected) || points[points.length - 1],
     [points, selected]
   );
+
+  const pointsRef = useRef(points);
+  const mapThemeRef = useRef(mapTheme);
+  const selectedEventRef = useRef(selectedEvent);
+
+  useEffect(() => {
+    pointsRef.current = points;
+    mapThemeRef.current = mapTheme;
+    selectedEventRef.current = selectedEvent;
+  }, [points, mapTheme, selectedEvent]);
+
+  // Escape key collapses expanded map view
+  useEffect(() => {
+    if (!isExpanded) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsExpanded(false);
+        setTimeout(() => mapInstanceRef.current?.resize(), 100);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded]);
 
   // Group overlapping points by proximity for SVG view
   const clusters = useMemo(() => {
@@ -222,18 +239,21 @@ export function MapGraphic({
         const { Map } = await import("maplibre-gl");
         if (isCancelled || !mapContainerRef.current) return;
 
-        const initialCenter: [number, number] = selectedEvent
-          ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Default Levant coordinates
+        const initialCenter: [number, number] =
+          selectedEventRef.current?.longitude != null && selectedEventRef.current?.latitude != null
+            ? [selectedEventRef.current.longitude, selectedEventRef.current.latitude]
+            : [35.2137, 31.7683]; // Default Levant coordinates
 
-        const initialStyle = mapTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
+        const initialStyle = mapThemeRef.current === "satellite" && MAPBOX_SATELLITE_STYLE
+          ? MAPBOX_SATELLITE_STYLE
+          : MAPBOX_DARK_STYLE;
 
         const map = new Map({
           container: mapContainerRef.current,
           style: initialStyle,
           center: initialCenter,
           zoom: 4.2,
-          pitch: mapTheme === "satellite" ? 42 : 25,
+          pitch: mapThemeRef.current === "satellite" ? 42 : 25,
           attributionControl: { compact: true },
           transformRequest,
         });
@@ -247,6 +267,7 @@ export function MapGraphic({
             console.warn("Switching map to resilient fallback dark style due to remote style error:", e.error);
             try {
               map.setStyle(FALLBACK_RASTER_DARK_STYLE);
+              setMapTheme("dark");
             } catch {
               setWebGlSupported(false);
               setMapMode("svg");
@@ -257,14 +278,14 @@ export function MapGraphic({
         const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-          addTrajectoriesToMap(map, points, mapTheme === "satellite");
+          addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current === "satellite");
           map.resize();
         };
 
         map.on("load", setupMapLayers);
         map.on("style.load", () => {
           if (!isCancelled) {
-            addTrajectoriesToMap(map, points, mapTheme === "satellite");
+            addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current === "satellite");
           }
         });
 
@@ -291,8 +312,7 @@ export function MapGraphic({
       mapInstanceRef.current = null;
       setMapLoaded(false);
     };
-  }, [mapMode, mapTheme, points, selectedEvent, transformRequest]);
-
+  }, [mapMode, transformRequest]);
 
   // Keep map canvas dimensions synchronized with container layout shifts
   useEffect(() => {
@@ -310,12 +330,14 @@ export function MapGraphic({
 
   // Toggle between Dark Basemap and Satellite 3D View
   const toggleMapTheme = () => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current || !MAPBOX_TOKEN) return;
     const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
     setMapTheme(nextTheme);
 
     const targetStyle = nextTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
-    mapInstanceRef.current.setStyle(targetStyle);
+    if (targetStyle) {
+      mapInstanceRef.current.setStyle(targetStyle);
+    }
 
     if (nextTheme === "satellite") {
       mapInstanceRef.current.easeTo({ pitch: 45, duration: 800 });
@@ -336,9 +358,8 @@ export function MapGraphic({
 
     import("maplibre-gl").then(({ Marker }) => {
       // Group points by location proximity for clean clustering
-      const grouped = new Map<string, EventRecord[]>();
+      const grouped = new Map<string, typeof points>();
       points.forEach((p) => {
-
         const key = `${p.latitude?.toFixed(2)}_${p.longitude?.toFixed(2)}`;
         const list = grouped.get(key) || [];
         list.push(p);
@@ -358,27 +379,31 @@ export function MapGraphic({
         el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
           isVerified ? "verified" : "provisional"
         } ${mapTheme === "satellite" ? "satellite-theme" : ""}`;
-        el.setAttribute(
-          "aria-label",
-          `${rep.eventName}, ${rep.city} (${eventList.length} documented record${
-            eventList.length > 1 ? "s" : ""
-          })`
-        );
+        const tooltipText = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
+        const ariaLabelText = `${isSelected ? "Selected location: " : ""}${rep.eventName}, ${rep.city} (${eventList.length} documented record${
+          eventList.length > 1 ? "s" : ""
+        })${rep.venueName ? `, Venue: ${rep.venueName}` : ""}`;
+
+        el.setAttribute("aria-label", ariaLabelText);
+        el.setAttribute("aria-pressed", isSelected ? "true" : "false");
 
         const dot = document.createElement("span");
         dot.className = "marker-dot";
+        dot.setAttribute("aria-hidden", "true");
         el.appendChild(dot);
 
         if (eventList.length > 1) {
           const countBadge = document.createElement("span");
           countBadge.className = "marker-count";
           countBadge.textContent = String(eventList.length);
+          countBadge.setAttribute("aria-hidden", "true");
           el.appendChild(countBadge);
         }
 
         const tooltip = document.createElement("span");
         tooltip.className = "marker-tooltip";
-        tooltip.textContent = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
+        tooltip.textContent = tooltipText;
+        tooltip.setAttribute("aria-hidden", "true");
         el.appendChild(tooltip);
 
         const handleActivate = () => {
@@ -423,8 +448,9 @@ export function MapGraphic({
   // Smooth fly-to camera movement on selection change
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !selectedEvent) return;
+    if (selectedEvent.longitude == null || selectedEvent.latitude == null) return;
     mapInstanceRef.current.flyTo({
-      center: [selectedEvent.longitude!, selectedEvent.latitude!],
+      center: [selectedEvent.longitude, selectedEvent.latitude],
       zoom: 5.5,
       pitch: mapTheme === "satellite" ? 45 : 35,
       duration: 1100,
@@ -442,25 +468,32 @@ export function MapGraphic({
     >
       {/* Live Region for Screen Readers */}
       <div className="sr-only" role="status" aria-live="polite">
-        {selectedEvent ? `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}` : ""}
+        {selected && selectedEvent && selectedEvent.id === selected
+          ? `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}`
+          : ""}
       </div>
 
       {/* Map Control Actions Toolbar */}
-      <div className="map-toolbar">
+      <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
-        {Boolean(MAPBOX_TOKEN) && webGlSupported && mapMode === "webgl" && (
+        {webGlSupported && mapMode === "webgl" && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={toggleMapTheme}
+            onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
+            disabled={!MAPBOX_TOKEN}
             aria-pressed={mapTheme === "satellite"}
             title={
-              mapTheme === "satellite"
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }
             aria-label={
-              mapTheme === "satellite"
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }
@@ -476,6 +509,7 @@ export function MapGraphic({
             type="button"
             className={`map-tool-btn ${mapMode === "svg" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
+            aria-pressed={mapMode === "svg"}
             title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
             aria-label={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
           >
@@ -492,6 +526,7 @@ export function MapGraphic({
             setIsExpanded((prev) => !prev);
             setTimeout(() => mapInstanceRef.current?.resize(), 100);
           }}
+          aria-pressed={isExpanded}
           title={isExpanded ? "Collapse Map" : "Enlarge Map"}
           aria-label={isExpanded ? "Collapse map view" : "Enlarge map view"}
         >
@@ -522,9 +557,9 @@ export function MapGraphic({
               type="button"
               className="map-tool-btn icon-only"
               onClick={() => {
-                if (selectedEvent) {
+                if (selectedEvent && selectedEvent.longitude != null && selectedEvent.latitude != null) {
                   mapInstanceRef.current?.flyTo({
-                    center: [selectedEvent.longitude!, selectedEvent.latitude!],
+                    center: [selectedEvent.longitude, selectedEvent.latitude],
                     zoom: 4.2,
                     pitch: mapTheme === "satellite" ? 45 : 0,
                     bearing: 0,
@@ -591,6 +626,7 @@ export function MapGraphic({
                 className={`map-point ${isSelected ? "selected" : ""} ${
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
+                aria-pressed={isSelected}
                 aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}
               >
                 <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>

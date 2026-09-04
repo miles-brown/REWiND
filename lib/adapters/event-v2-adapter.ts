@@ -102,8 +102,9 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
   // Derive initial person participation records
   const people: EventPerson[] = legacy.participants.map((p, idx) => {
     const inv = inferInvolvementType(p.role);
+    const participantKey = p.personId || `participant-${idx}`;
     return {
-      id: `ep-${legacy.id}-${p.personId || idx}`,
+      id: `ep-${legacy.id}-${participantKey}`,
       eventId: legacy.id,
       personId: p.personId,
       involvementType: inv,
@@ -116,8 +117,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
         legacy.latitude != null && legacy.longitude != null
           ? [
               {
-                id: `epl-${legacy.id}-${p.personId}-0`,
-                eventPersonId: `ep-${legacy.id}-${p.personId || idx}`,
+                id: `epl-${legacy.id}-${participantKey}-0`,
+                eventPersonId: `ep-${legacy.id}-${participantKey}`,
                 latitude: legacy.latitude,
                 longitude: legacy.longitude,
                 coordinatePrecision: mapLegacyLocationPrecision(legacy.locationPrecision),
@@ -126,8 +127,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 confidence: legacy.confidence,
                 sourceIds: legacy.sourceIds,
                 sources: legacy.sourceIds.map((sid, sIdx) => ({
-                  id: `epls-${legacy.id}-${p.personId}-0-${sIdx}`,
-                  eventPersonLocationId: `epl-${legacy.id}-${p.personId}-0`,
+                  id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
+                  eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
                   sourceId: sid,
                   confidence: legacy.confidence,
                 })),

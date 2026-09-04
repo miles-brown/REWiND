@@ -301,3 +301,73 @@ test("verifies EventPersonLocation normalizes and persists location-to-source re
   assert.equal(loc.sources[0].sourceId, sample.sourceIds[0]);
   assert.equal(loc.sources[0].eventPersonLocationId, loc.id);
 });
+
+test("verifies participants with empty personId receive unique namespaced keys and non-colliding location IDs", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const legacyWithEmptyPersonIds = {
+    id: "evt-empty-person-test",
+    slug: "empty-person-test",
+    eventName: "Bilateral Diplomatic Briefing",
+    summary: "Briefing with anonymous delegates",
+    categories: ["Diplomacy"],
+    eventTypes: ["Meeting"],
+    startDate: "1990-04-12",
+    endDate: null,
+    localStartTime: null,
+    localEndTime: null,
+    timezone: "America/New_York",
+    datePrecision: "exact",
+    timePrecision: "approximate",
+    platform: null,
+    venueName: "UN Headquarters",
+    address: "New York, NY",
+    city: "New York",
+    region: "NY",
+    country: "United States",
+    latitude: 40.7499,
+    longitude: -73.9674,
+    locationPrecision: "exact",
+    participants: [
+      { personId: "", name: "Anonymous Delegate A", role: "delegate", presenceConfidence: "confirmed" },
+      { personId: "", name: "Anonymous Delegate B", role: "attendee", presenceConfidence: "confirmed" },
+    ],
+    organisations: [],
+    notes: null,
+    scope: "diplomatic",
+    medium: ["official-record"],
+    confidence: "confirmed",
+    verificationStatus: "verified",
+    sourceIds: ["src-1", "src-2"],
+    quotes: [],
+    media: [],
+    provenance: ["UN Archives"],
+    conflictingClaims: [],
+    reviewedAt: "2026-09-01T00:00:00Z",
+  };
+
+  const v2 = upgradeLegacyToV2(legacyWithEmptyPersonIds);
+  assert.equal(v2.people.length, 2);
+
+  const [p0, p1] = v2.people;
+  assert.notEqual(p0.id, p1.id, "Participant IDs must be distinct");
+  assert.equal(p0.id, "ep-evt-empty-person-test-participant-0");
+  assert.equal(p1.id, "ep-evt-empty-person-test-participant-1");
+
+  assert.equal(p0.locations.length, 1);
+  assert.equal(p1.locations.length, 1);
+
+  const loc0 = p0.locations[0];
+  const loc1 = p1.locations[0];
+  assert.notEqual(loc0.id, loc1.id, "Location IDs must be distinct");
+  assert.equal(loc0.id, "epl-evt-empty-person-test-participant-0-0");
+  assert.equal(loc1.id, "epl-evt-empty-person-test-participant-1-0");
+  assert.equal(loc0.eventPersonId, p0.id);
+  assert.equal(loc1.eventPersonId, p1.id);
+
+  // Check location sources
+  assert.equal(loc0.sources[0].eventPersonLocationId, loc0.id);
+  assert.equal(loc1.sources[0].eventPersonLocationId, loc1.id);
+  assert.notEqual(loc0.sources[0].id, loc1.sources[0].id, "Location source IDs must be distinct");
+});
+

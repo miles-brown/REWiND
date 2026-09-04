@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -28,16 +28,32 @@ export default function SourcesPage() {
   const [sortOption, setSortOption] = useState<SortOption>("events-desc");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
 
-  // Precompute event linkage counts
-  const sourceEventMap = useMemo(() => {
-    const map = new Map<string, number>();
+  // Precompute event linkage counts and linked historical dates
+  const { sourceEventMap, sourceDateMap } = useMemo(() => {
+    const eventCountMap = new Map<string, number>();
+    const dateMap = new Map<string, string>();
     for (const e of events) {
       for (const sId of e.sourceIds) {
-        map.set(sId, (map.get(sId) || 0) + 1);
+        eventCountMap.set(sId, (eventCountMap.get(sId) || 0) + 1);
+        if (!dateMap.has(sId) || (e.startDate && e.startDate < (dateMap.get(sId) || ""))) {
+          dateMap.set(sId, e.startDate);
+        }
       }
     }
-    return map;
+    return { sourceEventMap: eventCountMap, sourceDateMap: dateMap };
   }, []);
+
+  const getSourceDateInfo = useCallback((s: (typeof sources)[number]) => {
+    const historical =
+      s.publicationDate ||
+      s.originalDate ||
+      sourceDateMap.get(s.id) ||
+      s.id.match(/\b(19\d\d|20\d\d)(?:-\d{2})?(?:-\d{2})?\b/)?.[0] ||
+      "";
+    const isoDate = historical || s.accessedDate || "";
+    const displayDate = historical || (s.accessedDate ? `Accessed ${s.accessedDate}` : "—");
+    return { isoDate, displayDate };
+  }, [sourceDateMap]);
 
   // Compute publishers and types
   const publishers = useMemo(() => {
@@ -63,7 +79,7 @@ export default function SourcesPage() {
           const matchTitle = s.title.toLowerCase().includes(q);
           const matchPub = s.publisher.toLowerCase().includes(q);
           const matchId = s.id.toLowerCase().includes(q);
-          const matchUrl = (s.url || "").toLowerCase().includes(q);
+          const matchUrl = s.url ? s.url.toLowerCase().includes(q) : false;
           if (!matchTitle && !matchPub && !matchId && !matchUrl) return false;
         }
 
@@ -98,21 +114,22 @@ export default function SourcesPage() {
           return a.publisher.localeCompare(b.publisher);
         }
         if (sortOption === "date-desc") {
-          const dateA = a.publicationDate || a.originalDate || a.accessedDate;
-          const dateB = b.publicationDate || b.originalDate || b.accessedDate;
+          const dateA = getSourceDateInfo(a).isoDate;
+          const dateB = getSourceDateInfo(b).isoDate;
           return dateB.localeCompare(dateA);
         }
         if (sortOption === "date-asc") {
-          const dateA = a.publicationDate || a.originalDate || a.accessedDate;
-          const dateB = b.publicationDate || b.originalDate || b.accessedDate;
+          const dateA = getSourceDateInfo(a).isoDate;
+          const dateB = getSourceDateInfo(b).isoDate;
           return dateA.localeCompare(dateB);
         }
         return 0;
       });
-  }, [query, classificationFilter, typeFilter, publisherFilter, sortOption, sourceEventMap]);
+  }, [query, classificationFilter, typeFilter, publisherFilter, sortOption, sourceEventMap, getSourceDateInfo]);
 
   // Forensic Metrics
   const primaryCount = useMemo(() => sources.filter((s) => s.classification === "primary").length, []);
+  const secondaryCount = sources.length - primaryCount;
   const primaryPercent = Math.round((primaryCount / sources.length) * 100);
   const totalEvidencedLinks = useMemo(
     () => sources.reduce((sum, s) => sum + (sourceEventMap.get(s.id) || 0), 0),
@@ -141,24 +158,24 @@ export default function SourcesPage() {
         </p>
 
         {/* Forensic Stats Bar */}
-        <div className="sources-kpi-bar" role="region" aria-label="Sources register summary metrics">
+        <dl className="sources-kpi-bar" aria-label="Sources register summary metrics">
           <div className="source-kpi">
-            <span className="kpi-num">{sources.length}</span>
-            <span className="kpi-label">Documented Records</span>
+            <dd className="kpi-num">{sources.length}</dd>
+            <dt className="kpi-label">Documented Records</dt>
           </div>
           <div className="source-kpi highlight">
-            <span className="kpi-num">{primaryPercent}%</span>
-            <span className="kpi-label">Primary Tier-A Evidence</span>
+            <dd className="kpi-num">{primaryPercent}%</dd>
+            <dt className="kpi-label">Primary Tier-A Evidence</dt>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{publishers.length}</span>
-            <span className="kpi-label">Archival Publishers</span>
+            <dd className="kpi-num">{publishers.length}</dd>
+            <dt className="kpi-label">Archival Publishers</dt>
           </div>
           <div className="source-kpi">
-            <span className="kpi-num">{totalEvidencedLinks}</span>
-            <span className="kpi-label">Total Corroborated Claims</span>
+            <dd className="kpi-num">{totalEvidencedLinks}</dd>
+            <dt className="kpi-label">Total Corroborated Claims</dt>
           </div>
-        </div>
+        </dl>
       </header>
 
       {/* Interactive Controls & Filters */}
@@ -187,14 +204,14 @@ export default function SourcesPage() {
             )}
           </div>
 
-          <div className="sources-view-toggles">
+          <div className="sources-view-toggles" role="toolbar" aria-label="Catalog layout mode">
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+              aria-pressed={viewMode === "table"}
               onClick={() => setViewMode("table")}
               title="Table View"
               aria-label="Switch to Table view"
-              aria-pressed={viewMode === "table"}
             >
               <List size={15} />
               <span>Table</span>
@@ -202,10 +219,10 @@ export default function SourcesPage() {
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "cards" ? "active" : ""}`}
+              aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
               title="Dossier Card View"
               aria-label="Switch to Dossier Card view"
-              aria-pressed={viewMode === "cards"}
             >
               <Grid size={15} />
               <span>Cards</span>
@@ -217,39 +234,32 @@ export default function SourcesPage() {
         <div className="sources-filter-row">
           {/* Classification */}
           <div className="filter-group">
-            <span className="filter-group-label" id="evidence-tier-label">Evidence Tier</span>
-            <div
-              className="filter-pill-cluster"
-              role="radiogroup"
-              aria-labelledby="evidence-tier-label"
-            >
+            <span className="filter-group-label">Evidence Tier</span>
+            <div className="filter-pill-cluster" role="group" aria-label="Evidence tier filter">
               <button
                 type="button"
-                role="radio"
-                aria-checked={classificationFilter === "all"}
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "all"}
                 onClick={() => setClassificationFilter("all")}
               >
                 All ({sources.length})
               </button>
               <button
                 type="button"
-                role="radio"
-                aria-checked={classificationFilter === "primary"}
                 className={`filter-pill primary ${classificationFilter === "primary" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "primary"}
                 onClick={() => setClassificationFilter("primary")}
               >
                 <ShieldCheck size={12} />
-                <span>Primary ({sources.filter((s) => s.classification === "primary").length})</span>
+                <span>Primary ({primaryCount})</span>
               </button>
               <button
                 type="button"
-                role="radio"
-                aria-checked={classificationFilter === "secondary"}
                 className={`filter-pill secondary ${classificationFilter === "secondary" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "secondary"}
                 onClick={() => setClassificationFilter("secondary")}
               >
-                <span>Secondary ({sources.filter((s) => s.classification === "secondary").length})</span>
+                <span>Secondary ({secondaryCount})</span>
               </button>
             </div>
           </div>
@@ -320,6 +330,13 @@ export default function SourcesPage() {
           )}
         </div>
 
+        {/* Live Region for Screen Readers */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {isFiltered
+            ? `Filtered sources: showing ${filteredSources.length} of ${sources.length} primary documents.`
+            : `Showing all ${sources.length} archival primary documents.`}
+        </div>
+
         <div className="sources-results-meta" aria-live="polite">
           Showing <b>{filteredSources.length}</b> of {sources.length} records
           {isFiltered && <span className="active-filter-hint"> (Filtered)</span>}
@@ -328,11 +345,11 @@ export default function SourcesPage() {
 
       {/* Main Content Area */}
       {filteredSources.length === 0 ? (
-        <div className="sources-empty-state">
+        <div className="sources-empty-state" role="status" aria-live="polite">
           <BookOpen size={42} />
           <h3>No matching records located</h3>
           <p>No documentary sources match your current search and filter parameters.</p>
-          <button type="button" className="action-btn" onClick={resetFilters}>
+          <button type="button" className="action-btn reset" onClick={resetFilters}>
             Clear all filters
           </button>
         </div>
@@ -353,7 +370,7 @@ export default function SourcesPage() {
             <tbody>
               {filteredSources.map((s) => {
                 const eventCount = sourceEventMap.get(s.id) || 0;
-                const displayDate = s.publicationDate || s.originalDate || s.accessedDate || "—";
+                const { isoDate, displayDate } = getSourceDateInfo(s);
                 const isVideo = s.sourceType.includes("video");
 
                 return (
@@ -386,7 +403,7 @@ export default function SourcesPage() {
                       </span>
                     </td>
                     <td className="col-date">
-                      <time className="source-time-val">{displayDate}</time>
+                      <time className="source-time-val" dateTime={isoDate || undefined}>{displayDate}</time>
                     </td>
                     <td className="col-events">
                       <span className="event-count-badge">
@@ -429,7 +446,7 @@ export default function SourcesPage() {
         <div className="sources-card-grid">
           {filteredSources.map((s) => {
             const eventCount = sourceEventMap.get(s.id) || 0;
-            const displayDate = s.publicationDate || s.originalDate || s.accessedDate || "—";
+            const { isoDate, displayDate } = getSourceDateInfo(s);
             const isVideo = s.sourceType.includes("video");
 
             return (
@@ -457,7 +474,7 @@ export default function SourcesPage() {
 
                 <div className="card-publisher-row">
                   <span className="publisher-name">{s.publisher}</span>
-                  <span className="card-date">{displayDate}</span>
+                  <time className="card-date" dateTime={isoDate || undefined}>{displayDate}</time>
                 </div>
 
                 <div className="card-footer">

@@ -3,6 +3,8 @@ import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -66,75 +68,372 @@ test("verifies SourcesPage module export and comprehensive filtering support", a
   assert.equal(typeof mod.default, "function", "SourcesPage must export a default React component");
 });
 
-test("verifies globals.css uses accessible #94a3b8 contrast for filter group and select labels", () => {
+test("verifies SourcesPage accessibility and search criteria compliance", () => {
+  const sourcesPagePath = path.join(root, "app/sources/page.tsx");
+  const content = fs.readFileSync(sourcesPagePath, "utf-8");
+
+  // ARIA pressed attributes
+  assert.ok(
+    content.includes('aria-pressed={viewMode === "table"}'),
+    "Table toggle button must have aria-pressed attribute"
+  );
+  assert.ok(
+    content.includes('aria-pressed={viewMode === "cards"}'),
+    "Cards toggle button must have aria-pressed attribute"
+  );
+  assert.ok(
+    content.includes('aria-pressed={classificationFilter === "all"}'),
+    "All classification filter must have aria-pressed attribute"
+  );
+  assert.ok(
+    content.includes('aria-pressed={classificationFilter === "primary"}'),
+    "Primary filter must have aria-pressed attribute"
+  );
+  assert.ok(
+    content.includes('aria-pressed={classificationFilter === "secondary"}'),
+    "Secondary filter must have aria-pressed attribute"
+  );
+
+  // URL search matching
+  assert.ok(
+    content.includes("matchUrl = s.url"),
+    "SourcesPage search filter must match on source URL"
+  );
+});
+
+test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", () => {
+  const mapGraphicPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapGraphicPath, "utf-8");
+
+  // WebGL hydration safety (initialized to false/svg, detected in mount useEffect)
+  assert.ok(
+    content.includes("const [webGlSupported, setWebGlSupported] = useState<boolean>(false);"),
+    "webGlSupported must initialize to false to prevent hydration mismatch"
+  );
+  assert.ok(
+    content.includes('const [mapMode, setMapMode] = useState<"webgl" | "svg">("svg");'),
+    "mapMode must initialize to svg to prevent hydration mismatch"
+  );
+
+  // Satellite token safeguard
+  assert.ok(
+    content.includes("disabled={!MAPBOX_TOKEN}"),
+    "Satellite toggle button must be disabled when MAPBOX_TOKEN is empty"
+  );
+});
+
+test("verifies filter label contrast in app/globals.css", () => {
   const cssPath = path.join(root, "app/globals.css");
   const content = fs.readFileSync(cssPath, "utf-8");
   assert.ok(
     content.includes(".filter-group-label { font-size: 10px; font-weight: 700; color: #94a3b8;"),
-    "Filter group label must use high-contrast #94a3b8"
+    ".filter-group-label must use high-contrast #94a3b8 token"
   );
   assert.ok(
     content.includes(".filter-select-wrap label { font-size: 10px; font-weight: 700; color: #94a3b8;"),
-    "Filter select label must use high-contrast #94a3b8"
+    ".filter-select-wrap label must use high-contrast #94a3b8 token"
   );
 });
 
-test("verifies MapGraphic.tsx initializes deterministic SSR state and guards satellite mode behind MAPBOX_TOKEN", () => {
+test("verifies MapMarker accessibility and tooltip aria-hidden safeguard", () => {
   const mapGraphicPath = path.join(root, "components/rewind/MapGraphic.tsx");
   const content = fs.readFileSync(mapGraphicPath, "utf-8");
 
   assert.ok(
-    content.includes("useState<boolean>(false)"),
-    "MapGraphic must initialize webGlSupported to false for deterministic SSR"
+    content.includes('el.setAttribute("aria-label", ariaLabelText)'),
+    "Map marker element must have informative dynamic aria-label"
   );
   assert.ok(
-    content.includes('useState<"webgl" | "svg">("svg")'),
-    "MapGraphic must initialize mapMode to 'svg' for deterministic SSR"
+    content.includes('el.setAttribute("aria-pressed", isSelected ? "true" : "false")'),
+    "Map marker element must expose aria-pressed selection state"
   );
   assert.ok(
-    content.includes("Boolean(MAPBOX_TOKEN) && webGlSupported && mapMode === \"webgl\""),
-    "Satellite control must be guarded by Boolean(MAPBOX_TOKEN)"
+    content.includes('tooltip.setAttribute("aria-hidden", "true")'),
+    "Tooltip must be aria-hidden to prevent redundant screen reader announcements"
+  );
+});
+
+test("verifies PersonTimeline slider ARIA attributes and semantic dateTime formatting", () => {
+  const timelinePath = path.join(root, "components/rewind/PersonTimeline.tsx");
+  const timelineContent = fs.readFileSync(timelinePath, "utf-8");
+
+  assert.ok(
+    timelineContent.includes("getAriaValueText="),
+    "Slider must supply getAriaValueText callback for screen readers"
+  );
+  assert.ok(
+    timelineContent.includes("getAriaLabel="),
+    "Slider must supply getAriaLabel callback for screen readers"
+  );
+
+  const sourcesPath = path.join(root, "app/sources/page.tsx");
+  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  assert.ok(
+    sourcesContent.includes('dateTime={isoDate || undefined}'),
+    "Sources page must render machine-readable dateTime on time elements"
+  );
+  assert.ok(
+    sourcesContent.includes('className="action-btn reset"'),
+    "Sources empty state button must have reset modifier class"
+  );
+});
+
+test("verifies MapGraphic.tsx toolbar ARIA semantics and SVG marker attributes", () => {
+  const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapPath, "utf-8");
+
+  assert.ok(
+    content.includes('className="map-toolbar" role="toolbar" aria-label="Map view controls"'),
+    "Map toolbar must have role='toolbar' and aria-label"
   );
   assert.ok(
     content.includes('aria-pressed={mapTheme === "satellite"}'),
-    "Satellite button must expose aria-pressed state"
+    "Satellite theme toggle must expose aria-pressed state"
   );
   assert.ok(
-    content.includes("chronological trajectories"),
-    "Map container aria-label must describe chronological trajectories"
+    content.includes('aria-pressed={mapMode === "svg"}'),
+    "Schematic map toggle must expose aria-pressed state"
   );
   assert.ok(
-    content.includes("<title>{"),
-    "SVG cluster buttons must include accessible title elements"
+    content.includes("aria-pressed={isExpanded}"),
+    "Enlarge/collapse button must expose aria-pressed state"
+  );
+  assert.ok(
+    content.includes("aria-pressed={isSelected}"),
+    "SVG cluster marker must expose aria-pressed state"
   );
 });
 
-test("verifies app/sources/page.tsx exposes aria-pressed, radiogroup semantics, and URL search", () => {
+test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles and dateTime", () => {
+  const timelinePath = path.join(root, "components/rewind/PersonTimeline.tsx");
+  const timelineContent = fs.readFileSync(timelinePath, "utf-8");
+  assert.ok(
+    timelineContent.includes('role="toolbar" aria-label="Timeline playback controls"'),
+    "PersonTimeline play controls must have role='toolbar'"
+  );
+  assert.ok(
+    timelineContent.includes("aria-pressed={playing}"),
+    "PersonTimeline main play button must expose aria-pressed"
+  );
+  assert.ok(
+    timelineContent.includes('aria-pressed={direction === "backward"}'),
+    "PersonTimeline direction button must expose aria-pressed"
+  );
+  assert.ok(
+    timelineContent.includes('role="group" aria-label="Jump to decade milestones"'),
+    "PersonTimeline epoch rail must have role='group'"
+  );
+  assert.ok(
+    timelineContent.includes("<time dateTime={event.startDate}>"),
+    "PersonTimeline event detail must render machine-readable ISO-8601 dateTime"
+  );
+
+  const explorerPath = path.join(root, "components/rewind/RewindExplorer.tsx");
+  const explorerContent = fs.readFileSync(explorerPath, "utf-8");
+  assert.ok(
+    explorerContent.includes('role="toolbar" aria-label="Timeline playback controls"'),
+    "RewindExplorer play controls must have role='toolbar'"
+  );
+  assert.ok(
+    explorerContent.includes("aria-pressed={playing}"),
+    "RewindExplorer play button must expose aria-pressed"
+  );
+  assert.ok(
+    explorerContent.includes('aria-pressed={direction === "backward"}'),
+    "RewindExplorer direction button must expose aria-pressed"
+  );
+  assert.ok(
+    explorerContent.includes("<time dateTime={event.startDate}>"),
+    "RewindExplorer event detail must render machine-readable ISO-8601 dateTime"
+  );
+});
+
+test("verifies CSS deduping and enhanced contrast tokens in app/globals.css", () => {
+  const cssPath = path.join(root, "app/globals.css");
+  const content = fs.readFileSync(cssPath, "utf-8");
+
+  // Evidence Review Console comment appears only once
+  const occurrences = content.split("/* --- Evidence Review Console --- */").length - 1;
+  assert.equal(occurrences, 1, "Evidence Review Console CSS block must not be duplicated");
+
+  assert.ok(
+    content.includes(".action-btn.reset {"),
+    "globals.css must define .action-btn.reset styling for empty state actions"
+  );
+  assert.ok(
+    content.includes(".card-view-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.18); color: #fbbf24;"),
+    "globals.css must style .card-view-btn with high-contrast #fbbf24"
+  );
+  assert.ok(
+    content.includes(".map-tool-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }"),
+    "globals.css must define disabled state for map-tool-btn"
+  );
+});
+
+test("verifies full WCAG 2.1 AA elimination of #64748b and expanded map styling in globals.css", () => {
+  const cssPath = path.join(root, "app/globals.css");
+  const content = fs.readFileSync(cssPath, "utf-8");
+
+  // Zero occurrences of low-contrast #64748b
+  assert.equal(
+    content.includes("#64748b"),
+    false,
+    "globals.css must contain zero occurrences of low-contrast #64748b token"
+  );
+
+  // Expanded map view styling
+  assert.ok(
+    content.includes(".evidence-map-wrapper.expanded-view {"),
+    "globals.css must define .evidence-map-wrapper.expanded-view styling"
+  );
+  assert.ok(
+    content.includes(".source-kpi.highlight .kpi-num { color: #fbbf24; }"),
+    "globals.css must use high-contrast #fbbf24 for highlighted KPI numbers"
+  );
+});
+
+test("verifies MapGraphic lifecycle resilience and expanded keyboard Escape listener", () => {
+  const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapPath, "utf-8");
+
+  // Ensure initMap dependencies do not tear down the map on selection changes
+  assert.ok(
+    content.includes("}, [mapMode, transformRequest]);"),
+    "initMap effect must only reinitialize when mapMode or transformRequest changes"
+  );
+
+  // Escape key handler for expanded view
+  assert.ok(
+    content.includes('if (e.key === "Escape")'),
+    "MapGraphic must listen for Escape key to collapse expanded view"
+  );
+
+  // addTrajectoriesToMap setData resilience
+  assert.ok(
+    content.includes('existingSource.setData('),
+    "addTrajectoriesToMap must update existing GeoJSON source via setData"
+  );
+});
+
+test("verifies SourcesPage historical date resolution and RewindExplorer disabled boundary states", () => {
   const sourcesPath = path.join(root, "app/sources/page.tsx");
-  const content = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
 
   assert.ok(
-    content.includes('aria-pressed={viewMode === "table"}'),
-    "Table view toggle must have aria-pressed"
+    sourcesContent.includes("getSourceDateInfo"),
+    "SourcesPage must use getSourceDateInfo to resolve historical documentary dates"
   );
   assert.ok(
-    content.includes('aria-pressed={viewMode === "cards"}'),
-    "Cards view toggle must have aria-pressed"
+    sourcesContent.includes('role="toolbar" aria-label="Catalog layout mode"'),
+    "Sources view toggles must have role='toolbar'"
   );
   assert.ok(
-    content.includes('role="radiogroup"'),
-    "Evidence tier filter cluster must have role='radiogroup'"
+    sourcesContent.includes('role="group" aria-label="Evidence tier filter"'),
+    "Filter pills cluster must have role='group'"
+  );
+
+  const explorerPath = path.join(root, "components/rewind/RewindExplorer.tsx");
+  const explorerContent = fs.readFileSync(explorerPath, "utf-8");
+
+  assert.ok(
+    explorerContent.includes("disabled={!hasEvents || safeIndex === 0}"),
+    "RewindExplorer previous button must be disabled at start of timeline or when no events match"
   );
   assert.ok(
-    content.includes('role="radio"'),
-    "Evidence tier options must have role='radio'"
+    explorerContent.includes("disabled={!hasEvents || safeIndex >= filtered.length - 1}"),
+    "RewindExplorer next button must be disabled at end of timeline or when no events match"
   );
   assert.ok(
-    content.includes('aria-checked={classificationFilter === "all"}'),
-    "Evidence tier options must have aria-checked"
+    !explorerContent.includes("filtered[safeIndex] || events[0]"),
+    "RewindExplorer must not fall back to events[0] when filtered records is empty"
   );
   assert.ok(
-    content.includes("const matchUrl = (s.url || \"\").toLowerCase().includes(q);"),
-    "Search filter must match against record URLs"
+    explorerContent.includes("empty-explorer-state") &&
+    explorerContent.includes("No documented events found"),
+    "RewindExplorer must render explicit empty state when filtered records is empty"
+  );
+  assert.ok(
+    explorerContent.includes("reset-filters-btn") &&
+    explorerContent.includes("Reset filters"),
+    "RewindExplorer empty state must provide reset filters action"
   );
 });
+
+test("verifies RewindExplorer boundary and empty state logic with zero filtered records", async () => {
+  const { RewindExplorer } = await vite.ssrLoadModule("/components/rewind/RewindExplorer.tsx");
+  const html = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialType: "NonExistentType",
+      initialStatus: "nonexistent",
+    })
+  );
+
+  // Assert empty state rendering
+  assert.match(html, /class="[^"]*empty-explorer-state[^"]*"/, "RewindExplorer must render .empty-explorer-state container");
+  assert.match(html, /No documented events found/, "RewindExplorer must render empty state heading");
+  assert.match(html, /Reset filters/, "RewindExplorer must provide a reset filters button");
+  assert.doesNotMatch(html, /Open event and evidence/, "RewindExplorer must not render event details or fall back to events[0]");
+
+  // Verify previous, next, and play controls are disabled
+  assert.match(html, /<button[^>]*aria-label="Previous event"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Previous event"/, "Previous button must be disabled when 0 records match");
+  assert.match(html, /<button[^>]*aria-label="Next event"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Next event"/, "Next button must be disabled when 0 records match");
+  assert.match(html, /<button[^>]*aria-label="Playback unavailable"[^>]*disabled|<button[^>]*disabled[^>]*aria-label="Playback unavailable"/, "Play button must be disabled and indicate playback unavailable");
+});
+
+test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and scoped buttons", () => {
+  // 1. Slider ARIA attributes in RewindExplorer and PersonTimeline
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  assert.ok(
+    explorerContent.includes("aria-valuemin={0}"),
+    "RewindExplorer must set aria-valuemin on Slider"
+  );
+  assert.ok(
+    explorerContent.includes("aria-valuemax={Math.max(0, filtered.length - 1)}"),
+    "RewindExplorer must set dynamic aria-valuemax on Slider"
+  );
+  assert.ok(
+    explorerContent.includes("aria-valuenow={hasEvents ? safeIndex : 0}"),
+    "RewindExplorer must set dynamic aria-valuenow on Slider"
+  );
+
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    timelineContent.includes("aria-valuemin={0}") &&
+    timelineContent.includes("aria-valuemax={Math.max(0, ordered.length - 1)}") &&
+    timelineContent.includes("aria-valuenow={ordered.length ? safeIndex : 0}"),
+    "PersonTimeline must set aria-valuemin, aria-valuemax, and aria-valuenow on Slider"
+  );
+
+  // 2. Semantic KPI definition list in app/sources/page.tsx
+  const sourcesContent = fs.readFileSync(path.join(root, "app/sources/page.tsx"), "utf-8");
+  assert.ok(
+    sourcesContent.includes('<dl className="sources-kpi-bar" aria-label="Sources register summary metrics">'),
+    "Sources page must use semantic <dl> list for KPI summary metrics"
+  );
+  assert.ok(
+    sourcesContent.includes('<dt className="kpi-label">') && sourcesContent.includes('<dd className="kpi-num">'),
+    "Sources page KPI bar must use semantic <dt> labels and <dd> values"
+  );
+
+  // 3. Live announcement regions for dynamic content
+  assert.ok(
+    sourcesContent.includes('role="status" aria-live="polite" aria-atomic="true"'),
+    "Sources page must provide polite live announcement region for filter updates"
+  );
+  assert.ok(
+    explorerContent.includes('role="status" aria-live="polite" aria-atomic="true"'),
+    "RewindExplorer must provide polite live announcement region for playback updates"
+  );
+
+  // 4. Scoped CSS for reset filters buttons
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+  assert.ok(
+    cssContent.includes(".empty-explorer-content .reset-filters-btn"),
+    "globals.css must scope Explorer empty state reset button to avoid collisions"
+  );
+  assert.ok(
+    cssContent.includes(".sources-filter-row .reset-filters-btn"),
+    "globals.css must scope Sources filter reset button to avoid collisions"
+  );
+});
+

@@ -241,7 +241,7 @@ export function PersonTimeline({
               {event.verificationStatus}
             </span>
           </div>
-          <time>
+          <time dateTime={event.startDate}>
             {date.toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -357,7 +357,7 @@ export function PersonTimeline({
           </b>
         </div>
 
-        <div className="play-controls" aria-label="Timeline playback controls">
+        <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
             onClick={() => moveTo(0)}
             disabled={safeIndex === 0}
@@ -376,6 +376,7 @@ export function PersonTimeline({
             className="main-play"
             onClick={() => setPlaying((value) => !value)}
             disabled={isPlayDisabled}
+            aria-pressed={playing}
             aria-label={
               playing
                 ? "Pause timeline"
@@ -405,6 +406,7 @@ export function PersonTimeline({
             onClick={() =>
               setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
             }
+            aria-pressed={direction === "backward"}
             aria-label={`Playback direction: ${direction}. Click to toggle.`}
             title={direction === "forward" ? "Forward Mode" : "REWIND Mode (Reverse)"}
           >
@@ -414,7 +416,7 @@ export function PersonTimeline({
         </div>
 
         <div className="slider-wrap">
-          <div className="epoch-rail" aria-label="Jump to decade milestones">
+          <div className="epoch-rail" role="group" aria-label="Jump to decade milestones">
             {epochs.map((ep) => {
               const isActive =
                 safeIndex >= ep.index &&
@@ -428,6 +430,7 @@ export function PersonTimeline({
                   className={`epoch-badge ${isActive ? "active" : ""}`}
                   onClick={() => moveTo(ep.index)}
                   aria-label={`Jump to ${ep.decade}`}
+                  aria-pressed={isActive}
                 >
                   {ep.decade}
                 </button>
@@ -436,28 +439,39 @@ export function PersonTimeline({
           </div>
 
           <div className="slider-heading">
-            <span>{ordered[0].startDate}</span>
-            <b>Event {safeIndex + 1} of {ordered.length}</b>
-            <span>{ordered.at(-1)?.startDate}</span>
+            <span>{ordered[0]?.startDate || "—"}</span>
+            <b>{ordered.length ? `Event ${safeIndex + 1} of ${ordered.length}` : "No events"}</b>
+            <span>{ordered.at(-1)?.startDate || "—"}</span>
           </div>
 
 
           <Slider
             aria-label={`${person.name} timeline position`}
-            aria-valuetext={`${safeIndex + 1} of ${ordered.length}: ${
-              event.startDate
-            }, ${event.eventName}`}
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, ordered.length - 1)}
+            aria-valuenow={ordered.length ? safeIndex : 0}
+            aria-valuetext={
+              event
+                ? `${safeIndex + 1} of ${ordered.length}: ${event.startDate}, ${event.eventName}`
+                : "No timeline events available"
+            }
+            getAriaValueText={(val) => {
+              const ev = ordered[val];
+              return ev ? `Event ${val + 1} of ${ordered.length}: ${ev.startDate}, ${ev.eventName}` : "";
+            }}
+            getAriaLabel={() => `${person.name} timeline chronology slider`}
             min={0}
             max={Math.max(0, ordered.length - 1)}
             step={1}
             value={[safeIndex]}
+            disabled={ordered.length === 0}
             onValueChange={(value) => moveTo(value[0])}
           />
 
           <div className="slider-dates">
-            <span>{ordered[0].eventName.slice(0, 24)}…</span>
-            <b>{event.startDate} · {event.eventName}</b>
-            <span>{ordered.at(-1)?.eventName.slice(0, 24)}…</span>
+            <span>{ordered[0]?.eventName ? `${ordered[0].eventName.slice(0, 24)}…` : "—"}</span>
+            <b>{event ? `${event.startDate} · ${event.eventName}` : "No events"}</b>
+            <span>{ordered.at(-1)?.eventName ? `${ordered.at(-1)!.eventName.slice(0, 24)}…` : "—"}</span>
           </div>
         </div>
 
