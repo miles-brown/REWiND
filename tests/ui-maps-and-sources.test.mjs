@@ -167,7 +167,7 @@ test("verifies PersonTimeline slider ARIA attributes and semantic dateTime forma
   const sourcesPath = path.join(root, "app/sources/page.tsx");
   const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
   assert.ok(
-    sourcesContent.includes('dateTime={rawDate || undefined}'),
+    sourcesContent.includes('dateTime={isoDate || undefined}'),
     "Sources page must render machine-readable dateTime on time elements"
   );
   assert.ok(
@@ -265,6 +265,81 @@ test("verifies CSS deduping and enhanced contrast tokens in app/globals.css", ()
   assert.ok(
     content.includes(".map-tool-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }"),
     "globals.css must define disabled state for map-tool-btn"
+  );
+});
+
+test("verifies full WCAG 2.1 AA elimination of #64748b and expanded map styling in globals.css", () => {
+  const cssPath = path.join(root, "app/globals.css");
+  const content = fs.readFileSync(cssPath, "utf-8");
+
+  // Zero occurrences of low-contrast #64748b
+  assert.equal(
+    content.includes("#64748b"),
+    false,
+    "globals.css must contain zero occurrences of low-contrast #64748b token"
+  );
+
+  // Expanded map view styling
+  assert.ok(
+    content.includes(".evidence-map-wrapper.expanded-view {"),
+    "globals.css must define .evidence-map-wrapper.expanded-view styling"
+  );
+  assert.ok(
+    content.includes(".source-kpi.highlight .kpi-num { color: #fbbf24; }"),
+    "globals.css must use high-contrast #fbbf24 for highlighted KPI numbers"
+  );
+});
+
+test("verifies MapGraphic lifecycle resilience and expanded keyboard Escape listener", () => {
+  const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const content = fs.readFileSync(mapPath, "utf-8");
+
+  // Ensure initMap dependencies do not tear down the map on selection changes
+  assert.ok(
+    content.includes("}, [mapMode, transformRequest]);"),
+    "initMap effect must only reinitialize when mapMode or transformRequest changes"
+  );
+
+  // Escape key handler for expanded view
+  assert.ok(
+    content.includes('if (e.key === "Escape")'),
+    "MapGraphic must listen for Escape key to collapse expanded view"
+  );
+
+  // addTrajectoriesToMap setData resilience
+  assert.ok(
+    content.includes('existingSource.setData('),
+    "addTrajectoriesToMap must update existing GeoJSON source via setData"
+  );
+});
+
+test("verifies SourcesPage historical date resolution and RewindExplorer disabled boundary states", () => {
+  const sourcesPath = path.join(root, "app/sources/page.tsx");
+  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+
+  assert.ok(
+    sourcesContent.includes("getSourceDateInfo"),
+    "SourcesPage must use getSourceDateInfo to resolve historical documentary dates"
+  );
+  assert.ok(
+    sourcesContent.includes('role="toolbar" aria-label="Catalog layout mode"'),
+    "Sources view toggles must have role='toolbar'"
+  );
+  assert.ok(
+    sourcesContent.includes('role="group" aria-label="Evidence tier filter"'),
+    "Filter pills cluster must have role='group'"
+  );
+
+  const explorerPath = path.join(root, "components/rewind/RewindExplorer.tsx");
+  const explorerContent = fs.readFileSync(explorerPath, "utf-8");
+
+  assert.ok(
+    explorerContent.includes("disabled={safeIndex === 0}"),
+    "RewindExplorer previous button must be disabled at start of timeline"
+  );
+  assert.ok(
+    explorerContent.includes("disabled={safeIndex === filtered.length - 1}"),
+    "RewindExplorer next button must be disabled at end of timeline"
   );
 });
 

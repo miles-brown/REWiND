@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -28,16 +28,32 @@ export default function SourcesPage() {
   const [sortOption, setSortOption] = useState<SortOption>("events-desc");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
 
-  // Precompute event linkage counts
-  const sourceEventMap = useMemo(() => {
-    const map = new Map<string, number>();
+  // Precompute event linkage counts and linked historical dates
+  const { sourceEventMap, sourceDateMap } = useMemo(() => {
+    const eventCountMap = new Map<string, number>();
+    const dateMap = new Map<string, string>();
     for (const e of events) {
       for (const sId of e.sourceIds) {
-        map.set(sId, (map.get(sId) || 0) + 1);
+        eventCountMap.set(sId, (eventCountMap.get(sId) || 0) + 1);
+        if (!dateMap.has(sId) || (e.startDate && e.startDate < (dateMap.get(sId) || ""))) {
+          dateMap.set(sId, e.startDate);
+        }
       }
     }
-    return map;
+    return { sourceEventMap: eventCountMap, sourceDateMap: dateMap };
   }, []);
+
+  const getSourceDateInfo = useCallback((s: (typeof sources)[number]) => {
+    const historical =
+      s.publicationDate ||
+      s.originalDate ||
+      sourceDateMap.get(s.id) ||
+      s.id.match(/\b(19\d\d|20\d\d)(?:-\d{2})?(?:-\d{2})?\b/)?.[0] ||
+      "";
+    const isoDate = historical || s.accessedDate || "";
+    const displayDate = historical || (s.accessedDate ? `Accessed ${s.accessedDate}` : "—");
+    return { isoDate, displayDate };
+  }, [sourceDateMap]);
 
   // Compute publishers and types
   const publishers = useMemo(() => {
@@ -98,18 +114,18 @@ export default function SourcesPage() {
           return a.publisher.localeCompare(b.publisher);
         }
         if (sortOption === "date-desc") {
-          const dateA = a.publicationDate || a.originalDate || a.accessedDate;
-          const dateB = b.publicationDate || b.originalDate || b.accessedDate;
+          const dateA = getSourceDateInfo(a).isoDate;
+          const dateB = getSourceDateInfo(b).isoDate;
           return dateB.localeCompare(dateA);
         }
         if (sortOption === "date-asc") {
-          const dateA = a.publicationDate || a.originalDate || a.accessedDate;
-          const dateB = b.publicationDate || b.originalDate || b.accessedDate;
+          const dateA = getSourceDateInfo(a).isoDate;
+          const dateB = getSourceDateInfo(b).isoDate;
           return dateA.localeCompare(dateB);
         }
         return 0;
       });
-  }, [query, classificationFilter, typeFilter, publisherFilter, sortOption, sourceEventMap]);
+  }, [query, classificationFilter, typeFilter, publisherFilter, sortOption, sourceEventMap, getSourceDateInfo]);
 
   // Forensic Metrics
   const primaryCount = useMemo(() => sources.filter((s) => s.classification === "primary").length, []);
@@ -188,7 +204,7 @@ export default function SourcesPage() {
             )}
           </div>
 
-          <div className="sources-view-toggles">
+          <div className="sources-view-toggles" role="toolbar" aria-label="Catalog layout mode">
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
@@ -219,7 +235,7 @@ export default function SourcesPage() {
           {/* Classification */}
           <div className="filter-group">
             <span className="filter-group-label">Evidence Tier</span>
-            <div className="filter-pill-cluster">
+            <div className="filter-pill-cluster" role="group" aria-label="Evidence tier filter">
               <button
                 type="button"
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
@@ -347,8 +363,7 @@ export default function SourcesPage() {
             <tbody>
               {filteredSources.map((s) => {
                 const eventCount = sourceEventMap.get(s.id) || 0;
-                const rawDate = s.publicationDate || s.originalDate || s.accessedDate || "";
-                const displayDate = rawDate || "—";
+                const { isoDate, displayDate } = getSourceDateInfo(s);
                 const isVideo = s.sourceType.includes("video");
 
                 return (
@@ -381,7 +396,7 @@ export default function SourcesPage() {
                       </span>
                     </td>
                     <td className="col-date">
-                      <time className="source-time-val" dateTime={rawDate || undefined}>{displayDate}</time>
+                      <time className="source-time-val" dateTime={isoDate || undefined}>{displayDate}</time>
                     </td>
                     <td className="col-events">
                       <span className="event-count-badge">
@@ -424,8 +439,7 @@ export default function SourcesPage() {
         <div className="sources-card-grid">
           {filteredSources.map((s) => {
             const eventCount = sourceEventMap.get(s.id) || 0;
-            const rawDate = s.publicationDate || s.originalDate || s.accessedDate || "";
-            const displayDate = rawDate || "—";
+            const { isoDate, displayDate } = getSourceDateInfo(s);
             const isVideo = s.sourceType.includes("video");
 
             return (
@@ -453,7 +467,7 @@ export default function SourcesPage() {
 
                 <div className="card-publisher-row">
                   <span className="publisher-name">{s.publisher}</span>
-                  <time className="card-date" dateTime={rawDate || undefined}>{displayDate}</time>
+                  <time className="card-date" dateTime={isoDate || undefined}>{displayDate}</time>
                 </div>
 
                 <div className="card-footer">

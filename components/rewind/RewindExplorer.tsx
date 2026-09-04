@@ -230,6 +230,7 @@ export function RewindExplorer() {
         <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            disabled={safeIndex === 0}
             aria-label="Previous event"
           >
             <ChevronLeft />
@@ -246,6 +247,7 @@ export function RewindExplorer() {
             onClick={() =>
               setIndex((i) => Math.min(filtered.length - 1, i + 1))
             }
+            disabled={safeIndex === filtered.length - 1}
             aria-label="Next event"
           >
             <ChevronRight />

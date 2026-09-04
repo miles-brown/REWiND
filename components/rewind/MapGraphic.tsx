@@ -65,25 +65,38 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
 };
 
 function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatellite: boolean) {
-  if (map.getSource("trajectories")) return;
-
   const lineCoordinates = points.length >= 2
     ? points
         .filter((p): p is typeof p & { longitude: number; latitude: number } => p.longitude != null && p.latitude != null)
         .map(({ longitude, latitude }) => [longitude, latitude])
     : [];
 
-  map.addSource("trajectories", {
-    type: "geojson",
-    data: {
+  const existingSource = map.getSource("trajectories") as GeoJSONSource | undefined;
+  if (existingSource && "setData" in existingSource) {
+    existingSource.setData({
       type: "Feature",
       properties: {},
       geometry: {
         type: "LineString",
         coordinates: lineCoordinates,
       },
-    },
-  });
+    });
+    return;
+  }
+
+  if (!map.getSource("trajectories")) {
+    map.addSource("trajectories", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: lineCoordinates,
+        },
+      },
+    });
+  }
 
   if (!map.getLayer("trajectory-line-glow")) {
     map.addLayer({
@@ -166,6 +179,29 @@ export function MapGraphic({
     [points, selected]
   );
 
+  const pointsRef = useRef(points);
+  const mapThemeRef = useRef(mapTheme);
+  const selectedEventRef = useRef(selectedEvent);
+
+  useEffect(() => {
+    pointsRef.current = points;
+    mapThemeRef.current = mapTheme;
+    selectedEventRef.current = selectedEvent;
+  }, [points, mapTheme, selectedEvent]);
+
+  // Escape key collapses expanded map view
+  useEffect(() => {
+    if (!isExpanded) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsExpanded(false);
+        setTimeout(() => mapInstanceRef.current?.resize(), 100);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded]);
+
   // Group overlapping points by proximity for SVG view
   const clusters = useMemo(() => {
     const map = new Map<string, typeof coords>();
@@ -225,11 +261,12 @@ export function MapGraphic({
         const { Map } = await import("maplibre-gl");
         if (isCancelled || !mapContainerRef.current) return;
 
-        const initialCenter: [number, number] = selectedEvent
-          ? [selectedEvent.longitude!, selectedEvent.latitude!]
-          : [35.2137, 31.7683]; // Default Levant coordinates
+        const initialCenter: [number, number] =
+          selectedEventRef.current?.longitude != null && selectedEventRef.current?.latitude != null
+            ? [selectedEventRef.current.longitude, selectedEventRef.current.latitude]
+            : [35.2137, 31.7683]; // Default Levant coordinates
 
-        const initialStyle = mapTheme === "satellite" && MAPBOX_SATELLITE_STYLE
+        const initialStyle = mapThemeRef.current === "satellite" && MAPBOX_SATELLITE_STYLE
           ? MAPBOX_SATELLITE_STYLE
           : MAPBOX_DARK_STYLE;
 
@@ -238,7 +275,7 @@ export function MapGraphic({
           style: initialStyle,
           center: initialCenter,
           zoom: 4.2,
-          pitch: mapTheme === "satellite" ? 42 : 25,
+          pitch: mapThemeRef.current === "satellite" ? 42 : 25,
           attributionControl: { compact: true },
           transformRequest,
         });
@@ -262,14 +299,14 @@ export function MapGraphic({
         const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-          addTrajectoriesToMap(map, points, mapTheme === "satellite");
+          addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current === "satellite");
           map.resize();
         };
 
         map.on("load", setupMapLayers);
         map.on("style.load", () => {
           if (!isCancelled) {
-            addTrajectoriesToMap(map, points, mapTheme === "satellite");
+            addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current === "satellite");
           }
         });
 
@@ -296,7 +333,7 @@ export function MapGraphic({
       mapInstanceRef.current = null;
       setMapLoaded(false);
     };
-  }, [mapMode, mapTheme, points, selectedEvent, transformRequest]);
+  }, [mapMode, transformRequest]);
 
 
   // Keep map canvas dimensions synchronized with container layout shifts
@@ -433,8 +470,9 @@ export function MapGraphic({
   // Smooth fly-to camera movement on selection change
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !selectedEvent) return;
+    if (selectedEvent.longitude == null || selectedEvent.latitude == null) return;
     mapInstanceRef.current.flyTo({
-      center: [selectedEvent.longitude!, selectedEvent.latitude!],
+      center: [selectedEvent.longitude, selectedEvent.latitude],
       zoom: 5.5,
       pitch: mapTheme === "satellite" ? 45 : 35,
       duration: 1100,
