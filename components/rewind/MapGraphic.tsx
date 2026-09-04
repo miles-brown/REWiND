@@ -35,7 +35,7 @@ const MAPBOX_DARK_STYLE = MAPBOX_TOKEN
 
 const MAPBOX_SATELLITE_STYLE = MAPBOX_TOKEN
   ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
-  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+  : "";
 
 // Fallback raster tile style specification if vector GL JSON fails or is offline
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
@@ -59,7 +59,7 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
       type: "raster",
       source: "carto-dark-raster",
       minzoom: 0,
-      maxzoom: 19,
+      maxzoom: 20,
     },
   ],
 };
@@ -85,37 +85,41 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
     },
   });
 
-  map.addLayer({
-    id: "trajectory-line-glow",
-    type: "line",
-    source: "trajectories",
-    layout: {
-      "line-join": "round",
-      "line-cap": "round",
-    },
-    paint: {
-      "line-color": isSatellite ? "#38bdf8" : "#f59e0b",
-      "line-width": isSatellite ? 5 : 4,
-      "line-opacity": 0.4,
-      "line-blur": 3,
-    },
-  });
+  if (!map.getLayer("trajectory-line-glow")) {
+    map.addLayer({
+      id: "trajectory-line-glow",
+      type: "line",
+      source: "trajectories",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": isSatellite ? "#38bdf8" : "#f59e0b",
+        "line-width": isSatellite ? 5 : 4,
+        "line-opacity": 0.4,
+        "line-blur": 3,
+      },
+    });
+  }
 
-  map.addLayer({
-    id: "trajectory-line",
-    type: "line",
-    source: "trajectories",
-    layout: {
-      "line-join": "round",
-      "line-cap": "round",
-    },
-    paint: {
-      "line-color": isSatellite ? "#7dd3fc" : "#fbbf24",
-      "line-width": 2,
-      "line-opacity": 0.95,
-      "line-dasharray": [2, 1],
-    },
-  });
+  if (!map.getLayer("trajectory-line")) {
+    map.addLayer({
+      id: "trajectory-line",
+      type: "line",
+      source: "trajectories",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": isSatellite ? "#7dd3fc" : "#fbbf24",
+        "line-width": 2,
+        "line-opacity": 0.95,
+        "line-dasharray": [2, 1],
+      },
+    });
+  }
 }
 
 export function MapGraphic({
@@ -130,11 +134,22 @@ export function MapGraphic({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MapLibreMarker[]>([]);
-  const [webGlSupported, setWebGlSupported] = useState<boolean>(() => isWebGLAvailable());
-  const [mapMode, setMapMode] = useState<"webgl" | "svg">(() => (isWebGLAvailable() ? "webgl" : "svg"));
+  const [webGlSupported, setWebGlSupported] = useState<boolean>(false);
+  const [mapMode, setMapMode] = useState<"webgl" | "svg">("svg");
   const [mapTheme, setMapTheme] = useState<"dark" | "satellite">("dark");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Mount-only detection of WebGL to ensure consistent SSR and client hydration
+  useEffect(() => {
+    const supported = isWebGLAvailable();
+    if (supported) {
+      requestAnimationFrame(() => {
+        setWebGlSupported(true);
+        setMapMode("webgl");
+      });
+    }
+  }, []);
 
   const points = useMemo(
     () => events.filter((e) => e.latitude != null && e.longitude != null),
@@ -214,7 +229,9 @@ export function MapGraphic({
           ? [selectedEvent.longitude!, selectedEvent.latitude!]
           : [35.2137, 31.7683]; // Default Levant coordinates
 
-        const initialStyle = mapTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
+        const initialStyle = mapTheme === "satellite" && MAPBOX_SATELLITE_STYLE
+          ? MAPBOX_SATELLITE_STYLE
+          : MAPBOX_DARK_STYLE;
 
         const map = new Map({
           container: mapContainerRef.current,
@@ -298,12 +315,14 @@ export function MapGraphic({
 
   // Toggle between Dark Basemap and Satellite 3D View
   const toggleMapTheme = () => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current || !MAPBOX_TOKEN) return;
     const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
     setMapTheme(nextTheme);
 
     const targetStyle = nextTheme === "satellite" ? MAPBOX_SATELLITE_STYLE : MAPBOX_DARK_STYLE;
-    mapInstanceRef.current.setStyle(targetStyle);
+    if (targetStyle) {
+      mapInstanceRef.current.setStyle(targetStyle);
+    }
 
     if (nextTheme === "satellite") {
       mapInstanceRef.current.easeTo({ pitch: 45, duration: 800 });
@@ -434,14 +453,19 @@ export function MapGraphic({
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={toggleMapTheme}
+            onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
+            disabled={!MAPBOX_TOKEN}
             title={
-              mapTheme === "satellite"
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }
             aria-label={
-              mapTheme === "satellite"
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }

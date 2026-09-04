@@ -63,7 +63,8 @@ export default function SourcesPage() {
           const matchTitle = s.title.toLowerCase().includes(q);
           const matchPub = s.publisher.toLowerCase().includes(q);
           const matchId = s.id.toLowerCase().includes(q);
-          if (!matchTitle && !matchPub && !matchId) return false;
+          const matchUrl = s.url ? s.url.toLowerCase().includes(q) : false;
+          if (!matchTitle && !matchPub && !matchId && !matchUrl) return false;
         }
 
         // Classification
@@ -190,6 +191,7 @@ export default function SourcesPage() {
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+              aria-pressed={viewMode === "table"}
               onClick={() => setViewMode("table")}
               title="Table View"
               aria-label="Switch to Table view"
@@ -200,6 +202,7 @@ export default function SourcesPage() {
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "cards" ? "active" : ""}`}
+              aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
               title="Dossier Card View"
               aria-label="Switch to Dossier Card view"
@@ -219,6 +222,7 @@ export default function SourcesPage() {
               <button
                 type="button"
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "all"}
                 onClick={() => setClassificationFilter("all")}
               >
                 All ({sources.length})
@@ -226,6 +230,7 @@ export default function SourcesPage() {
               <button
                 type="button"
                 className={`filter-pill primary ${classificationFilter === "primary" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "primary"}
                 onClick={() => setClassificationFilter("primary")}
               >
                 <ShieldCheck size={12} />
@@ -234,6 +239,7 @@ export default function SourcesPage() {
               <button
                 type="button"
                 className={`filter-pill secondary ${classificationFilter === "secondary" ? "active" : ""}`}
+                aria-pressed={classificationFilter === "secondary"}
                 onClick={() => setClassificationFilter("secondary")}
               >
                 <span>Secondary ({sources.filter((s) => s.classification === "secondary").length})</span>
