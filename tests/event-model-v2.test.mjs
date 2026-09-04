@@ -51,6 +51,7 @@ test("verifies db/schema-v2.ts exports all required normalized relational tables
     "venueAreas",
     "eventPeople",
     "eventPersonLocations",
+    "eventPersonLocationSources",
     "eventPersonOrganisations",
     "eventBroadcasts",
     "eventTopics",
@@ -106,6 +107,16 @@ test("verifies all existing 206 historical events upgrade cleanly to Event Model
     assert.equal(projected.longitude, legacy.longitude);
     assert.equal(projected.verificationStatus, legacy.verificationStatus);
     assert.equal(projected.confidence, legacy.confidence);
+    assert.deepEqual(projected.categories, legacy.categories);
+    assert.deepEqual(projected.eventTypes, legacy.eventTypes);
+    assert.equal(projected.platform, legacy.platform);
+    assert.equal(projected.address, legacy.address);
+    assert.equal(projected.scope, legacy.scope);
+    assert.deepEqual(projected.medium, legacy.medium);
+    assert.deepEqual(projected.quotes, legacy.quotes);
+    assert.deepEqual(projected.media, legacy.media);
+    assert.deepEqual(projected.provenance, legacy.provenance);
+    assert.deepEqual(projected.conflictingClaims, legacy.conflictingClaims);
   }
 });
 
@@ -138,4 +149,155 @@ test("verifies canonical title derivation for person-centric historical events",
     unPalestine,
     "United Nations General Assembly — Question of Palestine"
   );
+});
+
+test("verifies EventPersonSchema and EventPersonOrganisationSchema preserve representations", async () => {
+  const { EventPersonSchema } = await vite.ssrLoadModule("/lib/models/event-v2.ts");
+
+  const personWithRep = {
+    id: "ep-test-1",
+    eventId: "evt-test",
+    personId: "p-netanyahu",
+    involvementType: "speaker",
+    roleLabel: "Permanent Representative",
+    attendanceMode: "physical",
+    presenceConfidence: "confirmed",
+    roleConfidence: "confirmed",
+    representations: [
+      {
+        id: "rep-1",
+        eventPersonId: "ep-test-1",
+        organisationId: "org-state-of-israel",
+        relationshipType: "represents",
+        roleLabel: "Permanent Representative of Israel",
+        confidence: "confirmed",
+      },
+    ],
+  };
+
+  const parsed = EventPersonSchema.parse(personWithRep);
+  assert.ok(parsed.representations, "Parsed EventPerson must retain representations");
+  assert.equal(parsed.representations.length, 1);
+  assert.equal(parsed.representations[0].organisationId, "org-state-of-israel");
+  assert.equal(parsed.representations[0].relationshipType, "represents");
+});
+
+test("verifies EventPersonLocationSchema enforces geographic coordinate bounds [-90, 90] and [-180, 180]", async () => {
+  const { EventPersonLocationSchema } = await vite.ssrLoadModule("/lib/models/event-v2.ts");
+
+  const validLocation = {
+    id: "epl-valid",
+    eventPersonId: "ep-1",
+    latitude: 31.7683,
+    longitude: 35.2137,
+    coordinatePrecision: "building",
+    isPrincipalLocation: true,
+    locationBasis: "archival-record",
+    confidence: "confirmed",
+    sourceIds: ["src-1"],
+    publicVisibility: "public-exact",
+  };
+  assert.ok(EventPersonLocationSchema.safeParse(validLocation).success);
+
+  // Rejects latitude > 90
+  const invalidLat = { ...validLocation, latitude: 91 };
+  assert.equal(EventPersonLocationSchema.safeParse(invalidLat).success, false);
+
+  // Rejects latitude < -90
+  const invalidLatMin = { ...validLocation, latitude: -90.1 };
+  assert.equal(EventPersonLocationSchema.safeParse(invalidLatMin).success, false);
+
+  // Rejects longitude > 180
+  const invalidLng = { ...validLocation, longitude: 180.1 };
+  assert.equal(EventPersonLocationSchema.safeParse(invalidLng).success, false);
+
+  // Rejects longitude < -180
+  const invalidLngMin = { ...validLocation, longitude: -181 };
+  assert.equal(EventPersonLocationSchema.safeParse(invalidLngMin).success, false);
+});
+
+test("verifies locationPrecision coarse mapping for city and country maintains coarse precision, non-exact visibility, and non-public exact flag", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const baseLegacy = {
+    id: "evt-test-city",
+    slug: "test-city",
+    eventName: "Test Event in Geneva",
+    summary: "Test summary",
+    categories: ["Diplomacy"],
+    eventTypes: ["Conference"],
+    startDate: "1985-05-10",
+    endDate: null,
+    localStartTime: null,
+    localEndTime: null,
+    timezone: "Europe/Geneva",
+    datePrecision: "exact",
+    timePrecision: "approximate",
+    platform: null,
+    venueName: null,
+    address: null,
+    city: "Geneva",
+    region: null,
+    country: "Switzerland",
+    latitude: 46.2044,
+    longitude: 6.1432,
+    locationPrecision: "city",
+    participants: [{ personId: "p-1", name: "Speaker", role: "Speaker", presenceConfidence: "confirmed" }],
+    organisations: [],
+    notes: null,
+    scope: "diplomatic",
+    medium: ["official-record"],
+    confidence: "confirmed",
+    verificationStatus: "verified",
+    sourceIds: ["src-un-1"],
+    quotes: [],
+    media: [],
+    provenance: ["Test"],
+    conflictingClaims: [],
+    reviewedAt: "2026-09-01T00:00:00Z",
+  };
+
+  const cityV2 = upgradeLegacyToV2(baseLegacy);
+  assert.equal(cityV2.locationPrecision, "city");
+  assert.equal(cityV2.people[0].locations[0].coordinatePrecision, "city");
+  assert.equal(cityV2.people[0].locations[0].publicVisibility, "public-city");
+  assert.equal(cityV2.editorialControls.exactLocationPublic, false);
+
+  const countryV2 = upgradeLegacyToV2({ ...baseLegacy, id: "evt-test-country", locationPrecision: "country" });
+  assert.equal(countryV2.locationPrecision, "country");
+  assert.equal(countryV2.people[0].locations[0].coordinatePrecision, "country");
+  assert.equal(countryV2.people[0].locations[0].publicVisibility, "public-city");
+  assert.equal(countryV2.editorialControls.exactLocationPublic, false);
+});
+
+test("verifies inferInvolvementType returns distinct InvolvementType for each supported role", async () => {
+  const { inferInvolvementType } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  assert.equal(inferInvolvementType("Host of the Gala"), "host");
+  assert.equal(inferInvolvementType("Interviewer on BBC Newsnight"), "interviewer");
+  assert.equal(inferInvolvementType("Interviewee on Meet the Press"), "interviewee");
+  assert.equal(inferInvolvementType("Special Guest Speaker"), "speaker");
+  assert.equal(inferInvolvementType("Special Guest"), "guest");
+  assert.equal(inferInvolvementType("Panel Moderator"), "moderator");
+  assert.equal(inferInvolvementType("Panelist on Middle East Policy"), "panelist");
+  assert.equal(inferInvolvementType("Witness to Signing"), "witness");
+  assert.equal(inferInvolvementType("Conference Attendee"), "attendee");
+  assert.equal(inferInvolvementType("Session Chair"), "chair");
+  assert.equal(inferInvolvementType("Official Delegate"), "delegate");
+  assert.equal(inferInvolvementType("Security Detail"), "security");
+});
+
+test("verifies EventPersonLocation normalizes and persists location-to-source relations", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+  const { events } = await vite.ssrLoadModule("/data/rewind.ts");
+
+  const sample = events.find((e) => e.latitude != null && e.sourceIds.length > 0);
+  assert.ok(sample, "Sample event with coordinates and sourceIds must exist");
+
+  const v2 = upgradeLegacyToV2(sample);
+  const loc = v2.people[0].locations[0];
+  assert.ok(loc.sources, "Location must contain normalized sources relation");
+  assert.equal(loc.sources.length, sample.sourceIds.length);
+  assert.equal(loc.sources[0].sourceId, sample.sourceIds[0]);
+  assert.equal(loc.sources[0].eventPersonLocationId, loc.id);
 });

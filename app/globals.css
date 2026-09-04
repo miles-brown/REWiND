@@ -956,7 +956,7 @@ svg { flex: 0 0 auto; }
 
 .sources-filter-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .filter-group { display: flex; flex-direction: column; gap: 6px; }
-.filter-group-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-group-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
 .filter-pill-cluster { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .filter-pill { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1; font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center; gap: 5px; }
 .filter-pill:hover { background: rgba(255, 255, 255, 0.1); color: #f8fafc; }
@@ -965,7 +965,7 @@ svg { flex: 0 0 auto; }
 .filter-pill.secondary.active { background: #eab308; color: #020617; border-color: #eab308; }
 
 .filter-select-wrap { display: flex; flex-direction: column; gap: 4px; }
-.filter-select-wrap label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-select-wrap label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
 .sources-select { background: #071017; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 7px; color: #f8fafc; font-size: 12px; padding: 6px 10px; min-width: 150px; cursor: pointer; }
 .sources-select:focus { outline: none; border-color: #f59e0b; }
 

@@ -7,6 +7,7 @@ import type {
   InvolvementType,
   LocationPrecisionV2,
   LocationType,
+  VisibilityLevel,
 } from "../models/event-v2";
 
 /**
@@ -76,10 +77,14 @@ export function inferInvolvementType(role: string): InvolvementType {
   if (r.includes("speaker") || r.includes("orator") || r.includes("keynote")) return "speaker";
   if (r.includes("chair") || r.includes("president") || r.includes("presiding")) return "chair";
   if (r.includes("delegate") || r.includes("envoy")) return "delegate";
-  if (r.includes("host") || r.includes("interviewer")) return "host";
-  if (r.includes("guest") || r.includes("interviewee")) return "interviewee";
-  if (r.includes("panelist") || r.includes("moderator")) return "panelist";
-  if (r.includes("attendee") || r.includes("witness")) return "attendee";
+  if (r.includes("interviewer")) return "interviewer";
+  if (r.includes("host")) return "host";
+  if (r.includes("interviewee")) return "interviewee";
+  if (r.includes("guest")) return "guest";
+  if (r.includes("moderator")) return "moderator";
+  if (r.includes("panelist")) return "panelist";
+  if (r.includes("witness")) return "witness";
+  if (r.includes("attendee")) return "attendee";
   if (r.includes("security") || r.includes("guard")) return "security";
   return "participant";
 }
@@ -89,6 +94,10 @@ export function inferInvolvementType(role: string): InvolvementType {
  */
 export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
   const canonicalTitle = deriveCanonicalTitle(legacy.eventName, legacy.venueName);
+
+  const isCoarseLocation =
+    legacy.locationPrecision === "city" || legacy.locationPrecision === "country";
+  const locationPublicVis: VisibilityLevel = isCoarseLocation ? "public-city" : "public-exact";
 
   // Derive initial person participation records
   const people: EventPerson[] = legacy.participants.map((p, idx) => {
@@ -116,7 +125,13 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 locationBasis: "archival-record",
                 confidence: legacy.confidence,
                 sourceIds: legacy.sourceIds,
-                publicVisibility: "public-exact",
+                sources: legacy.sourceIds.map((sid, sIdx) => ({
+                  id: `epls-${legacy.id}-${p.personId}-0-${sIdx}`,
+                  eventPersonLocationId: `epl-${legacy.id}-${p.personId}-0`,
+                  sourceId: sid,
+                  confidence: legacy.confidence,
+                })),
+                publicVisibility: locationPublicVis,
               },
             ]
           : [],
@@ -171,7 +186,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     possibleDateConflict: false,
     possibleLocationConflict: false,
     sensitiveLocation: false,
-    exactLocationPublic: true,
+    exactLocationPublic: !isCoarseLocation && legacy.locationPrecision !== "unknown",
     readyForPublication: legacy.verificationStatus === "verified",
     featuredEvent: legacy.confidence === "confirmed",
     dataCompletenessScore: 85,
@@ -214,6 +229,24 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       organisationId: orgId,
       relationshipType: "participant",
     })),
+    topics: legacy.categories.map((cat, idx) => ({
+      id: `et-${legacy.id}-${idx}`,
+      eventId: legacy.id,
+      topicId: cat,
+      relationshipType: "primary-topic",
+    })),
+    compatibilityPayload: {
+      categories: [...legacy.categories],
+      eventTypes: [...legacy.eventTypes],
+      platform: legacy.platform ?? null,
+      address: legacy.address ?? null,
+      scope: legacy.scope,
+      medium: [...legacy.medium],
+      quotes: [...legacy.quotes],
+      media: [...legacy.media],
+      provenance: [...legacy.provenance],
+      conflictingClaims: [...legacy.conflictingClaims],
+    },
     eventName: legacy.eventName, // preserved for backward-compatibility
   };
 }
@@ -233,13 +266,15 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     legacyPrecision = "country";
   }
 
+  const compat = v2.compatibilityPayload;
+
   return {
     id: v2.id,
     slug: v2.slug,
     eventName: v2.eventName || v2.canonicalTitle,
     summary: v2.summary,
-    categories: v2.topics?.map((t) => t.topicId) || ["Historical"],
-    eventTypes: [v2.hierarchyType || "Event"],
+    categories: compat ? [...compat.categories] : v2.topics?.map((t) => t.topicId) || ["Historical"],
+    eventTypes: compat ? [...compat.eventTypes] : [v2.hierarchyType || "Event"],
     startDate: v2.startDate,
     endDate: v2.endDate || null,
     localStartTime: v2.localStartTime || null,
@@ -247,9 +282,9 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     timezone: v2.timezone || null,
     datePrecision: v2.datePrecision,
     timePrecision: v2.timePrecision,
-    platform: v2.eventSeriesId || null,
+    platform: compat ? compat.platform : (v2.eventSeriesId || null),
     venueName: v2.venueName || null,
-    address: null,
+    address: compat ? compat.address : null,
     city: v2.city,
     region: v2.region || null,
     country: v2.country,
@@ -265,15 +300,15 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
       })) || [],
     organisations: v2.organisations?.map((o) => o.organisationId) || [],
     notes: v2.researchNotes || null,
-    scope: v2.factualFlags.publicEvent === "yes" ? "public" : "diplomatic",
-    medium: v2.factualFlags.televised === "yes" ? ["broadcast"] : ["official-record"],
+    scope: compat ? compat.scope : (v2.factualFlags.publicEvent === "yes" ? "public" : "diplomatic"),
+    medium: compat ? [...compat.medium] : (v2.factualFlags.televised === "yes" ? ["broadcast"] : ["official-record"]),
     confidence: v2.confidence,
     verificationStatus: v2.verificationStatus,
     sourceIds: v2.sourceIds,
-    quotes: [],
-    media: [],
-    provenance: ["Event Model v2 Archival Migration"],
-    conflictingClaims: [],
+    quotes: compat ? [...compat.quotes] : [],
+    media: compat ? [...compat.media] : [],
+    provenance: compat ? [...compat.provenance] : ["Event Model v2 Archival Migration"],
+    conflictingClaims: compat ? [...compat.conflictingClaims] : [],
     reviewedAt: v2.reviewedAt,
   };
 }

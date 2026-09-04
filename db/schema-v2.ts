@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   doublePrecision,
   integer,
   pgTable,
@@ -113,24 +115,49 @@ export const eventPeople = pgTable("event_people", {
 });
 
 // Individual Person's Documented Coordinates within Event
-export const eventPersonLocations = pgTable("event_person_locations", {
+export const eventPersonLocations = pgTable(
+  "event_person_locations",
+  {
+    id: serial("id").primaryKey(),
+    eventPersonId: text("event_person_id")
+      .references(() => eventPeople.id, { onDelete: "cascade" })
+      .notNull(),
+    placeId: text("place_id").references(() => places.id),
+    venueId: text("venue_id").references(() => venues.id),
+    venueAreaId: text("venue_area_id").references(() => venueAreas.id),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    coordinatePrecision: text("coordinate_precision").notNull(), // exact-position, room, stage, building, etc.
+    uncertaintyRadiusMetres: integer("uncertainty_radius_metres"),
+    localStartTime: text("local_start_time"),
+    localEndTime: text("local_end_time"),
+    isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
+    locationBasis: text("location_basis").default("archival-record").notNull(),
+    confidence: text("confidence").default("confirmed").notNull(),
+    publicVisibility: text("public_visibility").default("public-exact").notNull(),
+  },
+  (table) => [
+    check(
+      "event_person_locations_latitude_check",
+      sql`${table.latitude} >= -90.0 AND ${table.latitude} <= 90.0`
+    ),
+    check(
+      "event_person_locations_longitude_check",
+      sql`${table.longitude} >= -180.0 AND ${table.longitude} <= 180.0`
+    ),
+  ]
+);
+
+// Normalized Location-to-Source Relation for EventPersonLocation
+export const eventPersonLocationSources = pgTable("event_person_location_sources", {
   id: serial("id").primaryKey(),
-  eventPersonId: text("event_person_id")
-    .references(() => eventPeople.id, { onDelete: "cascade" })
+  eventPersonLocationId: integer("event_person_location_id")
+    .references(() => eventPersonLocations.id, { onDelete: "cascade" })
     .notNull(),
-  placeId: text("place_id").references(() => places.id),
-  venueId: text("venue_id").references(() => venues.id),
-  venueAreaId: text("venue_area_id").references(() => venueAreas.id),
-  latitude: doublePrecision("latitude").notNull(),
-  longitude: doublePrecision("longitude").notNull(),
-  coordinatePrecision: text("coordinate_precision").notNull(), // exact-position, room, stage, building, etc.
-  uncertaintyRadiusMetres: integer("uncertainty_radius_metres"),
-  localStartTime: text("local_start_time"),
-  localEndTime: text("local_end_time"),
-  isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
-  locationBasis: text("location_basis").default("archival-record").notNull(),
+  sourceId: text("source_id")
+    .references(() => sources.id, { onDelete: "cascade" })
+    .notNull(),
   confidence: text("confidence").default("confirmed").notNull(),
-  publicVisibility: text("public_visibility").default("public-exact").notNull(),
 });
 
 // Person Representation within Specific Event

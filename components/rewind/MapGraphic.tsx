@@ -130,11 +130,23 @@ export function MapGraphic({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MapLibreMarker[]>([]);
-  const [webGlSupported, setWebGlSupported] = useState<boolean>(() => isWebGLAvailable());
-  const [mapMode, setMapMode] = useState<"webgl" | "svg">(() => (isWebGLAvailable() ? "webgl" : "svg"));
+  const [webGlSupported, setWebGlSupported] = useState<boolean>(false);
+  const [mapMode, setMapMode] = useState<"webgl" | "svg">("svg");
   const [mapTheme, setMapTheme] = useState<"dark" | "satellite">("dark");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Detect WebGL capability client-side after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      const available = isWebGLAvailable();
+      setWebGlSupported(available);
+      if (available) {
+        setMapMode("webgl");
+      }
+    });
+    return () => cancelAnimationFrame(handle);
+  }, []);
 
   const points = useMemo(
     () => events.filter((e) => e.latitude != null && e.longitude != null),
@@ -426,16 +438,22 @@ export function MapGraphic({
         mapTheme === "satellite" ? "satellite-active" : ""
       }`}
       role="group"
-      aria-label={`Geospatial map showing ${points.length} documented event locations`}
+      aria-label={`Geospatial map showing ${points.length} documented event locations and chronological trajectories`}
     >
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {selectedEvent ? `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}` : ""}
+      </div>
+
       {/* Map Control Actions Toolbar */}
       <div className="map-toolbar">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
-        {webGlSupported && mapMode === "webgl" && (
+        {Boolean(MAPBOX_TOKEN) && webGlSupported && mapMode === "webgl" && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
             onClick={toggleMapTheme}
+            aria-pressed={mapTheme === "satellite"}
             title={
               mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
@@ -575,6 +593,7 @@ export function MapGraphic({
                 }`}
                 aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}
               >
+                <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>
                 <i />
                 {cluster.count > 1 && <b className="cluster-badge">{cluster.count}</b>}
                 <span>

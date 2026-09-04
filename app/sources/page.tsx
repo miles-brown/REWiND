@@ -63,7 +63,8 @@ export default function SourcesPage() {
           const matchTitle = s.title.toLowerCase().includes(q);
           const matchPub = s.publisher.toLowerCase().includes(q);
           const matchId = s.id.toLowerCase().includes(q);
-          if (!matchTitle && !matchPub && !matchId) return false;
+          const matchUrl = (s.url || "").toLowerCase().includes(q);
+          if (!matchTitle && !matchPub && !matchId && !matchUrl) return false;
         }
 
         // Classification
@@ -193,6 +194,7 @@ export default function SourcesPage() {
               onClick={() => setViewMode("table")}
               title="Table View"
               aria-label="Switch to Table view"
+              aria-pressed={viewMode === "table"}
             >
               <List size={15} />
               <span>Table</span>
@@ -203,6 +205,7 @@ export default function SourcesPage() {
               onClick={() => setViewMode("cards")}
               title="Dossier Card View"
               aria-label="Switch to Dossier Card view"
+              aria-pressed={viewMode === "cards"}
             >
               <Grid size={15} />
               <span>Cards</span>
@@ -214,10 +217,16 @@ export default function SourcesPage() {
         <div className="sources-filter-row">
           {/* Classification */}
           <div className="filter-group">
-            <span className="filter-group-label">Evidence Tier</span>
-            <div className="filter-pill-cluster">
+            <span className="filter-group-label" id="evidence-tier-label">Evidence Tier</span>
+            <div
+              className="filter-pill-cluster"
+              role="radiogroup"
+              aria-labelledby="evidence-tier-label"
+            >
               <button
                 type="button"
+                role="radio"
+                aria-checked={classificationFilter === "all"}
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("all")}
               >
@@ -225,6 +234,8 @@ export default function SourcesPage() {
               </button>
               <button
                 type="button"
+                role="radio"
+                aria-checked={classificationFilter === "primary"}
                 className={`filter-pill primary ${classificationFilter === "primary" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("primary")}
               >
@@ -233,6 +244,8 @@ export default function SourcesPage() {
               </button>
               <button
                 type="button"
+                role="radio"
+                aria-checked={classificationFilter === "secondary"}
                 className={`filter-pill secondary ${classificationFilter === "secondary" ? "active" : ""}`}
                 onClick={() => setClassificationFilter("secondary")}
               >

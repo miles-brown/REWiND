@@ -52,6 +52,7 @@ graph TD
     EventPerson --> Person["Person Entity"]
     EventPerson --> PersonLoc["EventPersonLocation[]<br/>(Podium coordinate, stage-right, room)"]
     EventPerson --> PersonOrg["EventPersonOrganisation[]<br/>(Representing State of Israel, BBC News)"]
+    PersonLoc --> LocSource["EventPersonLocationSource[]<br/>(Location-specific coordinates provenance)"]
 ```
 
 ---

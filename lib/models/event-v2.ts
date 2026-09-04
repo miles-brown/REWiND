@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Confidence, Precision, Verification } from "@/data/rewind";
+import type { Confidence, EventRecord, Precision, Verification } from "@/data/rewind";
 
 // ==========================================
 // 1. Enums & Core Tri-State Types
@@ -221,6 +221,13 @@ export interface VenueArea {
   longitude?: number;
 }
 
+export interface EventPersonLocationSource {
+  id: string;
+  eventPersonLocationId: string;
+  sourceId: string;
+  confidence?: Confidence;
+}
+
 export interface EventPersonLocation {
   id: string;
   eventPersonId: string;
@@ -237,6 +244,7 @@ export interface EventPersonLocation {
   locationBasis: EpistemicBasis;
   confidence: Confidence;
   sourceIds: string[];
+  sources?: EventPersonLocationSource[];
   publicVisibility: VisibilityLevel;
 }
 
@@ -426,8 +434,22 @@ export interface EventV2 {
   broadcasts?: EventBroadcast[];
   routeSequences?: EventLocationSequence[];
 
-  // Backward compatibility alias
+  // Backward compatibility alias & payload
   eventName?: string;
+  compatibilityPayload?: EventCompatibilityPayload;
+}
+
+export interface EventCompatibilityPayload {
+  categories: string[];
+  eventTypes: string[];
+  platform: string | null;
+  address: string | null;
+  scope: EventRecord["scope"];
+  medium: string[];
+  quotes: EventRecord["quotes"];
+  media: EventRecord["media"];
+  provenance: string[];
+  conflictingClaims: EventRecord["conflictingClaims"];
 }
 
 // ==========================================
@@ -453,14 +475,21 @@ export const LocationPrecisionV2Schema = z.enum([
   "unknown",
 ]);
 
+export const EventPersonLocationSourceSchema = z.object({
+  id: z.string(),
+  eventPersonLocationId: z.string(),
+  sourceId: z.string(),
+  confidence: z.enum(["confirmed", "strong", "moderate", "limited"]).optional(),
+});
+
 export const EventPersonLocationSchema = z.object({
   id: z.string(),
   eventPersonId: z.string(),
   placeId: z.string().optional(),
   venueId: z.string().optional(),
   venueAreaId: z.string().optional(),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
   coordinatePrecision: LocationPrecisionV2Schema,
   uncertaintyRadiusMetres: z.number().optional(),
   localStartTime: z.string().optional(),
@@ -469,7 +498,29 @@ export const EventPersonLocationSchema = z.object({
   locationBasis: z.string(),
   confidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
   sourceIds: z.array(z.string()),
+  sources: z.array(EventPersonLocationSourceSchema).optional(),
   publicVisibility: z.enum(["public-exact", "public-venue", "public-city", "restricted", "internal-only"]),
+});
+
+export const EventPersonOrganisationSchema = z.object({
+  id: z.string(),
+  eventPersonId: z.string(),
+  organisationId: z.string(),
+  relationshipType: z.enum([
+    "represents",
+    "employed-by",
+    "member-of",
+    "delegation-of",
+    "appearing-for",
+    "affiliated-with",
+    "commissioned-by",
+    "sponsored-by",
+    "agency",
+    "production-company",
+    "other",
+  ]),
+  roleLabel: z.string().optional(),
+  confidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
 });
 
 export const EventPersonSchema = z.object({
@@ -483,4 +534,5 @@ export const EventPersonSchema = z.object({
   presenceConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
   roleConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
   locations: z.array(EventPersonLocationSchema).optional(),
+  representations: z.array(EventPersonOrganisationSchema).optional(),
 });
