@@ -231,13 +231,14 @@ export function TimelineComparison({
                 Figure 1 (Primary Anchor)
               </label>
               {personA && (
-                <span className="selector-badge">{eventsA.length} indexed events</span>
+                <span id="figure-1-badge" className="selector-badge">{eventsA.length} indexed events</span>
               )}
             </div>
             <div className="selector-input-wrapper">
               <select
                 id="figure-1-select"
                 className="selector-select"
+                aria-describedby={personA ? "figure-1-badge" : undefined}
                 value={effectiveSlugA}
                 onChange={(e) => {
                   setSlugA(e.target.value);
@@ -280,7 +281,7 @@ export function TimelineComparison({
               <label htmlFor="figure-2-select" className="selector-label">
                 Figure 2 (Co-Attendee)
               </label>
-              <span className="selector-badge">
+              <span id="figure-2-badge" className="selector-badge">
                 {coAttendeesWithCounts.length} shared co-attendee
                 {coAttendeesWithCounts.length === 1 ? "" : "s"}
               </span>
@@ -289,6 +290,7 @@ export function TimelineComparison({
               <select
                 id="figure-2-select"
                 className="selector-select"
+                aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
                 disabled={coAttendeesWithCounts.length === 0}
@@ -407,7 +409,11 @@ export function TimelineComparison({
               {intersections.length > 0 ? (
                 <>
                   {/* Geospatial Map Section */}
-                  <div className="intersection-map-section">
+                  <section
+                    className="intersection-map-section"
+                    role="region"
+                    aria-label="Meeting Locations Geospatial Footprint"
+                  >
                     <div className="section-header">
                       <span className="eyebrow">GEOSPATIAL FOOTPRINT</span>
                       <h3>Meeting Locations Across the Globe</h3>
@@ -416,10 +422,14 @@ export function TimelineComparison({
                       </p>
                     </div>
                     <MapGraphic events={intersections} />
-                  </div>
+                  </section>
 
                   {/* Shared Timeline Chronology */}
-                  <div className="intersection-timeline-stream">
+                  <section
+                    className="intersection-timeline-stream"
+                    role="region"
+                    aria-label="Shared Joint Timeline Chronology"
+                  >
                     <div className="section-header">
                       <span className="eyebrow">SHARED TIMELINE</span>
                       <h3>
@@ -457,7 +467,12 @@ export function TimelineComparison({
                         );
 
                         return (
-                          <article key={event.id} className="encounter-card">
+                          <article
+                            key={event.id}
+                            className="encounter-card"
+                            role="article"
+                            aria-labelledby={`encounter-title-${event.id}`}
+                          >
                             <div className="encounter-card-header">
                               <span
                                 className="encounter-date-pill"
@@ -472,7 +487,7 @@ export function TimelineComparison({
                                 title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "confirmed"} · ${event.timePrecision || event.datePrecision || "exact-day"} precision`}
                               >
                                 {event.verificationStatus === "verified" ? (
-                                  <CheckCircle2 size={12} />
+                                   <CheckCircle2 size={12} />
                                 ) : (
                                   <CircleDashed size={12} />
                                 )}
@@ -480,7 +495,7 @@ export function TimelineComparison({
                               </span>
                             </div>
 
-                            <h4>{event.eventName}</h4>
+                            <h4 id={`encounter-title-${event.id}`}>{event.eventName}</h4>
 
                             <p className="encounter-place">
                               <MapPin size={14} />
@@ -565,7 +580,7 @@ export function TimelineComparison({
                         );
                       })}
                     </div>
-                  </div>
+                  </section>
                 </>
               ) : (
                 <div className="zero-state">

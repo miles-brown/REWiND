@@ -670,27 +670,57 @@ export async function getEventsByPerson(personSlug: string): Promise<EventRecord
 
       if (personError || !person) return [];
 
-      const { data: participations, error: partError } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", person.id);
+      const participations: { event_id: string }[] = [];
+      const partPageSize = 1000;
+      let partFrom = 0;
+      let partHasMore = true;
 
-      if (partError || !participations) return [];
+      while (partHasMore) {
+        const { data: partRows, error: partError } = await supabase
+          .from("event_people")
+          .select("event_id")
+          .eq("person_id", person.id)
+          .order("event_id", { ascending: true })
+          .range(partFrom, partFrom + partPageSize - 1);
 
-      const eventIds = participations.map((p) => p.event_id);
+        if (partError || !partRows) return [];
+        participations.push(...partRows);
+
+        if (partRows.length < partPageSize) {
+          partHasMore = false;
+        } else {
+          partFrom += partPageSize;
+        }
+      }
+
+      const eventIds = Array.from(new Set(participations.map((p) => p.event_id)));
       if (eventIds.length === 0) return [];
 
-      const { data: eventRows, error: eventsError } = await supabase
-        .from("events")
-        .select("*")
-        .in("id", eventIds)
-        .eq("publication_status", "published")
-        .order("start_date", { ascending: true })
-        .order("id", { ascending: true });
+      const eventRows: Record<string, unknown>[] = [];
+      const chunkSize = 500;
+      for (let i = 0; i < eventIds.length; i += chunkSize) {
+        const chunk = eventIds.slice(i, i + chunkSize);
+        const { data: chunkRows, error: eventsError } = await supabase
+          .from("events")
+          .select("*")
+          .in("id", chunk)
+          .eq("publication_status", "published")
+          .order("start_date", { ascending: true })
+          .order("id", { ascending: true });
 
-      if (eventsError || !eventRows || eventRows.length === 0) {
+        if (eventsError || !chunkRows) return [];
+        eventRows.push(...chunkRows);
+      }
+
+      if (eventRows.length === 0) {
         return [];
       }
+
+      eventRows.sort((a, b) => {
+        const dateCmp = String(a.start_date || "").localeCompare(String(b.start_date || ""));
+        return dateCmp !== 0 ? dateCmp : String(a.id || "").localeCompare(String(b.id || ""));
+      });
+
       return hydrateEventRows(supabase, eventRows);
     }
 
@@ -718,18 +748,37 @@ export async function getEventYears(): Promise<number[]> {
   try {
     const supabase = await createClient();
     if (supabase) {
-      const { data, error } = await supabase
-        .from("events")
-        .select("start_date")
-        .eq("publication_status", "published")
-        .order("start_date", { ascending: true });
+      const allRows: { start_date: string }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (error) {
-        return [];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("events")
+          .select("start_date")
+          .eq("publication_status", "published")
+          .order("start_date", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          return [];
+        }
+
+        if (data) {
+          allRows.push(...data);
+        }
+
+        if (!data || data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
       }
 
       const years = new Set<number>();
-      (data || []).forEach((row) => {
+      allRows.forEach((row) => {
         if (row.start_date && row.start_date.length >= 4) {
           const year = parseInt(row.start_date.slice(0, 4), 10);
           if (!isNaN(year)) years.add(year);

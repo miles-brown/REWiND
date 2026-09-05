@@ -171,18 +171,49 @@ export async function getRelationshipBetween(
 
     const supabase = await createClient();
     if (supabase) {
-      // Find events where both personA.id and personB.id participate
-      const { data: partA } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", personA.id);
-      const { data: partB } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", personB.id);
+      // Find events where both personA.id and personB.id participate with robust pagination
+      const fetchParticipations = async (personId: string) => {
+        const participations: { event_id: string }[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
 
-      const eventsA = new Set((partA || []).map((p) => p.event_id));
-      const sharedIds = (partB || [])
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("event_people")
+            .select("event_id")
+            .eq("person_id", personId)
+            .order("event_id", { ascending: true })
+            .range(from, from + pageSize - 1);
+
+          if (error) {
+            return { data: null, error };
+          }
+
+          if (data) {
+            participations.push(...data);
+          }
+
+          if (!data || data.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return { data: participations, error: null };
+      };
+
+      const [resA, resB] = await Promise.all([
+        fetchParticipations(personA.id),
+        fetchParticipations(personB.id),
+      ]);
+
+      if (resA.error || resB.error) {
+        return null;
+      }
+
+      const eventsA = new Set((resA.data || []).map((p) => p.event_id));
+      const sharedIds = (resB.data || [])
         .map((p) => p.event_id)
         .filter((id) => eventsA.has(id));
 

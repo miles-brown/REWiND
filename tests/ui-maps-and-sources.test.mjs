@@ -596,6 +596,31 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     compContent.includes("comparison-cycle-grid"),
     "TimelineComparison empty state must render prominent CTA switch button and candidate cycle grid"
   );
+
+  // 8. Accessibility (WCAG 2.1 AA) contracts across modals, explorers, and comparison views
+  assert.ok(
+    citeContent.includes('role="alert"') && citeContent.includes('className="citation-unavailable"'),
+    "CitationModal must mark unavailable fallback notice with role='alert'"
+  );
+  assert.ok(
+    rewindContent.includes("useMemo(") &&
+    rewindContent.includes('aria-label="Filter by event type"') &&
+    rewindContent.includes('aria-label="Filter by verification status"'),
+    "RewindExplorer must memoize types and declare explicit aria-labels on filter selects"
+  );
+  assert.ok(
+    compContent.includes('id="figure-1-badge"') &&
+    compContent.includes('aria-describedby={personA ? "figure-1-badge" : undefined}') &&
+    compContent.includes('id="figure-2-badge"') &&
+    compContent.includes('aria-describedby="figure-2-badge"') &&
+    compContent.includes('role="region"') &&
+    compContent.includes('aria-label="Meeting Locations Geospatial Footprint"') &&
+    compContent.includes('aria-label="Shared Joint Timeline Chronology"') &&
+    compContent.includes('role="article"') &&
+    compContent.includes('aria-labelledby={`encounter-title-${event.id}`}'),
+    "TimelineComparison must provide connected ARIA badges, region landmark labeling, and article semantics"
+  );
 });
+
 
 

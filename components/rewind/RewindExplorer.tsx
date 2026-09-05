@@ -87,7 +87,10 @@ export function RewindExplorer({
   const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
   const event = hasEvents ? filtered[safeIndex] : null;
   const source = event?.sources?.[0] || (event?.sourceIds?.[0] ? sourceById(event.sourceIds[0]) : null);
-  const types = Array.from(new Set(initialEvents.flatMap((e) => e.eventTypes || []))).sort();
+  const types = useMemo(
+    () => Array.from(new Set(initialEvents.flatMap((e) => e.eventTypes || []))).sort(),
+    [initialEvents]
+  );
   const date = event ? new Date(event.startDate + "T12:00:00") : null;
 
   const choose = (id: string) => {
@@ -119,6 +122,7 @@ export function RewindExplorer({
             <Filter size={14} />
             <span className="sr-only">Event type</span>
             <select
+              aria-label="Filter by event type"
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
@@ -136,6 +140,7 @@ export function RewindExplorer({
             <CalendarDays size={14} />
             <span className="sr-only">Verification status</span>
             <select
+              aria-label="Filter by verification status"
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
