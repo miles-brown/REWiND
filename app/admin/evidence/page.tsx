@@ -326,7 +326,9 @@ export default function EvidenceControlConsole() {
           <button
             type="button"
             role="tab"
+            id="tab-queue"
             aria-selected={activeTab === "queue"}
+            aria-controls="tabpanel-queue"
             className={`tab-btn ${activeTab === "queue" ? "active" : ""}`}
             onClick={() => setActiveTab("queue")}
           >
@@ -338,7 +340,9 @@ export default function EvidenceControlConsole() {
           <button
             type="button"
             role="tab"
+            id="tab-duplicates"
             aria-selected={activeTab === "duplicates"}
+            aria-controls="tabpanel-duplicates"
             className={`tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
             onClick={() => setActiveTab("duplicates")}
           >
@@ -350,7 +354,9 @@ export default function EvidenceControlConsole() {
           <button
             type="button"
             role="tab"
+            id="tab-audit"
             aria-selected={activeTab === "audit"}
+            aria-controls="tabpanel-audit"
             className={`tab-btn ${activeTab === "audit" ? "active" : ""}`}
             onClick={() => setActiveTab("audit")}
           >
@@ -364,7 +370,12 @@ export default function EvidenceControlConsole() {
         <section className="console-tab-stage">
           {/* TAB 1: Review Queue */}
           {activeTab === "queue" && (
-            <div className="queue-stage">
+            <div
+              className="queue-stage"
+              role="tabpanel"
+              id="tabpanel-queue"
+              aria-labelledby="tab-queue"
+            >
               {pendingItems.length === 0 ? (
                 <div className="empty-queue-card">
                   <ShieldCheck size={36} />
@@ -453,7 +464,12 @@ export default function EvidenceControlConsole() {
 
           {/* TAB 2: Duplicate Merges */}
           {activeTab === "duplicates" && (
-            <div className="duplicates-stage">
+            <div
+              className="duplicates-stage"
+              role="tabpanel"
+              id="tabpanel-duplicates"
+              aria-labelledby="tab-duplicates"
+            >
               {duplicateItems.length === 0 ? (
                 <div className="empty-queue-card">
                   <GitMerge size={36} />
@@ -523,7 +539,12 @@ export default function EvidenceControlConsole() {
 
           {/* TAB 3: Audit Trail */}
           {activeTab === "audit" && (
-            <div className="audit-stage">
+            <div
+              className="audit-stage"
+              role="tabpanel"
+              id="tabpanel-audit"
+              aria-labelledby="tab-audit"
+            >
               <div className="audit-table-card">
                 <table className="audit-table" aria-label="Immutable Evidence Engine Audit Log">
                   <thead>

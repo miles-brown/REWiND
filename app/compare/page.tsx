@@ -1,5 +1,6 @@
 import { ArrowLeftRight } from "lucide-react";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { getPeople, getAllEvents, getSources } from "@/lib/rewind";
 
 export const metadata = {
@@ -26,13 +27,15 @@ export default async function ComparePage() {
         </p>
       </header>
 
-      <TimelineComparison
-        initialPersonA="benjamin-netanyahu"
-        initialPersonB="bill-clinton"
-        people={people}
-        events={allEvents}
-        sources={sources}
-      />
+      <ErrorBoundary sectionName="Timeline Comparison">
+        <TimelineComparison
+          initialPersonA="benjamin-netanyahu"
+          initialPersonB="bill-clinton"
+          people={people}
+          events={allEvents}
+          sources={sources}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

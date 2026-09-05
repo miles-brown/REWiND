@@ -120,6 +120,7 @@ export function RewindExplorer({
             <span className="sr-only">Event type</span>
             <select
               value={type}
+              aria-label="Filter by event type"
               onChange={(e) => {
                 setType(e.target.value);
                 setIndex(0);
@@ -137,6 +138,7 @@ export function RewindExplorer({
             <span className="sr-only">Verification status</span>
             <select
               value={status}
+              aria-label="Filter by verification status"
               onChange={(e) => {
                 setStatus(e.target.value);
                 setIndex(0);

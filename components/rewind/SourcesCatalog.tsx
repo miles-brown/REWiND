@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -22,11 +22,11 @@ type ViewMode = "table" | "cards";
 export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; displayDate: string } {
   const raw = s.publicationDate || s.accessedDate || "";
   if (!raw) return { isoDate: null, displayDate: "Undated" };
-  const d = new Date(raw.includes("T") ? raw : raw + "T12:00:00");
+  const d = new Date(raw.includes("T") ? raw : raw + "T12:00:00Z");
   if (isNaN(d.getTime())) return { isoDate: raw, displayDate: raw };
   return {
     isoDate: raw,
-    displayDate: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    displayDate: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }),
   };
 }
 
@@ -147,13 +147,40 @@ export function SourcesCatalog({
     [sources, sourceEventMap]
   );
 
-  function resetFilters() {
+  const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  }, []);
+
+  const handleClearQuery = useCallback(() => {
+    setQuery("");
+  }, []);
+
+  const handleClassificationFilter = useCallback((tier: string) => {
+    setClassificationFilter(tier);
+  }, []);
+
+  const handleTypeFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTypeFilter(e.target.value);
+  }, []);
+
+  const handlePublisherFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPublisherFilter(e.target.value);
+  }, []);
+
+  const handleSortOptionChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortOption(e.target.value as SortOption);
+  }, []);
+
+  const handleSetViewTable = useCallback(() => setViewMode("table"), []);
+  const handleSetViewCards = useCallback(() => setViewMode("cards"), []);
+
+  const resetFilters = useCallback(() => {
     setQuery("");
     setClassificationFilter("all");
     setTypeFilter("all");
     setPublisherFilter("all");
     setSortOption("events-desc");
-  }
+  }, []);
 
   const isFiltered =
     query !== "" ||
@@ -199,7 +226,7 @@ export function SourcesCatalog({
               type="text"
               placeholder="Search by title, publisher, URL, or record ID..."
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={handleQueryChange}
               className="sources-search-input"
               aria-label="Search archival sources"
             />
@@ -207,7 +234,7 @@ export function SourcesCatalog({
               <button
                 type="button"
                 className="clear-search-btn"
-                onClick={() => setQuery("")}
+                onClick={handleClearQuery}
                 aria-label="Clear search query"
               >
                 ×
@@ -219,7 +246,7 @@ export function SourcesCatalog({
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
-              onClick={() => setViewMode("table")}
+              onClick={handleSetViewTable}
               title="Table View"
               aria-label="Switch to Table view"
               aria-pressed={viewMode === "table"}
@@ -230,7 +257,7 @@ export function SourcesCatalog({
             <button
               type="button"
               className={`view-toggle-btn ${viewMode === "cards" ? "active" : ""}`}
-              onClick={() => setViewMode("cards")}
+              onClick={handleSetViewCards}
               title="Dossier Card View"
               aria-label="Switch to Dossier Card view"
               aria-pressed={viewMode === "cards"}
@@ -248,7 +275,7 @@ export function SourcesCatalog({
               <button
                 type="button"
                 className={`filter-pill ${classificationFilter === "all" ? "active" : ""}`}
-                onClick={() => setClassificationFilter("all")}
+                onClick={() => handleClassificationFilter("all")}
                 aria-pressed={classificationFilter === "all"}
               >
                 All ({sources.length})
@@ -256,7 +283,7 @@ export function SourcesCatalog({
               <button
                 type="button"
                 className={`filter-pill primary ${classificationFilter === "primary" ? "active" : ""}`}
-                onClick={() => setClassificationFilter("primary")}
+                onClick={() => handleClassificationFilter("primary")}
                 aria-pressed={classificationFilter === "primary"}
               >
                 <ShieldCheck size={12} />
@@ -265,7 +292,7 @@ export function SourcesCatalog({
               <button
                 type="button"
                 className={`filter-pill secondary ${classificationFilter === "secondary" ? "active" : ""}`}
-                onClick={() => setClassificationFilter("secondary")}
+                onClick={() => handleClassificationFilter("secondary")}
                 aria-pressed={classificationFilter === "secondary"}
               >
                 <span>Secondary ({sources.filter((s) => s.classification === "secondary").length})</span>
@@ -278,7 +305,7 @@ export function SourcesCatalog({
             <select
               id="source-type-select"
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={handleTypeFilterChange}
               className="sources-select"
             >
               <option value="all">All Types ({sourceTypes.length})</option>
@@ -295,7 +322,7 @@ export function SourcesCatalog({
             <select
               id="source-pub-select"
               value={publisherFilter}
-              onChange={(e) => setPublisherFilter(e.target.value)}
+              onChange={handlePublisherFilterChange}
               className="sources-select"
             >
               <option value="all">All Publishers ({publishers.length})</option>
@@ -312,7 +339,7 @@ export function SourcesCatalog({
             <select
               id="source-sort-select"
               value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              onChange={handleSortOptionChange}
               className="sources-select"
             >
               <option value="events-desc">Most Corroborated Events</option>
