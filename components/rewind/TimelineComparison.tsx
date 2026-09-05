@@ -16,7 +16,8 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind";
+import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
+import { formatIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -26,20 +27,7 @@ function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boo
 }
 
 function formatDate(dateStr: string): string {
-  try {
-    const parts = dateStr.split("T")[0].split("-");
-    if (parts.length === 3) {
-      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    }
-    if (parts.length === 2) {
-      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
-      return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-    }
-    return parts[0] || dateStr;
-  } catch {
-    return dateStr;
-  }
+  return formatIsoDate(dateStr) || dateStr;
 }
 
 export function TimelineComparison({
@@ -83,26 +71,74 @@ export function TimelineComparison({
     [peopleMap, people, effectiveSlugA]
   );
 
+  // Pre-index event participations, pairwise co-attendance counts, and overall leader statistics
+  // in a single pass over events to ensure sub-millisecond lookups on large datasets
+  const { personEventsMap, coOccurrenceIndex, precomputedLeaderStats } = useMemo(() => {
+    const pEvents = new Map<string, EventRecord[]>();
+    const coMap = new Map<string, Map<string, number>>();
+    const coCountMap = new Map<string, number>();
+
+    events.forEach((e) => {
+      const parts = e.participants || [];
+      const slugsInEvent: string[] = [];
+
+      parts.forEach((p) => {
+        const matched = peopleMap.get(p.personId);
+        if (matched) {
+          const s = matched.slug;
+          if (!slugsInEvent.includes(s)) {
+            slugsInEvent.push(s);
+          }
+          let arr = pEvents.get(s);
+          if (!arr) {
+            arr = [];
+            pEvents.set(s, arr);
+          }
+          arr.push(e);
+        }
+      });
+
+      if (slugsInEvent.length > 1) {
+        slugsInEvent.forEach((s) => {
+          coCountMap.set(s, (coCountMap.get(s) || 0) + 1);
+        });
+
+        for (let i = 0; i < slugsInEvent.length; i++) {
+          const s1 = slugsInEvent[i];
+          let inner = coMap.get(s1);
+          if (!inner) {
+            inner = new Map<string, number>();
+            coMap.set(s1, inner);
+          }
+          for (let j = 0; j < slugsInEvent.length; j++) {
+            if (i === j) continue;
+            const s2 = slugsInEvent[j];
+            inner.set(s2, (inner.get(s2) || 0) + 1);
+          }
+        }
+      }
+    });
+
+    const leaderStats = people
+      .map((p) => {
+        const list = pEvents.get(p.slug) || [];
+        const coCount = coCountMap.get(p.slug) || 0;
+        return { person: p, eventCount: list.length, coCount };
+      })
+      .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
+
+    return {
+      personEventsMap: pEvents,
+      coOccurrenceIndex: coMap,
+      precomputedLeaderStats: leaderStats,
+    };
+  }, [events, peopleMap, people]);
+
   // Calculate co-attendees for Person A: figures who share at least 1 event with Person A
   const coAttendeesWithCounts = useMemo(() => {
     if (!personA) return [];
-
-    const eventsWithA = events.filter((e) =>
-      (e.participants || []).some((p) => isParticipantMatch(p, personA))
-    );
-
-    const counts = new Map<string, number>();
-
-    eventsWithA.forEach((e) => {
-      (e.participants || []).forEach((p) => {
-        if (!isParticipantMatch(p, personA)) {
-          const match = peopleMap.get(p.personId);
-          if (match) {
-            counts.set(match.slug, (counts.get(match.slug) || 0) + 1);
-          }
-        }
-      });
-    });
+    const counts = coOccurrenceIndex.get(personA.slug);
+    if (!counts) return [];
 
     return Array.from(counts.entries())
       .map(([slug, count]) => {
@@ -111,7 +147,7 @@ export function TimelineComparison({
       })
       .filter((item): item is { person: PersonRecord; count: number } => item !== null)
       .sort((a, b) => b.count - a.count);
-  }, [events, peopleMap, personA]);
+  }, [coOccurrenceIndex, peopleMap, personA]);
 
   // Derive effective Person B: prioritize explicit user selection if still valid, otherwise default to top co-attendee
   const slugB = useMemo(() => {
@@ -130,37 +166,31 @@ export function TimelineComparison({
   const eventsA = useMemo(
     () =>
       personA
-        ? events
-            .filter((e) => (e.participants || []).some((p) => isParticipantMatch(p, personA)))
+        ? (personEventsMap.get(personA.slug) || [])
+            .slice()
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
         : [],
-    [events, personA]
+    [personEventsMap, personA]
   );
 
   const eventsB = useMemo(
     () =>
       personB
-        ? events
-            .filter((e) => (e.participants || []).some((p) => isParticipantMatch(p, personB)))
+        ? (personEventsMap.get(personB.slug) || [])
+            .slice()
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
         : [],
-    [events, personB]
+    [personEventsMap, personB]
   );
 
-  // All shared events both figures attended
-  const intersections = useMemo(
-    () =>
-      personA && personB
-        ? events
-            .filter(
-              (e) =>
-                (e.participants || []).some((p) => isParticipantMatch(p, personA)) &&
-                (e.participants || []).some((p) => isParticipantMatch(p, personB))
-            )
-            .sort((a, b) => a.startDate.localeCompare(b.startDate))
-        : [],
-    [events, personA, personB]
-  );
+  // All shared events both figures attended, computed via O(1) set membership
+  const intersections = useMemo(() => {
+    if (!personA || !personB) return [];
+    const eventsBIds = new Set((personEventsMap.get(personB.slug) || []).map((e) => e.id));
+    return (personEventsMap.get(personA.slug) || [])
+      .filter((e) => eventsBIds.has(e.id))
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [personEventsMap, personA, personB]);
 
   const filteredIntersections = useMemo(() => {
     if (!searchQuery.trim()) return intersections;
@@ -188,24 +218,10 @@ export function TimelineComparison({
     return start === end ? start : `${start} – ${end}`;
   }, [intersections]);
 
-  // Candidate leaders with rich co-attendance records for empty state cycling (Forensic UX enhancement)
+  // Candidate leaders with rich co-attendance records for empty state cycling, sliced in O(N) from precomputed matrix
   const recommendedLeaders = useMemo(() => {
-    if (!people.length) return [];
-    return people
-      .filter((p) => p.slug !== effectiveSlugA)
-      .map((p) => {
-        const pEvents = events.filter((e) =>
-          (e.participants || []).some((part) => isParticipantMatch(part, p))
-        );
-        const coCount = events.filter(
-          (e) =>
-            (e.participants || []).some((part) => isParticipantMatch(part, p)) &&
-            (e.participants || []).length > 1
-        ).length;
-        return { person: p, eventCount: pEvents.length, coCount };
-      })
-      .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
-  }, [events, people, effectiveSlugA]);
+    return precomputedLeaderStats.filter((item) => item.person.slug !== effectiveSlugA);
+  }, [precomputedLeaderStats, effectiveSlugA]);
 
   const topRecommendedLeader = recommendedLeaders[0]?.person;
 
@@ -386,7 +402,7 @@ export function TimelineComparison({
             <button
               type="button"
               aria-pressed={activeTab === "intersections"}
-              className={`comp-tab ${activeTab === "intersections" ? "active" : ""}`}
+              className={`comp-tab timeline-tab-btn ${activeTab === "intersections" ? "active" : ""}`}
               onClick={() => setActiveTab("intersections")}
             >
               <Users size={15} />
@@ -395,12 +411,19 @@ export function TimelineComparison({
             <button
               type="button"
               aria-pressed={activeTab === "sideBySide"}
-              className={`comp-tab ${activeTab === "sideBySide" ? "active" : ""}`}
+              className={`comp-tab timeline-tab-btn ${activeTab === "sideBySide" ? "active" : ""}`}
               onClick={() => setActiveTab("sideBySide")}
             >
               <Calendar size={15} />
               <span>Side-by-Side Dual Chronology ({eventsA.length} vs {eventsB.length})</span>
             </button>
+          </div>
+
+          {/* ARIA Live Region for Screen Readers: announces comparison tab and counts */}
+          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {activeTab === "intersections"
+              ? `Displaying ${intersections.length} shared encounters and geospatial map for ${personA.name} and ${personB.name}`
+              : `Displaying side-by-side dual chronology: ${eventsA.length} events for ${personA.name} vs ${eventsB.length} events for ${personB.name}`}
           </div>
 
           {/* Tab 1: Dedicated Shared Timeline & Map */}
@@ -411,7 +434,6 @@ export function TimelineComparison({
                   {/* Geospatial Map Section */}
                   <section
                     className="intersection-map-section"
-                    role="region"
                     aria-label="Meeting Locations Geospatial Footprint"
                   >
                     <div className="section-header">
@@ -427,7 +449,6 @@ export function TimelineComparison({
                   {/* Shared Timeline Chronology */}
                   <section
                     className="intersection-timeline-stream"
-                    role="region"
                     aria-label="Shared Joint Timeline Chronology"
                   >
                     <div className="section-header">
@@ -470,7 +491,6 @@ export function TimelineComparison({
                           <article
                             key={event.id}
                             className="encounter-card"
-                            role="article"
                             aria-labelledby={`encounter-title-${event.id}`}
                           >
                             <div className="encounter-card-header">

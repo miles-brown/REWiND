@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatIsoDate } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
@@ -14,11 +14,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const { prev, next } = await getAdjacentEvents(event.startDate, event.id);
 
   // Load attached source details in a single batched query
-  const validSources = event.sourceIds.length > 0
-    ? await getSourcesByIds(event.sourceIds)
+  const sourceIds = event.sourceIds || [];
+  const validSources = sourceIds.length > 0
+    ? await getSourcesByIds(sourceIds)
     : [];
 
-  const date = new Date(event.startDate.includes("T") ? event.startDate : event.startDate + "T12:00:00");
+  const participants = event.participants || [];
 
   return (
     <div className="record-page">
@@ -34,9 +35,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {event.verificationStatus} evidence
           </div>
           <time>
-            {isNaN(date.getTime())
-              ? event.startDate
-              : date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {formatIsoDate(event.startDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
           </time>
           <h1>{event.eventName}</h1>
           <p>{event.summary}</p>
@@ -60,12 +59,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </div>
           <div>
             <dt><UsersRound />People</dt>
-            <dd>{event.participants.length}</dd>
+            <dd>{participants.length}</dd>
             <small>documented participants</small>
           </div>
           <div>
             <dt><FileText />Sources</dt>
-            <dd>{event.sourceIds.length}</dd>
+            <dd>{sourceIds.length}</dd>
             <small>attached records</small>
           </div>
         </dl>
@@ -87,7 +86,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <span className="eyebrow">PARTICIPANTS</span>
             <h2>People in this event</h2>
             <div className="participant-list">
-              {event.participants.map((participant) => (
+              {participants.map((participant) => (
                 <Link
                   href={`/person/${participant.personId.replace(/^p-/, "")}`}
                   key={participant.personId}

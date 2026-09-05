@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople, sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import { mapDatabaseSource } from "./sources";
+import { normalizeIsoDate } from "./dates";
 import type { Confidence, EventFilters, EventRecord, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
@@ -145,8 +146,8 @@ export function mapDatabaseEvent(
     id,
     slug: String(row.slug || id),
     eventName: String(row.title || "Untitled Event"),
-    startDate: String(row.start_date || ""),
-    endDate: row.end_date ? String(row.end_date) : undefined,
+    startDate: normalizeIsoDate(row.start_date || ""),
+    endDate: row.end_date ? normalizeIsoDate(row.end_date) : undefined,
     datePrecision: (String(row.temporal_precision || "exact-day")) as Precision,
     city: place.city || "Unknown",
     country: place.country || "Unknown",
@@ -158,9 +159,9 @@ export function mapDatabaseEvent(
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "verified",
     confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" && row.confidence_score < 0.7 ? "moderate" : "confirmed"),
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 1.0,
-    sourceIds,
+    sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
     sources,
-    participants,
+    participants: Array.isArray(participants) ? participants : [],
     categories: [String(row.event_type || "diplomatic")],
     eventTypes: [String(row.event_type || "historical-action")],
   };
@@ -473,21 +474,39 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
 /**
  * Retrieves events by an array of event IDs, fully hydrated.
  */
-export async function getEventsByIds(ids: string[]): Promise<EventRecord[]> {
+export async function getEventsByIds(ids: string[], supabaseClient?: unknown): Promise<EventRecord[]> {
   if (!ids || ids.length === 0) return [];
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (!supabase) return [];
 
-    const { data: eventRows, error } = await supabase
-      .from("events")
-      .select("*")
-      .in("id", ids)
-      .eq("publication_status", "published")
-      .order("start_date", { ascending: false });
+    const CHUNK_SIZE = 500;
+    const allEventRows: Record<string, unknown>[] = [];
 
-    if (error || !eventRows) return [];
-    return hydrateEventRows(supabase, eventRows);
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { data: eventRows, error } = await supabase
+        .from("events")
+        .select("*")
+        .in("id", chunk)
+        .eq("publication_status", "published")
+        .order("start_date", { ascending: false });
+
+      if (error) {
+        console.error("Error querying events by IDs chunk:", error);
+        return [];
+      }
+      if (eventRows) {
+        allEventRows.push(...eventRows);
+      }
+    }
+
+    if (allEventRows.length === 0) return [];
+    allEventRows.sort((a, b) =>
+      String(b.start_date || "").localeCompare(String(a.start_date || ""))
+    );
+    return hydrateEventRows(supabase, allEventRows);
   } catch {
     return [];
   }
@@ -658,9 +677,10 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 /**
  * Retrieves events associated with a specific person slug, fully hydrated.
  */
-export async function getEventsByPerson(personSlug: string): Promise<EventRecord[]> {
+export async function getEventsByPerson(personSlug: string, supabaseClient?: unknown): Promise<EventRecord[]> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (supabase) {
       const { data: person, error: personError } = await supabase
         .from("people")
@@ -744,9 +764,10 @@ export async function getEventsByPerson(personSlug: string): Promise<EventRecord
 /**
  * Retrieves distinct event calendar years from the database.
  */
-export async function getEventYears(): Promise<number[]> {
+export async function getEventYears(supabaseClient?: unknown): Promise<number[]> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (supabase) {
       const allRows: { start_date: string }[] = [];
       const pageSize = 1000;

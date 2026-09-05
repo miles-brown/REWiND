@@ -598,9 +598,10 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
   );
 
   // 8. Accessibility (WCAG 2.1 AA) contracts across modals, explorers, and comparison views
-  assert.ok(
-    citeContent.includes('role="alert"') && citeContent.includes('className="citation-unavailable"'),
-    "CitationModal must mark unavailable fallback notice with role='alert'"
+  assert.match(
+    citeContent,
+    /<[^>]*\bclassName="[^"]*citation-unavailable[^"]*"[^>]*\brole="alert"|<[^>]*\brole="alert"[^>]*\bclassName="[^"]*citation-unavailable[^"]*"/,
+    "CitationModal must declare role='alert' on the citation-unavailable opening element"
   );
   assert.ok(
     rewindContent.includes("useMemo(") &&
@@ -613,12 +614,11 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     compContent.includes('aria-describedby={personA ? "figure-1-badge" : undefined}') &&
     compContent.includes('id="figure-2-badge"') &&
     compContent.includes('aria-describedby="figure-2-badge"') &&
-    compContent.includes('role="region"') &&
     compContent.includes('aria-label="Meeting Locations Geospatial Footprint"') &&
     compContent.includes('aria-label="Shared Joint Timeline Chronology"') &&
-    compContent.includes('role="article"') &&
-    compContent.includes('aria-labelledby={`encounter-title-${event.id}`}'),
-    "TimelineComparison must provide connected ARIA badges, region landmark labeling, and article semantics"
+    compContent.includes('aria-labelledby={`encounter-title-${event.id}`}') &&
+    compContent.includes('aria-live="polite"'),
+    "TimelineComparison must provide connected ARIA badges, region landmark labeling, article semantics, and polite live regions"
   );
 });
 

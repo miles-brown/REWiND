@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sources as fallbackSources } from "@/archive/legacy-data/rewind";
+import { normalizeIsoDate } from "./dates";
 import type { EventRecord, SourceRecord } from "./types";
 
 export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
@@ -13,8 +14,12 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     url: s.url ? String(s.url) : undefined,
     archiveUrl: s.archive_url ? String(s.archive_url) : undefined,
     author: s.author ? String(s.author) : undefined,
-    publicationDate: s.publication_date ? String(s.publication_date) : undefined,
-    accessedDate: s.accessed_date ? String(s.accessed_date) : s.accessedDate ? String(s.accessedDate) : undefined,
+    publicationDate: s.publication_date ? normalizeIsoDate(s.publication_date) : undefined,
+    accessedDate: s.accessed_date
+      ? normalizeIsoDate(s.accessed_date)
+      : s.accessedDate
+      ? normalizeIsoDate(s.accessedDate)
+      : undefined,
     language: s.language ? String(s.language) : undefined,
     trustScore: typeof s.trust_score === "number" ? s.trust_score : undefined,
   };

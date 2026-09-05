@@ -159,17 +159,19 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
  */
 export async function getRelationshipBetween(
   slugA: string,
-  slugB: string
+  slugB: string,
+  supabaseClient?: unknown
 ): Promise<PairwiseRelationshipData | null> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     const [personA, personB] = await Promise.all([
-      getPersonBySlug(slugA),
-      getPersonBySlug(slugB),
+      getPersonBySlug(slugA, supabase),
+      getPersonBySlug(slugB, supabase),
     ]);
 
     if (!personA || !personB) return null;
 
-    const supabase = await createClient();
     if (supabase) {
       // Find events where both personA.id and personB.id participate with robust pagination
       const fetchParticipations = async (personId: string) => {
@@ -218,7 +220,13 @@ export async function getRelationshipBetween(
         .filter((id) => eventsA.has(id));
 
       if (sharedIds.length > 0) {
-        const fetchedEvents = await getEventsByIds(sharedIds);
+        const CHUNK_SIZE = 500;
+        const fetchedEvents: EventRecord[] = [];
+        for (let i = 0; i < sharedIds.length; i += CHUNK_SIZE) {
+          const chunk = sharedIds.slice(i, i + CHUNK_SIZE);
+          const chunkEvents = await getEventsByIds(chunk, supabase);
+          fetchedEvents.push(...chunkEvents);
+        }
         const sharedEvents: EventRecord[] = fetchedEvents.filter(
           (e) => e.verificationStatus === "verified"
         );

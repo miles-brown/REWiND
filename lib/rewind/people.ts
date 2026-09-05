@@ -63,9 +63,10 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
 /**
  * Retrieves a single person by slug.
  */
-export async function getPersonBySlug(slug: string): Promise<PersonRecord | null> {
+export async function getPersonBySlug(slug: string, supabaseClient?: unknown): Promise<PersonRecord | null> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (supabase) {
       const { data: p, error } = await supabase
         .from("people")
@@ -95,7 +96,8 @@ export async function getPersonBySlug(slug: string): Promise<PersonRecord | null
         };
       }
 
-      return null;
+      const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+      return fb ? mapFallbackPerson(fb) : null;
     }
 
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);

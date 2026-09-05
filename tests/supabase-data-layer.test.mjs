@@ -159,106 +159,197 @@ test("handles empty Supabase database state intentionally and gracefully", async
   assert.equal(typeof stats.yearsCovered, "number");
 });
 
-test("verifies pagination and chunking patterns in lib/rewind/events.ts", async () => {
-  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
-
-  // getEventsByPerson pagination & chunking
-  assert.ok(
-    eventsContent.includes("const partPageSize = 1000;") &&
-    eventsContent.includes(".range(partFrom, partFrom + partPageSize - 1)"),
-    "getEventsByPerson must paginate event_people table lookups"
-  );
-  assert.ok(
-    eventsContent.includes("const chunkSize = 500;") &&
-    eventsContent.includes(".in(\"id\", chunk)"),
-    "getEventsByPerson must chunk event ID queries to avoid parameter overflow"
-  );
-
-  // getEventYears pagination & ordering
-  assert.ok(
-    eventsContent.includes("pageSize = 1000") &&
-    eventsContent.includes(".range(from, from + pageSize - 1)") &&
-    eventsContent.includes(".order(\"start_date\", { ascending: true })") &&
-    eventsContent.includes(".order(\"id\", { ascending: true })"),
-    "getEventYears must paginate queries and maintain stable ordering with id"
-  );
-
+test("behaviorally verifies pagination and chunking patterns in lib/rewind/events.ts", async () => {
   const { getEventsByPerson, getEventYears } = await vite.ssrLoadModule("/lib/rewind/index.ts");
+
+  // Create a stub client returning 1,000 rows on page 0 followed by 200 rows on page 1
+  const page0 = Array.from({ length: 1000 }, (_, i) => ({ event_id: `evt-${String(i).padStart(4, "0")}` }));
+  const page1 = Array.from({ length: 200 }, (_, i) => ({ event_id: `evt-${String(1000 + i).padStart(4, "0")}` }));
+
+  const stubClient = {
+    from(table) {
+      if (table === "people") {
+        const handler = {
+          select() { return handler; },
+          eq() { return handler; },
+          in() { return handler; },
+          async maybeSingle() {
+            return { data: { id: "p-custom", slug: "benjamin-netanyahu" }, error: null };
+          },
+          then(resolve) { return resolve({ data: [], error: null }); },
+        };
+        return handler;
+      }
+      if (table === "event_people") {
+        const handler = {
+          select() { return handler; },
+          eq() { return handler; },
+          order() { return handler; },
+          async range(from, to) {
+            const pageSize = to - from + 1;
+            const pageIndex = Math.floor(from / pageSize);
+            if (pageIndex === 0) return { data: page0, error: null };
+            if (pageIndex === 1) return { data: page1, error: null };
+            return { data: [], error: null };
+          },
+          in() { return handler; },
+          then(resolve) { return resolve({ data: [], error: null }); },
+        };
+        return handler;
+      }
+      if (table === "events") {
+        let queriedIds = [];
+        const handler = {
+          select() { return handler; },
+          in(_col, ids) { queriedIds = ids; return handler; },
+          eq() { return handler; },
+          order() { return handler; },
+          range() { return handler; },
+          then(resolve) {
+            const data = queriedIds.map((id) => ({
+              id,
+              title: `Event ${id}`,
+              start_date: "2023-10-01",
+              verification_status: "verified",
+              event_type: "diplomatic",
+            }));
+            return resolve({ data, error: null });
+          },
+        };
+        return handler;
+      }
+      const defaultHandler = {
+        select() { return defaultHandler; },
+        in() { return defaultHandler; },
+        order() { return defaultHandler; },
+        range() { return Promise.resolve({ data: [], error: null }); },
+        then(resolve) { return resolve({ data: [], error: null }); },
+      };
+      return defaultHandler;
+    },
+  };
+
+  // Assert all 1,200 events across both pages are collected and chunked properly
+  const paginatedEvents = await getEventsByPerson("benjamin-netanyahu", stubClient);
+  assert.equal(paginatedEvents.length, 1200, "Must collect all 1,200 rows across paginated Supabase calls");
+  assert.equal(paginatedEvents[0].id, "evt-0000");
+  assert.equal(paginatedEvents[1199].id, "evt-1199");
+
+  // Environmental invariant test (does not require non-empty dataset)
   const bibiEvents = await getEventsByPerson("benjamin-netanyahu");
-  assert.ok(Array.isArray(bibiEvents) && bibiEvents.length > 0);
+  assert.ok(Array.isArray(bibiEvents));
   for (let i = 1; i < bibiEvents.length; i++) {
     assert.ok(bibiEvents[i - 1].startDate <= bibiEvents[i].startDate);
   }
 
   const years = await getEventYears();
-  assert.ok(Array.isArray(years) && years.length > 0);
+  assert.ok(Array.isArray(years));
   for (let i = 1; i < years.length; i++) {
     assert.ok(years[i - 1] < years[i]);
   }
 });
 
-test("verifies relationship lookup error handling contracts for event_people queries", async () => {
-  const relContent = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
+test("behaviorally verifies relationship lookup and error handling via getRelationshipBetween", async () => {
+  const { getRelationshipBetween } = await vite.ssrLoadModule("/lib/rewind/index.ts");
 
-  // Check error propagation and return null when either query fails
-  assert.ok(
-    relContent.includes("if (resA.error || resB.error)") &&
-    relContent.includes("return null;"),
-    "getRelationshipBetween must check errors on both participations queries and return null on failure"
-  );
-
-  assert.ok(
-    relContent.includes("pageSize = 1000") &&
-    relContent.includes(".range(from, from + pageSize - 1)"),
-    "getRelationshipBetween must paginate event_people lookups"
-  );
-
-  // Simulate mock lookup logic to verify failure of each query independently
-  const mockRelationshipLookup = async ({ failA, failB, sharedEventIds = [] }) => {
-    const fetchParticipations = async (personId, fail) => {
-      if (fail) return { data: null, error: new Error(`Database error on ${personId}`) };
-      return { data: sharedEventIds.map((id) => ({ event_id: id })), error: null };
-    };
-
-    const [resA, resB] = await Promise.all([
-      fetchParticipations("person-1", failA),
-      fetchParticipations("person-2", failB),
-    ]);
-
-    if (resA.error || resB.error) {
-      return null;
-    }
-
-    const eventsA = new Set((resA.data || []).map((p) => p.event_id));
-    const sharedIds = (resB.data || [])
-      .map((p) => p.event_id)
-      .filter((id) => eventsA.has(id));
-
+  const buildStubRelationshipClient = ({ failA = false, failB = false, sharedEventIds = [] } = {}) => {
     return {
-      personA: { id: "person-1", slug: "person-1" },
-      personB: { id: "person-2", slug: "person-2" },
-      sharedEvents: sharedIds,
+      from(table) {
+        if (table === "people") {
+          let currentSlug = "";
+          const handler = {
+            select() { return handler; },
+            eq(col, val) { if (col === "slug") currentSlug = val; return handler; },
+            async maybeSingle() {
+              return {
+                data: {
+                  id: `id-${currentSlug}`,
+                  slug: currentSlug,
+                  display_name: currentSlug === "benjamin-netanyahu" ? "Benjamin Netanyahu" : "Joe Biden",
+                  canonical_name: currentSlug === "benjamin-netanyahu" ? "Benjamin Netanyahu" : "Joe Biden",
+                },
+                error: null,
+              };
+            },
+          };
+          return handler;
+        }
+        if (table === "event_people") {
+          let queriedPersonId = "";
+          const handler = {
+            select() { return handler; },
+            eq(_col, val) { queriedPersonId = val; return handler; },
+            in() { return handler; },
+            order() { return handler; },
+            async range() {
+              if (queriedPersonId.includes("netanyahu")) {
+                if (failA) return { data: null, error: new Error("DB error query A") };
+                return { data: sharedEventIds.map((id) => ({ event_id: id })), error: null };
+              }
+              if (queriedPersonId.includes("biden")) {
+                if (failB) return { data: null, error: new Error("DB error query B") };
+                return { data: sharedEventIds.map((id) => ({ event_id: id })), error: null };
+              }
+              return { data: [], error: null };
+            },
+            then(resolve) { return resolve({ data: [], error: null }); },
+          };
+          return handler;
+        }
+        if (table === "events") {
+          let queriedIds = [];
+          const handler = {
+            select() { return handler; },
+            in(_col, ids) { queriedIds = ids; return handler; },
+            eq() { return handler; },
+            order() { return handler; },
+            range() { return handler; },
+            then(resolve) {
+              const data = queriedIds.map((id) => ({
+                id,
+                title: `Shared Meeting ${id}`,
+                start_date: "2023-10-18",
+                verification_status: "verified",
+                event_type: "bilateral",
+              }));
+              return resolve({ data, error: null });
+            },
+          };
+          return handler;
+        }
+        const defaultHandler = {
+          select() { return defaultHandler; },
+          in() { return defaultHandler; },
+          order() { return defaultHandler; },
+          range() { return Promise.resolve({ data: [], error: null }); },
+          then(resolve) { return resolve({ data: [], error: null }); },
+        };
+        return defaultHandler;
+      },
     };
   };
 
-  // Case 1: Query A fails -> returns null
-  const resultAError = await mockRelationshipLookup({ failA: true, failB: false });
+  // Case 1: Query A fails -> production getRelationshipBetween must return null
+  const clientAError = buildStubRelationshipClient({ failA: true, failB: false });
+  const resultAError = await getRelationshipBetween("benjamin-netanyahu", "joe-biden", clientAError);
   assert.equal(resultAError, null, "Must return null when query A fails");
 
-  // Case 2: Query B fails -> returns null
-  const resultBError = await mockRelationshipLookup({ failA: false, failB: true });
+  // Case 2: Query B fails -> production getRelationshipBetween must return null
+  const clientBError = buildStubRelationshipClient({ failA: false, failB: true });
+  const resultBError = await getRelationshipBetween("benjamin-netanyahu", "joe-biden", clientBError);
   assert.equal(resultBError, null, "Must return null when query B fails");
 
-  // Case 3: Both queries succeed with empty shared events -> returns empty sharedEvents array
-  const resultSuccessEmpty = await mockRelationshipLookup({ failA: false, failB: false, sharedEventIds: [] });
-  assert.deepEqual(
-    resultSuccessEmpty,
-    {
-      personA: { id: "person-1", slug: "person-1" },
-      personB: { id: "person-2", slug: "person-2" },
-      sharedEvents: [],
-    },
-    "Must return empty sharedEvents array when both queries succeed without encounters"
-  );
+  // Case 3: Both queries succeed with empty shared events -> returns object with empty sharedEvents array
+  const clientEmpty = buildStubRelationshipClient({ failA: false, failB: false, sharedEventIds: [] });
+  const resultSuccessEmpty = await getRelationshipBetween("benjamin-netanyahu", "joe-biden", clientEmpty);
+  assert.ok(resultSuccessEmpty !== null, "Must return relationship object on success");
+  assert.deepEqual(resultSuccessEmpty.sharedEvents, [], "Must return empty sharedEvents array when no encounters match");
+
+  // Case 4: Both queries succeed with shared encounters -> returns populated sharedEvents array
+  const clientShared = buildStubRelationshipClient({ failA: false, failB: false, sharedEventIds: ["evt-summit-1"] });
+  const resultShared = await getRelationshipBetween("benjamin-netanyahu", "joe-biden", clientShared);
+  assert.ok(resultShared !== null, "Must return relationship object on success");
+  assert.equal(resultShared.sharedEvents.length, 1, "Must return matched shared events");
+  assert.equal(resultShared.sharedEvents[0].id, "evt-summit-1");
 });
 

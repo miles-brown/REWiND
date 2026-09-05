@@ -56,25 +56,25 @@ export interface EventRecord {
    * Legacy categorization tags retained for backward compatibility with historical registers.
    * New consumers should prefer canonical `eventTypes`.
    */
-  categories?: string[];
+  categories?: string[] | undefined;
   /**
    * Canonical event taxonomy tags (e.g. 'diplomatic', 'press-conference', 'investigation').
    * Populated as the primary taxonomy by the data mapping layer.
    */
-  eventTypes?: string[];
-  medium?: string[];
+  eventTypes?: string[] | undefined;
+  medium?: string[] | undefined;
   notes?: string | null;
-  provenance?: string[];
+  provenance?: string[] | undefined;
   reviewedAt?: string;
-  sources?: SourceRecord[];
-  media?: { kind: string; label: string; url: string }[];
-  conflictingClaims?: string[];
+  sources?: SourceRecord[] | undefined;
+  media?: { kind: string; label: string; url: string }[] | undefined;
+  conflictingClaims?: string[] | undefined;
   quotes?: {
     text: string;
     speaker: string;
     language: string;
     timestamp?: string | null;
-  }[];
+  }[] | undefined;
 }
 
 export interface PersonRecord {
@@ -159,7 +159,7 @@ export interface SearchResultItem {
   id: string;
   title: string;
   subtitle?: string;
-  type: "event" | "person" | "place" | "source";
+  type: "event" | "person" | "place" | "source" | "quote";
   url: string;
   date?: string;
   badge?: string;
