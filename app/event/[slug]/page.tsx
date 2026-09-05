@@ -86,11 +86,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <span className="eyebrow">PARTICIPANTS</span>
             <h2>People in this event</h2>
             <div className="participant-list">
-              {participants.map((participant) => (
-                <Link
-                  href={`/person/${participant.personId.replace(/^p-/, "")}`}
-                  key={participant.personId}
-                >
+              {participants.map((participant) => {
+                const participantSlug = participant.slug || participant.personId.replace(/^p-/, "");
+                return (
+                  <Link
+                    href={`/person/${participantSlug}`}
+                    key={participant.personId}
+                  >
                   <span className="person-monogram">
                     {participant.name
                       .split(" ")
@@ -107,7 +109,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                   </div>
                   <ArrowRight />
                 </Link>
-              ))}
+              );
+            })}
             </div>
           </section>
 

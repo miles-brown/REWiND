@@ -96,8 +96,8 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
         };
       }
 
-      const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
-      return fb ? mapFallbackPerson(fb) : null;
+      // Successful Supabase query with no matching record: return null canonical miss
+      return null;
     }
 
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);

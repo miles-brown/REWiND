@@ -506,7 +506,15 @@ export async function getEventsByIds(ids: string[], supabaseClient?: unknown): P
     allEventRows.sort((a, b) =>
       String(b.start_date || "").localeCompare(String(a.start_date || ""))
     );
-    return hydrateEventRows(supabase, allEventRows);
+
+    const HYDRATE_CHUNK_SIZE = 500;
+    const hydratedEvents: EventRecord[] = [];
+    for (let i = 0; i < allEventRows.length; i += HYDRATE_CHUNK_SIZE) {
+      const batch = allEventRows.slice(i, i + HYDRATE_CHUNK_SIZE);
+      const hydratedBatch = await hydrateEventRows(supabase, batch);
+      hydratedEvents.push(...hydratedBatch);
+    }
+    return hydratedEvents;
   } catch {
     return [];
   }
@@ -741,7 +749,14 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
         return dateCmp !== 0 ? dateCmp : String(a.id || "").localeCompare(String(b.id || ""));
       });
 
-      return hydrateEventRows(supabase, eventRows);
+      const HYDRATE_CHUNK_SIZE = 500;
+      const hydratedEvents: EventRecord[] = [];
+      for (let i = 0; i < eventRows.length; i += HYDRATE_CHUNK_SIZE) {
+        const batch = eventRows.slice(i, i + HYDRATE_CHUNK_SIZE);
+        const hydratedBatch = await hydrateEventRows(supabase, batch);
+        hydratedEvents.push(...hydratedBatch);
+      }
+      return hydratedEvents;
     }
 
     const fbPerson = fallbackPeople.find((p) => p.slug === personSlug || p.id === personSlug);

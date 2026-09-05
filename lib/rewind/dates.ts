@@ -71,8 +71,15 @@ export function parseIsoDate(dateStr?: string | null): Date | null {
   if (!normalized) return null;
 
   try {
-    // For date-only strings (YYYY-MM-DD), split parts to avoid UTC-midnight timezone shifting
-    const parts = normalized.split("T")[0].split("-");
+    // If input contains a time component, preserve full timestamp with standard Date parsing
+    if (normalized.includes("T")) {
+      const d = new Date(normalized);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // For date-only strings (YYYY-MM-DD, YYYY-MM, YYYY), construct date at local noon
+    // to prevent UTC-midnight timezone shifting
+    const parts = normalized.split("-");
     if (parts.length === 3) {
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;

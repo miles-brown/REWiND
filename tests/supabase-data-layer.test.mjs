@@ -169,18 +169,39 @@ test("behaviorally verifies pagination and chunking patterns in lib/rewind/event
   const stubClient = {
     from(table) {
       if (table === "people") {
+        let inPersonIds = [];
         const handler = {
           select() { return handler; },
           eq() { return handler; },
-          in() { return handler; },
-          async maybeSingle() {
-            return { data: { id: "p-custom", slug: "benjamin-netanyahu" }, error: null };
+          in(_col, ids) {
+            inPersonIds = ids;
+            return handler;
           },
-          then(resolve) { return resolve({ data: [], error: null }); },
+          async maybeSingle() {
+            return {
+              data: {
+                id: "p-custom",
+                slug: "benjamin-netanyahu",
+                canonical_name: "Benjamin Netanyahu",
+                display_name: "Benjamin Netanyahu",
+              },
+              error: null,
+            };
+          },
+          then(resolve) {
+            const data = inPersonIds.map((id) => ({
+              id,
+              slug: "benjamin-netanyahu",
+              canonical_name: "Benjamin Netanyahu",
+              display_name: "Benjamin Netanyahu",
+            }));
+            return resolve({ data, error: null });
+          },
         };
         return handler;
       }
       if (table === "event_people") {
+        let inEventIds = [];
         const handler = {
           select() { return handler; },
           eq() { return handler; },
@@ -188,12 +209,31 @@ test("behaviorally verifies pagination and chunking patterns in lib/rewind/event
           async range(from, to) {
             const pageSize = to - from + 1;
             const pageIndex = Math.floor(from / pageSize);
+            if (inEventIds.length > 0) {
+              if (pageIndex === 0) {
+                return {
+                  data: inEventIds.map((eventId) => ({
+                    event_id: eventId,
+                    person_id: "p-custom",
+                    role_label: "Participant",
+                    presence_confidence: "confirmed",
+                  })),
+                  error: null,
+                };
+              }
+              return { data: [], error: null };
+            }
             if (pageIndex === 0) return { data: page0, error: null };
             if (pageIndex === 1) return { data: page1, error: null };
             return { data: [], error: null };
           },
-          in() { return handler; },
-          then(resolve) { return resolve({ data: [], error: null }); },
+          in(_col, ids) {
+            inEventIds = ids;
+            return handler;
+          },
+          then(resolve) {
+            return resolve({ data: [], error: null });
+          },
         };
         return handler;
       }
@@ -234,6 +274,10 @@ test("behaviorally verifies pagination and chunking patterns in lib/rewind/event
   assert.equal(paginatedEvents.length, 1200, "Must collect all 1,200 rows across paginated Supabase calls");
   assert.equal(paginatedEvents[0].id, "evt-0000");
   assert.equal(paginatedEvents[1199].id, "evt-1199");
+  assert.ok(paginatedEvents[0].participants.length > 0, "Event participants must be hydrated via event_people");
+  assert.equal(paginatedEvents[0].participants[0].personId, "p-custom");
+  assert.equal(paginatedEvents[0].participants[0].name, "Benjamin Netanyahu");
+  assert.equal(paginatedEvents[0].participants[0].slug, "benjamin-netanyahu");
 
   // Environmental invariant test (does not require non-empty dataset)
   const bibiEvents = await getEventsByPerson("benjamin-netanyahu");

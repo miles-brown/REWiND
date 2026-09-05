@@ -233,6 +233,11 @@ export async function getSourceById(
           events,
         };
       }
+
+      if (!error && !s) {
+        // Successful Supabase query with no matching source: return canonical miss
+        return null;
+      }
     }
 
     const fbSrc = fallbackSources.find((s) => s.id === id);

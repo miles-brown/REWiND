@@ -220,7 +220,9 @@ export function TimelineComparison({
 
   // Candidate leaders with rich co-attendance records for empty state cycling, sliced in O(N) from precomputed matrix
   const recommendedLeaders = useMemo(() => {
-    return precomputedLeaderStats.filter((item) => item.person.slug !== effectiveSlugA);
+    return precomputedLeaderStats.filter(
+      (item) => item.person.slug !== effectiveSlugA && item.coCount > 0
+    );
   }, [precomputedLeaderStats, effectiveSlugA]);
 
   const topRecommendedLeader = recommendedLeaders[0]?.person;
