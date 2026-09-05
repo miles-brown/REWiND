@@ -40,7 +40,7 @@ export const people = pgTable("people", {
   programmeId: text("programme_id").references(() => coverageProgrammes.id),
   isLiving: boolean("is_living").default(true).notNull(),
   monitoringPriority: text("monitoring_priority").default("normal").notNull(), // intensive, normal, historical-only
-  publicationStatus: text("publication_status").default("published").notNull(), // published, staging, private
+  publicationStatus: text("publication_status").default("draft").notNull(), // draft, published, staging, private
   wikidataId: text("wikidata_id"),
   viafId: text("viaf_id"),
   avatarUrl: text("avatar_url"),
@@ -122,11 +122,14 @@ export const events = pgTable("events", {
   endDate: text("end_date"), // Optional upper bound for multi-day summits / treaties
   temporalPrecision: text("temporal_precision").default("exact-day").notNull(), // exact-minute, exact-day, month, year, decade
   placeId: text("place_id").references(() => places.id),
-  verificationStatus: text("verification_status").default("verified").notNull(), // verified, provisional, disputed
+  seriesId: text("series_id"),
+  venueId: text("venue_id"),
+  addressId: text("address_id"),
+  verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
 
   confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
-  publicationStatus: text("publication_status").default("published").notNull(), // published, provisional, queued, rejected
-  publicationLane: text("publication_lane").default("auto-publish").notNull(), // auto-publish, provisional, human-review
+  publicationStatus: text("publication_status").default("draft").notNull(), // published, provisional, queued, rejected
+  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review
   significanceScore: integer("significance_score").default(80).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

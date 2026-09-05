@@ -1,19 +1,69 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
-import { events, people, sources } from "@/data/rewind";
+import type { SearchResultItem } from "@/lib/rewind";
 
-interface ResultItem {
-  id: string;
-  category: "Events" | "People" | "Quotes" | "Places" | "Sources";
-  title: string;
-  subtitle: string;
-  badge?: string;
-  href: string;
-}
+const DEFAULT_ACTIONS: SearchResultItem[] = [
+  {
+    id: "action-people",
+    type: "person",
+    title: "Monitored Figures",
+    subtitle: "Explore documented historical actors and chronologies",
+    badge: "Registry",
+    url: "/people",
+  },
+  {
+    id: "action-sources",
+    type: "source",
+    title: "Archival Primary Sources",
+    subtitle: "Verified repository records, transcripts, and press releases",
+    badge: "Registry",
+    url: "/sources",
+  },
+  {
+    id: "action-relationships",
+    type: "person",
+    title: "Diplomatic Relationships",
+    subtitle: "Spacetime co-presence and bilateral meeting network",
+    badge: "Analysis",
+    url: "/relationships",
+  },
+  {
+    id: "action-compare",
+    type: "event",
+    title: "Timeline Comparison",
+    subtitle: "Side-by-side chronological analysis of multiple figures",
+    badge: "Analysis",
+    url: "/compare",
+  },
+  {
+    id: "action-quotes",
+    type: "quote",
+    title: "Archival Quote Register",
+    subtitle: "Attributable speeches, statements, and verified transcripts",
+    badge: "Registry",
+    url: "/quotes",
+  },
+  {
+    id: "action-places",
+    type: "place",
+    title: "Geographic Atlas",
+    subtitle: "Documented venues, capitals, and event coordinates",
+    badge: "Registry",
+    url: "/places",
+  },
+  {
+    id: "action-methodology",
+    type: "source",
+    title: "Forensic Evidence Methodology",
+    subtitle: "Standards for source classification and confidence grading",
+    badge: "Guide",
+    url: "/methodology",
+  },
+];
 
 export function CommandPalette({
   isOpen,
@@ -24,111 +74,49 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchRequestIdRef = useRef(0);
 
-  const results = useMemo<ResultItem[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return [
-        {
-          id: "p-netanyahu",
-          category: "People",
-          title: "Benjamin Netanyahu",
-          subtitle: "Documented political chronology from 1949 to present",
-          badge: "Featured",
-          href: "/person/benjamin-netanyahu",
-        },
-        ...events.slice(0, 3).map((e) => ({
-          id: e.id,
-          category: "Events" as const,
-          title: e.eventName,
-          subtitle: `${e.startDate} · ${e.city}, ${e.country}`,
-          badge: e.verificationStatus,
-          href: `/event/${e.slug}`,
-        })),
-        {
-          id: "m-methodology",
-          category: "Sources",
-          title: "Forensic Evidence Methodology",
-          subtitle: "Standards for source classification and confidence grading",
-          badge: "Guide",
-          href: "/methodology",
-        },
-      ];
+  const trimmed = query.trim();
+  const results = trimmed ? searchResults : DEFAULT_ACTIONS;
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      searchRequestIdRef.current++;
+      return;
     }
 
-    const matchedEvents: ResultItem[] = events
-      .filter((e) =>
-        (e.eventName + " " + e.summary + " " + e.city + " " + e.country + " " + e.eventTypes.join(" "))
-          .toLowerCase()
-          .includes(q)
-      )
-      .slice(0, 5)
-      .map((e) => ({
-        id: e.id,
-        category: "Events",
-        title: e.eventName,
-        subtitle: `${e.startDate} · ${e.city}, ${e.country}`,
-        badge: e.verificationStatus,
-        href: `/event/${e.slug}`,
-      }));
+    const requestId = ++searchRequestIdRef.current;
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
+      setSearchResults([]);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`);
+        if (requestId !== searchRequestIdRef.current) return;
+        if (res.ok) {
+          const json = await res.json();
+          if (requestId !== searchRequestIdRef.current) return;
+          setSearchResults(json.results || []);
+        } else {
+          setSearchResults([]);
+        }
+      } catch {
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (requestId === searchRequestIdRef.current) {
+          setIsLoading(false);
+        }
+      }
+    }, 150);
 
-    const matchedPeople: ResultItem[] = people
-      .filter((p) => (p.name + " " + p.description).toLowerCase().includes(q))
-      .slice(0, 4)
-      .map((p) => ({
-        id: p.id,
-        category: "People",
-        title: p.name,
-        subtitle: p.description,
-        badge: "Person",
-        href: `/person/${p.slug}`,
-      }));
-
-    const matchedQuotes: ResultItem[] = events
-      .flatMap((e) =>
-        e.quotes.map((quote, idx) => ({
-          id: `${e.id}-q-${idx}`,
-          category: "Quotes" as const,
-          title: `"${quote.text.slice(0, 90)}${quote.text.length > 90 ? "…" : ""}"`,
-          subtitle: `${quote.speaker} · ${e.startDate} (${e.eventName})`,
-          badge: quote.language.toUpperCase(),
-          href: `/event/${e.slug}`,
-        }))
-      )
-      .filter((item) => item.title.toLowerCase().includes(q) || item.subtitle.toLowerCase().includes(q))
-      .slice(0, 4);
-
-    const matchedPlaces: ResultItem[] = Array.from(new Set(events.map((e) => e.city)))
-      .map((city) => {
-        const matchingEvts = events.filter((e) => e.city === city);
-        const country = matchingEvts[0]?.country || "";
-        const slug = city.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        return {
-          id: `place-${slug}`,
-          category: "Places" as const,
-          title: city,
-          subtitle: `${country} · ${matchingEvts.length} documented events`,
-          badge: "Location",
-          href: `/place/${slug}`,
-        };
-      })
-      .filter((pl) => (pl.title + " " + pl.subtitle).toLowerCase().includes(q))
-      .slice(0, 3);
-
-    const matchedSources: ResultItem[] = sources
-      .filter((s) => (s.title + " " + s.publisher + " " + s.sourceType).toLowerCase().includes(q))
-      .slice(0, 4)
-      .map((s) => ({
-        id: s.id,
-        category: "Sources",
-        title: s.title,
-        subtitle: `${s.publisher} · ${s.sourceType.replaceAll("-", " ")}`,
-        badge: s.classification,
-        href: `/source/${s.id}`,
-      }));
-
-    return [...matchedPeople, ...matchedEvents, ...matchedQuotes, ...matchedPlaces, ...matchedSources].slice(0, 12);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const activeIndex = selectedIndex >= results.length ? 0 : selectedIndex;
@@ -143,7 +131,7 @@ export function CommandPalette({
     } else if (e.key === "Enter" && results[activeIndex]) {
       e.preventDefault();
       onClose();
-      router.push(results[activeIndex].href);
+      router.push(results[activeIndex].url);
     } else if (e.key === "Escape") {
       e.preventDefault();
       onClose();
@@ -152,18 +140,20 @@ export function CommandPalette({
 
   if (!isOpen) return null;
 
-  const categoryIcon = (category: ResultItem["category"]) => {
-    switch (category) {
-      case "Events":
+  const categoryIcon = (type: SearchResultItem["type"]) => {
+    switch (type) {
+      case "event":
         return <Calendar size={14} />;
-      case "People":
+      case "person":
         return <Users size={14} />;
-      case "Quotes":
+      case "quote":
         return <MessageSquareQuote size={14} />;
-      case "Places":
+      case "place":
         return <MapPin size={14} />;
-      case "Sources":
+      case "source":
         return <Database size={14} />;
+      default:
+        return <Search size={14} />;
     }
   };
 
@@ -177,20 +167,50 @@ export function CommandPalette({
             autoFocus
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
+              const val = e.target.value;
+              searchRequestIdRef.current++;
+              setQuery(val);
               setSelectedIndex(0);
+              setSearchResults([]);
+              if (val.trim()) {
+                setIsLoading(true);
+              } else {
+                setIsLoading(false);
+              }
             }}
             onKeyDown={handleKeyDown}
             placeholder="Search events, quotes, participants, venues, sources…"
             aria-label="Search query"
           />
+          {isLoading && (
+            <span className="search-loading-indicator" style={{ fontSize: "11px", opacity: 0.6, margin: "0 0.5rem" }}>
+              Searching…
+            </span>
+          )}
           {query ? (
-            <button className="search-clear-btn" onClick={() => setQuery("")} aria-label="Clear query">
+            <button
+              className="search-clear-btn"
+              onClick={() => {
+                searchRequestIdRef.current++;
+                setQuery("");
+                setSelectedIndex(0);
+                setSearchResults([]);
+                setIsLoading(false);
+              }}
+              aria-label="Clear query"
+            >
               <X size={15} />
             </button>
           ) : (
             <kbd className="search-kbd">ESC</kbd>
           )}
+        </div>
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {isLoading
+            ? "Searching archival records…"
+            : trimmed
+            ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
+            : ""}
         </div>
         <div className="command-palette-results" aria-live="polite">
           {query && !results.length && (
@@ -204,12 +224,12 @@ export function CommandPalette({
             return (
               <Link
                 key={item.id}
-                href={item.href}
+                href={item.url}
                 onClick={onClose}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`command-item ${isSelected ? "selected" : ""}`}
               >
-                <div className="command-item-icon">{categoryIcon(item.category)}</div>
+                <div className="command-item-icon">{categoryIcon(item.type)}</div>
                 <div className="command-item-text">
                   <div className="command-item-header">
                     <b>{item.title}</b>

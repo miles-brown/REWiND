@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import { people, events, sources } from "@/data/rewind";
+import { testPeople, testEvents, testSources } from "./test-fixtures";
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -34,7 +34,7 @@ export interface MemoryRelationalStore {
   auditLog: (typeof schema.auditLog.$inferSelect)[];
 }
 
-function resolvePersonMetadata(p: (typeof people)[0]): {
+function resolvePersonMetadata(p: (typeof testPeople)[0]): {
   nationality: string;
   classification: string;
   programmeId: string;
@@ -117,6 +117,24 @@ function mapToCanonicalEventType(categories: string[], types: string[]): "bilate
 }
 
 function initializeSeedStore(): MemoryRelationalStore {
+  // In production, fallback in-memory store is empty to ensure no prototype records enter the production path
+  if (process.env.NODE_ENV === "production") {
+    return {
+      people: [],
+      personAliases: [],
+      places: [],
+      events: [],
+      sources: [],
+      claims: [],
+      candidateEvents: [],
+      auditLog: [],
+    };
+  }
+
+  const people = testPeople;
+  const events = testEvents;
+  const sources = testSources;
+
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 
   const seedPeople: (typeof schema.people.$inferSelect)[] = (people || []).map((p) => {
@@ -212,6 +230,9 @@ function initializeSeedStore(): MemoryRelationalStore {
       endDate: e.endDate || null,
       temporalPrecision: "exact-day",
       placeId: `plc-${placeSlug}`,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
       verificationStatus: e.verificationStatus,
       confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
       publicationStatus: "published",

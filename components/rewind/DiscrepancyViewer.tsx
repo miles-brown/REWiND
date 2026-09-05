@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, CheckCircle, FileSearch, ShieldAlert, X } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 
 export function DiscrepancyViewer({
   event,
@@ -17,7 +17,8 @@ export function DiscrepancyViewer({
 
   if (!isOpen) return null;
 
-  const isDisputed = event.verificationStatus === "disputed" || event.confidence === "moderate" || event.confidence === "limited";
+  const confidence = event.confidence || "confirmed";
+  const isDisputed = event.verificationStatus === "disputed" || confidence === "moderate" || confidence === "limited";
 
   return (
     <div className="discrepancy-modal-overlay" role="dialog" aria-modal="true" aria-label="Evidence Discrepancy & Verification Audit">
@@ -63,7 +64,7 @@ export function DiscrepancyViewer({
                   )}
                 </div>
                 <div>
-                  <h4>Classification: {event.verificationStatus.toUpperCase()} (Confidence: {event.confidence.toUpperCase()})</h4>
+                  <h4>Classification: {event.verificationStatus.toUpperCase()} (Confidence: {(event.confidence || "confirmed").toUpperCase()})</h4>
                   <p>
                     {event.verificationStatus === "verified"
                       ? "This event is corroborated by direct primary source documentation (e.g. government stenographic transcripts, timestamped broadcast recordings, or signed diplomatic instruments)."
@@ -82,15 +83,15 @@ export function DiscrepancyViewer({
               <div className="evidentiary-breakdown-grid">
                 <div className="breakdown-item">
                   <small>Temporal Precision</small>
-                  <b>{event.datePrecision.toUpperCase()} ({event.startDate})</b>
+                  <b>{(event.timePrecision || event.datePrecision || "exact-day").toUpperCase()} ({event.startDate})</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Geospatial Precision</small>
-                  <b>{event.locationPrecision.toUpperCase()} ({event.city}, {event.country})</b>
+                  <b>{(event.locationPrecision || "venue").toUpperCase()} ({event.city}, {event.country})</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Source Medium</small>
-                  <b>{event.medium.join(", ").toUpperCase()}</b>
+                  <b>{(event.medium || event.eventTypes || ["Archival record"]).join(", ").toUpperCase()}</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Audit Review Date</small>

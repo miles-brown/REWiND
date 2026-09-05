@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Link as LinkIcon, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
@@ -42,7 +42,7 @@ export function EventActions({ event }: { event: EventRecord }) {
             aria-label="Open speech excerpts and audio"
           >
             <MessageSquareQuote size={14} />
-            <span>Quotes & Audio ({event.quotes.length})</span>
+            <span>Quotes & Audio ({event.quotes?.length ?? 0})</span>
           </button>
         )}
 
@@ -67,6 +67,7 @@ export function EventActions({ event }: { event: EventRecord }) {
 
       <CitationModal
         event={event}
+        source={event.sources?.[0]}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
       />

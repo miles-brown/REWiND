@@ -24,11 +24,11 @@ test("verifies app/admin/evidence/page.tsx does not duplicate Shell wrapper", ()
   const adminPagePath = path.join(root, "app/admin/evidence/page.tsx");
   const content = fs.readFileSync(adminPagePath, "utf-8");
   assert.ok(
-    !content.includes("<Shell>"),
+    !/<Shell\b[^>]*>|<\/Shell>/.test(content),
     "app/admin/evidence/page.tsx must not contain inner <Shell> wrapper"
   );
   assert.ok(
-    !content.includes('import { Shell } from "@/components/rewind/Shell";'),
+    !/import\s+{[^}]*\bShell\b[^}]*}\s+from\s+["']@\/components\/rewind\/Shell["']/.test(content),
     "app/admin/evidence/page.tsx must not import Shell"
   );
 });
@@ -41,8 +41,23 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
     "PersonTimeline.tsx must not contain DRAG TO REWIND CHRONOLOGY"
   );
   assert.ok(
+    !/color\s*:\s*["']?red/i.test(content) && !/text-red/i.test(content),
+    "PersonTimeline.tsx must not contain inline or class-based red text styling"
+  );
+  assert.ok(
     content.includes('className="status-left"'),
     "PersonTimeline.tsx must wrap live indicator in status-left to prevent grid collision with status-right-tools"
+  );
+
+  const cssPath = path.join(root, "app/globals.css");
+  const cssContent = fs.readFileSync(cssPath, "utf-8");
+  assert.ok(
+    cssContent.includes(".person-time-console { position: sticky; z-index: 30; bottom: 0; }"),
+    "globals.css must anchor .person-time-console to bottom: 0 with sticky positioning"
+  );
+  assert.ok(
+    cssContent.includes(".rewind-console { position: sticky; z-index: 30; bottom: 0;"),
+    "globals.css must anchor .rewind-console to bottom: 0 with sticky positioning"
   );
 });
 
@@ -69,8 +84,12 @@ test("verifies SourcesPage module export and comprehensive filtering support", a
 });
 
 test("verifies SourcesPage accessibility and search criteria compliance", () => {
-  const sourcesPagePath = path.join(root, "app/sources/page.tsx");
-  const content = fs.readFileSync(sourcesPagePath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const content = fs.readFileSync(sourcesCatalogPath, "utf-8");
 
   // ARIA pressed attributes
   assert.ok(
@@ -117,8 +136,8 @@ test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", 
 
   // Satellite token safeguard
   assert.ok(
-    content.includes("disabled={!MAPBOX_TOKEN}"),
-    "Satellite toggle button must be disabled when MAPBOX_TOKEN is empty"
+    content.includes("disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}"),
+    "Satellite toggle button must be disabled when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
   );
 });
 
@@ -166,8 +185,12 @@ test("verifies PersonTimeline slider ARIA attributes and semantic dateTime forma
     "Slider must supply getAriaLabel callback for screen readers"
   );
 
-  const sourcesPath = path.join(root, "app/sources/page.tsx");
-  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
   assert.ok(
     sourcesContent.includes('dateTime={isoDate || undefined}'),
     "Sources page must render machine-readable dateTime on time elements"
@@ -316,8 +339,12 @@ test("verifies MapGraphic lifecycle resilience and expanded keyboard Escape list
 });
 
 test("verifies SourcesPage historical date resolution and RewindExplorer disabled boundary states", () => {
-  const sourcesPath = path.join(root, "app/sources/page.tsx");
-  const sourcesContent = fs.readFileSync(sourcesPath, "utf-8");
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
 
   assert.ok(
     sourcesContent.includes("getSourceDateInfo"),
@@ -404,8 +431,13 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
     "PersonTimeline must set aria-valuemin, aria-valuemax, and aria-valuenow on Slider"
   );
 
-  // 2. Semantic KPI definition list in app/sources/page.tsx
-  const sourcesContent = fs.readFileSync(path.join(root, "app/sources/page.tsx"), "utf-8");
+  // 2. Semantic KPI definition list in SourcesCatalog.tsx
+  const sourcesCatalogPath = path.join(root, "components/rewind/SourcesCatalog.tsx");
+  assert.ok(
+    fs.existsSync(sourcesCatalogPath),
+    "components/rewind/SourcesCatalog.tsx must exist"
+  );
+  const sourcesContent = fs.readFileSync(sourcesCatalogPath, "utf-8");
   assert.ok(
     sourcesContent.includes('<dl className="sources-kpi-bar" aria-label="Sources register summary metrics">'),
     "Sources page must use semantic <dl> list for KPI summary metrics"
@@ -436,4 +468,159 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
     "globals.css must scope Sources filter reset button to avoid collisions"
   );
 });
+
+test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalization", async () => {
+  const root = process.cwd();
+
+  // 1. Slider ARIA fallbacks
+  const sliderContent = fs.readFileSync(path.join(root, "components/ui/slider.tsx"), "utf-8");
+  assert.ok(
+    sliderContent.includes("ariaValueText ?? String(thumbValue)"),
+    "Slider must guarantee fallback aria-valuetext on thumb"
+  );
+  assert.ok(
+    sliderContent.includes('ariaLabel ?? "Timeline position"'),
+    "Slider must guarantee fallback aria-label on thumb"
+  );
+
+  // 2. Canonical eventTypes prioritization
+  const cardContent = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
+  assert.ok(
+    cardContent.includes("event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])"),
+    "EventCard must prioritize canonical eventTypes over legacy categories"
+  );
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/EventExplorer.tsx"), "utf-8");
+  assert.ok(
+    explorerContent.includes("e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])"),
+    "EventExplorer must prioritize canonical eventTypes over legacy categories"
+  );
+
+  // 3. RewindExplorer conditional year jump
+  const rewindContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  assert.ok(
+    rewindContent.includes("{event && (") && rewindContent.includes('className="calendar-jump"'),
+    "RewindExplorer must conditionally render calendar-jump link when event is active and omit when null"
+  );
+  const { RewindExplorer } = await vite.ssrLoadModule("/components/rewind/RewindExplorer.tsx");
+  const nullHtml = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialEvents: [],
+      sources: [],
+    })
+  );
+  assert.ok(
+    !nullHtml.includes("calendar-jump"),
+    "RewindExplorer must omit calendar-jump link when event is null"
+  );
+  const sampleEvent = {
+    id: "sample-event-active",
+    slug: "sample-event-active",
+    eventName: "Active Event",
+    startDate: "1998-10-23",
+    city: "Washington",
+    country: "United States",
+    summary: "Sample Event Summary",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    eventTypes: ["diplomatic"],
+  };
+  const activeHtml = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialEvents: [sampleEvent],
+      sources: [],
+    })
+  );
+  assert.ok(
+    activeHtml.includes("calendar-jump"),
+    "RewindExplorer must render calendar-jump link when event is active"
+  );
+
+  // 4. CitationModal forensic warning
+  const citeContent = fs.readFileSync(path.join(root, "components/rewind/CitationModal.tsx"), "utf-8");
+  assert.ok(
+    citeContent.includes("[CitationModal] Forensic warning:"),
+    "CitationModal must log forensic warning when falling back to synthetic source"
+  );
+
+  // 5. lib/rewind/events.ts confidence and datePrecision mappings
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsContent.includes("confidence: (row.confidence as Confidence)") &&
+    eventsContent.includes("datePrecision: (String(row.temporal_precision || \"exact-day\")) as Precision"),
+    "lib/rewind/events.ts must map canonical confidence and datePrecision defaults"
+  );
+  const { mapDatabaseEvent } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const modEvt = mapDatabaseEvent({
+    id: "evt-mod",
+    confidence: null,
+    confidence_score: 0.65,
+  });
+  assert.equal(
+    modEvt.confidence,
+    "moderate",
+    "mapDatabaseEvent must fall back to 'moderate' when confidence is null and confidence_score < 0.7"
+  );
+  const confEvt = mapDatabaseEvent({
+    id: "evt-conf",
+    confidence: null,
+    confidence_score: 0.85,
+  });
+  assert.equal(
+    confEvt.confidence,
+    "confirmed",
+    "mapDatabaseEvent must fall back to 'confirmed' when confidence is null and confidence_score >= 0.7"
+  );
+
+  // 6. Forensic Rigor: confidence and temporal precision fallbacks across components
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    cardContent.includes('event.confidence || "confirmed"') &&
+    cardContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
+    "EventCard must apply consistent confidence and temporal precision fallbacks"
+  );
+  assert.ok(
+    timelineContent.includes('event.confidence || "confirmed"') &&
+    timelineContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
+    "PersonTimeline must apply consistent confidence and temporal precision fallbacks"
+  );
+
+  // 7. TimelineComparison performance optimization & interactive empty state
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    compContent.includes("peopleMap = useMemo(") &&
+    compContent.includes("peopleMap.get(p.personId)"),
+    "TimelineComparison must pre-index people in a map for O(1) co-attendee lookups"
+  );
+  assert.ok(
+    compContent.includes("comparison-primary-switch-btn") &&
+    compContent.includes("comparison-cycle-grid"),
+    "TimelineComparison empty state must render prominent CTA switch button and candidate cycle grid"
+  );
+
+  // 8. Accessibility (WCAG 2.1 AA) contracts across modals, explorers, and comparison views
+  assert.match(
+    citeContent,
+    /<[^>]*\bclassName="[^"]*citation-unavailable[^"]*"[^>]*\brole="alert"|<[^>]*\brole="alert"[^>]*\bclassName="[^"]*citation-unavailable[^"]*"/,
+    "CitationModal must declare role='alert' on the citation-unavailable opening element"
+  );
+  assert.ok(
+    rewindContent.includes("useMemo(") &&
+    rewindContent.includes('aria-label="Filter by event type"') &&
+    rewindContent.includes('aria-label="Filter by verification status"'),
+    "RewindExplorer must memoize types and declare explicit aria-labels on filter selects"
+  );
+  assert.ok(
+    compContent.includes('id="figure-1-badge"') &&
+    compContent.includes('aria-describedby={personA ? "figure-1-badge" : undefined}') &&
+    compContent.includes('id="figure-2-badge"') &&
+    compContent.includes('aria-describedby="figure-2-badge"') &&
+    compContent.includes('aria-label="Meeting Locations Geospatial Footprint"') &&
+    compContent.includes('aria-label="Shared Joint Timeline Chronology"') &&
+    compContent.includes('aria-labelledby={`encounter-title-${event.id}`}') &&
+    compContent.includes('aria-live="polite"'),
+    "TimelineComparison must provide connected ARIA badges, region landmark labeling, article semantics, and polite live regions"
+  );
+});
+
+
 

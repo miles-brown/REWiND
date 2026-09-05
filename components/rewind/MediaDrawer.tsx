@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, MessageSquareQuote, Play, Radio, Volume2, X } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 
 export function MediaDrawer({
   event,
@@ -57,7 +57,9 @@ export function MediaDrawer({
             </div>
             <div className="player-meta">
               <b>{event.eventName} — Historical Recording</b>
-              <small>{event.medium.join(" · ")} · {event.startDate}</small>
+              <small>
+                {[...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
+              </small>
             </div>
             <button
               className={`player-toggle-btn ${isPlayingAudio ? "playing" : ""}`}

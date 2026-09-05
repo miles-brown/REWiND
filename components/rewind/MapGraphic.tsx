@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Globe, Layers, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
@@ -482,19 +482,19 @@ export function MapGraphic({
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
-            disabled={!MAPBOX_TOKEN}
+            onClick={MAPBOX_TOKEN && MAPBOX_SATELLITE_STYLE ? toggleMapTheme : undefined}
+            disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}
             aria-pressed={mapTheme === "satellite"}
             title={
-              !MAPBOX_TOKEN
-                ? "Satellite view requires Mapbox token"
+              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
+                ? "Satellite view requires Mapbox token and style configuration"
                 : mapTheme === "satellite"
                 ? "Switch to Dark Forensic Basemap"
                 : "Switch to Mapbox Satellite 3D View"
             }
             aria-label={
-              !MAPBOX_TOKEN
-                ? "Satellite view requires Mapbox token"
+              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
+                ? "Satellite view requires Mapbox token and style configuration"
                 : "Mapbox Satellite 3D layer"
             }
           >

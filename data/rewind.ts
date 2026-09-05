@@ -1,3 +1,21 @@
+/**
+ * ==============================================================================
+ * REWIND EVIDENCE ATLAS — DEPRECATED PROTOTYPE DATASET (ARCHIVE ONLY)
+ * ==============================================================================
+ *
+ * CRITICAL ARCHITECTURAL DIRECTIVE:
+ * DO NOT import, transform, seed, copy, or automatically migrate any records from
+ * this file into production Supabase.
+ *
+ * Canonical production data resides exclusively in PostgreSQL / Supabase and must
+ * be researched and entered afresh according to REWiND Event Model v2 standards.
+ *
+ * All production routes retrieve data through the central data layer (@/lib/rewind).
+ * No production application code or components may import from this file.
+ * The authoritative archival copy is preserved at: archive/legacy-data/rewind.ts.
+ * ==============================================================================
+ */
+
 export type Precision = "exact" | "day" | "month" | "year" | "range" | "unknown";
 export type Verification = "verified" | "provisional" | "disputed";
 export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
