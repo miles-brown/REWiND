@@ -1658,7 +1658,7 @@ svg { flex: 0 0 auto; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: #64748b;
+  color: #94a3b8;
   margin-bottom: 2px;
 }
 .temporal-card b {
@@ -1830,7 +1830,7 @@ svg { flex: 0 0 auto; }
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.6px;
-  color: #64748b;
+  color: #94a3b8;
   margin-bottom: 8px;
 }
 .evidence-items {
@@ -1893,7 +1893,7 @@ svg { flex: 0 0 auto; }
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  color: #64748b;
+  color: #94a3b8;
 }
 .evidence-source-meta .locator {
   font-family: var(--mono);
@@ -1964,7 +1964,7 @@ svg { flex: 0 0 auto; }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: #64748b;
+  color: #94a3b8;
   margin-bottom: 4px;
 }
 .identity-field-card b {

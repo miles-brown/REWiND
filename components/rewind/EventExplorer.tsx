@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Filter, Search, X } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
 import { EventCard } from "./EventCard";
@@ -16,6 +16,26 @@ export function EventExplorer({
   const [type, setType] = useState("All");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<"asc" | "desc">("asc");
+
+  const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  }, []);
+
+  const handleClearQuery = useCallback(() => {
+    setQuery("");
+  }, []);
+
+  const handleTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setType(e.target.value);
+  }, []);
+
+  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatus(e.target.value);
+  }, []);
+
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSort(e.target.value as "asc" | "desc");
+  }, []);
 
   const types = useMemo(() => {
     const set = new Set<string>();
@@ -56,11 +76,12 @@ export function EventExplorer({
           <span className="sr-only">Search events</span>
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             placeholder="Search title, place or type"
+            aria-label="Search events by title, place or type"
           />
           {query && (
-            <button onClick={() => setQuery("")} aria-label="Clear search">
+            <button onClick={handleClearQuery} aria-label="Clear search">
               <X />
             </button>
           )}
@@ -68,7 +89,7 @@ export function EventExplorer({
         <label>
           <Filter />
           <span className="sr-only">Event type</span>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
+          <select value={type} onChange={handleTypeChange} aria-label="Filter by event type">
             <option>All</option>
             {types.map((t) => (
               <option key={t}>{t}</option>
@@ -77,7 +98,7 @@ export function EventExplorer({
         </label>
         <label>
           <span className="sr-only">Evidence status</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select value={status} onChange={handleStatusChange} aria-label="Filter by evidence verification status">
             <option value="all">All evidence</option>
             <option value="verified">Verified</option>
             <option value="provisional">Provisional</option>
@@ -85,7 +106,7 @@ export function EventExplorer({
         </label>
         <label>
           <span className="sr-only">Sort order</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value as "asc" | "desc")}>
+          <select value={sort} onChange={handleSortChange} aria-label="Sort events chronologically">
             <option value="asc">Oldest first</option>
             <option value="desc">Newest first</option>
           </select>

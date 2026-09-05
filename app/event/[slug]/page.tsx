@@ -6,6 +6,7 @@ import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
 import { ClaimInspector } from "@/components/rewind/ClaimInspector";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -20,53 +21,71 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     ? await getSourcesByIds(event.sourceIds)
     : [];
 
-  const date = new Date(event.startDate.includes("T") ? event.startDate : event.startDate + "T12:00:00");
-
   return (
-    <div className="record-page">
-      <div className="record-breadcrumb">
-        <Link href="/events"><ArrowLeft />All events</Link>
-        <span>{event.id}</span>
-      </div>
+    <div className="page-shell event-page">
+      <nav className="event-nav" aria-label="Chronological event pagination">
+        {prev ? (
+          <Link href={`/event/${prev.slug}`} className="nav-link prev" aria-label={`Previous event: ${prev.eventName}`}>
+            <ArrowLeft size={16} />
+            <div>
+              <span className="nav-dir">PREVIOUS RECORD</span>
+              <span className="nav-title">{prev.eventName}</span>
+            </div>
+          </Link>
+        ) : (
+          <div className="nav-placeholder" />
+        )}
 
-      <header className="record-hero">
-        <div>
-          <div className={`evidence-pill ${event.verificationStatus}`}>
-            {event.verificationStatus === "verified" ? <CheckCircle2 /> : <CircleDashed />}
-            {event.verificationStatus} evidence
-          </div>
-          <time>
-            {isNaN(date.getTime())
-              ? event.startDate
-              : date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </time>
-          <h1>{event.eventName}</h1>
-          <p>{event.summary}</p>
-          <div className="detail-tags">
-            {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
-              <span key={type}>{type}</span>
-            ))}
+        <Link href="/events" className="nav-all">
+          All Events
+        </Link>
+
+        {next ? (
+          <Link href={`/event/${next.slug}`} className="nav-link next" aria-label={`Next event: ${next.eventName}`}>
+            <div>
+              <span className="nav-dir">NEXT RECORD</span>
+              <span className="nav-title">{next.eventName}</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+        ) : (
+          <div className="nav-placeholder" />
+        )}
+      </nav>
+
+      <header className="page-hero">
+        <div className="hero-top-meta">
+          <div className="hero-badges">
+            <span className="category-pill">{event.categories?.[0] || event.eventTypes?.[0] || "historical-action"}</span>
+            <span className={`status-pill ${event.verificationStatus}`}>
+              {event.verificationStatus === "verified" ? <CheckCircle2 size={13} /> : <CircleDashed size={13} />}
+              {event.verificationStatus}
+            </span>
           </div>
           <EventActions event={event} />
         </div>
-        <dl className="record-vitals">
+
+        <h1>{event.eventName}</h1>
+        <p className="event-summary">{event.summary}</p>
+
+        <dl className="event-kpi-bar" aria-label="Event vital attributes">
           <div>
-            <dt><CalendarClock />Time</dt>
-            <dd>{event.localStartTime || "Not established"}</dd>
-            <small>{event.timePrecision || event.datePrecision || "exact-day"} precision</small>
+            <dt><CalendarClock size={16} /> Date</dt>
+            <dd>{event.startDate}</dd>
+            <small>{event.datePrecision || "exact"}</small>
           </div>
           <div>
-            <dt><MapPin />Place</dt>
+            <dt><MapPin size={16} /> Location</dt>
             <dd>{event.venueName || event.city}</dd>
-            <small>{event.city}, {event.country}</small>
+            <small>{event.country}</small>
           </div>
           <div>
-            <dt><UsersRound />People</dt>
+            <dt><UsersRound size={16} /> Participants</dt>
             <dd>{event.participants.length}</dd>
-            <small>documented participants</small>
+            <small>indexed figures</small>
           </div>
           <div>
-            <dt><FileText />Sources</dt>
+            <dt><FileText size={16} /> Sources</dt>
             <dd>{event.sourceIds.length}</dd>
             <small>attached records</small>
           </div>
@@ -77,12 +96,16 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
 
       <section className="record-body">
         <div className="record-main">
-          <ClaimInspector claims={event.claims || []} />
+          <ErrorBoundary sectionName="Claim Inspector">
+            <ClaimInspector claims={event.claims || []} />
+          </ErrorBoundary>
 
           <section>
             <span className="eyebrow">LOCATION</span>
             <h2>Documented position</h2>
-            <MapGraphic events={[event]} selected={event.id} />
+            <ErrorBoundary sectionName="Map Graphic">
+              <MapGraphic events={[event]} selected={event.id} />
+            </ErrorBoundary>
             <p className="precision-note">
               Coordinates represent the {event.locationPrecision || "venue"} supported by the evidence.
               They are not a claim of exact movement within the surrounding period.

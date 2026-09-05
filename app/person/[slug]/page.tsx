@@ -12,6 +12,7 @@ import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
 import { InclusionBadge } from "@/components/rewind/InclusionBadge";
 import { BiographicalSection } from "@/components/rewind/BiographicalSection";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function PersonPage({
   params,
@@ -63,9 +64,13 @@ export default async function PersonPage({
 
       <InclusionBadge person={person} />
 
-      <PersonTimeline person={person} records={linked} />
+      <ErrorBoundary sectionName="Person Timeline">
+        <PersonTimeline person={person} records={linked} />
+      </ErrorBoundary>
 
-      <BiographicalSection person={person} />
+      <ErrorBoundary sectionName="Biographical Section">
+        <BiographicalSection person={person} />
+      </ErrorBoundary>
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">

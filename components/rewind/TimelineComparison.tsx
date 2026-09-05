@@ -221,6 +221,12 @@ export function TimelineComparison({
 
   return (
     <div className="comparison-workspace">
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {personA && personB
+          ? `Comparing ${personA.name} and ${personB.name}: ${filteredIntersections.length} documented shared encounters.`
+          : "Select two historical figures to compare chronologies."}
+      </div>
+
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
         <div className="comparison-selectors">
@@ -231,13 +237,14 @@ export function TimelineComparison({
                 Figure 1 (Primary Anchor)
               </label>
               {personA && (
-                <span className="selector-badge">{eventsA.length} indexed events</span>
+                <span id="figure-1-badge" className="selector-badge">{eventsA.length} indexed events</span>
               )}
             </div>
             <div className="selector-input-wrapper">
               <select
                 id="figure-1-select"
                 className="selector-select"
+                aria-describedby={personA ? "figure-1-badge" : undefined}
                 value={effectiveSlugA}
                 onChange={(e) => {
                   setSlugA(e.target.value);
@@ -280,7 +287,7 @@ export function TimelineComparison({
               <label htmlFor="figure-2-select" className="selector-label">
                 Figure 2 (Co-Attendee)
               </label>
-              <span className="selector-badge">
+              <span id="figure-2-badge" className="selector-badge">
                 {coAttendeesWithCounts.length} shared co-attendee
                 {coAttendeesWithCounts.length === 1 ? "" : "s"}
               </span>
@@ -289,6 +296,7 @@ export function TimelineComparison({
               <select
                 id="figure-2-select"
                 className="selector-select"
+                aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
                 disabled={coAttendeesWithCounts.length === 0}
@@ -407,7 +415,7 @@ export function TimelineComparison({
               {intersections.length > 0 ? (
                 <>
                   {/* Geospatial Map Section */}
-                  <div className="intersection-map-section">
+                  <div className="intersection-map-section" role="region" aria-label="Geospatial Footprint Map">
                     <div className="section-header">
                       <span className="eyebrow">GEOSPATIAL FOOTPRINT</span>
                       <h3>Meeting Locations Across the Globe</h3>
@@ -419,7 +427,7 @@ export function TimelineComparison({
                   </div>
 
                   {/* Shared Timeline Chronology */}
-                  <div className="intersection-timeline-stream">
+                  <div className="intersection-timeline-stream" role="region" aria-label="Chronological stream of shared events">
                     <div className="section-header">
                       <span className="eyebrow">SHARED TIMELINE</span>
                       <h3>
@@ -440,6 +448,7 @@ export function TimelineComparison({
                             type="text"
                             placeholder="Filter by title, venue or city..."
                             value={searchQuery}
+                            aria-label="Filter shared encounters by title, venue or city"
                             onChange={(e) => setSearchQuery(e.target.value)}
                           />
                         </label>

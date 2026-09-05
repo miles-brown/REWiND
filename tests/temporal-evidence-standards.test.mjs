@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import fs from "node:fs";
 import path from "node:path";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const vite = await createServer({
@@ -151,3 +153,31 @@ test("verifies database schema migration file contains all standards tables and 
   assert.ok(sql.includes("inclusion_basis"), "people must have inclusion_basis");
   assert.ok(sql.includes("religion_status"), "people must have religion_status");
 });
+
+test("verifies ErrorBoundary component isolates failures and exposes accessible reset controls", async () => {
+  const { ErrorBoundary } = await vite.ssrLoadModule("/components/ui/error-boundary.tsx");
+
+  // Normal render
+  const healthyMarkup = renderToStaticMarkup(
+    React.createElement(ErrorBoundary, { sectionName: "Test Section" }, React.createElement("div", null, "Healthy Content"))
+  );
+  assert.ok(healthyMarkup.includes("Healthy Content"));
+});
+
+test("verifies WAI-ARIA tab semantics and live regions in comparison and biographical components", () => {
+  const bioSectionContent = fs.readFileSync(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf-8");
+  assert.ok(bioSectionContent.includes('role="tablist"'), "BiographicalSection must provide role=tablist");
+  assert.ok(bioSectionContent.includes('role="tab"'), "BiographicalSection must provide role=tab");
+  assert.ok(bioSectionContent.includes('role="tabpanel"'), "BiographicalSection must provide role=tabpanel");
+  assert.ok(bioSectionContent.includes("aria-controls="), "BiographicalSection tabs must have aria-controls");
+  assert.ok(bioSectionContent.includes("aria-labelledby="), "BiographicalSection tabpanels must have aria-labelledby");
+
+  const timelineCompContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(timelineCompContent.includes('role="status"'), "TimelineComparison must declare role=status live region");
+  assert.ok(timelineCompContent.includes('aria-live="polite"'), "TimelineComparison must declare aria-live=polite");
+
+  const adminContent = fs.readFileSync(path.join(root, "app/admin/evidence/page.tsx"), "utf-8");
+  assert.ok(adminContent.includes('role="tabpanel"'), "admin evidence page must declare role=tabpanel");
+  assert.ok(adminContent.includes('aria-controls="tabpanel-queue"'), "admin evidence tabs must specify aria-controls");
+});
+

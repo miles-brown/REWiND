@@ -28,8 +28,13 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
       </div>
 
       {/* Tabs */}
-      <div className="bio-nav-tabs">
+      <div className="bio-nav-tabs" role="tablist" aria-label="Biographical sections">
         <button
+          type="button"
+          role="tab"
+          id="bio-tab-career"
+          aria-selected={activeTab === "career"}
+          aria-controls="bio-tabpanel-career"
           className={`bio-tab ${activeTab === "career" ? "active" : ""}`}
           onClick={() => setActiveTab("career")}
         >
@@ -38,6 +43,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         </button>
 
         <button
+          type="button"
+          role="tab"
+          id="bio-tab-education"
+          aria-selected={activeTab === "education"}
+          aria-controls="bio-tabpanel-education"
           className={`bio-tab ${activeTab === "education" ? "active" : ""}`}
           onClick={() => setActiveTab("education")}
         >
@@ -46,6 +56,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         </button>
 
         <button
+          type="button"
+          role="tab"
+          id="bio-tab-works"
+          aria-selected={activeTab === "works"}
+          aria-controls="bio-tabpanel-works"
           className={`bio-tab ${activeTab === "works" ? "active" : ""}`}
           onClick={() => setActiveTab("works")}
         >
@@ -54,6 +69,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         </button>
 
         <button
+          type="button"
+          role="tab"
+          id="bio-tab-awards"
+          aria-selected={activeTab === "awards"}
+          aria-controls="bio-tabpanel-awards"
           className={`bio-tab ${activeTab === "awards" ? "active" : ""}`}
           onClick={() => setActiveTab("awards")}
         >
@@ -62,6 +82,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         </button>
 
         <button
+          type="button"
+          role="tab"
+          id="bio-tab-identity"
+          aria-selected={activeTab === "identity"}
+          aria-controls="bio-tabpanel-identity"
           className={`bio-tab ${activeTab === "identity" ? "active" : ""}`}
           onClick={() => setActiveTab("identity")}
         >
@@ -72,7 +97,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
       {/* Career */}
       {activeTab === "career" && (
-        <div className="bio-tab-content">
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-career"
+          aria-labelledby="bio-tab-career"
+        >
           {career.length > 0 ? (
             <div className="bio-timeline-list">
               {career.map((c) => (
@@ -102,7 +132,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
       {/* Education */}
       {activeTab === "education" && (
-        <div className="bio-tab-content">
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-education"
+          aria-labelledby="bio-tab-education"
+        >
           {education.length > 0 ? (
             <div className="bio-timeline-list">
               {education.map((e) => (
@@ -129,7 +164,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
       {/* Works */}
       {activeTab === "works" && (
-        <div className="bio-tab-content">
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-works"
+          aria-labelledby="bio-tab-works"
+        >
           {works.length > 0 ? (
             <div className="bio-grid-list">
               {works.map((w) => (
@@ -150,7 +190,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
       {/* Awards */}
       {activeTab === "awards" && (
-        <div className="bio-tab-content">
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-awards"
+          aria-labelledby="bio-tab-awards"
+        >
           {awards.length > 0 ? (
             <div className="bio-grid-list">
               {awards.map((a) => (
@@ -175,7 +220,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
       {/* Identity & Sensitive Demographic Context */}
       {activeTab === "identity" && (
-        <div className="bio-tab-content">
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-identity"
+          aria-labelledby="bio-tab-identity"
+        >
           <div className="identity-fields-grid">
             <div className="identity-item">
               <small>FULL BIRTH NAME</small>
