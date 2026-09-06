@@ -1,7 +1,9 @@
+import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import { testPeople, testEvents, testSources } from "./test-fixtures";
+import { isLocalDatabaseHost } from "@/db/index";
+import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -15,7 +17,12 @@ let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 export function getDb() {
   if (liveDb) return liveDb;
   if (isLiveDbConnected && connectionString) {
-    const client = postgres(connectionString, { max: 10, prepare: false });
+    const isLocal = isLocalDatabaseHost(connectionString);
+    const client = postgres(connectionString, {
+      max: 10,
+      prepare: false,
+      ssl: isLocal ? false : "verify-full",
+    });
     liveDb = drizzle(client, { schema });
     return liveDb;
   }
@@ -34,7 +41,7 @@ export interface MemoryRelationalStore {
   auditLog: (typeof schema.auditLog.$inferSelect)[];
 }
 
-function resolvePersonMetadata(p: (typeof testPeople)[0]): {
+function resolvePersonMetadata(p: TestPerson): {
   nationality: string;
   classification: string;
   programmeId: string;
@@ -131,9 +138,16 @@ function initializeSeedStore(): MemoryRelationalStore {
     };
   }
 
-  const people = testPeople;
-  const events = testEvents;
-  const sources = testSources;
+  // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
+  const nodeRequire = createRequire(import.meta.url);
+  const fixtures = nodeRequire("./test-fixtures.json") as {
+    testPeople: TestPerson[];
+    testEvents: TestEvent[];
+    testSources: TestSource[];
+  };
+  const people = fixtures.testPeople;
+  const events = fixtures.testEvents;
+  const sources = fixtures.testSources;
 
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 

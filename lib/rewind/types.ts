@@ -1,6 +1,8 @@
-export type Precision = "exact" | "day" | "month" | "year" | "range" | "unknown";
+export type Precision = "exact" | "exact-day" | "exact-minute" | "day" | "month" | "year" | "decade" | "range" | "unknown";
 export type Verification = "verified" | "provisional" | "disputed";
 export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
+export type LocationPrecision = "venue" | "city" | "country" | "unknown";
+export type EventScope = "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media";
 
 export interface Participant {
   personId: string;
@@ -25,12 +27,12 @@ export interface EventRecord {
    * Temporal resolution of the event start date (e.g. 'exact', 'day', 'month', 'year', 'exact-day').
    * Normalized with a sensible default ('exact-day') by the data mapping layer.
    */
-  datePrecision?: Precision | string;
-  timePrecision?: Precision | string;
+  datePrecision?: Precision;
+  timePrecision?: Precision;
   localStartTime?: string | null;
   localEndTime?: string | null;
   timezone?: string | null;
-  locationPrecision?: "venue" | "city" | "country" | "unknown" | string;
+  locationPrecision?: LocationPrecision;
   city: string;
   region?: string | null;
   country: string;
@@ -47,8 +49,8 @@ export interface EventRecord {
    * Evaluated confidence tier for this event record.
    * Normalized by the data layer to 'confirmed', 'strong', 'moderate', or 'limited'.
    */
-  confidence?: Confidence | string | null;
-  scope?: "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media" | string;
+  confidence?: Confidence | null;
+  scope?: EventScope;
   organisations?: string[];
   sourceIds: string[];
   participants: Participant[];

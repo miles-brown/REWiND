@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople, sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
+import { escapePostgrestValue } from "./search";
 import type { Confidence, EventFilters, EventRecord, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
@@ -357,8 +358,8 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       .order("id", { ascending: true });
 
     if (params.search && params.search.trim()) {
-      const term = params.search.trim();
-      query = query.or(`title.ilike.%${term}%,summary.ilike.%${term}%`);
+      const escaped = escapePostgrestValue(params.search.trim());
+      query = query.or(`title.ilike."%${escaped}%",summary.ilike."%${escaped}%"`);
     }
 
     if (params.year) {
@@ -370,7 +371,8 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.category && params.category !== "All") {
-      query = query.or(`event_type.ilike.%${params.category}%,title.ilike.%${params.category}%`);
+      const escaped = escapePostgrestValue(params.category.trim());
+      query = query.or(`event_type.ilike."%${escaped}%",title.ilike."%${escaped}%"`);
     }
 
     if (params.personSlug) {
@@ -445,27 +447,39 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (!eventRows || eventRows.length === 0) {
+      const total = count || 0;
       return {
         data: [],
-        count: 0,
+        count: total,
         page,
         pageSize,
-        totalPages: 0,
+        totalPages: Math.ceil(total / pageSize),
         error: null,
       };
     }
 
-    const events = await hydrateEventRows(supabase, eventRows);
-    const total = count || 0;
+    try {
+      const events = await hydrateEventRows(supabase, eventRows);
+      const total = count || 0;
 
-    return {
-      data: events,
-      count: total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-      error: null,
-    };
+      return {
+        data: events,
+        count: total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        error: null,
+      };
+    } catch (hydrateError: unknown) {
+      return {
+        data: [],
+        count: count || 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        error: hydrateError instanceof Error ? hydrateError.message : "Failed to hydrate events",
+      };
+    }
   } catch {
     return getFallbackEventsResult(params);
   }
@@ -919,4 +933,71 @@ export async function getAllEventsWithStatus(): Promise<{ data: EventRecord[]; e
 export async function getAllEvents(): Promise<EventRecord[]> {
   const res = await getAllEventsWithStatus();
   return res.data;
+}
+
+/**
+ * Retrieves all published speech events matching speech/statement/interview/press/bilateral/plenary patterns.
+ */
+export async function getSpeechEventsWithStatus(): Promise<{ data: EventRecord[]; error: string | null }> {
+  try {
+    const supabase = await createClient();
+    if (supabase) {
+      let allRows: Record<string, unknown>[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+      let queryError: string | null = null;
+
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("publication_status", "published")
+          .or('event_type.ilike."%speech%",event_type.ilike."%statement%",event_type.ilike."%interview%",event_type.ilike."%press%",event_type.ilike."%bilateral%",event_type.ilike."%plenary%"')
+          .order("start_date", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, to);
+
+        if (error) {
+          queryError = error.message;
+          hasMore = false;
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        allRows = allRows.concat(data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+
+      if (queryError) {
+        return { data: [], error: queryError };
+      }
+
+      const hydrated = await hydrateEventRows(supabase, allRows);
+      return { data: hydrated, error: null };
+    }
+  } catch (err: unknown) {
+    return {
+      data: [],
+      error: err instanceof Error ? err.message : "Failed to load speech events",
+    };
+  }
+
+  // Fallback if Supabase not configured
+  const fallback = fallbackEvents
+    .map(mapFallbackEvent)
+    .filter((e) =>
+      (e.eventTypes || []).some((t) => /Speech|Statement|Interview|Press|bilateral|plenary/i.test(t))
+    );
+  return { data: fallback, error: null };
 }

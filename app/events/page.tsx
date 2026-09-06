@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
-import { getAtlasStatistics, getEvents } from "@/lib/rewind";
+import { getAtlasStatistics, getAllEventsWithStatus } from "@/lib/rewind";
 
 export const metadata: Metadata = {
   title: "Documented Events — REWIND Evidence Atlas",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function EventsPage() {
   const [stats, eventsResult] = await Promise.all([
     getAtlasStatistics(),
-    getEvents({ limit: 100 }),
+    getAllEventsWithStatus(),
   ]);
 
   return (

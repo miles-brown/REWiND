@@ -10,14 +10,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const event = await getEventBySlug(slug);
   if (!event) notFound();
 
-  // Load surrounding events for chronological navigation
-  const { prev, next } = await getAdjacentEvents(event.startDate, event.id);
-
-  // Load attached source details in a single batched query
+  // Load surrounding events and attached source details concurrently
   const sourceIds = event.sourceIds || [];
-  const validSources = sourceIds.length > 0
-    ? await getSourcesByIds(sourceIds)
-    : [];
+  const [{ prev, next }, validSources] = await Promise.all([
+    getAdjacentEvents(event.startDate, event.id),
+    sourceIds.length > 0 ? getSourcesByIds(sourceIds) : Promise.resolve([]),
+  ]);
 
   const participants = event.participants || [];
 
@@ -126,33 +124,31 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         <aside className="evidence-rail">
           <span className="eyebrow">EVIDENCE</span>
           <h2>Source trail</h2>
-          {validSources.map((source) =>
-            source ? (
-              <article key={source.id}>
+          {validSources.map((source) => (
+            <article key={source.id}>
+              <div>
+                <span>{source.classification}</span>
+                <span>{source.sourceType.replaceAll("-", " ")}</span>
+              </div>
+              <h3>{source.title}</h3>
+              <p>{source.publisher}</p>
+              <dl>
                 <div>
-                  <span>{source.classification}</span>
-                  <span>{source.sourceType.replaceAll("-", " ")}</span>
+                  <dt>Language</dt>
+                  <dd>{source.language || "en"}</dd>
                 </div>
-                <h3>{source.title}</h3>
-                <p>{source.publisher}</p>
-                <dl>
-                  <div>
-                    <dt>Language</dt>
-                    <dd>{source.language || "en"}</dd>
-                  </div>
-                  <div>
-                    <dt>Accessed</dt>
-                    <dd>{source.accessedDate || "Archived"}</dd>
-                  </div>
-                </dl>
-                {source.url && (
-                  <a href={source.url} target="_blank" rel="noreferrer">
-                    Open original record <ExternalLink />
-                  </a>
-                )}
-              </article>
-            ) : null
-          )}
+                <div>
+                  <dt>Accessed</dt>
+                  <dd>{source.accessedDate || "Archived"}</dd>
+                </div>
+              </dl>
+              {source.url && (
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  Open original record <ExternalLink />
+                </a>
+              )}
+            </article>
+          ))}
           <div className="confidence-box">
             <b>Why “{event.confidence || "confirmed"}”?</b>
             <p>

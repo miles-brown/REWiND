@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
-import type { EventRecord } from "@/lib/rewind";
+import { formatIsoDate } from "@/lib/rewind/dates";
+import type { EventRecord } from "@/lib/rewind/types";
 
 export function EventCard({ event, compact = false }: { event: EventRecord; compact?: boolean }) {
   const verified = event.verificationStatus === "verified";
-  const confidence = event.confidence || "confirmed";
-  const temporalPrecision = event.timePrecision || event.datePrecision || "exact-day";
+  const confidence = event.confidence || "Not established";
+  const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
 
   return (
     <Link
@@ -16,11 +17,11 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
       <div className="event-card-top">
         <time title={`${temporalPrecision} precision`}>
           {event.startDate
-            ? new Date(event.startDate.includes("T") ? event.startDate : event.startDate + "T12:00:00").toLocaleDateString("en-GB", {
+            ? formatIsoDate(event.startDate, {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
-              })
+              }) || event.startDate
             : "Unknown date"}
         </time>
         <span

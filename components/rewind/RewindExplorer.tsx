@@ -24,12 +24,14 @@ import { CitationModal } from "./CitationModal";
 
 export const DEFAULT_EXPLORER_TYPE = "All";
 export const DEFAULT_EXPLORER_STATUS = "all";
+export const DEFAULT_SUBJECT = { name: "Benjamin Netanyahu", slug: "benjamin-netanyahu" };
 
 export interface RewindExplorerProps {
   initialType?: string;
   initialStatus?: string;
   initialEvents?: EventRecord[];
   sources?: SourceRecord[];
+  subject?: { name: string; slug: string } | null;
 }
 
 export function RewindExplorer({
@@ -37,6 +39,7 @@ export function RewindExplorer({
   initialStatus = DEFAULT_EXPLORER_STATUS,
   initialEvents = [],
   sources = [],
+  subject = DEFAULT_SUBJECT,
 }: RewindExplorerProps = {}) {
   const [type, setType] = useState(initialType);
   const [status, setStatus] = useState(initialStatus);
@@ -110,13 +113,15 @@ export function RewindExplorer({
       </div>
 
       <div className="workspace-toolbar">
-        <div className="person-lockup">
-          <span className="person-dot" />
-          <div>
-            <small>EXPLORING</small>
-            <b>Benjamin Netanyahu</b>
+        {subject && (
+          <div className="person-lockup">
+            <span className="person-dot" />
+            <div>
+              <small>EXPLORING</small>
+              <b>{subject.name}</b>
+            </div>
           </div>
-        </div>
+        )}
         <div className="workspace-filters">
           <label>
             <Filter size={14} />
@@ -231,7 +236,7 @@ export function RewindExplorer({
             <dl className="event-facts">
               <div>
                 <dt>Date</dt>
-                <dd>{event.timePrecision || event.datePrecision || "exact-day"}</dd>
+                <dd>{event.datePrecision || event.timePrecision || "exact-day"}</dd>
               </div>
               <div>
                 <dt>Time</dt>
@@ -239,7 +244,7 @@ export function RewindExplorer({
               </div>
               <div>
                 <dt>Confidence</dt>
-                <dd>{event.confidence || "confirmed"}</dd>
+                <dd>{event.confidence || "Not established"}</dd>
               </div>
               <div>
                 <dt>Medium</dt>
@@ -371,9 +376,9 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event && (
+        {event && subject && (
           <Link
-            href={`/person/benjamin-netanyahu/${event.startDate.slice(0, 4)}`}
+            href={`/person/${subject.slug}/${event.startDate.slice(0, 4)}`}
             className="calendar-jump"
             aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
           >

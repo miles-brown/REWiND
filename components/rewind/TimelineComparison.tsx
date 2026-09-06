@@ -47,6 +47,7 @@ export function TimelineComparison({
   const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(initialPersonB || undefined);
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
+  const [prevPairKey, setPrevPairKey] = useState(`${initialPersonA}-${initialPersonB || ""}`);
 
   const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
@@ -151,12 +152,21 @@ export function TimelineComparison({
 
   // Derive effective Person B: prioritize explicit user selection if still valid, otherwise default to top co-attendee
   const slugB = useMemo(() => {
-    if (coAttendeesWithCounts.length === 0) return "";
-    if (explicitSlugB && coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)) {
+    if (explicitSlugB && (peopleMap.has(explicitSlugB) || people.some((p) => p.slug === explicitSlugB))) {
       return explicitSlugB;
     }
-    return coAttendeesWithCounts[0].person.slug;
-  }, [coAttendeesWithCounts, explicitSlugB]);
+    if (coAttendeesWithCounts.length > 0) {
+      return coAttendeesWithCounts[0].person.slug;
+    }
+    const other = people.find((p) => p.slug !== effectiveSlugA);
+    return other?.slug || "";
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, people, effectiveSlugA]);
+
+  const currentPairKey = `${effectiveSlugA}-${slugB}`;
+  if (currentPairKey !== prevPairKey) {
+    setPrevPairKey(currentPairKey);
+    setSearchQuery("");
+  }
 
   const personB = useMemo(
     () => (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : undefined),
@@ -480,44 +490,53 @@ export function TimelineComparison({
                     )}
 
                     {/* Shared Encounter Cards */}
-                    <div className="encounter-cards-list" role="feed" aria-label="Shared chronological encounters">
-                      {filteredIntersections.map((event) => {
-                        const source = event.sources?.[0] || sourceById(event.sourceIds?.[0]);
-                        const participantA = (event.participants || []).find((p) => isParticipantMatch(p, personA));
-                        const participantB = (event.participants || []).find((p) => isParticipantMatch(p, personB));
-                        const otherParticipants = (event.participants || []).filter(
-                          (p) => !isParticipantMatch(p, personA) && !isParticipantMatch(p, personB)
-                        );
+                    {intersections.length > 0 && filteredIntersections.length === 0 && searchQuery.trim() !== "" ? (
+                      <div className="empty-intersections" style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted, #888)" }}>
+                        <p>No encounters matching &ldquo;{searchQuery}&rdquo;</p>
+                      </div>
+                    ) : (
+                      <div className="encounter-cards-list" role="list" aria-label="Shared chronological encounters">
+                        {filteredIntersections.map((event) => {
+                          const source = event.sources?.[0] || sourceById(event.sourceIds?.[0]);
+                          const participantA = (event.participants || []).find((p) => isParticipantMatch(p, personA));
+                          const participantB = (event.participants || []).find((p) => isParticipantMatch(p, personB));
+                          const otherParticipants = (event.participants || []).filter(
+                            (p) => !isParticipantMatch(p, personA) && !isParticipantMatch(p, personB)
+                          );
+                          const status = event.verificationStatus || "unknown";
+                          const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
+                          const confidence = event.confidence || "Not established";
 
-                        return (
-                          <article
-                            key={event.id}
-                            className="encounter-card"
-                            aria-labelledby={`encounter-title-${event.id}`}
-                          >
-                            <div className="encounter-card-header">
-                              <span
-                                className="encounter-date-pill"
-                                title={`Temporal precision: ${event.timePrecision || event.datePrecision || "exact-day"}`}
-                              >
-                                <Calendar size={13} />
-                                <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
-                              </span>
+                          return (
+                            <article
+                              key={event.id}
+                              className="encounter-card"
+                              role="listitem"
+                              aria-labelledby={`encounter-title-${event.id}`}
+                            >
+                              <div className="encounter-card-header">
+                                <span
+                                  className="encounter-date-pill"
+                                  title={`Temporal precision: ${temporalPrecision}`}
+                                >
+                                  <Calendar size={13} />
+                                  <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
+                                </span>
 
-                              <span
-                                className={`status ${event.verificationStatus || "verified"}`}
-                                title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "confirmed"} · ${event.timePrecision || event.datePrecision || "exact-day"} precision`}
-                              >
-                                {event.verificationStatus === "verified" ? (
-                                   <CheckCircle2 size={12} />
-                                ) : (
-                                  <CircleDashed size={12} />
-                                )}
-                                {event.verificationStatus || "verified"}
-                              </span>
-                            </div>
+                                <span
+                                  className={`status ${status}`}
+                                  title={`Verification: ${status} · Confidence: ${confidence} · ${temporalPrecision} precision`}
+                                >
+                                  {status === "verified" ? (
+                                     <CheckCircle2 size={12} />
+                                  ) : (
+                                    <CircleDashed size={12} />
+                                  )}
+                                  {status}
+                                </span>
+                              </div>
 
-                            <h4 id={`encounter-title-${event.id}`}>{event.eventName}</h4>
+                              <h4 id={`encounter-title-${event.id}`}>{event.eventName}</h4>
 
                             <p className="encounter-place">
                               <MapPin size={14} />
@@ -601,7 +620,8 @@ export function TimelineComparison({
                           </article>
                         );
                       })}
-                    </div>
+                      </div>
+                    )}
                   </section>
                 </>
               ) : (

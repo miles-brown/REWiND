@@ -2,6 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import type { SearchResultItem } from "./types";
 
 /**
+ * Escapes characters that have special meaning in PostgREST filter expressions.
+ */
+export function escapePostgrestValue(val: string): string {
+  return val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
  * Searches across events, people, places, and sources in Supabase.
  */
 export async function searchRewind(
@@ -15,28 +22,30 @@ export async function searchRewind(
     const supabase = await createClient();
     if (!supabase) return [];
 
+    const escaped = escapePostgrestValue(term);
+
     const [eventsRes, peopleRes, placesRes, sourcesRes] = await Promise.all([
       supabase
         .from("events")
         .select("id, slug, title, start_date, summary")
         .eq("publication_status", "published")
-        .or(`title.ilike.%${term}%,summary.ilike.%${term}%`)
+        .or(`title.ilike."%${escaped}%",summary.ilike."%${escaped}%"`)
         .limit(limit),
       supabase
         .from("people")
         .select("id, slug, display_name, canonical_name, primary_role")
         .eq("publication_status", "published")
-        .or(`canonical_name.ilike.%${term}%,display_name.ilike.%${term}%`)
+        .or(`canonical_name.ilike."%${escaped}%",display_name.ilike."%${escaped}%"`)
         .limit(limit),
       supabase
         .from("places")
         .select("id, slug, venue, city, country")
-        .or(`venue.ilike.%${term}%,city.ilike.%${term}%,country.ilike.%${term}%`)
+        .or(`venue.ilike."%${escaped}%",city.ilike."%${escaped}%",country.ilike."%${escaped}%"`)
         .limit(limit),
       supabase
         .from("sources")
         .select("id, title, publisher, tier")
-        .or(`title.ilike.%${term}%,publisher.ilike.%${term}%`)
+        .or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`)
         .limit(limit),
     ]);
 

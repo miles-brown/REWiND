@@ -101,6 +101,49 @@ export const placeAliases = pgTable("place_aliases", {
   alias: text("alias").notNull(),
 });
 
+export const addresses = pgTable("addresses", {
+  id: text("id").primaryKey(),
+  countryCode: text("country_code").notNull(),
+  buildingName: text("building_name"),
+  subBuilding: text("sub_building"),
+  streetNumber: text("street_number"),
+  streetName: text("street_name"),
+  district: text("district"),
+  neighbourhood: text("neighbourhood"),
+  locality: text("locality"),
+  dependentLocality: text("dependent_locality"),
+  city: text("city"),
+  administrativeArea: text("administrative_area"),
+  postalCode: text("postal_code"),
+  formattedLocal: text("formatted_local").notNull(),
+  formattedEnglish: text("formatted_english"),
+  descriptiveLocation: text("descriptive_location"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+});
+
+export const venues = pgTable("venues", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  parentVenueId: text("parent_venue_id").references((): AnyPgColumn => venues.id),
+  organisationId: text("organisation_id").references(() => organisations.id),
+  addressId: text("address_id").references(() => addresses.id),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+});
+
+export const eventSeries = pgTable("event_series", {
+  id: text("id").primaryKey(),
+  canonicalName: text("canonical_name").notNull(),
+  officialName: text("official_name"),
+  organiserOrganisationId: text("organiser_organisation_id").references(() => organisations.id),
+  description: text("description"),
+  startedDate: text("started_date"),
+  endedDate: text("ended_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // ==========================================
 // 3. Events Hierarchy (Parent & Child)
 // ==========================================
@@ -122,14 +165,14 @@ export const events = pgTable("events", {
   endDate: text("end_date"), // Optional upper bound for multi-day summits / treaties
   temporalPrecision: text("temporal_precision").default("exact-day").notNull(), // exact-minute, exact-day, month, year, decade
   placeId: text("place_id").references(() => places.id),
-  seriesId: text("series_id"),
-  venueId: text("venue_id"),
-  addressId: text("address_id"),
+  seriesId: text("series_id").references(() => eventSeries.id),
+  venueId: text("venue_id").references(() => venues.id),
+  addressId: text("address_id").references(() => addresses.id),
   verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
 
   confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
-  publicationStatus: text("publication_status").default("draft").notNull(), // published, provisional, queued, rejected
-  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review
+  publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
+  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, human-review, quarantine, withheld
   significanceScore: integer("significance_score").default(80).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

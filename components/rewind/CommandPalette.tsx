@@ -89,12 +89,15 @@ export function CommandPalette({
       return;
     }
 
+    const abortController = new AbortController();
     const requestId = ++searchRequestIdRef.current;
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setSearchResults([]);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`, {
+          signal: abortController.signal,
+        });
         if (requestId !== searchRequestIdRef.current) return;
         if (res.ok) {
           const json = await res.json();
@@ -103,7 +106,10 @@ export function CommandPalette({
         } else {
           setSearchResults([]);
         }
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         if (requestId === searchRequestIdRef.current) {
           setSearchResults([]);
         }
@@ -116,6 +122,7 @@ export function CommandPalette({
 
     return () => {
       clearTimeout(timer);
+      abortController.abort();
     };
   }, [query]);
 

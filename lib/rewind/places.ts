@@ -61,11 +61,19 @@ export async function getPlaceBySlug(
       placeType: p.place_type,
     };
 
-    const eventsResult = await getEvents({ placeSlug: slug, limit: 100 });
+    const allEvents: EventRecord[] = [];
+    let page = 1;
+    while (true) {
+      const eventsResult = await getEvents({ placeSlug: slug, page, limit: 100 });
+      if (!eventsResult.data || eventsResult.data.length === 0) break;
+      allEvents.push(...eventsResult.data);
+      if (page >= eventsResult.totalPages) break;
+      page++;
+    }
 
     return {
       place,
-      events: eventsResult.data,
+      events: allEvents,
     };
   } catch {
     return null;

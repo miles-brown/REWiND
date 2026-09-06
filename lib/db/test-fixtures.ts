@@ -120,7 +120,7 @@ export const testSources: TestSource[] = [
     publisher: "United Nations",
     sourceType: "official-record",
     classification: "primary",
-    url: "https://digitallibrary.un.org/record/712345",
+    url: "https://digitallibrary.un.org/record/714196",
     publicationDate: "2011-09-23",
   },
   {

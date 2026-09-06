@@ -70,18 +70,38 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
   try {
     const supabase = await createClient();
     if (supabase) {
-      // Filter participations by verified and published events
-      const { data: participations, error } = await supabase
-        .from("event_people")
-        .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
-        .eq("events.verification_status", "verified")
-        .eq("events.publication_status", "published");
+      // Filter participations by verified and published events with robust pagination
+      const participations: { event_id: string; person_id: string; role_label: string | null }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (error) {
-        return getFallbackRelationships();
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("event_people")
+          .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
+          .eq("events.verification_status", "verified")
+          .eq("events.publication_status", "published")
+          .order("event_id", { ascending: true })
+          .order("person_id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          return getFallbackRelationships();
+        }
+
+        if (data) {
+          participations.push(...(data as typeof participations));
+        }
+
+        if (!data || data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
       }
 
-      if (participations) {
+      if (participations.length > 0) {
         // Group persons by event
         const eventPersons = new Map<string, string[]>();
         participations.forEach((p) => {
@@ -107,16 +127,27 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
           return [];
         }
 
-        // Fetch person names
+        // Fetch person names in 500-ID chunks
         const allPersonIds = Array.from(
           new Set(
             Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
           )
         );
-        const { data: people } = await supabase
-          .from("people")
-          .select("id, slug, display_name, canonical_name")
-          .in("id", allPersonIds);
+        const CHUNK_SIZE = 500;
+        const people: Array<{ id: string; slug: string; display_name: string | null; canonical_name: string }> = [];
+        for (let i = 0; i < allPersonIds.length; i += CHUNK_SIZE) {
+          const chunk = allPersonIds.slice(i, i + CHUNK_SIZE);
+          const { data: chunkPeople, error: peopleError } = await supabase
+            .from("people")
+            .select("id, slug, display_name, canonical_name")
+            .in("id", chunk);
+          if (peopleError) {
+            return getFallbackRelationships();
+          }
+          if (chunkPeople) {
+            people.push(...chunkPeople);
+          }
+        }
 
         const personMap = new Map<string, { slug: string; name: string }>();
         (people || []).forEach((p) => {

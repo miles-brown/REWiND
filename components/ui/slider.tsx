@@ -67,7 +67,7 @@ function Slider({
         const thumbValueText = getAriaValueText
           ? getAriaValueText(thumbValue, index)
           : (ariaValueText ?? String(thumbValue))
-        const thumbLabel = getAriaLabel ? getAriaLabel(index) : (ariaLabel ?? "Timeline position")
+        const thumbLabel = getAriaLabel ? getAriaLabel(index) : (ariaLabel ?? "Value")
 
         return (
           <SliderPrimitive.Thumb

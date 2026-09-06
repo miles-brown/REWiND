@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
-import { getAllEventsWithStatus, getQuotesWithStatus } from "@/lib/rewind";
+import { getQuotesWithStatus, getSpeechEventsWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Archival Quotes — REWIND Evidence Atlas",
@@ -8,17 +8,14 @@ export const metadata = {
 };
 
 export default async function QuotesPage() {
-  const [quotesResult, eventsResult] = await Promise.all([
+  const [quotesResult, speechEventsResult] = await Promise.all([
     getQuotesWithStatus(),
-    getAllEventsWithStatus(),
+    getSpeechEventsWithStatus(),
   ]);
 
   const quotes = quotesResult.data;
-  const loaderError = quotesResult.error || eventsResult.error;
-
-  const speechEvents = eventsResult.data.filter((e) =>
-    (e.eventTypes || []).some((t) => /Speech|Statement|Interview|Press|bilateral|plenary/i.test(t))
-  );
+  const loaderError = quotesResult.error || speechEventsResult.error;
+  const speechEvents = speechEventsResult.data;
 
   return (
     <div className="page-shell">
@@ -87,7 +84,7 @@ export default async function QuotesPage() {
               <blockquote style={{ fontSize: "1.1rem", fontStyle: "italic", margin: "0 0 0.75rem" }}>“{q.quote}”</blockquote>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "var(--text-muted, #888)" }}>
                 <span><b>{q.speakerName || "Documented Speaker"}</b> · {q.language?.toUpperCase()}</span>
-                {(q.eventSlug || q.eventId) && <Link href={`/event/${q.eventSlug || q.eventId}`}>View Event <ArrowRight size={12} /></Link>}
+                {q.eventSlug && <Link href={`/event/${q.eventSlug}`}>View Event <ArrowRight size={12} /></Link>}
               </div>
             </article>
           ))}

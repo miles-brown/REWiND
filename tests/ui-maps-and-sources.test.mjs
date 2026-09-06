@@ -51,13 +51,28 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
 
   const cssPath = path.join(root, "app/globals.css");
   const cssContent = fs.readFileSync(cssPath, "utf-8");
+  const hasConsoleStickiness = (selector) => {
+    const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
+    let match;
+    while ((match = regex.exec(cssContent)) !== null) {
+      const block = match[1];
+      if (
+        /\bposition\s*:\s*sticky\b/.test(block) &&
+        /\bz-index\s*:\s*30\b/.test(block) &&
+        /\bbottom\s*:\s*0\b/.test(block)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
   assert.ok(
-    cssContent.includes(".person-time-console { position: sticky; z-index: 30; bottom: 0; }"),
-    "globals.css must anchor .person-time-console to bottom: 0 with sticky positioning"
+    hasConsoleStickiness(".person-time-console"),
+    "globals.css must anchor .person-time-console with position: sticky, z-index: 30, and bottom: 0"
   );
   assert.ok(
-    cssContent.includes(".rewind-console { position: sticky; z-index: 30; bottom: 0;"),
-    "globals.css must anchor .rewind-console to bottom: 0 with sticky positioning"
+    hasConsoleStickiness(".rewind-console"),
+    "globals.css must anchor .rewind-console with position: sticky, z-index: 30, and bottom: 0"
   );
 });
 
@@ -469,21 +484,19 @@ test("verifies full WCAG AA compliance for Sliders, KPIs, live announcements and
   );
 });
 
-test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalization", async () => {
-  const root = process.cwd();
-
-  // 1. Slider ARIA fallbacks
+test("verifies Slider ARIA fallbacks on thumb", () => {
   const sliderContent = fs.readFileSync(path.join(root, "components/ui/slider.tsx"), "utf-8");
   assert.ok(
     sliderContent.includes("ariaValueText ?? String(thumbValue)"),
     "Slider must guarantee fallback aria-valuetext on thumb"
   );
   assert.ok(
-    sliderContent.includes('ariaLabel ?? "Timeline position"'),
+    sliderContent.includes('ariaLabel ?? "Value"'),
     "Slider must guarantee fallback aria-label on thumb"
   );
+});
 
-  // 2. Canonical eventTypes prioritization
+test("verifies canonical eventTypes prioritization over legacy categories", () => {
   const cardContent = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
   assert.ok(
     cardContent.includes("event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])"),
@@ -494,13 +507,9 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     explorerContent.includes("e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])"),
     "EventExplorer must prioritize canonical eventTypes over legacy categories"
   );
+});
 
-  // 3. RewindExplorer conditional year jump
-  const rewindContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
-  assert.ok(
-    rewindContent.includes("{event && (") && rewindContent.includes('className="calendar-jump"'),
-    "RewindExplorer must conditionally render calendar-jump link when event is active and omit when null"
-  );
+test("verifies RewindExplorer conditional calendar-jump rendering", async () => {
   const { RewindExplorer } = await vite.ssrLoadModule("/components/rewind/RewindExplorer.tsx");
   const nullHtml = renderToStaticMarkup(
     React.createElement(RewindExplorer, {
@@ -534,15 +543,17 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     activeHtml.includes("calendar-jump"),
     "RewindExplorer must render calendar-jump link when event is active"
   );
+});
 
-  // 4. CitationModal forensic warning
+test("verifies CitationModal logs forensic warning on synthetic source fallback", () => {
   const citeContent = fs.readFileSync(path.join(root, "components/rewind/CitationModal.tsx"), "utf-8");
   assert.ok(
     citeContent.includes("[CitationModal] Forensic warning:"),
     "CitationModal must log forensic warning when falling back to synthetic source"
   );
+});
 
-  // 5. lib/rewind/events.ts confidence and datePrecision mappings
+test("verifies lib/rewind/events.ts confidence and datePrecision mappings", async () => {
   const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
   assert.ok(
     eventsContent.includes("confidence: (row.confidence as Confidence)") &&
@@ -570,12 +581,14 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     "confirmed",
     "mapDatabaseEvent must fall back to 'confirmed' when confidence is null and confidence_score >= 0.7"
   );
+});
 
-  // 6. Forensic Rigor: confidence and temporal precision fallbacks across components
+test("verifies confidence and temporal precision fallbacks across components", () => {
+  const cardContent = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
   const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
-    cardContent.includes('event.confidence || "confirmed"') &&
-    cardContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
+    cardContent.includes('event.confidence || "Not established"') &&
+    cardContent.includes('event.datePrecision || event.timePrecision || "exact-day"'),
     "EventCard must apply consistent confidence and temporal precision fallbacks"
   );
   assert.ok(
@@ -583,8 +596,9 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     timelineContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
     "PersonTimeline must apply consistent confidence and temporal precision fallbacks"
   );
+});
 
-  // 7. TimelineComparison performance optimization & interactive empty state
+test("verifies TimelineComparison performance optimization and interactive empty state", () => {
   const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
     compContent.includes("peopleMap = useMemo(") &&
@@ -596,8 +610,13 @@ test("verifies forensic rigor, Slider ARIA fallbacks, and taxonomy canonicalizat
     compContent.includes("comparison-cycle-grid"),
     "TimelineComparison empty state must render prominent CTA switch button and candidate cycle grid"
   );
+});
 
-  // 8. Accessibility (WCAG 2.1 AA) contracts across modals, explorers, and comparison views
+test("verifies WCAG 2.1 AA accessibility contracts across modals, explorers, and comparison views", () => {
+  const citeContent = fs.readFileSync(path.join(root, "components/rewind/CitationModal.tsx"), "utf-8");
+  const rewindContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+
   assert.match(
     citeContent,
     /<[^>]*\bclassName="[^"]*citation-unavailable[^"]*"[^>]*\brole="alert"|<[^>]*\brole="alert"[^>]*\bclassName="[^"]*citation-unavailable[^"]*"/,

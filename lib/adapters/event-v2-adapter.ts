@@ -179,7 +179,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     parentEventNeeded: false,
     personRolesIncomplete: people.some((p) => !p.roleLabel),
     organisationsIncomplete: (legacy.organisations?.length ?? 0) === 0,
-    broadcastResearchIncomplete: !(legacy.medium || []).includes("broadcast"),
+    broadcastResearchIncomplete: !(legacy.medium || []).some((m) => /video|broadcast|television/i.test(m)),
     locationInferred: legacy.locationPrecision === "city" || legacy.locationPrecision === "country",
     timeInferred: legacy.timePrecision !== "exact",
     titleEditorial: true,
@@ -208,8 +208,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     localStartTime: legacy.localStartTime ?? null,
     localEndTime: legacy.localEndTime ?? null,
     timezone: legacy.timezone ?? null,
-    datePrecision: (legacy.datePrecision as Precision) || "exact",
-    timePrecision: (legacy.timePrecision as Precision) || "exact",
+    datePrecision: (legacy.datePrecision as Precision) || "exact-day",
+    timePrecision: (legacy.timePrecision as Precision) || "exact-day",
     locationType,
     venueName: legacy.venueName ?? null,
     city: legacy.city,
@@ -278,10 +278,10 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     summary: v2.summary,
     categories: Array.isArray(compat?.categories)
       ? [...compat.categories]
-      : (v2.topics?.map((t) => t.topicId) || ["Historical"]),
+      : (v2.topics?.map((t) => t.topicId) || []),
     eventTypes: Array.isArray(compat?.eventTypes)
       ? [...compat.eventTypes]
-      : [v2.hierarchyType || "Event"],
+      : (v2.hierarchyType ? [v2.hierarchyType] : []),
     startDate: v2.startDate,
     endDate: v2.endDate || null,
     localStartTime: v2.localStartTime || null,
@@ -326,7 +326,7 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     media: Array.isArray(compat?.media) ? [...compat.media] : [],
     provenance: Array.isArray(compat?.provenance)
       ? [...compat.provenance]
-      : ["Event Model v2 Archival Migration"],
+      : [],
     conflictingClaims: Array.isArray(compat?.conflictingClaims)
       ? [...compat.conflictingClaims]
       : [],

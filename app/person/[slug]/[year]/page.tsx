@@ -10,8 +10,10 @@ export default async function PersonYearPage({
   params: Promise<{ slug: string; year: string }>;
 }) {
   const { slug, year } = await params;
+  if (!/^\d{4}$/.test(year)) notFound();
+
   const timelineData = await getPersonTimeline(slug, { year });
-  if (!timelineData) notFound();
+  if (!timelineData || !timelineData.years.includes(Number(year))) notFound();
 
   return (
     <div className="page-shell">

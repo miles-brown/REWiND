@@ -25,19 +25,23 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   };
 }
 
-function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
-  let fb = (fallbackSources || []).map((s) => ({
+export function mapArchiveSource(s: (typeof fallbackSources)[0]): SourceRecord {
+  return {
     id: s.id,
     title: s.title,
     publisher: s.publisher,
-    sourceType: s.sourceType,
+    sourceType: s.sourceType as SourceRecord["sourceType"],
     classification: s.classification,
     tier: (s.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
     url: s.url,
     publicationDate: s.publicationDate,
     accessedDate: s.accessedDate,
     language: s.language,
-  }));
+  };
+}
+
+function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
+  let fb = (fallbackSources || []).map(mapArchiveSource);
 
   if (filters.tier) {
     fb = fb.filter((s) => s.tier === filters.tier);
@@ -64,7 +68,7 @@ export async function getSourcesWithStatus(
       let query = supabase
         .from("sources")
         .select("*")
-        .order("trust_score", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (filters.tier) {
         query = query.eq("tier", filters.tier);
@@ -85,14 +89,14 @@ export async function getSourcesWithStatus(
         return { data: data.map(mapDatabaseSource), error: null };
       }
       if (error) {
-        return { data: getFallbackSources(filters), error: error.message };
+        return { data: [], error: error.message };
       }
     }
 
     return { data: getFallbackSources(filters), error: null };
   } catch (err) {
     return {
-      data: getFallbackSources(filters),
+      data: [],
       error: err instanceof Error ? err.message : "Failed to load sources",
     };
   }
@@ -197,6 +201,20 @@ export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
   }
 }
 
+export async function getArchiveSourceById(
+  id: string
+): Promise<{ source: SourceRecord; events: EventRecord[] } | null> {
+  const fbSrc = fallbackSources.find((s) => s.id === id);
+  if (!fbSrc) return null;
+  const { getAllEvents } = await import("./events");
+  const all = await getAllEvents();
+  const linked = all.filter((e) => e.sourceIds.includes(id));
+  return {
+    source: mapArchiveSource(fbSrc),
+    events: linked,
+  };
+}
+
 /**
  * Retrieves a single source by ID along with events that reference it.
  */
@@ -240,46 +258,8 @@ export async function getSourceById(
       }
     }
 
-    const fbSrc = fallbackSources.find((s) => s.id === id);
-    if (!fbSrc) return null;
-    const { getAllEvents } = await import("./events");
-    const all = await getAllEvents();
-    const linked = all.filter((e) => e.sourceIds.includes(id));
-    return {
-      source: {
-        id: fbSrc.id,
-        title: fbSrc.title,
-        publisher: fbSrc.publisher,
-        sourceType: fbSrc.sourceType,
-        classification: fbSrc.classification,
-        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
-        url: fbSrc.url,
-        publicationDate: fbSrc.publicationDate,
-        accessedDate: fbSrc.accessedDate,
-        language: fbSrc.language,
-      },
-      events: linked,
-    };
+    return await getArchiveSourceById(id);
   } catch {
-    const fbSrc = fallbackSources.find((s) => s.id === id);
-    if (!fbSrc) return null;
-    const { getAllEvents } = await import("./events");
-    const all = await getAllEvents();
-    const linked = all.filter((e) => e.sourceIds.includes(id));
-    return {
-      source: {
-        id: fbSrc.id,
-        title: fbSrc.title,
-        publisher: fbSrc.publisher,
-        sourceType: fbSrc.sourceType,
-        classification: fbSrc.classification,
-        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
-        url: fbSrc.url,
-        publicationDate: fbSrc.publicationDate,
-        accessedDate: fbSrc.accessedDate,
-        language: fbSrc.language,
-      },
-      events: linked,
-    };
+    return await getArchiveSourceById(id);
   }
 }

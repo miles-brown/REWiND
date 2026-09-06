@@ -9,7 +9,7 @@ const isValidConnectionString = Boolean(
     (connectionString.startsWith("postgres://") || connectionString.startsWith("postgresql://"))
 );
 
-function isLocalDatabaseHost(connStr: string): boolean {
+export function isLocalDatabaseHost(connStr: string): boolean {
   try {
     const url = new URL(connStr);
     const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
@@ -39,7 +39,7 @@ export function getDb() {
     const client = postgres(connectionString, {
       max: 10,
       prepare: false,
-      ssl: isLocal ? false : "require",
+      ssl: isLocal ? false : "verify-full",
     });
     dbInstance = drizzle(client, { schema });
     return dbInstance;

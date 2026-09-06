@@ -186,7 +186,7 @@ export function SourcesCatalog({
           </div>
           <div className="source-kpi">
             <dt className="kpi-label">Total Corroborated Claims</dt>
-            <dd className="kpi-num">{eventMetricsError ? "—" : totalEvidencedLinks}</dd>
+            <dd className="kpi-num">{eventMetricsError ? "Unavailable" : totalEvidencedLinks}</dd>
           </div>
         </dl>
       </header>
@@ -417,7 +417,7 @@ export function SourcesCatalog({
                     <td className="col-events">
                       {eventMetricsError ? (
                         <span className="event-count-badge dimmed" title="Event metrics unavailable">
-                          <b>—</b>
+                          <span>Unavailable</span>
                         </span>
                       ) : (
                         <span className="event-count-badge">

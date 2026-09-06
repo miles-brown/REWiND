@@ -81,21 +81,43 @@ export function parseIsoDate(dateStr?: string | null): Date | null {
     // to prevent UTC-midnight timezone shifting
     const parts = normalized.split("-");
     if (parts.length === 3) {
+      if (!/^\d{4}$/.test(parts[0]) || !/^\d{2}$/.test(parts[1]) || !/^\d{2}$/.test(parts[2])) {
+        return null;
+      }
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
+      if (month < 0 || month > 11 || day < 1 || day > 31) return null;
       const d = new Date(year, month, day, 12, 0, 0);
-      return isNaN(d.getTime()) ? null : d;
+      d.setFullYear(year);
+      if (isNaN(d.getTime())) return null;
+      if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) {
+        return null;
+      }
+      return d;
     }
     if (parts.length === 2) {
+      if (!/^\d{4}$/.test(parts[0]) || !/^\d{2}$/.test(parts[1])) {
+        return null;
+      }
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
+      if (month < 0 || month > 11) return null;
       const d = new Date(year, month, 1, 12, 0, 0);
-      return isNaN(d.getTime()) ? null : d;
+      d.setFullYear(year);
+      if (isNaN(d.getTime())) return null;
+      if (d.getFullYear() !== year || d.getMonth() !== month) {
+        return null;
+      }
+      return d;
     }
     if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
-      const d = new Date(parseInt(parts[0], 10), 0, 1, 12, 0, 0);
-      return isNaN(d.getTime()) ? null : d;
+      const year = parseInt(parts[0], 10);
+      const d = new Date(year, 0, 1, 12, 0, 0);
+      d.setFullYear(year);
+      if (isNaN(d.getTime())) return null;
+      if (d.getFullYear() !== year) return null;
+      return d;
     }
 
     const d = new Date(normalized);

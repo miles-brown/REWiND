@@ -412,6 +412,9 @@ CREATE INDEX IF NOT EXISTS idx_people_publication_status ON public.people(public
 CREATE INDEX IF NOT EXISTS idx_events_slug ON public.events(slug);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON public.events(start_date);
 CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events(place_id);
+CREATE INDEX IF NOT EXISTS idx_events_venue_id ON public.events(venue_id);
+CREATE INDEX IF NOT EXISTS idx_events_address_id ON public.events(address_id);
+CREATE INDEX IF NOT EXISTS idx_venues_address_id ON public.venues(address_id);
 CREATE INDEX IF NOT EXISTS idx_events_publication_status ON public.events(publication_status);
 
 CREATE INDEX IF NOT EXISTS idx_places_slug ON public.places(slug);
