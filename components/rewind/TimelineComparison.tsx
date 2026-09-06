@@ -31,8 +31,8 @@ function formatDate(dateStr: string): string {
 }
 
 export function TimelineComparison({
-  initialPersonA = "",
-  initialPersonB = "",
+  initialPersonA,
+  initialPersonB,
   people = [],
   events = [],
   sources = [],
@@ -43,11 +43,15 @@ export function TimelineComparison({
   events?: EventRecord[];
   sources?: SourceRecord[];
 }) {
-  const [slugA, setSlugA] = useState(initialPersonA);
-  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(initialPersonB || undefined);
+  const [slugA, setSlugA] = useState(initialPersonA || people[0]?.slug || "");
+  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(
+    initialPersonB || (people.length > 1 ? people[1]?.slug : undefined)
+  );
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
-  const [prevPairKey, setPrevPairKey] = useState(`${initialPersonA}-${initialPersonB || ""}`);
+  const [prevPairKey, setPrevPairKey] = useState(
+    `${initialPersonA || people[0]?.slug || ""}-${initialPersonB || (people.length > 1 ? people[1]?.slug : "")}`
+  );
 
   const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);

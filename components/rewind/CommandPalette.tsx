@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import { AlertCircle, Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
 import type { SearchResultItem } from "@/lib/rewind";
 
 const DEFAULT_ACTIONS: SearchResultItem[] = [
@@ -77,6 +77,7 @@ export function CommandPalette({
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
 
   const trimmed = query.trim();
@@ -94,6 +95,7 @@ export function CommandPalette({
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setSearchResults([]);
+      setSearchError(null);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`, {
           signal: abortController.signal,
@@ -103,8 +105,10 @@ export function CommandPalette({
           const json = await res.json();
           if (requestId !== searchRequestIdRef.current) return;
           setSearchResults(json.results || []);
+          setSearchError(null);
         } else {
           setSearchResults([]);
+          setSearchError("Search failed, please try again.");
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -112,6 +116,7 @@ export function CommandPalette({
         }
         if (requestId === searchRequestIdRef.current) {
           setSearchResults([]);
+          setSearchError("Search failed, please try again.");
         }
       } finally {
         if (requestId === searchRequestIdRef.current) {
@@ -179,6 +184,7 @@ export function CommandPalette({
               setQuery(val);
               setSelectedIndex(0);
               setSearchResults([]);
+              setSearchError(null);
               if (val.trim()) {
                 setIsLoading(true);
               } else {
@@ -202,6 +208,7 @@ export function CommandPalette({
                 setQuery("");
                 setSelectedIndex(0);
                 setSearchResults([]);
+                setSearchError(null);
                 setIsLoading(false);
               }}
               aria-label="Clear query"
@@ -213,19 +220,29 @@ export function CommandPalette({
           )}
         </div>
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {isLoading
+          {searchError
+            ? searchError
+            : isLoading
             ? "Searching archival records…"
             : trimmed
             ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
             : ""}
         </div>
         <div className="command-palette-results" aria-live="polite">
-          {query && !results.length && (
+          {searchError ? (
+            <div className="empty-copy search-error-copy" role="alert">
+              <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "var(--color-crimson, #ef4444)" }}>
+                <AlertCircle size={15} />
+                <span>{searchError}</span>
+              </p>
+              <small>Check your network connection or try a different search query.</small>
+            </div>
+          ) : query && !results.length && !isLoading ? (
             <div className="empty-copy">
               <p>No historical records match “{query}”.</p>
               <small>Try searching by person, treaty name, city, or date.</small>
             </div>
-          )}
+          ) : null}
           {results.map((item, index) => {
             const isSelected = index === activeIndex;
             return (

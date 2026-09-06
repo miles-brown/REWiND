@@ -46,7 +46,7 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     confidence: e.verificationStatus === "verified" ? "confirmed" : "moderate",
     confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
     sourceIds: e.sourceIds || [],
-    sources: sources.length > 0 ? sources : undefined,
+    sources: sources,
     participants: (e.participants || []).map((p) => ({
       personId: p.personId,
       name: p.name,
@@ -141,7 +141,7 @@ export function mapDatabaseEvent(
   const sourceIds = sourcesMap.get(id) || [];
   const sources = sourceEntitiesMap
     ? sourceIds.map((sId) => sourceEntitiesMap.get(sId)).filter((s): s is SourceRecord => Boolean(s))
-    : undefined;
+    : [];
 
   return {
     id,

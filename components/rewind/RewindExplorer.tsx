@@ -39,7 +39,7 @@ export function RewindExplorer({
   initialStatus = DEFAULT_EXPLORER_STATUS,
   initialEvents = [],
   sources = [],
-  subject = DEFAULT_SUBJECT,
+  subject = null,
 }: RewindExplorerProps = {}) {
   const [type, setType] = useState(initialType);
   const [status, setStatus] = useState(initialStatus);
@@ -113,15 +113,13 @@ export function RewindExplorer({
       </div>
 
       <div className="workspace-toolbar">
-        {subject && (
-          <div className="person-lockup">
-            <span className="person-dot" />
-            <div>
-              <small>EXPLORING</small>
-              <b>{subject.name}</b>
-            </div>
+        <div className="person-lockup">
+          <span className="person-dot" />
+          <div>
+            <small>EXPLORING</small>
+            <b>{subject ? subject.name : "All Events"}</b>
           </div>
-        )}
+        </div>
         <div className="workspace-filters">
           <label>
             <Filter size={14} />
@@ -376,11 +374,19 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event && subject && (
+        {event && (
           <Link
-            href={`/person/${subject.slug}/${event.startDate.slice(0, 4)}`}
+            href={
+              subject
+                ? `/person/${subject.slug}/${event.startDate.slice(0, 4)}`
+                : `/events?year=${event.startDate.slice(0, 4)}`
+            }
             className="calendar-jump"
-            aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
+            aria-label={
+              subject
+                ? `Open ${event.startDate.slice(0, 4)} year view for ${subject.name}`
+                : `Open ${event.startDate.slice(0, 4)} year view`
+            }
           >
             <CalendarDays />
           </Link>

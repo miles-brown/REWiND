@@ -27,8 +27,8 @@ export default async function ComparePage() {
       </header>
 
       <TimelineComparison
-        initialPersonA="benjamin-netanyahu"
-        initialPersonB="bill-clinton"
+        initialPersonA={people[0]?.slug}
+        initialPersonB={people[1]?.slug}
         people={people}
         events={allEvents}
         sources={sources}

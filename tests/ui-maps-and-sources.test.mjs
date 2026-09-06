@@ -641,5 +641,52 @@ test("verifies WCAG 2.1 AA accessibility contracts across modals, explorers, and
   );
 });
 
+test("verifies TimelineComparison dynamic person defaults and RewindExplorer subject decoupling", () => {
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  const compPageContent = fs.readFileSync(path.join(root, "app/compare/page.tsx"), "utf-8");
+  const rewindContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  const eventActionsContent = fs.readFileSync(path.join(root, "components/rewind/EventActions.tsx"), "utf-8");
+  const eventsModuleContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  const cmdPaletteContent = fs.readFileSync(path.join(root, "components/rewind/CommandPalette.tsx"), "utf-8");
+
+  // 1. TimelineComparison dynamic defaults
+  assert.ok(
+    compPageContent.includes("initialPersonA={people[0]?.slug}") &&
+    compPageContent.includes("initialPersonB={people[1]?.slug}"),
+    "app/compare/page.tsx must pass dynamic initialPersonA and initialPersonB from available people"
+  );
+  assert.ok(
+    compContent.includes("initialPersonA || people[0]?.slug || \"\"") &&
+    compContent.includes("initialPersonB || (people.length > 1 ? people[1]?.slug : undefined)"),
+    "TimelineComparison must dynamically default slugA and explicitSlugB from people array"
+  );
+
+  // 2. Event sources consistency and EventActions safe access
+  assert.ok(
+    eventsModuleContent.includes("sources: sources,") &&
+    eventsModuleContent.includes(": [];\n\n  return {\n    id,\n    slug: String(row.slug || id),"),
+    "lib/rewind/events.ts must always populate sources as an array instead of undefined"
+  );
+  assert.ok(
+    eventActionsContent.includes("event.sources && event.sources.length > 0 ? event.sources[0] : undefined"),
+    "EventActions must safely guard event.sources presence when invoking CitationModal"
+  );
+
+  // 3. CommandPalette search error handling
+  assert.ok(
+    cmdPaletteContent.includes("searchError") &&
+    cmdPaletteContent.includes('role="alert"') &&
+    cmdPaletteContent.includes("Search failed, please try again."),
+    "CommandPalette must provide visual alert and live announcement on search failure"
+  );
+
+  // 4. RewindExplorer subject decoupling
+  assert.ok(
+    rewindContent.includes("subject = null") &&
+    rewindContent.includes('subject ? subject.name : "All Events"'),
+    "RewindExplorer must default subject to null and render 'All Events' when subject is omitted"
+  );
+});
+
 
 
