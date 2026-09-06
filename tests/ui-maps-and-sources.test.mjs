@@ -688,5 +688,86 @@ test("verifies TimelineComparison dynamic person defaults and RewindExplorer sub
   );
 });
 
+test("verifies parseIsoDate timestamp rollover safeguard and relational query robustness", async () => {
+  const { parseIsoDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+
+  // 1. parseIsoDate timestamp rollover prevention
+  assert.strictEqual(
+    parseIsoDate("2023-02-30T10:00:00Z"),
+    null,
+    "parseIsoDate must return null for invalid calendar date with timestamp (February 30)"
+  );
+  assert.strictEqual(
+    parseIsoDate("2023-02-29T12:00:00Z"),
+    null,
+    "parseIsoDate must return null for non-leap-year Feb 29 with timestamp"
+  );
+  assert.ok(
+    parseIsoDate("2024-02-29T12:00:00Z") instanceof Date,
+    "parseIsoDate must accept valid leap-year Feb 29 with timestamp"
+  );
+  assert.ok(
+    parseIsoDate("2023-10-07T14:30:00Z") instanceof Date,
+    "parseIsoDate must accept valid timestamp"
+  );
+
+  // 2. TimelineComparison Person B resolution against co-attendees only
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    compContent.includes("coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)"),
+    "TimelineComparison must accept explicitSlugB only if figure is in coAttendeesWithCounts"
+  );
+
+  // 3. app/events/page.tsx error propagation
+  const eventsPageContent = fs.readFileSync(path.join(root, "app/events/page.tsx"), "utf-8");
+  assert.ok(
+    eventsPageContent.includes("eventsResult.error ? (") &&
+    eventsPageContent.includes("Events register temporarily unavailable"),
+    "app/events/page.tsx must render an error alert when getAllEventsWithStatus fails"
+  );
+
+  // 4. lib/rewind/places.ts error propagation
+  const placesContent = fs.readFileSync(path.join(root, "lib/rewind/places.ts"), "utf-8");
+  assert.ok(
+    placesContent.includes("if (eventsResult.error)") &&
+    placesContent.includes("throw new Error(eventsResult.error);"),
+    "lib/rewind/places.ts must fail place loading if getEvents reports an error"
+  );
+
+  // 5. lib/rewind/quotes.ts deterministic total ordering
+  const quotesContent = fs.readFileSync(path.join(root, "lib/rewind/quotes.ts"), "utf-8");
+  assert.ok(
+    quotesContent.includes('.order("created_at", { ascending: false })') &&
+    quotesContent.includes('.order("id", { ascending: true })'),
+    "lib/rewind/quotes.ts must include secondary sort key id for deterministic pagination"
+  );
+
+  // 6. lib/rewind/events.ts person participation pagination
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsContent.includes('.eq("person_id", personData.id)') &&
+    eventsContent.includes('.order("event_id", { ascending: true })') &&
+    eventsContent.includes("eventIds.push(p.event_id)"),
+    "lib/rewind/events.ts must paginate event_people participation queries"
+  );
+
+  // 7. lib/rewind/relationships.ts zero-state
+  const relContent = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
+  assert.ok(
+    relContent.includes("if (participations.length > 0) {") &&
+    relContent.includes("return [];\n    }\n\n    return getFallbackRelationships();"),
+    "lib/rewind/relationships.ts must return empty array when Supabase has zero participations"
+  );
+
+  // 8. lib/rewind/sources.ts event_sources pagination and error handling
+  const sourcesContent = fs.readFileSync(path.join(root, "lib/rewind/sources.ts"), "utf-8");
+  assert.ok(
+    sourcesContent.includes('.from("event_sources")') &&
+    sourcesContent.includes('.order("event_id", { ascending: true })') &&
+    sourcesContent.includes("if (esError) {\n              throw esError;\n            }"),
+    "lib/rewind/sources.ts must paginate event_sources and propagate errors"
+  );
+});
+
 
 

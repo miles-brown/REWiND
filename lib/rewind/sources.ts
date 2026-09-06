@@ -233,13 +233,37 @@ export async function getSourceById(
       if (!error && s) {
         const source = mapDatabaseSource(s);
 
-        // Find referencing events via relational join
-        const { data: eventSources } = await supabase
-          .from("event_sources")
-          .select("event_id")
-          .eq("source_id", id);
+        // Find referencing events via relational join with full pagination
+        const eventIds: string[] = [];
+        {
+          const batchSize = 1000;
+          let esPage = 0;
+          let hasMore = true;
+          while (hasMore) {
+            const from = esPage * batchSize;
+            const to = from + batchSize - 1;
+            const { data: eventSources, error: esError } = await supabase
+              .from("event_sources")
+              .select("event_id")
+              .eq("source_id", id)
+              .order("event_id", { ascending: true })
+              .range(from, to);
 
-        const eventIds = (eventSources || []).map((es) => es.event_id);
+            if (esError) {
+              throw esError;
+            }
+            if (!eventSources || eventSources.length === 0) {
+              break;
+            }
+            eventSources.forEach((es) => eventIds.push(es.event_id));
+            if (eventSources.length < batchSize) {
+              hasMore = false;
+            } else {
+              esPage++;
+            }
+          }
+        }
+
         let events: EventRecord[] = [];
         if (eventIds.length > 0) {
           const { getEventsByIds } = await import("./events");

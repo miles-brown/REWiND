@@ -154,17 +154,16 @@ export function TimelineComparison({
       .sort((a, b) => b.count - a.count);
   }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection if still valid, otherwise default to top co-attendee
+  // Derive effective Person B: prioritize explicit user selection if they are a valid co-attendee, otherwise default to top co-attendee, or "" if none exist
   const slugB = useMemo(() => {
-    if (explicitSlugB && (peopleMap.has(explicitSlugB) || people.some((p) => p.slug === explicitSlugB))) {
+    if (explicitSlugB && coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)) {
       return explicitSlugB;
     }
     if (coAttendeesWithCounts.length > 0) {
       return coAttendeesWithCounts[0].person.slug;
     }
-    const other = people.find((p) => p.slug !== effectiveSlugA);
-    return other?.slug || "";
-  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, people, effectiveSlugA]);
+    return "";
+  }, [coAttendeesWithCounts, explicitSlugB]);
 
   const currentPairKey = `${effectiveSlugA}-${slugB}`;
   if (currentPairKey !== prevPairKey) {

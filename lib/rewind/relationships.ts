@@ -177,6 +177,8 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
 
         return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
       }
+
+      return [];
     }
 
     return getFallbackRelationships();

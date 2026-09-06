@@ -393,12 +393,36 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
         };
       }
 
-      const { data: participation } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", personData.id);
+      const eventIds: string[] = [];
+      {
+        const batchSize = 1000;
+        let pPage = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const from = pPage * batchSize;
+          const to = from + batchSize - 1;
+          const { data: participation, error: pError } = await supabase
+            .from("event_people")
+            .select("event_id")
+            .eq("person_id", personData.id)
+            .order("event_id", { ascending: true })
+            .range(from, to);
 
-      const eventIds = (participation || []).map((p) => p.event_id);
+          if (pError) {
+            throw pError;
+          }
+          if (!participation || participation.length === 0) {
+            break;
+          }
+          participation.forEach((p) => eventIds.push(p.event_id));
+          if (participation.length < batchSize) {
+            hasMore = false;
+          } else {
+            pPage++;
+          }
+        }
+      }
+
       if (eventIds.length === 0) {
         return {
           data: [],

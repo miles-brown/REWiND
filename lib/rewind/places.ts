@@ -65,6 +65,9 @@ export async function getPlaceBySlug(
     let page = 1;
     while (true) {
       const eventsResult = await getEvents({ placeSlug: slug, page, limit: 100 });
+      if (eventsResult.error) {
+        throw new Error(eventsResult.error);
+      }
       if (!eventsResult.data || eventsResult.data.length === 0) break;
       allEvents.push(...eventsResult.data);
       if (page >= eventsResult.totalPages) break;

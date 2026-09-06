@@ -71,8 +71,25 @@ export function parseIsoDate(dateStr?: string | null): Date | null {
   if (!normalized) return null;
 
   try {
-    // If input contains a time component, preserve full timestamp with standard Date parsing
+    // If input contains a time component, validate the calendar date portion first
+    // to prevent JS Date rollover on invalid calendar dates (e.g. "2023-02-30T10:00:00Z")
     if (normalized.includes("T")) {
+      const datePart = normalized.split("T")[0];
+      const dateParts = datePart.split("-");
+      if (dateParts.length === 3) {
+        if (!/^\d{4}$/.test(dateParts[0]) || !/^\d{2}$/.test(dateParts[1]) || !/^\d{2}$/.test(dateParts[2])) {
+          return null;
+        }
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const day = parseInt(dateParts[2], 10);
+        if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+        const checkDate = new Date(year, month, day, 12, 0, 0);
+        checkDate.setFullYear(year);
+        if (checkDate.getFullYear() !== year || checkDate.getMonth() !== month || checkDate.getDate() !== day) {
+          return null;
+        }
+      }
       const d = new Date(normalized);
       return isNaN(d.getTime()) ? null : d;
     }
