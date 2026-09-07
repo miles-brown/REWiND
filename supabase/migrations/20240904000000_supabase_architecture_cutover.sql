@@ -423,9 +423,11 @@ ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 
 
 -- Ensure updated_at on sources is automatically refreshed on update
 CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SET search_path = ''
+AS $$
 BEGIN
-  NEW.updated_at = now();
+  NEW.updated_at = pg_catalog.now();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -723,4 +725,3 @@ AFTER DELETE OR UPDATE OF event_id ON public.event_sources
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION public.verify_published_event_sources();
-

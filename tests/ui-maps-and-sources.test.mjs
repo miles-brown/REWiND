@@ -20,6 +20,23 @@ after(async () => {
   await vite.close();
 });
 
+const cssBlockContains = (cssContent, selector, declarationPatterns) => {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const blockRegex = new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, "g");
+  let match;
+  while ((match = blockRegex.exec(cssContent)) !== null) {
+    if (declarationPatterns.every((pattern) => pattern.test(match[1]))) return true;
+  }
+  return false;
+};
+
+const hasConsoleStickiness = (cssContent, selector) =>
+  cssBlockContains(cssContent, selector, [
+    /\bposition\s*:\s*fixed\s*(?:;|$)/,
+    /\bbottom\s*:\s*0\s*(?:;|$)/,
+    /\bz-index\s*:\s*40\s*(?:;|$)/,
+  ]);
+
 test("verifies app/admin/evidence/page.tsx does not duplicate Shell wrapper", () => {
   const adminPagePath = path.join(root, "app/admin/evidence/page.tsx");
   const content = fs.readFileSync(adminPagePath, "utf-8");
@@ -51,28 +68,13 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
 
   const cssPath = path.join(root, "app/globals.css");
   const cssContent = fs.readFileSync(cssPath, "utf-8");
-  const hasConsoleStickiness = (selector) => {
-    const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
-    let match;
-    while ((match = regex.exec(cssContent)) !== null) {
-      const block = match[1];
-      if (
-        /\bposition\s*:\s*(?:sticky|fixed)\b/.test(block) &&
-        /\bz-index\s*:\s*(?:30|40)\b/.test(block) &&
-        /\bbottom\s*:\s*0\b/.test(block)
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
   assert.ok(
-    hasConsoleStickiness(".person-time-console"),
-    "globals.css must anchor .person-time-console with position: fixed/sticky, z-index: 30/40, and bottom: 0"
+    hasConsoleStickiness(cssContent, ".person-time-console"),
+    "globals.css must anchor .person-time-console with position: fixed, z-index: 40, and bottom: 0"
   );
   assert.ok(
-    hasConsoleStickiness(".rewind-console"),
-    "globals.css must anchor .rewind-console with position: fixed/sticky, z-index: 30/40, and bottom: 0"
+    hasConsoleStickiness(cssContent, ".rewind-console"),
+    "globals.css must anchor .rewind-console with position: fixed, z-index: 40, and bottom: 0"
   );
 });
 
@@ -885,7 +887,7 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
   const expectedMonth = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(1993, 8, 1));
   assert.strictEqual(formatTimelineDate("1993", "year"), "1993");
   assert.strictEqual(formatTimelineDate("1993-09", "month"), `${expectedMonth} 1993`);
-  assert.strictEqual(formatTimelineDate("1993-09-13"), "13 Sept 1993");
+  assert.strictEqual(formatTimelineDate("1993-09-13"), `13 ${expectedMonth} 1993`);
   assert.strictEqual(formatTimelineDate("Spring 1999"), "Spring 1999");
   assert.strictEqual(formatTimelineDate(""), "");
 
@@ -913,8 +915,10 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
   );
   assert.ok(
     migrationContent.includes("CREATE TRIGGER trg_sources_updated_at") &&
-    migrationContent.includes("BEFORE UPDATE ON public.sources"),
-    "Migration must maintain set_updated_at trigger on public.sources"
+    migrationContent.includes("BEFORE UPDATE ON public.sources") &&
+    migrationContent.includes("SET search_path = ''") &&
+    migrationContent.includes("NEW.updated_at = pg_catalog.now();"),
+    "Migration must maintain a search-path-safe set_updated_at trigger on public.sources"
   );
 
   // 3. Quotes hydration, pagination & error propagation in lib/rewind/events.ts
@@ -940,10 +944,10 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
 
   const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
   assert.ok(
-    cssContent.includes(".rewind-console { position: fixed; z-index: 40; bottom: 0;") &&
-    cssContent.includes(".person-time-console { position: fixed; z-index: 40; bottom: 0;") &&
-    cssContent.includes(".rewind-workspace { color: #fff; background: var(--ink); border-top: 1px solid rgba(255,255,255,.08); padding-bottom: 120px; }") &&
-    cssContent.includes(".person-time-machine { padding-bottom: 125px; }"),
+    hasConsoleStickiness(cssContent, ".rewind-console") &&
+    hasConsoleStickiness(cssContent, ".person-time-console") &&
+    cssBlockContains(cssContent, ".rewind-workspace", [/\bpadding-bottom\s*:\s*120px\s*(?:;|$)/]) &&
+    cssBlockContains(cssContent, ".person-time-machine", [/\bpadding-bottom\s*:\s*125px\s*(?:;|$)/]),
     "globals.css must keep timeline consoles fixed to the viewport with matching bottom padding per AGENTS.md"
   );
 
@@ -963,5 +967,3 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     "TimelineComparison must validate requested primary slug against peopleMap with fallback"
   );
 });
-
-

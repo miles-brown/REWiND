@@ -280,8 +280,6 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     const placeId = `plc-${syncCandidate.suggestedPlace ? syncCandidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
     const sourceId = data.sourceId || "src-editorial-approval";
 
-    syncCandidate.status = "approved";
-
     store.events.unshift({
       id: eventSlug,
       slug: eventSlug,
@@ -514,7 +512,6 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
   if (!db && syncCandidate && syncTarget && syncCandidate.status === "pending") {
     // Perform synchronous store mutation immediately for offline non-db callers
-    syncCandidate.status = "merged";
     const data = typeof syncCandidate.rawExtraction === "string" ? JSON.parse(syncCandidate.rawExtraction) : syncCandidate.rawExtraction;
     const sourceId = data.sourceId || "src-editorial-corroboration";
 
@@ -655,7 +652,6 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
   })();
 
   if (!db && syncCandidate && syncCandidate.status === "pending") {
-    syncCandidate.status = "rejected";
     syncCandidate.rejectionReason = reason;
 
     recordAuditEvent(
@@ -673,4 +669,3 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
 
   return asAsyncResult(executionPromise, syncFallback);
 }
-

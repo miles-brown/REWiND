@@ -784,13 +784,39 @@ export async function getEventBySlug(
       }
 
       // Fetch participants and precise location coords
-      const { data: participantRows, error: partError } = await supabase
-        .from("event_people")
-        .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
-        .eq("event_id", eventId);
-      if (partError) return { data: null, error: partError.message };
+      let participantRows: Array<{
+        id: string;
+        person_id: string;
+        role_label: string | null;
+        presence_confidence: string | null;
+        capacity_title: string | null;
+        attendance_mode: string | null;
+      }> = [];
+      {
+        const batchSize = 1000;
+        let page = 0;
+        let hasMoreParticipants = true;
+        while (hasMoreParticipants) {
+          const from = page * batchSize;
+          const to = from + batchSize - 1;
+          const { data, error: partError } = await supabase
+            .from("event_people")
+            .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
+            .eq("event_id", eventId)
+            .order("id", { ascending: true })
+            .range(from, to);
+          if (partError) return { data: null, error: partError.message };
+          if (!data || data.length === 0) break;
+          participantRows = participantRows.concat(data);
+          if (data.length < batchSize) {
+            hasMoreParticipants = false;
+          } else {
+            page++;
+          }
+        }
+      }
 
-      const eventPersonIds = (participantRows || []).map((p) => p.id);
+      const eventPersonIds = participantRows.map((p) => p.id);
       const locationsMap = new Map();
       if (eventPersonIds.length > 0) {
         const { data: locRows, error: locError } = await supabase
@@ -802,7 +828,7 @@ export async function getEventBySlug(
         (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
       }
 
-      const personIds = (participantRows || []).map((p) => p.person_id);
+      const personIds = participantRows.map((p) => p.person_id);
       const personNames = new Map<string, string>();
       const personSlugs = new Map<string, string>();
       if (personIds.length > 0) {
@@ -817,14 +843,14 @@ export async function getEventBySlug(
         });
       }
 
-      const participants: Participant[] = (participantRows || []).map((p) => {
+      const participants: Participant[] = participantRows.map((p) => {
         const loc = locationsMap.get(p.id);
         return {
           personId: p.person_id,
           slug: personSlugs.get(p.person_id),
           name: personNames.get(p.person_id) || p.person_id,
-          role: p.role_label,
-          presenceConfidence: p.presence_confidence,
+          role: p.role_label || undefined,
+          presenceConfidence: p.presence_confidence || undefined,
           capacityTitle: p.capacity_title || undefined,
           attendanceMode: p.attendance_mode || "physical",
           latitude: loc?.latitude ?? null,
@@ -834,12 +860,31 @@ export async function getEventBySlug(
       });
 
       // Fetch sources
-      const { data: eventSourcesRows, error: esError } = await supabase
-        .from("event_sources")
-        .select("source_id")
-        .eq("event_id", eventId);
-      if (esError) return { data: null, error: esError.message };
-      const sourceIds = (eventSourcesRows || []).map((s) => s.source_id);
+      let eventSourcesRows: Array<{ source_id: string }> = [];
+      {
+        const batchSize = 1000;
+        let page = 0;
+        let hasMoreSources = true;
+        while (hasMoreSources) {
+          const from = page * batchSize;
+          const to = from + batchSize - 1;
+          const { data, error: esError } = await supabase
+            .from("event_sources")
+            .select("source_id")
+            .eq("event_id", eventId)
+            .order("id", { ascending: true })
+            .range(from, to);
+          if (esError) return { data: null, error: esError.message };
+          if (!data || data.length === 0) break;
+          eventSourcesRows = eventSourcesRows.concat(data);
+          if (data.length < batchSize) {
+            hasMoreSources = false;
+          } else {
+            page++;
+          }
+        }
+      }
+      const sourceIds = eventSourcesRows.map((s) => s.source_id);
 
       const sourceEntitiesMap = new Map<string, SourceRecord>();
       if (sourceIds.length > 0) {
