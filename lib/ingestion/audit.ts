@@ -1,6 +1,14 @@
-import { getRelationalStore, getDb } from "@/lib/db/client";
+import { getRelationalStore, getDb, markDbUnreachable } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { desc } from "drizzle-orm";
+
+async function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 1500): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
 
 export interface AuditRecord {
   id: number;
@@ -57,11 +65,14 @@ export async function getAuditTrail(): Promise<AuditRecord[]> {
 
   if (db) {
     try {
-      const rows = await db
-        .select()
-        .from(schema.auditLog)
-        .orderBy(desc(schema.auditLog.recordedAt))
-        .limit(100);
+      const rows = await withDbTimeout(
+        db
+          .select()
+          .from(schema.auditLog)
+          .orderBy(desc(schema.auditLog.recordedAt))
+          .limit(100),
+        1500
+      );
       return rows.map((r) => ({
         id: r.id,
         eventId: r.eventId,
@@ -73,6 +84,7 @@ export async function getAuditTrail(): Promise<AuditRecord[]> {
       }));
     } catch (err) {
       console.warn("Failed to query live audit trail, falling back to store:", err);
+      markDbUnreachable();
     }
   }
 

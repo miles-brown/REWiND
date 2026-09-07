@@ -1,8 +1,16 @@
-import { getRelationalStore, getDb } from "@/lib/db/client";
+import { getRelationalStore, getDb, markDbUnreachable } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, gte } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
+
+async function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 1500): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -27,19 +35,24 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const db = getDb();
   if (db) {
     try {
-      const [published] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published"));
-      const [autoPublished] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish"));
-      const [claims] = await db.select({ val: count() }).from(schema.claims);
-      const [sources] = await db
-        .select({ val: count() })
-        .from(schema.sources)
-        .where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b")));
-      const [pending] = await db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending"));
-      const [duplicates] = await db
-        .select({ val: count() })
-        .from(schema.candidateEvents)
-        .where(and(eq(schema.candidateEvents.status, "pending"), gte(schema.candidateEvents.duplicateSimilarity, 0.75)));
-      const [totalCandidates] = await db.select({ val: count() }).from(schema.candidateEvents);
+      const statsPromise = Promise.all([
+        db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published")),
+        db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish")),
+        db.select({ val: count() }).from(schema.claims),
+        db.select({ val: count() }).from(schema.sources).where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b"))),
+        db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending")),
+        db.select({ val: count() }).from(schema.candidateEvents).where(and(eq(schema.candidateEvents.status, "pending"), gte(schema.candidateEvents.duplicateSimilarity, 0.75))),
+        db.select({ val: count() }).from(schema.candidateEvents),
+      ]);
+      const [
+        [published],
+        [autoPublished],
+        [claims],
+        [sources],
+        [pending],
+        [duplicates],
+        [totalCandidates],
+      ] = await withDbTimeout(statsPromise, 1500);
 
       return {
         publishedEventsCount: Number(published?.val ?? 0),
@@ -52,6 +65,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
       };
     } catch (err) {
       console.warn("Failed to query live evidentiary stats, falling back to store:", err);
+      markDbUnreachable();
     }
   }
 
@@ -79,13 +93,17 @@ export async function getCandidateQueue() {
 
   if (db) {
     try {
-      const rows = await db
-        .select()
-        .from(schema.candidateEvents)
-        .orderBy(desc(schema.candidateEvents.createdAt));
+      const rows = await withDbTimeout(
+        db
+          .select()
+          .from(schema.candidateEvents)
+          .orderBy(desc(schema.candidateEvents.createdAt)),
+        1500
+      );
       return rows;
     } catch (err) {
       console.warn("Failed to query live candidate queue, falling back to store:", err);
+      markDbUnreachable();
     }
   }
 

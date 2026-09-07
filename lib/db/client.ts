@@ -26,18 +26,32 @@ export const isLiveDbConnected = Boolean(
 
 // Global Drizzle ORM client connected to live PostgreSQL / Supabase
 let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let isDbTemporarilyUnreachable = false;
+
+export function markDbUnreachable() {
+  isDbTemporarilyUnreachable = true;
+  liveDb = null;
+}
 
 export function getDb() {
+  if (isDbTemporarilyUnreachable) return null;
   if (liveDb) return liveDb;
   if (isLiveDbConnected && connectionString) {
-    const isLocal = isLocalDatabaseHost(connectionString);
-    const client = postgres(connectionString, {
-      max: 10,
-      prepare: false,
-      ssl: isLocal ? false : "verify-full",
-    });
-    liveDb = drizzle(client, { schema });
-    return liveDb;
+    try {
+      const isLocal = isLocalDatabaseHost(connectionString);
+      const client = postgres(connectionString, {
+        max: 5,
+        connect_timeout: 2,
+        idle_timeout: 5,
+        prepare: false,
+        ssl: isLocal ? false : "verify-full",
+      });
+      liveDb = drizzle(client, { schema });
+      return liveDb;
+    } catch {
+      isDbTemporarilyUnreachable = true;
+      return null;
+    }
   }
   return null;
 }
