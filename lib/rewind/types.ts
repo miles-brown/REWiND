@@ -55,8 +55,8 @@ export interface EventRecord {
   sourceIds: string[];
   participants: Participant[];
   /**
-   * Legacy categorization tags retained for backward compatibility with historical registers.
-   * New consumers should prefer canonical `eventTypes`.
+   * @deprecated Legacy categorization tags retained strictly for backward compatibility with historical registers.
+   * Primary application features, search filters, and UI badges should consume canonical `eventTypes`.
    */
   categories?: string[] | undefined;
   /**

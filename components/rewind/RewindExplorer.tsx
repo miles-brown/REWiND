@@ -24,6 +24,9 @@ import { CitationModal } from "./CitationModal";
 
 export const DEFAULT_EXPLORER_TYPE = "All";
 export const DEFAULT_EXPLORER_STATUS = "all";
+/**
+ * @deprecated Demo fallback subject. Production consumers should pass a dynamic subject or leave as null for 'All Events'.
+ */
 export const DEFAULT_SUBJECT = { name: "Benjamin Netanyahu", slug: "benjamin-netanyahu" };
 
 export interface RewindExplorerProps {

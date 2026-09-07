@@ -49,6 +49,7 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     sources: sources,
     participants: (e.participants || []).map((p) => ({
       personId: p.personId,
+      slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
       name: p.name,
       role: p.role,
       presenceConfidence: p.presenceConfidence,
@@ -350,9 +351,13 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       return getFallbackEventsResult(params);
     }
 
+    const selectColumns = params.personSlug
+      ? "*, event_people!inner(person_id)"
+      : "*";
+
     let query = supabase
       .from("events")
-      .select("*", { count: "exact" })
+      .select(selectColumns, { count: "exact" })
       .eq("publication_status", "published")
       .order("start_date", { ascending: false })
       .order("id", { ascending: true });
@@ -376,11 +381,22 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.personSlug) {
-      const { data: personData } = await supabase
+      const { data: personData, error: personError } = await supabase
         .from("people")
         .select("id")
         .eq("slug", params.personSlug)
         .maybeSingle();
+
+      if (personError) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: personError.message,
+        };
+      }
 
       if (!personData) {
         return {
@@ -393,55 +409,27 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
         };
       }
 
-      const eventIds: string[] = [];
-      {
-        const batchSize = 1000;
-        let pPage = 0;
-        let hasMore = true;
-        while (hasMore) {
-          const from = pPage * batchSize;
-          const to = from + batchSize - 1;
-          const { data: participation, error: pError } = await supabase
-            .from("event_people")
-            .select("event_id")
-            .eq("person_id", personData.id)
-            .order("event_id", { ascending: true })
-            .range(from, to);
+      query = query.eq("event_people.person_id", personData.id);
+    }
 
-          if (pError) {
-            throw pError;
-          }
-          if (!participation || participation.length === 0) {
-            break;
-          }
-          participation.forEach((p) => eventIds.push(p.event_id));
-          if (participation.length < batchSize) {
-            hasMore = false;
-          } else {
-            pPage++;
-          }
-        }
-      }
+    if (params.placeSlug) {
+      const { data: placeData, error: placeError } = await supabase
+        .from("places")
+        .select("id")
+        .eq("slug", params.placeSlug)
+        .maybeSingle();
 
-      if (eventIds.length === 0) {
+      if (placeError) {
         return {
           data: [],
           count: 0,
           page,
           pageSize,
           totalPages: 0,
-          error: null,
+          error: placeError.message,
         };
       }
-      query = query.in("id", eventIds);
-    }
 
-    if (params.placeSlug) {
-      const { data: placeData } = await supabase
-        .from("places")
-        .select("id")
-        .eq("slug", params.placeSlug)
-        .maybeSingle();
       if (!placeData) {
         return {
           data: [],
@@ -483,7 +471,7 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     try {
-      const events = await hydrateEventRows(supabase, eventRows);
+      const events = await hydrateEventRows(supabase, eventRows as unknown as Record<string, unknown>[]);
       const total = count || 0;
 
       return {

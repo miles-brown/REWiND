@@ -649,11 +649,13 @@ test("verifies TimelineComparison dynamic person defaults and RewindExplorer sub
   const eventsModuleContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
   const cmdPaletteContent = fs.readFileSync(path.join(root, "components/rewind/CommandPalette.tsx"), "utf-8");
 
-  // 1. TimelineComparison dynamic defaults
+  // 1. TimelineComparison dynamic defaults and co-attendee ranking
   assert.ok(
-    compPageContent.includes("initialPersonA={people[0]?.slug}") &&
-    compPageContent.includes("initialPersonB={people[1]?.slug}"),
-    "app/compare/page.tsx must pass dynamic initialPersonA and initialPersonB from available people"
+    compPageContent.includes("initialPersonA={personA?.slug}") &&
+    compPageContent.includes("initialPersonB={initialPersonB}") &&
+    compPageContent.includes("initialPersonB = people[1]?.slug;") &&
+    compPageContent.includes("initialPersonB = matched.slug;"),
+    "app/compare/page.tsx must dynamically resolve initialPersonB based on top co-attendee falling back to people[1]?.slug"
   );
   assert.ok(
     compContent.includes("initialPersonA || people[0]?.slug || \"\"") &&
@@ -742,13 +744,14 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
     "lib/rewind/quotes.ts must include secondary sort key id for deterministic pagination"
   );
 
-  // 6. lib/rewind/events.ts person participation pagination
+  // 6. lib/rewind/events.ts database-side person participation filter and error propagation
   const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
   assert.ok(
-    eventsContent.includes('.eq("person_id", personData.id)') &&
-    eventsContent.includes('.order("event_id", { ascending: true })') &&
-    eventsContent.includes("eventIds.push(p.event_id)"),
-    "lib/rewind/events.ts must paginate event_people participation queries"
+    eventsContent.includes("event_people!inner(person_id)") &&
+    eventsContent.includes('.eq("event_people.person_id", personData.id)') &&
+    eventsContent.includes("error: personError.message") &&
+    eventsContent.includes("error: placeError.message"),
+    "lib/rewind/events.ts must use database-side event_people!inner filter and propagate lookup errors"
   );
 
   // 7. lib/rewind/relationships.ts zero-state
@@ -769,5 +772,34 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
   );
 });
 
+test("verifies forensic styles, fallback participant slugs, and deprecated entity tags", () => {
+  const mapGraphicContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  const typesContent = fs.readFileSync(path.join(root, "lib/rewind/types.ts"), "utf-8");
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
 
+  // 1. MapGraphic environment style overrides
+  assert.ok(
+    mapGraphicContent.includes("process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE") &&
+    mapGraphicContent.includes("process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE"),
+    "MapGraphic must check NEXT_PUBLIC_MAPBOX_DARK_STYLE and NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE environment variables"
+  );
 
+  // 2. Types categories deprecated JSDoc
+  assert.ok(
+    typesContent.includes("@deprecated Legacy categorization tags retained strictly for backward compatibility"),
+    "lib/rewind/types.ts must document categories as @deprecated in favor of eventTypes"
+  );
+
+  // 3. RewindExplorer DEFAULT_SUBJECT deprecated JSDoc
+  assert.ok(
+    explorerContent.includes("@deprecated Demo fallback subject. Production consumers should pass a dynamic subject"),
+    "RewindExplorer must document DEFAULT_SUBJECT as @deprecated"
+  );
+
+  // 4. mapFallbackEvent participant slug population
+  assert.ok(
+    eventsContent.includes("slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, \"\")"),
+    "lib/rewind/events.ts mapFallbackEvent must populate participant slug"
+  );
+});

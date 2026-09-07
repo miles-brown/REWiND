@@ -28,14 +28,18 @@ function isWebGLAvailable() {
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-// Mapbox Vector Styles (when token is provided)
-const MAPBOX_DARK_STYLE = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
-  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+// Mapbox Vector Styles (when token is provided or environment override set)
+const MAPBOX_DARK_STYLE =
+  process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
+  (MAPBOX_TOKEN
+    ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
+    : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
 
-const MAPBOX_SATELLITE_STYLE = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
-  : "";
+const MAPBOX_SATELLITE_STYLE =
+  process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE ||
+  (MAPBOX_TOKEN
+    ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
+    : "");
 
 // Fallback raster tile style specification if vector GL JSON fails or is offline
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
