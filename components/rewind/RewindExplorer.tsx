@@ -399,7 +399,7 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event && (
+        {event && isStandardIsoDate(event.startDate) && (
           <Link
             href={
               subject

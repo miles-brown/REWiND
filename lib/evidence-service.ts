@@ -161,7 +161,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       );
     }
 
-    const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert> = [];
+    const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
     if (Array.isArray(data.participants)) {
       data.participants.forEach((p: { name: string; role?: string; involvementType?: string }, idx: number) => {
         const resolved = resolveEntity(p.name);
@@ -174,6 +174,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           roleLabel: p.role || "participant",
           presenceConfidence: "confirmed",
           roleConfidence: "confirmed",
+          rawName: p.name,
         });
       });
     }
@@ -199,8 +200,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             throw new Error("Candidate was already reviewed or claimed by another editor");
           }
 
-          // 2. Ensure source exists in schema.sources
-          if (sourceId && sourceId !== "src-editorial-approval") {
+          // 2. Ensure source exists in schema.sources before linking
+          if (sourceId) {
             const [existingSrc] = await tx
               .select({ id: schema.sources.id })
               .from(schema.sources)
@@ -208,7 +209,10 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             if (!existingSrc) {
               await tx.insert(schema.sources).values({
                 id: sourceId,
-                title: data.sourceTitle || `Source for ${candidate.suggestedTitle}`,
+                title:
+                  sourceId === "src-editorial-approval"
+                    ? "Editorial Review Board Register"
+                    : (data.sourceTitle || `Source for ${candidate.suggestedTitle}`),
                 publisher: data.publisher || "Archival Source",
                 sourceType: data.sourceType || "official-transcript",
                 tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
@@ -217,7 +221,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 3. Resolve or insert canonical place (Codex Issue 2)
+          // 3. Resolve or insert canonical place (Codex Issue 2 & 4: preserve null coordinates until evidence supplies them)
           const targetSlug = placeId.replace(/^plc-/, "");
           const [existingDbPlace] = await tx
             .select()
@@ -232,8 +236,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
               venue: candidate.suggestedPlace || "Unspecified Location",
               city: candidate.suggestedPlace || "Unknown City",
               country: "International",
-              latitude: 31.7683,
-              longitude: 35.2137,
+              latitude: null,
+              longitude: null,
               placeType: "venue",
             });
           }
@@ -268,7 +272,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             isPrimary: true,
           });
 
-          // 6. Persist approved candidate participants (Codex Issue 3)
+          // 6. Persist approved candidate participants (Codex Issue 3 & CodeRabbit Issue 8)
           if (eventPeopleRows.length > 0) {
             for (const ep of eventPeopleRows) {
               const [existingPerson] = await tx
@@ -284,19 +288,22 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 if (bySlug) {
                   ep.personId = bySlug.id;
                 } else {
+                  const rawName = ep.rawName || pSlug;
                   await tx.insert(schema.people).values({
                     id: ep.personId,
                     slug: pSlug,
-                    displayName: ep.roleLabel ? `${pSlug} (${ep.roleLabel})` : pSlug,
-                    canonicalName: pSlug,
+                    displayName: ep.roleLabel ? `${rawName} (${ep.roleLabel})` : rawName,
+                    canonicalName: rawName,
                     nationality: "International",
                     classification: "historical-figure",
                     notabilityBasis: "Documented participant in verified historical event",
-                    publicationStatus: "published",
+                    publicationStatus: "draft",
                   });
                 }
               }
-              await tx.insert(schema.eventPeople).values(ep);
+              const epRow = { ...ep };
+              delete epRow.rawName;
+              await tx.insert(schema.eventPeople).values(epRow);
             }
           }
 
@@ -475,7 +482,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             throw new Error("Candidate was already reviewed or claimed by another editor");
           }
 
-          if (sourceId && sourceId !== "src-editorial-corroboration") {
+          if (sourceId) {
             const [existingSrc] = await tx
               .select({ id: schema.sources.id })
               .from(schema.sources)
@@ -483,13 +490,34 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             if (!existingSrc) {
               await tx.insert(schema.sources).values({
                 id: sourceId,
-                title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+                title:
+                  sourceId === "src-editorial-corroboration"
+                    ? "Editorial Corroboration Register"
+                    : (data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`),
                 publisher: data.publisher || "Archival Source",
                 sourceType: data.sourceType || "official-transcript",
                 tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
                 url: data.url || null,
                 publicationDate: candidate.suggestedDate,
                 trustScore: 0.95,
+              });
+            }
+
+            // Link corroborating source to target event (Codex Issue 6)
+            const [existingLink] = await tx
+              .select({ eventId: schema.eventSources.eventId })
+              .from(schema.eventSources)
+              .where(
+                and(
+                  eq(schema.eventSources.eventId, targetEventId),
+                  eq(schema.eventSources.sourceId, sourceId)
+                )
+              );
+            if (!existingLink) {
+              await tx.insert(schema.eventSources).values({
+                eventId: targetEventId,
+                sourceId,
+                isPrimary: false,
               });
             }
           }
@@ -516,6 +544,14 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       memCand.status = "merged";
     }
     candidate.status = "merged";
+
+    const memTargetEvent = store.events.find((e) => e.id === targetEventId);
+    if (memTargetEvent && "sourceIds" in memTargetEvent && Array.isArray((memTargetEvent as { sourceIds?: string[] }).sourceIds)) {
+      const sIds = (memTargetEvent as { sourceIds: string[] }).sourceIds;
+      if (!sIds.includes(sourceId)) {
+        sIds.push(sourceId);
+      }
+    }
 
     let existingSource = store.sources.find((s) => s.id === sourceId);
     if (!existingSource && sourceId !== "src-editorial-corroboration") {

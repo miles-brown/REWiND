@@ -33,7 +33,7 @@ const cssBlockContains = (cssContent, selector, declarationPatterns) => {
 const hasConsoleStickiness = (cssContent, selector) =>
   cssBlockContains(cssContent, selector, [
     /\bposition\s*:\s*fixed\s*(?:;|$)/,
-    /\bbottom\s*:\s*0\s*(?:;|$)/,
+    /(?:^|;)\s*bottom\s*:\s*0\s*(?:;|$)/,
     /\bz-index\s*:\s*40\s*(?:;|$)/,
   ]);
 
@@ -546,6 +546,16 @@ test("verifies RewindExplorer conditional calendar-jump rendering", async () => 
   assert.ok(
     activeHtml.includes("calendar-jump"),
     "RewindExplorer must render calendar-jump link when event is active"
+  );
+  const nonStandardHtml = renderToStaticMarkup(
+    React.createElement(RewindExplorer, {
+      initialEvents: [{ ...sampleEvent, startDate: "c. 1948" }],
+      sources: [],
+    })
+  );
+  assert.ok(
+    !nonStandardHtml.includes("calendar-jump"),
+    "RewindExplorer must omit calendar-jump link for non-standard dates"
   );
 });
 

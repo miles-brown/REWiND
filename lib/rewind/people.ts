@@ -52,6 +52,7 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
         const allPeople: Record<string, unknown>[] = [];
         const pageSize = 1000;
         let from = 0;
+        let paginationFailed = false;
         while (true) {
           const { data, error } = await supabase
             .from("people")
@@ -62,6 +63,7 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
             .range(from, from + pageSize - 1);
           if (error) {
             console.error("Error paginating people catalog:", error);
+            paginationFailed = true;
             break;
           }
           if (!data || data.length === 0) break;
@@ -69,7 +71,7 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
           if (data.length < pageSize) break;
           from += pageSize;
         }
-        if (allPeople.length > 0) {
+        if (!paginationFailed) {
           return allPeople.map((p) => ({
             id: String(p.id),
             slug: String(p.slug),

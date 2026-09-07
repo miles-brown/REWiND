@@ -583,16 +583,27 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       }
 
       if (!placeData) {
-        return {
-          data: [],
-          count: 0,
-          page,
-          pageSize,
-          totalPages: 0,
-          error: null,
-        };
+        const { data: venueData } = await supabase
+          .from("venues")
+          .select("id")
+          .or(`id.eq.${params.placeSlug},id.eq.ven-${params.placeSlug},id.eq.plc-${params.placeSlug}`)
+          .maybeSingle();
+
+        if (venueData) {
+          query = query.eq("venue_id", venueData.id);
+        } else {
+          return {
+            data: [],
+            count: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+            error: null,
+          };
+        }
+      } else {
+        query = query.eq("place_id", placeData.id);
       }
-      query = query.eq("place_id", placeData.id);
     }
 
     query = query.range(offset, offset + pageSize - 1);
