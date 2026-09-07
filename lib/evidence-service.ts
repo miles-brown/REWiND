@@ -1,4 +1,6 @@
-import { getRelationalStore } from "@/lib/db/client";
+import { getRelationalStore, getDb } from "@/lib/db/client";
+import * as schema from "@/db/schema";
+import { eq, desc, count } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
 
@@ -10,7 +12,28 @@ export interface EvidenceStats {
   autoPublishedCount: number;
 }
 
-export function getEvidentiaryStats(): EvidenceStats {
+export async function getEvidentiaryStats(): Promise<EvidenceStats> {
+  const db = getDb();
+  if (db) {
+    try {
+      const [published] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published"));
+      const [autoPublished] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish"));
+      const [claims] = await db.select({ val: count() }).from(schema.claims);
+      const [sources] = await db.select({ val: count() }).from(schema.sources);
+      const [pending] = await db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending"));
+
+      return {
+        publishedEventsCount: Number(published?.val ?? 0),
+        verifiedClaimsCount: Number(claims?.val ?? 0),
+        primarySourcesCount: Number(sources?.val ?? 0),
+        pendingReviewCount: Number(pending?.val ?? 0),
+        autoPublishedCount: Number(autoPublished?.val ?? 0),
+      };
+    } catch (err) {
+      console.warn("Failed to query live evidentiary stats, falling back to store:", err);
+    }
+  }
+
   const store = getRelationalStore();
   const published = store.events.filter((e) => e.publicationStatus === "published");
   const autoPublished = store.events.filter((e) => e.publicationLane === "auto-publish");
@@ -26,8 +49,24 @@ export function getEvidentiaryStats(): EvidenceStats {
   };
 }
 
-export function getCandidateQueue() {
+export async function getCandidateQueue() {
+  const db = getDb();
   const store = getRelationalStore();
+
+  if (db) {
+    try {
+      const rows = await db
+        .select()
+        .from(schema.candidateEvents)
+        .orderBy(desc(schema.candidateEvents.createdAt));
+      if (rows && rows.length > 0) {
+        return rows;
+      }
+    } catch (err) {
+      console.warn("Failed to query live candidate queue, falling back to store:", err);
+    }
+  }
+
   return store.candidateEvents;
 }
 
@@ -122,6 +161,47 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     candidateId
   );
 
+  const db = getDb();
+  if (db) {
+    db.update(schema.candidateEvents)
+      .set({ status: "approved" })
+      .where(eq(schema.candidateEvents.id, candidateId))
+      .catch((e) => console.warn("Live DB error on candidate approval:", e));
+
+    db.insert(schema.events)
+      .values({
+        id: eventSlug,
+        slug: eventSlug,
+        parentId: null,
+        eventType: data.eventType || "historical-action",
+        title: candidate.suggestedTitle,
+        summary: data.summary || candidate.suggestedTitle,
+        description: data.description || null,
+        startDate: candidate.suggestedDate,
+        endDate: data.endDate || null,
+        temporalPrecision: data.temporalPrecision || "exact-day",
+        placeId,
+        seriesId: null,
+        venueId: null,
+        addressId: null,
+        verificationStatus: "verified",
+        confidenceScore: 0.98,
+        publicationStatus: "published",
+        publicationLane: "human-review",
+        significanceScore: 80,
+      })
+      .catch((e) => console.warn("Live DB error on event insertion:", e));
+
+    db.insert(schema.reviewDecisions)
+      .values({
+        candidateId,
+        decision: "approved",
+        decidedBy: editorName,
+        notes: "Editorial review sign-off",
+      })
+      .catch((e) => console.warn("Live DB error on review decision insertion:", e));
+  }
+
   return { success: true, eventId: eventSlug };
 }
 
@@ -190,7 +270,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         );
 
         if (!isDuplicateClaim) {
-          store.claims.push({
+          const claimObj = {
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
             subjectId,
@@ -201,8 +281,16 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || null,
-          });
+          };
+          store.claims.push(claimObj);
           claimsAddedCount++;
+
+          const db = getDb();
+          if (db) {
+            db.insert(schema.claims)
+              .values(claimObj)
+              .catch((e) => console.warn("Live DB error on merged claim insert:", e));
+          }
         }
       }
     );
@@ -235,6 +323,23 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     candidateId
   );
 
+  const db = getDb();
+  if (db) {
+    db.update(schema.candidateEvents)
+      .set({ status: "merged" })
+      .where(eq(schema.candidateEvents.id, candidateId))
+      .catch((e) => console.warn("Live DB error on candidate merge:", e));
+
+    db.insert(schema.reviewDecisions)
+      .values({
+        candidateId,
+        decision: "merged",
+        decidedBy: editorName,
+        notes: `Merged into ${targetEventId}`,
+      })
+      .catch((e) => console.warn("Live DB error on merge review decision:", e));
+  }
+
   return { success: true, targetEventId, claimsAddedCount };
 }
 
@@ -264,6 +369,23 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
     undefined,
     candidateId
   );
+
+  const db = getDb();
+  if (db) {
+    db.update(schema.candidateEvents)
+      .set({ status: "rejected", rejectionReason: reason })
+      .where(eq(schema.candidateEvents.id, candidateId))
+      .catch((e) => console.warn("Live DB error on candidate reject:", e));
+
+    db.insert(schema.reviewDecisions)
+      .values({
+        candidateId,
+        decision: "rejected",
+        decidedBy: editorName,
+        notes: reason,
+      })
+      .catch((e) => console.warn("Live DB error on reject review decision:", e));
+  }
 
   return { success: true };
 }

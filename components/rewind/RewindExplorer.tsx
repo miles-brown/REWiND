@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate } from "@/lib/rewind/dates";
+import { isStandardIsoDate, formatTimelineDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
@@ -114,7 +114,21 @@ export function RewindExplorer({
       ).sort(),
     [initialEvents]
   );
-  const date = event ? new Date(event.startDate + "T12:00:00") : null;
+  const stageFormattedDate = event
+    ? formatTimelineDate(event.startDate, event.timePrecision || event.datePrecision, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+  const consoleFormattedDate = event
+    ? formatTimelineDate(event.startDate, event.timePrecision || event.datePrecision, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).toUpperCase()
+    : "—";
 
   const choose = (id: string) => {
     const i = filtered.findIndex((e) => e.id === id);
@@ -205,12 +219,7 @@ export function RewindExplorer({
               dateTime={event.startDate}
               title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
             >
-              {date?.toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              }) || event.startDate}
+              {stageFormattedDate}
               {!isStandardIsoDate(event.startDate) && (
                 <span className="sr-only"> (Non-standard archival date)</span>
               )}
@@ -302,17 +311,7 @@ export function RewindExplorer({
       <div className="rewind-console">
         <div className="console-date">
           <small>REWIND TO</small>
-          <b>
-            {date
-              ? date
-                  .toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                  .toUpperCase()
-              : "—"}
-          </b>
+          <b>{consoleFormattedDate}</b>
         </div>
         <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button

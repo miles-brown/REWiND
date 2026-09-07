@@ -65,9 +65,9 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 
 
 export async function GET() {
-  const stats = getEvidentiaryStats();
-  const queue = getCandidateQueue();
-  const audit = getAuditTrail();
+  const stats = await getEvidentiaryStats();
+  const queue = await getCandidateQueue();
+  const audit = await getAuditTrail();
 
   return NextResponse.json({
     stats,

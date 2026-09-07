@@ -878,3 +878,59 @@ test("verifies Codex P1 safeguards: migration integrity, production fallback gua
   );
 });
 
+test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote hydration, trigger protections, and fallback robustness", async () => {
+  const { formatTimelineDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+
+  // 1. Precision-aware date formatting and archival fallback preservation
+  assert.strictEqual(formatTimelineDate("1993", "year"), "1993");
+  assert.strictEqual(formatTimelineDate("1993-09", "month"), "Sept 1993");
+  assert.strictEqual(formatTimelineDate("1993-09-13"), "13 Sept 1993");
+  assert.strictEqual(formatTimelineDate("Spring 1999"), "Spring 1999");
+  assert.strictEqual(formatTimelineDate(""), "");
+
+  // 2. Migration timestamp columns and event_sources constraint trigger
+  const migrationContent = fs.readFileSync(
+    path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"),
+    "utf-8"
+  );
+  assert.ok(
+    migrationContent.includes("ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS created_at") &&
+    migrationContent.includes("ALTER TABLE IF EXISTS public.quotes ADD COLUMN IF NOT EXISTS created_at"),
+    "Migration must add created_at timestamps when upgrading existing source/quote tables"
+  );
+  assert.ok(
+    migrationContent.includes("CREATE CONSTRAINT TRIGGER trg_verify_event_sources_deletion") &&
+    migrationContent.includes("AFTER DELETE OR UPDATE OF event_id ON public.event_sources"),
+    "Migration must enforce trg_verify_event_sources_deletion deferred constraint trigger"
+  );
+
+  // 3. Quotes hydration & error propagation in lib/rewind/events.ts
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsContent.includes('.from("quotes")') &&
+    eventsContent.includes("quotes: quotesMap?.get(id)") &&
+    eventsContent.includes("if (venueError) {") &&
+    eventsContent.includes("throw venueError;") &&
+    eventsContent.includes("if (addressError) {") &&
+    eventsContent.includes("throw addressError;"),
+    "events.ts must hydrate quotes from database and propagate venue/address errors"
+  );
+
+  // 4. DiscrepancyViewer metadata fallback and unestablished confidence
+  const discContent = fs.readFileSync(path.join(root, "components/rewind/DiscrepancyViewer.tsx"), "utf-8");
+  assert.ok(
+    discContent.includes('event.medium?.length ? event.medium : event.eventTypes?.length ? event.eventTypes : event.categories?.length ? event.categories : ["Archival record"]') &&
+    discContent.includes('const confidenceDisplay = confidence ? confidence.toUpperCase() : "UNESTABLISHED";'),
+    "DiscrepancyViewer must handle empty metadata arrays and unestablished confidence display"
+  );
+
+  // 5. TimelineComparison unknown slug fallback
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    compContent.includes("if (slugA && peopleMap.has(slugA)) return slugA;") &&
+    compContent.includes('return people[0]?.slug || "";'),
+    "TimelineComparison must validate requested primary slug against peopleMap with fallback"
+  );
+});
+
+

@@ -173,3 +173,45 @@ export function formatIsoDate(
   }
 }
 
+/**
+ * Formats historical dates with precision awareness (exact-day, month, year).
+ * Preserves raw archival strings when parsing fails without constructing invalid Date objects
+ * or substituting current timestamps.
+ */
+export function formatTimelineDate(
+  dateStr?: string | null,
+  precision?: string,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }
+): string {
+  if (!dateStr || typeof dateStr !== "string") return "";
+  const trimmed = dateStr.trim();
+  if (!trimmed) return "";
+
+  // If not standard ISO (e.g. "Spring 1999", "Circa 1985"), preserve raw archival value
+  if (!isStandardIsoDate(trimmed)) {
+    return trimmed;
+  }
+
+  const d = parseIsoDate(trimmed);
+  if (!d) {
+    return trimmed;
+  }
+
+  try {
+    const prec = (precision || "").toLowerCase();
+    // If explicit year precision or only 4-digit year string
+    if (prec === "year" || /^\d{4}$/.test(trimmed)) {
+      return d.toLocaleDateString("en-GB", { year: "numeric" });
+    }
+    // If explicit month precision or YYYY-MM string
+    if (prec === "month" || /^\d{4}-\d{2}$/.test(trimmed)) {
+      return d.toLocaleDateString("en-GB", { month: options.month === "long" ? "long" : "short", year: "numeric" });
+    }
+    // Default to provided options (day, month, year)
+    return d.toLocaleDateString("en-GB", options);
+  } catch {
+    return trimmed;
+  }
+}
+
+

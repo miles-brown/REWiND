@@ -411,6 +411,9 @@ ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS series_id text REFE
 ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS venue_id text REFERENCES public.venues(id) ON DELETE SET NULL;
 ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
 ALTER TABLE IF EXISTS public.venues ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
+ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now() NOT NULL;
+ALTER TABLE IF EXISTS public.quotes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people(slug);
 CREATE INDEX IF NOT EXISTS idx_people_publication_status ON public.people(publication_status);
@@ -660,18 +663,42 @@ REVOKE ALL ON public.source_fetches FROM anon, authenticated;
 CREATE OR REPLACE FUNCTION public.verify_published_event_sources()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.publication_status = 'published' THEN
-    IF NOT EXISTS (SELECT 1 FROM public.event_sources WHERE event_id = NEW.id) THEN
-      RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', NEW.id;
+  IF TG_TABLE_NAME = 'events' THEN
+    IF NEW.publication_status = 'published' THEN
+      IF NOT EXISTS (SELECT 1 FROM public.event_sources WHERE event_id = NEW.id) THEN
+        RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', NEW.id;
+      END IF;
     END IF;
+    RETURN NEW;
+  ELSIF TG_TABLE_NAME = 'event_sources' THEN
+    -- Check if OLD.event_id remains published and has no remaining sources
+    IF EXISTS (
+      SELECT 1 FROM public.events
+      WHERE id = OLD.event_id AND publication_status = 'published'
+    ) THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM public.event_sources
+        WHERE event_id = OLD.event_id
+      ) THEN
+        RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', OLD.event_id;
+      END IF;
+    END IF;
+    RETURN OLD;
   END IF;
-  RETURN NEW;
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_verify_published_event_sources ON public.events;
 CREATE CONSTRAINT TRIGGER trg_verify_published_event_sources
 AFTER INSERT OR UPDATE OF publication_status ON public.events
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION public.verify_published_event_sources();
+
+DROP TRIGGER IF EXISTS trg_verify_event_sources_deletion ON public.event_sources;
+CREATE CONSTRAINT TRIGGER trg_verify_event_sources_deletion
+AFTER DELETE OR UPDATE OF event_id ON public.event_sources
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION public.verify_published_event_sources();

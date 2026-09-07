@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate } from "@/lib/rewind/dates";
+import { isStandardIsoDate, formatTimelineDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -182,12 +182,25 @@ export function PersonTimeline({
       ? sources.find((s) => s.id === event.sourceIds[0])
       : undefined);
 
-  const isDateOnly =
-    Boolean(event.startDate) &&
-    !event.startDate.includes("T") &&
-    !event.startDate.includes(":");
-  const dateStr = isDateOnly ? `${event.startDate}T12:00:00` : event.startDate;
-  const date = dateStr ? new Date(dateStr) : new Date();
+  const stageFormattedDate = formatTimelineDate(
+    event.startDate,
+    event.timePrecision || event.datePrecision,
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
+  const consoleFormattedDate = formatTimelineDate(
+    event.startDate,
+    event.timePrecision || event.datePrecision,
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 
   const choose = (id: string) => {
     const next = ordered.findIndex((record) => record.id === id);
@@ -266,12 +279,7 @@ export function PersonTimeline({
             dateTime={event.startDate}
             title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
           >
-            {date.toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {stageFormattedDate}
             {event.localStartTime ? ` · ${event.localStartTime}` : ""}
             {!isStandardIsoDate(event.startDate) && (
               <span className="sr-only"> (Non-standard archival date)</span>
@@ -386,11 +394,7 @@ export function PersonTimeline({
         <div className="console-date">
           <small>CURRENT EVENT</small>
           <b>
-            {date.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
+            {consoleFormattedDate}
           </b>
         </div>
 

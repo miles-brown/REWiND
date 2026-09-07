@@ -67,9 +67,9 @@ export function TimelineComparison({
   }, [people]);
 
   const effectiveSlugA = useMemo(() => {
-    if (slugA) return slugA;
+    if (slugA && peopleMap.has(slugA)) return slugA;
     return people[0]?.slug || "";
-  }, [slugA, people]);
+  }, [slugA, peopleMap, people]);
 
   const personA = useMemo(
     (): PersonRecord | null =>
