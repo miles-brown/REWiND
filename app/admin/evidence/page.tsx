@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -45,6 +45,7 @@ interface CandidateItem {
   status: string;
   rejectionReason?: string | null;
   rawExtraction: string;
+  createdAt?: string | Date;
 }
 
 interface AuditItem {
@@ -66,6 +67,12 @@ interface Stats {
   duplicateCandidatesCount?: number;
   totalCandidatesCount?: number;
 }
+
+const TIER_LABELS: Record<string, string> = {
+  "tier-a": "TIER A: PRIMARY ARCHIVAL",
+  "tier-b": "TIER B: CONTEMPORARY PRESS WIRE",
+  "tier-c": "TIER C: RETROSPECTIVE SCHOLARLY",
+};
 
 const CandidatePayloadSchema = z.object({
   summary: z.string().optional(),
@@ -120,11 +127,35 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
     if (parsed.success) {
       return parsed.data;
     }
+    const safeClaims = Array.isArray(json?.claims)
+      ? json.claims.filter(
+          (c: unknown): c is { subjectMention: string; statement: string; [key: string]: unknown } =>
+            typeof c === "object" &&
+            c !== null &&
+            typeof (c as Record<string, unknown>).statement === "string" &&
+            typeof (c as Record<string, unknown>).subjectMention === "string"
+        )
+      : [];
+    const safeParticipants = Array.isArray(json?.participants)
+      ? json.participants.filter(
+          (p: unknown): p is { name: string; [key: string]: unknown } =>
+            typeof p === "object" &&
+            p !== null &&
+            typeof (p as Record<string, unknown>).name === "string"
+        )
+      : [];
     return {
       summary: typeof json?.summary === "string" ? json.summary : undefined,
       eventType: typeof json?.eventType === "string" ? json.eventType : undefined,
-      claims: Array.isArray(json?.claims) ? json.claims : [],
-      participants: Array.isArray(json?.participants) ? json.participants : [],
+      venue: typeof json?.venue === "string" ? json.venue : undefined,
+      city: typeof json?.city === "string" ? json.city : undefined,
+      country: typeof json?.country === "string" ? json.country : undefined,
+      sourceId: typeof json?.sourceId === "string" ? json.sourceId : undefined,
+      sourceTitle: typeof json?.sourceTitle === "string" ? json.sourceTitle : undefined,
+      sourcePublisher: typeof json?.sourcePublisher === "string" ? json.sourcePublisher : undefined,
+      sourceTier: typeof json?.sourceTier === "string" ? json.sourceTier : undefined,
+      claims: safeClaims,
+      participants: safeParticipants,
     };
   } catch {
     return {
@@ -145,18 +176,25 @@ export default function EvidenceControlConsole() {
   const [submittingCandidateId, setSubmittingCandidateId] = useState<string | null>(null);
   const [isIngestingSample, setIsIngestingSample] = useState(false);
 
-  // Search, filter, and inspector states
   const [searchQuery, setSearchQuery] = useState("");
   const [laneFilter, setLaneFilter] = useState<"all" | "auto-publish" | "provisional" | "human-review">("all");
   const [tierFilter, setTierFilter] = useState<"all" | "tier-a" | "tier-b" | "tier-c">("all");
   const [sortBy, setSortBy] = useState<"newest" | "date-asc" | "date-desc" | "similarity">("newest");
 
-  // Modal states
   const [inspectCandidate, setInspectCandidate] = useState<CandidateItem | null>(null);
   const [inspectAudit, setInspectAudit] = useState<AuditItem | null>(null);
   const [rejectingCandidate, setRejectingCandidate] = useState<CandidateItem | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState("");
   const [copiedPayload, setCopiedPayload] = useState(false);
+
+  const activeModal = inspectCandidate || inspectAudit || rejectingCandidate;
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  const modalContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const closeRejectionModal = useCallback(() => {
+    setRejectingCandidate(null);
+    setRejectionReasonInput("");
+  }, []);
 
   const fetchConsoleData = useCallback(async () => {
     setLoading(true);
@@ -216,18 +254,62 @@ export default function EvidenceControlConsole() {
     };
   }, []);
 
-  // Keyboard accessibility for modals
+  useEffect(() => {
+    if (activeModal) {
+      lastActiveElementRef.current = document.activeElement as HTMLElement;
+      const timer = setTimeout(() => {
+        if (modalContainerRef.current) {
+          const focusable = modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable.length > 0) {
+            focusable[0].focus();
+          } else {
+            modalContainerRef.current.focus();
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (lastActiveElementRef.current) {
+      lastActiveElementRef.current.focus();
+      lastActiveElementRef.current = null;
+    }
+  }, [activeModal]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (!activeModal) return;
       if (e.key === "Escape") {
         setInspectCandidate(null);
         setInspectAudit(null);
-        setRejectingCandidate(null);
+        closeRejectionModal();
+        return;
+      }
+      if (e.key === "Tab" && modalContainerRef.current) {
+        const focusable = Array.from(
+          modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [activeModal, closeRejectionModal]);
 
   async function handleAction(
     action: "approve" | "merge" | "reject",
@@ -253,17 +335,15 @@ export default function EvidenceControlConsole() {
       if (res.ok && data.success) {
         const actionLabel = action === "approve" ? "approved & published" : action === "merge" ? "merged into canonical record" : "rejected";
         setStatusMessage(`Candidate record ${candidateId} successfully ${actionLabel}.`);
-        setRejectingCandidate(null);
-        setRejectionReasonInput("");
+        closeRejectionModal();
         fetchConsoleData();
         setTimeout(() => setStatusMessage(null), 5000);
       } else {
-        setErrorMessage(`Action failed: ${data.error || "Execution error"}`);
-        setTimeout(() => setErrorMessage(null), 6000);
+        setErrorMessage(`Action failed: ${data.error || "Unknown error"}`);
       }
     } catch (err) {
       console.error("Action error:", err);
-      setErrorMessage("Network or server error during action execution.");
+      setErrorMessage("Network error: Unable to submit review decision.");
     } finally {
       setSubmittingCandidateId(null);
     }
@@ -271,6 +351,7 @@ export default function EvidenceControlConsole() {
 
   async function handleIngestSampleStream() {
     setIsIngestingSample(true);
+    setStatusMessage(null);
     setErrorMessage(null);
     try {
       const res = await fetch("/api/admin/evidence", {
@@ -294,23 +375,31 @@ export default function EvidenceControlConsole() {
     }
   }
 
-  function handleCopyJson(content: string) {
-    navigator.clipboard.writeText(content);
-    setCopiedPayload(true);
-    setTimeout(() => setCopiedPayload(false), 2000);
+  async function handleCopyJson(content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedPayload(true);
+      setTimeout(() => setCopiedPayload(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy JSON payload:", err);
+    }
   }
 
-  // Filtered queue items
+  const parsedExtractions = useMemo(() => {
+    const map = new Map<string, ParsedCandidateExtraction>();
+    for (const c of queue) {
+      map.set(c.id, parseCandidateExtraction(c.rawExtraction));
+    }
+    return map;
+  }, [queue]);
+
   const filteredQueue = useMemo(() => {
     return queue.filter((c) => {
-      // Lane filter
       if (laneFilter !== "all" && c.assignedLane !== laneFilter) return false;
-      // Tier filter
       if (tierFilter !== "all" && c.primarySourceTier !== tierFilter) return false;
-      // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const parsed = parseCandidateExtraction(c.rawExtraction);
+        const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
         const matchTitle = c.suggestedTitle.toLowerCase().includes(query);
         const matchPlace = (c.suggestedPlace || "").toLowerCase().includes(query);
         const matchSummary = (parsed.summary || "").toLowerCase().includes(query);
@@ -324,13 +413,16 @@ export default function EvidenceControlConsole() {
       }
       return true;
     });
-  }, [queue, laneFilter, tierFilter, searchQuery]);
+  }, [queue, laneFilter, tierFilter, searchQuery, parsedExtractions]);
 
-  // Split into Pending Review and Duplicate Merges
   const pendingItems = useMemo(() => {
     const list = filteredQueue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75));
     return list.sort((a, b) => {
-      if (sortBy === "newest") return new Date(b.suggestedDate).getTime() - new Date(a.suggestedDate).getTime();
+      if (sortBy === "newest") {
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        return timeB - timeA;
+      }
       if (sortBy === "date-asc") return a.suggestedDate.localeCompare(b.suggestedDate);
       if (sortBy === "date-desc") return b.suggestedDate.localeCompare(a.suggestedDate);
       return (b.duplicateSimilarity || 0) - (a.duplicateSimilarity || 0);
@@ -338,7 +430,7 @@ export default function EvidenceControlConsole() {
   }, [filteredQueue, sortBy]);
 
   const duplicateItems = useMemo(() => {
-    const list = filteredQueue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75);
+    const list = filteredQueue.filter((c) => c.status === "pending" && c.duplicateSimilarity !== null && c.duplicateSimilarity >= 0.75);
     return list.sort((a, b) => (b.duplicateSimilarity || 0) - (a.duplicateSimilarity || 0));
   }, [filteredQueue]);
 
@@ -497,7 +589,7 @@ export default function EvidenceControlConsole() {
               <GitMerge size={20} />
             </div>
             <div className="stat-content">
-              <span className="stat-num">{duplicateItems.length}</span>
+              <span className="stat-num">{stats?.duplicateCandidatesCount ?? duplicateItems.length}</span>
               <span className="stat-label">Duplicate Merges</span>
               <span className="stat-sub">Spacetime collision candidate</span>
             </div>
@@ -576,20 +668,20 @@ export default function EvidenceControlConsole() {
           </div>
         </section>
 
-        {/* CONSOLE TABS NAVIGATION */}
-        <div className="console-tabs-nav" role="tablist" aria-label="Evidence Console Views">
+        {/* WORKSPACE NAVIGATION TABS */}
+        <nav className="console-tabs-nav" aria-label="Evidence Console Workspaces" role="tablist">
           <button
             type="button"
             role="tab"
             id="tab-queue"
             aria-selected={activeTab === "queue"}
             aria-controls="panel-queue"
-            className={`tab-btn ${activeTab === "queue" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "queue" ? "active" : ""}`}
             onClick={() => setActiveTab("queue")}
           >
-            <ShieldAlert size={14} />
-            <span>Evidentiary Review Queue</span>
-            {pendingItems.length > 0 && <span className="tab-badge error">{pendingItems.length}</span>}
+            <Clock size={15} />
+            <span>Pending Review Queue</span>
+            <span className="tab-pill">{pendingItems.length}</span>
           </button>
 
           <button
@@ -598,12 +690,12 @@ export default function EvidenceControlConsole() {
             id="tab-duplicates"
             aria-selected={activeTab === "duplicates"}
             aria-controls="panel-duplicates"
-            className={`tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
             onClick={() => setActiveTab("duplicates")}
           >
-            <GitMerge size={14} />
-            <span>Spacetime Duplicate Merges</span>
-            {duplicateItems.length > 0 && <span className="tab-badge warning">{duplicateItems.length}</span>}
+            <GitMerge size={15} />
+            <span>Duplicate & Merge Detection</span>
+            <span className="tab-pill warning">{duplicateItems.length}</span>
           </button>
 
           <button
@@ -612,12 +704,12 @@ export default function EvidenceControlConsole() {
             id="tab-audit"
             aria-selected={activeTab === "audit"}
             aria-controls="panel-audit"
-            className={`tab-btn ${activeTab === "audit" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "audit" ? "active" : ""}`}
             onClick={() => setActiveTab("audit")}
           >
-            <Clock size={14} />
-            <span>Provenance Audit Ledger</span>
-            {audit.length > 0 && <span className="tab-badge neutral">{audit.length}</span>}
+            <ShieldAlert size={15} />
+            <span>Immutable Provenance Ledger</span>
+            <span className="tab-pill">{audit.length}</span>
           </button>
 
           <button
@@ -626,24 +718,32 @@ export default function EvidenceControlConsole() {
             id="tab-standards"
             aria-selected={activeTab === "standards"}
             aria-controls="panel-standards"
-            className={`tab-btn ${activeTab === "standards" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "standards" ? "active" : ""}`}
             onClick={() => setActiveTab("standards")}
           >
-            <Scale size={14} />
-            <span>Pipeline Architecture & Policy Standards</span>
+            <BookOpen size={15} />
+            <span>Forensic Standards & Pipeline</span>
           </button>
-        </div>
+        </nav>
 
-        {/* TAB 1: REVIEW QUEUE */}
+        {/* LOADING INDICATOR */}
+        {loading && (
+          <div className="console-loading-bar" role="status" aria-live="polite">
+            <RefreshCw size={18} className="animate-spin" />
+            <span>Connecting to live SQLite & Postgres relational store...</span>
+          </div>
+        )}
+
+        {/* TAB 1: PENDING REVIEW QUEUE */}
         {activeTab === "queue" && (
           <section id="panel-queue" role="tabpanel" aria-labelledby="tab-queue" className="console-tab-stage">
             {pendingItems.length === 0 ? (
               <div className="empty-queue-card">
-                <ShieldCheck size={48} className="empty-state-icon text-emerald" />
-                <h3>Review Queue is Clear</h3>
+                <FileCheck size={48} className="empty-state-icon" />
+                <h3>Queue Clear · Zero Candidates Pending Review</h3>
                 <p>
-                  All newly discovered candidate claims have met strict auto-publication criteria or have been reviewed
-                  by an authorized senior historical editor.
+                  All ingested candidate events have been audited and resolved according to REWiND forensic archival
+                  standards. You can stream sample ingestion records or trigger an automated crawl.
                 </p>
                 <div className="empty-actions">
                   <button type="button" className="action-stream-btn" onClick={handleIngestSampleStream} disabled={isIngestingSample}>
@@ -659,7 +759,7 @@ export default function EvidenceControlConsole() {
             ) : (
               <div className="candidate-card-list">
                 {pendingItems.map((c: CandidateItem) => {
-                  const parsed = parseCandidateExtraction(c.rawExtraction);
+                  const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
                   const isAutoPublish = c.assignedLane === "auto-publish";
                   const isProvisional = c.assignedLane === "provisional";
 
@@ -677,7 +777,7 @@ export default function EvidenceControlConsole() {
 
                           <span className={`tier-badge ${c.primarySourceTier}`}>
                             <Scale size={11} />
-                            <span>{c.primarySourceTier.toUpperCase()}: PRIMARY ARCHIVAL</span>
+                            <span>{TIER_LABELS[c.primarySourceTier.toLowerCase()] || `${c.primarySourceTier.toUpperCase()}: ARCHIVAL RECORD`}</span>
                           </span>
 
                           <span className="precision-badge">
@@ -709,7 +809,11 @@ export default function EvidenceControlConsole() {
                             <span className="vital-label">Geospatial Resolution</span>
                             <span className="vital-val">
                               {c.suggestedPlace || parsed.venue || "Unspecified Coordinates"}
-                              <small className="vital-sub"> · Precision: Venue Centroid</small>
+                              {parsed.venue ? (
+                                <small className="vital-sub"> · Precision: Venue Specific</small>
+                              ) : c.suggestedPlace ? (
+                                <small className="vital-sub"> · Precision: Locality Centroid</small>
+                              ) : null}
                             </span>
                           </div>
                         </div>
@@ -724,7 +828,11 @@ export default function EvidenceControlConsole() {
                                   <span key={pIdx} className="entity-chip">
                                     <b>{p.name}</b>
                                     {p.role && <small>({p.role})</small>}
-                                    <span className="match-confidence">98% match</span>
+                                    {typeof p.confidence === "number" && (
+                                      <span className="match-confidence">
+                                        {Math.round(p.confidence <= 1 ? p.confidence * 100 : p.confidence)}% match
+                                      </span>
+                                    )}
                                   </span>
                                 ))
                               ) : (
@@ -849,7 +957,10 @@ export default function EvidenceControlConsole() {
               <div className="candidate-card-list">
                 {duplicateItems.map((c: CandidateItem) => {
                   const similarityPct = Math.round((c.duplicateSimilarity || 0) * 100);
-                  const parsed = parseCandidateExtraction(c.rawExtraction);
+                  const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
+                  const isAutoPublish = c.assignedLane === "auto-publish";
+                  const isProvisional = c.assignedLane === "provisional";
+                  const targetSlug = c.duplicateMatchId === "evt-1998-10-23-wye-river" ? "wye-river-memorandum-signing" : (c.duplicateMatchId || "");
 
                   return (
                     <article key={c.id} className="candidate-dossier-card duplicate-highlight">
@@ -866,7 +977,12 @@ export default function EvidenceControlConsole() {
 
                       <div className="dossier-header">
                         <div className="dossier-meta-chips">
-                          <span className="lane-badge provisional">PROVISIONAL DUPLICATE</span>
+                          <span className={`lane-badge ${c.assignedLane}`}>
+                            {isAutoPublish && <CheckCircle2 size={11} />}
+                            {isProvisional && <AlertTriangle size={11} />}
+                            {!isAutoPublish && !isProvisional && <AlertCircle size={11} />}
+                            <span>{c.assignedLane.replace("-", " ").toUpperCase()} DUPLICATE</span>
+                          </span>
                           <span className="precision-badge">
                             <Calendar size={11} /> {c.suggestedDate}
                           </span>
@@ -898,7 +1014,7 @@ export default function EvidenceControlConsole() {
                           <div className="diff-box">
                             <p className="diff-title"><b>Target ID:</b> <code>{c.duplicateMatchId}</code></p>
                             <p className="diff-place"><b>Status:</b> Canonical Atlas Event</p>
-                            <Link href={`/event/${c.duplicateMatchId}`} target="_blank" className="diff-link">
+                            <Link href={`/event/${targetSlug}`} target="_blank" className="diff-link">
                               View Existing Event in Atlas <ExternalLink size={12} />
                             </Link>
                           </div>
@@ -1130,7 +1246,7 @@ export default function EvidenceControlConsole() {
         {inspectCandidate && (
           <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-candidate-title">
             <div className="forensic-modal-backdrop" onClick={() => setInspectCandidate(null)} />
-            <div className="forensic-modal-container">
+            <div className="forensic-modal-container" ref={modalContainerRef}>
               <header className="forensic-modal-header">
                 <div className="modal-title-wrap">
                   <Code2 size={18} className="text-sky" />
@@ -1211,7 +1327,7 @@ export default function EvidenceControlConsole() {
         {inspectAudit && (
           <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-audit-title">
             <div className="forensic-modal-backdrop" onClick={() => setInspectAudit(null)} />
-            <div className="forensic-modal-container">
+            <div className="forensic-modal-container" ref={modalContainerRef}>
               <header className="forensic-modal-header">
                 <div className="modal-title-wrap">
                   <Clock size={18} className="text-amber" />
@@ -1268,8 +1384,8 @@ export default function EvidenceControlConsole() {
         {/* REJECTION REASON CONFIRMATION MODAL */}
         {rejectingCandidate && (
           <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-reject-title">
-            <div className="forensic-modal-backdrop" onClick={() => setRejectingCandidate(null)} />
-            <div className="forensic-modal-container">
+            <div className="forensic-modal-backdrop" onClick={closeRejectionModal} />
+            <div className="forensic-modal-container" ref={modalContainerRef}>
               <header className="forensic-modal-header">
                 <div className="modal-title-wrap">
                   <XCircle size={18} className="text-crimson" />
@@ -1281,7 +1397,7 @@ export default function EvidenceControlConsole() {
                 <button
                   type="button"
                   className="modal-close-btn"
-                  onClick={() => setRejectingCandidate(null)}
+                  onClick={closeRejectionModal}
                   aria-label="Close modal"
                 >
                   <X size={18} />
@@ -1322,7 +1438,7 @@ export default function EvidenceControlConsole() {
                   <span>Confirm Rejection & Log</span>
                 </button>
 
-                <button type="button" className="refresh-btn" onClick={() => setRejectingCandidate(null)}>
+                <button type="button" className="refresh-btn" onClick={closeRejectionModal}>
                   Cancel
                 </button>
               </footer>

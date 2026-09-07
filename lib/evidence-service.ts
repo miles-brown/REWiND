@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count, or, and } from "drizzle-orm";
+import { eq, desc, count, or, and, gte } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
 
@@ -35,6 +35,11 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
         .from(schema.sources)
         .where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b")));
       const [pending] = await db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending"));
+      const [duplicates] = await db
+        .select({ val: count() })
+        .from(schema.candidateEvents)
+        .where(and(eq(schema.candidateEvents.status, "pending"), gte(schema.candidateEvents.duplicateSimilarity, 0.75)));
+      const [totalCandidates] = await db.select({ val: count() }).from(schema.candidateEvents);
 
       return {
         publishedEventsCount: Number(published?.val ?? 0),
@@ -42,6 +47,8 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
         primarySourcesCount: Number(sources?.val ?? 0),
         pendingReviewCount: Number(pending?.val ?? 0),
         autoPublishedCount: Number(autoPublished?.val ?? 0),
+        duplicateCandidatesCount: Number(duplicates?.val ?? 0),
+        totalCandidatesCount: Number(totalCandidates?.val ?? 0),
       };
     } catch (err) {
       console.warn("Failed to query live evidentiary stats, falling back to store:", err);
@@ -53,7 +60,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const autoPublished = store.events.filter((e) => e.publicationLane === "auto-publish");
   const primarySources = store.sources.filter((s) => s.tier === "tier-a" || s.tier === "tier-b");
   const pending = store.candidateEvents.filter((c) => c.status === "pending");
-  const duplicates = store.candidateEvents.filter((c) => (c.duplicateSimilarity ?? 0) >= 0.75);
+  const duplicates = store.candidateEvents.filter((c) => c.status === "pending" && (c.duplicateSimilarity ?? 0) >= 0.75);
 
   return {
     publishedEventsCount: published.length,
@@ -402,12 +409,13 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
   const db = getDb();
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
-  const syncTarget = store.events.find((e) => e.id === targetEventId);
+  const syncTarget = store.events.find((e) => e.id === targetEventId || e.slug === targetEventId);
+  const resolvedTargetId = syncTarget?.id || targetEventId;
   const syncFallback: { success: boolean; targetEventId?: string; claimsAddedCount?: number; error?: string } = !syncCandidate || !syncTarget
     ? { success: false, error: "Candidate or target event not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
-    : { success: true, targetEventId, claimsAddedCount: 0 };
+    : { success: true, targetEventId: resolvedTargetId, claimsAddedCount: 0 };
 
   const executionPromise = (async () => {
     const candidate = await resolveCandidateRecord(candidateId, store, db);
@@ -423,14 +431,17 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     let targetEvent: typeof schema.events.$inferSelect | undefined;
     if (db) {
       try {
-        const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, targetEventId));
+        const [dbEvt] = await db
+          .select()
+          .from(schema.events)
+          .where(or(eq(schema.events.id, targetEventId), eq(schema.events.slug, targetEventId)));
         if (dbEvt) targetEvent = dbEvt;
       } catch (e) {
         console.warn("Error querying target event from live db:", e);
       }
     }
     if (!targetEvent) {
-      targetEvent = store.events.find((e) => e.id === targetEventId);
+      targetEvent = store.events.find((e) => e.id === targetEventId || e.slug === targetEventId);
     }
     if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 

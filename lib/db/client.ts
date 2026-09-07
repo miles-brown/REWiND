@@ -153,11 +153,28 @@ function initializeSeedStore(): MemoryRelationalStore {
 
   // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
   const nodeRequire = createRequire(import.meta.url);
-  const fixtures = nodeRequire("./test-fixtures.json") as {
+  let fixtures: {
     testPeople: TestPerson[];
     testEvents: TestEvent[];
     testSources: TestSource[];
-  };
+  } = { testPeople: [], testEvents: [], testSources: [] };
+
+  try {
+    const fs = nodeRequire("node:fs");
+    const path = nodeRequire("node:path");
+    const resolvedPath = path.resolve(process.cwd(), "lib/db/test-fixtures.json");
+    if (fs.existsSync(resolvedPath)) {
+      fixtures = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+    } else {
+      fixtures = nodeRequire("./test-fixtures.json");
+    }
+  } catch {
+    try {
+      fixtures = nodeRequire("./test-fixtures.json");
+    } catch (e) {
+      console.warn("Failed to load test-fixtures.json:", e);
+    }
+  }
   const people = fixtures.testPeople;
   const events = fixtures.testEvents;
   const sources = fixtures.testSources;
@@ -459,7 +476,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       id: 1,
       eventId: "evt-2011-09-23-unga-plenary",
       candidateId: "cand-un-20110923-001",
-      action: "auto-published",
+      action: "discovered",
       ruleId: "POLICY-T1-AUTOPUB",
       details: JSON.stringify({
         policyLane: "auto-publish",
@@ -474,13 +491,14 @@ function initializeSeedStore(): MemoryRelationalStore {
       id: 2,
       eventId: "evt-1998-10-23-wye-river",
       candidateId: "cand-wye-19981023-002",
-      action: "merged",
+      action: "deduplicated",
       ruleId: "DEDUP-SPACETIME-092",
       details: JSON.stringify({
         matchedEventId: "evt-1998-10-23-wye-river",
+        matchedEventSlug: "wye-river-memorandum-signing",
         similarity: 0.92,
         sourceTitle: "U.S. Department of State Archive: Wye River Memorandum",
-        claimsMerged: 1,
+        claimsToMerge: 1,
       }),
       recordedAt: new Date(Date.now() - 3600000 * 2),
     },

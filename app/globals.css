@@ -1410,6 +1410,12 @@ svg { flex: 0 0 auto; }
   50% { opacity: 0.4; transform: scale(0.85); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+  }
+}
+
 .header-meta h1 {
   font-size: clamp(26px, 3.2vw, 34px);
   font-weight: 800;
@@ -1589,6 +1595,12 @@ svg { flex: 0 0 auto; }
   opacity: 1;
 }
 
+.banner-close-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
 /* 6 Top Telemetry KPI Cards */
 .evidence-stats-grid {
   display: grid;
@@ -1695,6 +1707,7 @@ svg { flex: 0 0 auto; }
   border-radius: 8px;
   padding: 8px 36px 8px 34px;
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 13px;
   font-family: var(--sans);
   transition: all 0.15s;
@@ -1723,6 +1736,12 @@ svg { flex: 0 0 auto; }
   color: #f8fafc;
 }
 
+.clear-search-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  color: #f8fafc;
+}
+
 .filter-controls-group {
   display: flex;
   align-items: center;
@@ -1743,6 +1762,7 @@ svg { flex: 0 0 auto; }
   background: #071017;
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #f8fafc;
+  color-scheme: dark;
   padding: 6px 12px;
   border-radius: 7px;
   font-size: 12px;
@@ -2452,6 +2472,12 @@ svg { flex: 0 0 auto; }
   color: #f8fafc;
 }
 
+.inspect-cell-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  color: #f8fafc;
+}
+
 /* Standards Tab */
 .standards-architecture-grid {
   display: grid;
@@ -2642,6 +2668,12 @@ svg { flex: 0 0 auto; }
   background: rgba(255, 255, 255, 0.08);
 }
 
+.modal-close-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  color: #f8fafc;
+}
+
 .forensic-modal-body {
   padding: 20px 24px;
   overflow-y: auto;
@@ -2679,6 +2711,12 @@ svg { flex: 0 0 auto; }
 
 .copy-payload-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.copy-payload-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
   color: #f8fafc;
 }
 
@@ -2728,6 +2766,7 @@ svg { flex: 0 0 auto; }
   border-radius: 8px;
   padding: 10px 14px;
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 13px;
   font-family: var(--sans);
   line-height: 1.5;
