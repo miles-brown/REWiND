@@ -307,3 +307,30 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   assert.equal(reMergeResult.success, false);
   assert.match(reMergeResult.error, /already merged/);
 });
+
+test("ingests sample candidate streams dynamically and updates evidentiary telemetry stats", async () => {
+  const { ingestSampleCandidateStream, getEvidentiaryStats } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const initialCount = store.candidateEvents.length;
+
+  const res = ingestSampleCandidateStream("Autonomous Ingestion Engine");
+  assert.equal(res.success, true);
+  assert.ok(res.candidateId);
+  assert.equal(store.candidateEvents.length, initialCount + 1);
+
+  // Verifies audit record was created
+  const latestAudit = store.auditLog[0];
+  assert.ok(latestAudit);
+  assert.equal(latestAudit.action, "discovered");
+  assert.equal(latestAudit.candidateId, res.candidateId);
+
+  // Verifies telemetry stats include duplicate and total candidate counts
+  const stats = await getEvidentiaryStats();
+  assert.ok(typeof stats.publishedEventsCount === "number");
+  assert.ok(typeof stats.verifiedClaimsCount === "number");
+  assert.ok(typeof stats.duplicateCandidatesCount === "number");
+  assert.ok(typeof stats.totalCandidatesCount === "number");
+  assert.ok(stats.totalCandidatesCount >= 1);
+});

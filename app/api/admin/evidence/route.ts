@@ -7,6 +7,7 @@ import {
   approveCandidate,
   mergeCandidate,
   rejectCandidate,
+  ingestSampleCandidateStream,
 } from "@/lib/evidence-service";
 import { getAuditTrail } from "@/lib/ingestion/audit";
 
@@ -24,6 +25,9 @@ const AdminReviewActionSchema = z.discriminatedUnion("action", [
     action: z.literal("reject"),
     candidateId: z.string().min(1, "candidateId is required"),
     reason: z.string().optional(),
+  }),
+  z.object({
+    action: z.literal("ingest_sample"),
   }),
 ]);
 
@@ -137,6 +141,11 @@ export async function POST(req: Request) {
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
+      return NextResponse.json(res, { status: 200 });
+    }
+
+    if (data.action === "ingest_sample") {
+      const res = ingestSampleCandidateStream(editorActor);
       return NextResponse.json(res, { status: 200 });
     }
 

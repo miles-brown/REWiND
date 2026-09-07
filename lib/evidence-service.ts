@@ -10,6 +10,8 @@ export interface EvidenceStats {
   primarySourcesCount: number;
   pendingReviewCount: number;
   autoPublishedCount: number;
+  duplicateCandidatesCount?: number;
+  totalCandidatesCount?: number;
 }
 
 interface CandidateClaimInput {
@@ -51,6 +53,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const autoPublished = store.events.filter((e) => e.publicationLane === "auto-publish");
   const primarySources = store.sources.filter((s) => s.tier === "tier-a" || s.tier === "tier-b");
   const pending = store.candidateEvents.filter((c) => c.status === "pending");
+  const duplicates = store.candidateEvents.filter((c) => (c.duplicateSimilarity ?? 0) >= 0.75);
 
   return {
     publishedEventsCount: published.length,
@@ -58,6 +61,8 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
     primarySourcesCount: primarySources.length,
     pendingReviewCount: pending.length,
     autoPublishedCount: autoPublished.length,
+    duplicateCandidatesCount: duplicates.length,
+    totalCandidatesCount: store.candidateEvents.length,
   };
 }
 
@@ -683,4 +688,77 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
   })();
 
   return asAsyncResult(executionPromise, syncFallback);
+}
+
+export function ingestSampleCandidateStream(editorActor = "Autonomous Ingestion Adapter") {
+  const store = getRelationalStore();
+  const timestamp = Date.now();
+  const candidateId = `cand-stream-${timestamp.toString(36)}`;
+  
+  const sampleCandidate = {
+    id: candidateId,
+    fingerprint: `fp_geneva_arms_control_${timestamp}`,
+    suggestedTitle: "Trilateral Diplomatic Consultations on Regional Security Framework",
+    suggestedDate: "2013-11-14",
+    suggestedPlace: "Palais des Nations, Geneva",
+    suggestedParticipants: JSON.stringify([
+      { name: "Benjamin Netanyahu", role: "Prime Minister" },
+      { name: "John Kerry", role: "U.S. Secretary of State" },
+    ]),
+    primarySourceTier: "tier-a",
+    assignedLane: "auto-publish",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0.11,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+    rawExtraction: JSON.stringify({
+      summary: "High-level bilateral diplomatic consultation convened at the UN European Headquarters to review compliance parameters, regional security guarantees, and telemetry verification.",
+      eventType: "bilateral-meeting",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-geneva-press-2013",
+      sourceTitle: "United Nations Information Service Geneva Press Record",
+      sourcePublisher: "United Nations Secretariat",
+      sourceTier: "tier-a",
+      claims: [
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "presence",
+          statement: "Convened with international delegation members at the Palais des Nations diplomatic hall.",
+          claimedTime: "2013-11-14T14:00:00Z",
+          claimedVenue: "Palais des Nations",
+          supportingExcerpt: "Official protocol communique issued by the UN Information Service in Geneva.",
+        },
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "statement",
+          statement: "Emphasized strict verification benchmarks for regional non-proliferation enforcement.",
+          supportingExcerpt: "'Any credible agreement must require complete dismantlement of enrichment centrifuges.'",
+        },
+      ],
+      participants: [
+        { name: "Benjamin Netanyahu", role: "Prime Minister of Israel" },
+        { name: "John Kerry", role: "U.S. Secretary of State" },
+      ],
+    }),
+  };
+
+  store.candidateEvents.unshift(sampleCandidate);
+
+  recordAuditEvent(
+    "discovered",
+    "INGEST-STREAM-SAMPLE",
+    {
+      candidateId,
+      streamSource: "UN Information Service Geneva Ingestion Feed",
+      title: sampleCandidate.suggestedTitle,
+      ingestedBy: editorActor,
+    },
+    undefined,
+    candidateId
+  );
+
+  return { success: true, candidateId, candidate: sampleCandidate };
 }
