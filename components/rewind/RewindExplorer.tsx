@@ -422,6 +422,7 @@ export function RewindExplorer({
         <CitationModal
           event={event}
           source={source}
+          isOpen={citeOpen}
           onClose={() => setCiteOpen(false)}
         />
       )}

@@ -2,8 +2,21 @@ import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import { isLocalDatabaseHost } from "@/db/index";
 import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
+
+export function isLocalDatabaseHost(connStr: string): boolean {
+  try {
+    const url = new URL(connStr);
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 

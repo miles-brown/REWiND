@@ -10,12 +10,12 @@ type Format = "bibtex" | "apa" | "chicago" | "json";
 export function CitationModal({
   event,
   source: explicitSource,
-  isOpen = true,
+  isOpen,
   onClose,
 }: {
   event: EventRecord;
   source?: SourceRecord;
-  isOpen?: boolean;
+  isOpen: boolean;
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<Format>("bibtex");

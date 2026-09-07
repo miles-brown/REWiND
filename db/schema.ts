@@ -190,6 +190,26 @@ export const eventParticipants = pgTable("event_participants", {
   presenceMode: text("presence_mode").default("physical").notNull(), // physical, remote-live, remote-recorded, telephone, written
 });
 
+export const eventPeople = pgTable("event_people", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  involvementType: text("involvement_type").notNull(),
+  roleLabel: text("role_label").notNull(),
+  capacityTitle: text("capacity_title"),
+  attendanceMode: text("attendance_mode").default("physical").notNull(),
+  presenceExtent: text("presence_extent").default("entire-event").notNull(),
+  arrivalTime: text("arrival_time"),
+  departureTime: text("departure_time"),
+  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
+  roleConfidence: text("role_confidence").default("confirmed").notNull(),
+  notes: text("notes"),
+});
+
 export const eventOrganisations = pgTable("event_organisations", {
   id: serial("id").primaryKey(),
   eventId: text("event_id")

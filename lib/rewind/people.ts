@@ -24,31 +24,66 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
   try {
     const supabase = await createClient();
     if (supabase) {
-      let query = supabase
-        .from("people")
-        .select("*")
-        .eq("publication_status", "published")
-        .order("canonical_name", { ascending: true });
-
       if (params.limit) {
-        query = query.limit(params.limit);
-      }
+        const { data, error } = await supabase
+          .from("people")
+          .select("*")
+          .eq("publication_status", "published")
+          .order("canonical_name", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(params.limit);
 
-      const { data, error } = await query;
-      if (!error && data) {
-        return data.map((p) => ({
-          id: p.id,
-          slug: p.slug,
-          name: p.display_name || p.canonical_name,
-          canonicalName: p.canonical_name,
-          displayName: p.display_name,
-          description: p.primary_role || p.summary || "",
-          birth: p.birth_date || undefined,
-          death: p.death_date || undefined,
-          nationality: p.nationality || undefined,
-          classification: p.classification || "unknown",
-          avatarUrl: p.avatar_url || undefined,
-        }));
+        if (!error && data) {
+          return data.map((p) => ({
+            id: p.id,
+            slug: p.slug,
+            name: p.display_name || p.canonical_name,
+            canonicalName: p.canonical_name,
+            displayName: p.display_name,
+            description: p.primary_role || p.summary || "",
+            birth: p.birth_date || undefined,
+            death: p.death_date || undefined,
+            nationality: p.nationality || undefined,
+            classification: p.classification || "unknown",
+            avatarUrl: p.avatar_url || undefined,
+          }));
+        }
+      } else {
+        const allPeople: Record<string, unknown>[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        while (true) {
+          const { data, error } = await supabase
+            .from("people")
+            .select("*")
+            .eq("publication_status", "published")
+            .order("canonical_name", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (error) {
+            console.error("Error paginating people catalog:", error);
+            break;
+          }
+          if (!data || data.length === 0) break;
+          allPeople.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        if (allPeople.length > 0) {
+          return allPeople.map((p) => ({
+            id: String(p.id),
+            slug: String(p.slug),
+            name: String(p.display_name || p.canonical_name || ""),
+            canonicalName: String(p.canonical_name || ""),
+            displayName: String(p.display_name || p.canonical_name || ""),
+            description: String(p.primary_role || p.summary || ""),
+            birth: p.birth_date ? String(p.birth_date) : undefined,
+            death: p.death_date ? String(p.death_date) : undefined,
+            nationality: p.nationality ? String(p.nationality) : undefined,
+            classification: String(p.classification || "unknown"),
+            avatarUrl: p.avatar_url ? String(p.avatar_url) : undefined,
+          }));
+        }
       }
     }
 

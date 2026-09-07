@@ -235,12 +235,17 @@ async function hydrateEventRows(
       const chunk = allAddressIds.slice(i, i + chunkSize);
       const { data: addressRows, error: addressError } = await supabase
         .from("addresses")
-        .select("id, city, country, latitude, longitude, formatted_english, descriptive_location")
+        .select("id, city, country_code, latitude, longitude, formatted_english, descriptive_location")
         .in("id", chunk);
       if (addressError) {
         throw addressError;
       } else if (addressRows) {
-        addressRows.forEach((a) => addressesMap.set(a.id, a));
+        addressRows.forEach((a) => {
+          addressesMap.set(a.id, {
+            ...a,
+            country: (a as { country_code?: string | null }).country_code || null,
+          });
+        });
       }
     }
   }
@@ -751,11 +756,11 @@ export async function getEventBySlug(
           if (v.address_id) {
             const { data: a, error: aError } = await supabase
               .from("addresses")
-              .select("city, country, latitude, longitude")
+              .select("city, country_code, latitude, longitude")
               .eq("id", v.address_id)
               .maybeSingle();
             if (aError) return { data: null, error: aError.message };
-            addr = a;
+            addr = a ? { city: a.city, country: a.country_code, latitude: a.latitude, longitude: a.longitude } : null;
           }
           placeData = {
             venue: v.name,
@@ -768,7 +773,7 @@ export async function getEventBySlug(
       } else if (eventRow.address_id) {
         const { data: a, error: aError } = await supabase
           .from("addresses")
-          .select("city, country, latitude, longitude, formatted_english, descriptive_location")
+          .select("city, country_code, latitude, longitude, formatted_english, descriptive_location")
           .eq("id", eventRow.address_id)
           .maybeSingle();
         if (aError) return { data: null, error: aError.message };
@@ -776,7 +781,7 @@ export async function getEventBySlug(
           placeData = {
             venue: a.descriptive_location || a.formatted_english || undefined,
             city: a.city || "Unknown",
-            country: a.country || "Unknown",
+            country: a.country_code || "Unknown",
             latitude: typeof a.latitude === "number" ? a.latitude : null,
             longitude: typeof a.longitude === "number" ? a.longitude : null,
           };
@@ -819,28 +824,34 @@ export async function getEventBySlug(
       const eventPersonIds = participantRows.map((p) => p.id);
       const locationsMap = new Map();
       if (eventPersonIds.length > 0) {
-        const { data: locRows, error: locError } = await supabase
-          .from("event_person_locations")
-          .select("event_person_id, latitude, longitude, coordinate_precision")
-          .in("event_person_id", eventPersonIds)
-          .eq("is_principal_location", true);
-        if (locError) return { data: null, error: locError.message };
-        (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
+        for (let i = 0; i < eventPersonIds.length; i += 500) {
+          const chunk = eventPersonIds.slice(i, i + 500);
+          const { data: locRows, error: locError } = await supabase
+            .from("event_person_locations")
+            .select("event_person_id, latitude, longitude, coordinate_precision")
+            .in("event_person_id", chunk)
+            .eq("is_principal_location", true);
+          if (locError) return { data: null, error: locError.message };
+          (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
+        }
       }
 
-      const personIds = participantRows.map((p) => p.person_id);
+      const personIds = Array.from(new Set(participantRows.map((p) => p.person_id)));
       const personNames = new Map<string, string>();
       const personSlugs = new Map<string, string>();
       if (personIds.length > 0) {
-        const { data: peopleData, error: peopleError } = await supabase
-          .from("people")
-          .select("id, slug, canonical_name, display_name")
-          .in("id", personIds);
-        if (peopleError) return { data: null, error: peopleError.message };
-        (peopleData || []).forEach((p) => {
-          personNames.set(p.id, p.display_name || p.canonical_name);
-          personSlugs.set(p.id, p.slug);
-        });
+        for (let i = 0; i < personIds.length; i += 500) {
+          const chunk = personIds.slice(i, i + 500);
+          const { data: peopleData, error: peopleError } = await supabase
+            .from("people")
+            .select("id, slug, canonical_name, display_name")
+            .in("id", chunk);
+          if (peopleError) return { data: null, error: peopleError.message };
+          (peopleData || []).forEach((p) => {
+            personNames.set(p.id, p.display_name || p.canonical_name);
+            personSlugs.set(p.id, p.slug);
+          });
+        }
       }
 
       const participants: Participant[] = participantRows.map((p) => {
@@ -884,18 +895,21 @@ export async function getEventBySlug(
           }
         }
       }
-      const sourceIds = eventSourcesRows.map((s) => s.source_id);
 
+      const sourceIds = Array.from(new Set((eventSourcesRows || []).map((s) => s.source_id)));
       const sourceEntitiesMap = new Map<string, SourceRecord>();
       if (sourceIds.length > 0) {
-        const { data: rawSources, error: srcError } = await supabase
-          .from("sources")
-          .select("*")
-          .in("id", sourceIds);
-        if (srcError) return { data: null, error: srcError.message };
-        (rawSources || []).forEach((src) => {
-          sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
-        });
+        for (let i = 0; i < sourceIds.length; i += 500) {
+          const chunk = sourceIds.slice(i, i + 500);
+          const { data: rawSources, error: srcError } = await supabase
+            .from("sources")
+            .select("*")
+            .in("id", chunk);
+          if (srcError) return { data: null, error: srcError.message };
+          (rawSources || []).forEach((src) => {
+            sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+          });
+        }
       }
 
       // Fetch quotes with pagination and deterministic ordering

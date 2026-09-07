@@ -213,7 +213,7 @@ test("enforces one-time candidate approval transitions and claim persistence", a
   });
 
   // 1. Initial approval succeeds
-  const appResult = approveCandidate(testCandId, "Senior Editor");
+  const appResult = await approveCandidate(testCandId, "Senior Editor");
   assert.equal(appResult.success, true);
   assert.ok(appResult.eventId);
 
@@ -222,7 +222,6 @@ test("enforces one-time candidate approval transitions and claim persistence", a
   assert.ok(persistedClaim, "Approved candidate claims must be persisted to store.claims");
 
   // 2. Second approval on same candidate must be rejected
-  await appResult;
   const reApproveResult = await approveCandidate(testCandId, "Senior Editor");
   assert.equal(reApproveResult.success, false);
   assert.match(reApproveResult.error, /already approved/);
@@ -291,7 +290,7 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   });
 
   // 1. Initial merge succeeds and attaches claims
-  const mergeResult = mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
+  const mergeResult = await mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
   assert.equal(mergeResult.success, true);
   assert.equal(mergeResult.targetEventId, targetEvtId);
   assert.ok(mergeResult.claimsAddedCount >= 1);
@@ -304,7 +303,6 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   assert.equal(mergedClaim.subjectId, "benjamin-netanyahu");
 
   // 2. Second merge attempt on the same candidate is blocked
-  await mergeResult;
   const reMergeResult = await mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
   assert.equal(reMergeResult.success, false);
   assert.match(reMergeResult.error, /already merged/);
