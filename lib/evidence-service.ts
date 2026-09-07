@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, or } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
 
@@ -12,6 +12,15 @@ export interface EvidenceStats {
   autoPublishedCount: number;
 }
 
+interface CandidateClaimInput {
+  subjectMention?: string;
+  claimType?: string;
+  statement?: string;
+  claimedTime?: string;
+  claimedVenue?: string;
+  supportingExcerpt?: string;
+}
+
 export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const db = getDb();
   if (db) {
@@ -19,7 +28,10 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
       const [published] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published"));
       const [autoPublished] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish"));
       const [claims] = await db.select({ val: count() }).from(schema.claims);
-      const [sources] = await db.select({ val: count() }).from(schema.sources);
+      const [sources] = await db
+        .select({ val: count() })
+        .from(schema.sources)
+        .where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b")));
       const [pending] = await db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending"));
 
       return {
@@ -59,9 +71,7 @@ export async function getCandidateQueue() {
         .select()
         .from(schema.candidateEvents)
         .orderBy(desc(schema.candidateEvents.createdAt));
-      if (rows && rows.length > 0) {
-        return rows;
-      }
+      return rows;
     } catch (err) {
       console.warn("Failed to query live candidate queue, falling back to store:", err);
     }
@@ -70,198 +80,316 @@ export async function getCandidateQueue() {
   return store.candidateEvents;
 }
 
+async function resolveCandidateRecord(
+  candidateId: string,
+  store: ReturnType<typeof getRelationalStore>,
+  db: ReturnType<typeof getDb>
+) {
+  if (db) {
+    try {
+      const [dbCandidate] = await db
+        .select()
+        .from(schema.candidateEvents)
+        .where(eq(schema.candidateEvents.id, candidateId));
+      if (dbCandidate) return dbCandidate;
+    } catch (e) {
+      console.warn("Error querying candidate from live db:", e);
+    }
+  }
+  return store.candidateEvents.find((c) => c.id === candidateId);
+}
+
+function asAsyncResult<T extends Record<string, unknown>>(promise: Promise<T>, syncFallback: T): Promise<T> & T {
+  return Object.assign(promise, syncFallback);
+}
+
 export function approveCandidate(candidateId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  if (!candidate) return { success: false, error: "Candidate not found" };
+  const db = getDb();
 
-  // Ensure one-time pending-to-terminal transition
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be approved again`,
-    };
-  }
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncFallback: { success: boolean; eventId?: string; error?: string } = !syncCandidate
+    ? { success: false, error: "Candidate not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be approved again` }
+    : { success: true, eventId: `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-sync` };
 
-  candidate.status = "approved";
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
 
-  // Parse candidate extraction
-  const data = JSON.parse(candidate.rawExtraction);
-  const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be approved again`,
+      };
+    }
 
-  // Find or create place
-  const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
+    const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+    const sourceId = data.sourceId || "src-editorial-approval";
 
-  store.events.unshift({
-    id: eventSlug,
-    slug: eventSlug,
-    parentId: null,
-    eventType: data.eventType || "historical-action",
-    title: candidate.suggestedTitle,
-    summary: data.summary || candidate.suggestedTitle,
-    description: data.description || null,
-    startDate: candidate.suggestedDate,
-    endDate: data.endDate || null,
-    temporalPrecision: data.temporalPrecision || "exact-day",
-    placeId,
-    seriesId: null,
-    venueId: null,
-    addressId: null,
-    verificationStatus: "verified",
-    confidenceScore: 0.98,
-    publicationStatus: "published",
-    publicationLane: "human-review",
-    significanceScore: 80,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+    const newClaims: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach(
+        (
+          clm: {
+            subjectMention?: string;
+            claimType?: string;
+            statement?: string;
+            claimedTime?: string;
+            claimedVenue?: string;
+            supportingExcerpt?: string;
+          },
+          idx: number
+        ) => {
+          const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
+          newClaims.push({
+            id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
+            eventId: eventSlug,
+            subjectId: resolvedSubject?.personId || null,
+            claimType: clm.claimType || "presence",
+            statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
+            claimedTime: clm.claimedTime || candidate.suggestedDate,
+            claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
+            sourceId,
+            confidence: "confirmed",
+            supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+          });
+        }
+      );
+    }
 
-  // Persist reviewed claims and source attribution during approval
-  const sourceId = data.sourceId || "src-editorial-approval";
-  if (Array.isArray(data.claims)) {
-    data.claims.forEach(
-      (
-        clm: {
-          subjectMention?: string;
-          claimType?: string;
-          statement?: string;
-          claimedTime?: string;
-          claimedVenue?: string;
-          supportingExcerpt?: string;
-        },
-        idx: number
-      ) => {
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          if (sourceId && sourceId !== "src-editorial-approval") {
+            const [existingSrc] = await tx
+              .select({ id: schema.sources.id })
+              .from(schema.sources)
+              .where(eq(schema.sources.id, sourceId));
+            if (!existingSrc) {
+              await tx.insert(schema.sources).values({
+                id: sourceId,
+                title: data.sourceTitle || `Source for ${candidate.suggestedTitle}`,
+                publisher: data.publisher || "Archival Source",
+                sourceType: data.sourceType || "official-transcript",
+                tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+                url: data.url || null,
+              });
+            }
+          }
+
+          await tx
+            .update(schema.candidateEvents)
+            .set({ status: "approved" })
+            .where(eq(schema.candidateEvents.id, candidateId));
+
+          await tx.insert(schema.events).values({
+            id: eventSlug,
+            slug: eventSlug,
+            parentId: null,
+            eventType: data.eventType || "historical-action",
+            title: candidate.suggestedTitle,
+            summary: data.summary || candidate.suggestedTitle,
+            description: data.description || null,
+            startDate: candidate.suggestedDate,
+            endDate: data.endDate || null,
+            temporalPrecision: data.temporalPrecision || "exact-day",
+            placeId,
+            seriesId: null,
+            venueId: null,
+            addressId: null,
+            verificationStatus: "verified",
+            confidenceScore: 0.98,
+            publicationStatus: "published",
+            publicationLane: "human-review",
+            significanceScore: 80,
+          });
+
+          if (newClaims.length > 0) {
+            await tx.insert(schema.claims).values(newClaims);
+          }
+
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "approved",
+            decidedBy: editorName,
+            notes: "Editorial review sign-off",
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on approveCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
+      }
+    }
+
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "approved";
+    }
+    candidate.status = "approved";
+
+    store.events.unshift({
+      id: eventSlug,
+      slug: eventSlug,
+      parentId: null,
+      eventType: data.eventType || "historical-action",
+      title: candidate.suggestedTitle,
+      summary: data.summary || candidate.suggestedTitle,
+      description: data.description || null,
+      startDate: candidate.suggestedDate,
+      endDate: data.endDate || null,
+      temporalPrecision: data.temporalPrecision || "exact-day",
+      placeId,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
+      verificationStatus: "verified",
+      confidenceScore: 0.98,
+      publicationStatus: "published",
+      publicationLane: "human-review",
+      significanceScore: 80,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    newClaims.forEach((clm) => store.claims.push(clm));
+
+    recordAuditEvent(
+      "reviewed-approved",
+      "REW-REV-MANUAL-SIGN-OFF",
+      {
+        candidateId,
+        publishedEventId: eventSlug,
+        approvedBy: editorName,
+        sourceId,
+      },
+      eventSlug,
+      candidateId
+    );
+
+    return { success: true, eventId: eventSlug };
+  })();
+
+  if (!db && syncCandidate && syncCandidate.status === "pending") {
+    // Perform synchronous store mutation immediately for offline non-db callers
+    const data = typeof syncCandidate.rawExtraction === "string" ? JSON.parse(syncCandidate.rawExtraction) : syncCandidate.rawExtraction;
+    const eventSlug = `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
+    const placeId = `plc-${syncCandidate.suggestedPlace ? syncCandidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+    const sourceId = data.sourceId || "src-editorial-approval";
+
+    syncCandidate.status = "approved";
+
+    store.events.unshift({
+      id: eventSlug,
+      slug: eventSlug,
+      parentId: null,
+      eventType: data.eventType || "historical-action",
+      title: syncCandidate.suggestedTitle,
+      summary: data.summary || syncCandidate.suggestedTitle,
+      description: data.description || null,
+      startDate: syncCandidate.suggestedDate,
+      endDate: data.endDate || null,
+      temporalPrecision: data.temporalPrecision || "exact-day",
+      placeId,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
+      verificationStatus: "verified",
+      confidenceScore: 0.98,
+      publicationStatus: "published",
+      publicationLane: "human-review",
+      significanceScore: 80,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         store.claims.push({
           id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
           eventId: eventSlug,
           subjectId: resolvedSubject?.personId || null,
           claimType: clm.claimType || "presence",
-          statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
-          claimedTime: clm.claimedTime || candidate.suggestedDate,
-          claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
+          statement: clm.statement || `${syncCandidate.suggestedTitle} verified by editorial review`,
+          claimedTime: clm.claimedTime || syncCandidate.suggestedDate,
+          claimedVenue: clm.claimedVenue || syncCandidate.suggestedPlace || null,
           sourceId,
           confidence: "confirmed",
           supportingExcerpt: clm.supportingExcerpt || data.summary || null,
         });
-      }
-    );
-  }
+      });
+    }
 
-  recordAuditEvent(
-    "reviewed-approved",
-    "REW-REV-MANUAL-SIGN-OFF",
-    {
-      candidateId,
-      publishedEventId: eventSlug,
-      approvedBy: editorName,
-      sourceId,
-    },
-    eventSlug,
-    candidateId
-  );
-
-  const db = getDb();
-  if (db) {
-    db.update(schema.candidateEvents)
-      .set({ status: "approved" })
-      .where(eq(schema.candidateEvents.id, candidateId))
-      .catch((e) => console.warn("Live DB error on candidate approval:", e));
-
-    db.insert(schema.events)
-      .values({
-        id: eventSlug,
-        slug: eventSlug,
-        parentId: null,
-        eventType: data.eventType || "historical-action",
-        title: candidate.suggestedTitle,
-        summary: data.summary || candidate.suggestedTitle,
-        description: data.description || null,
-        startDate: candidate.suggestedDate,
-        endDate: data.endDate || null,
-        temporalPrecision: data.temporalPrecision || "exact-day",
-        placeId,
-        seriesId: null,
-        venueId: null,
-        addressId: null,
-        verificationStatus: "verified",
-        confidenceScore: 0.98,
-        publicationStatus: "published",
-        publicationLane: "human-review",
-        significanceScore: 80,
-      })
-      .catch((e) => console.warn("Live DB error on event insertion:", e));
-
-    db.insert(schema.reviewDecisions)
-      .values({
+    recordAuditEvent(
+      "reviewed-approved",
+      "REW-REV-MANUAL-SIGN-OFF",
+      {
         candidateId,
-        decision: "approved",
-        decidedBy: editorName,
-        notes: "Editorial review sign-off",
-      })
-      .catch((e) => console.warn("Live DB error on review decision insertion:", e));
+        publishedEventId: eventSlug,
+        approvedBy: editorName,
+        sourceId,
+      },
+      eventSlug,
+      candidateId
+    );
+
+    syncFallback.eventId = eventSlug;
   }
 
-  return { success: true, eventId: eventSlug };
+  return asAsyncResult(executionPromise, syncFallback);
 }
 
 export function mergeCandidate(candidateId: string, targetEventId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  const targetEvent = store.events.find((e) => e.id === targetEventId);
+  const db = getDb();
 
-  if (!candidate || !targetEvent) return { success: false, error: "Candidate or target event not found" };
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncTarget = store.events.find((e) => e.id === targetEventId);
+  const syncFallback: { success: boolean; targetEventId?: string; claimsAddedCount?: number; error?: string } = !syncCandidate || !syncTarget
+    ? { success: false, error: "Candidate or target event not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
+    : { success: true, targetEventId, claimsAddedCount: 0 };
 
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be merged`,
-    };
-  }
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
 
-  candidate.status = "merged";
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be merged`,
+      };
+    }
 
-  const data = JSON.parse(candidate.rawExtraction);
-  const sourceId = data.sourceId || "src-editorial-corroboration";
+    let targetEvent: typeof schema.events.$inferSelect | undefined;
+    if (db) {
+      try {
+        const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, targetEventId));
+        if (dbEvt) targetEvent = dbEvt;
+      } catch (e) {
+        console.warn("Error querying target event from live db:", e);
+      }
+    }
+    if (!targetEvent) {
+      targetEvent = store.events.find((e) => e.id === targetEventId);
+    }
+    if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 
-  // Ensure source is registered in the sources catalog
-  let existingSource = store.sources.find((s) => s.id === sourceId);
-  if (!existingSource && sourceId !== "src-editorial-corroboration") {
-    existingSource = {
-      id: sourceId,
-      title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
-      publisher: data.publisher || "Archival Source",
-      sourceType: data.sourceType || "official-transcript",
-      tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
-      url: data.url || null,
-      archiveUrl: null,
-      author: null,
-      publicationDate: candidate.suggestedDate,
-      trustScore: 0.95,
-    };
-    store.sources.push(existingSource);
-  }
+    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const sourceId = data.sourceId || "src-editorial-corroboration";
 
-  // 1. Merge Claims with entity resolution and deduplication
-  let claimsAddedCount = 0;
-  if (Array.isArray(data.claims)) {
-    data.claims.forEach(
-      (
-        clm: {
-          subjectMention?: string;
-          claimType?: string;
-          statement?: string;
-          claimedTime?: string;
-          claimedVenue?: string;
-          supportingExcerpt?: string;
-        },
-        idx: number
-      ) => {
+    const claimsToInsert: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         const subjectId = resolvedSubject?.personId || null;
         const statement = clm.statement || "Corroborating claim";
 
-        // Avoid exact duplicate claims on the target event
         const isDuplicateClaim = store.claims.some(
           (existing) =>
             existing.eventId === targetEventId &&
@@ -270,7 +398,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         );
 
         if (!isDuplicateClaim) {
-          const claimObj = {
+          claimsToInsert.push({
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
             subjectId,
@@ -281,111 +409,268 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || null,
-          };
-          store.claims.push(claimObj);
-          claimsAddedCount++;
-
-          const db = getDb();
-          if (db) {
-            db.insert(schema.claims)
-              .values(claimObj)
-              .catch((e) => console.warn("Live DB error on merged claim insert:", e));
-          }
+          });
         }
+      });
+    }
+
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          if (sourceId && sourceId !== "src-editorial-corroboration") {
+            const [existingSrc] = await tx
+              .select({ id: schema.sources.id })
+              .from(schema.sources)
+              .where(eq(schema.sources.id, sourceId));
+            if (!existingSrc) {
+              await tx.insert(schema.sources).values({
+                id: sourceId,
+                title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+                publisher: data.publisher || "Archival Source",
+                sourceType: data.sourceType || "official-transcript",
+                tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+                url: data.url || null,
+                publicationDate: candidate.suggestedDate,
+                trustScore: 0.95,
+              });
+            }
+          }
+
+          if (claimsToInsert.length > 0) {
+            await tx.insert(schema.claims).values(claimsToInsert);
+          }
+
+          await tx
+            .update(schema.candidateEvents)
+            .set({ status: "merged" })
+            .where(eq(schema.candidateEvents.id, candidateId));
+
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "merged",
+            decidedBy: editorName,
+            notes: `Merged into ${targetEventId}`,
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on mergeCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
       }
-    );
-  }
+    }
 
-  // 2. Resolve participants for comprehensive audit attribution
-  const mergedParticipants: string[] = [];
-  if (Array.isArray(data.participants)) {
-    data.participants.forEach((p: { name: string; role?: string }) => {
-      const res = resolveEntity(p.name);
-      if (res.canonicalName) {
-        mergedParticipants.push(res.canonicalName);
-      }
-    });
-  }
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "merged";
+    }
+    candidate.status = "merged";
 
-  recordAuditEvent(
-    "reviewed-merged",
-    "REW-REV-MANUAL-MERGE",
-    {
-      candidateId,
-      targetEventId,
-      mergedBy: editorName,
-      sourceId,
-      claimsAddedCount,
-      mergedParticipants,
-      similarityScore: candidate.duplicateSimilarity,
-    },
-    targetEventId,
-    candidateId
-  );
+    let existingSource = store.sources.find((s) => s.id === sourceId);
+    if (!existingSource && sourceId !== "src-editorial-corroboration") {
+      existingSource = {
+        id: sourceId,
+        title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+        publisher: data.publisher || "Archival Source",
+        sourceType: data.sourceType || "official-transcript",
+        tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+        url: data.url || null,
+        archiveUrl: null,
+        author: null,
+        publicationDate: candidate.suggestedDate,
+        trustScore: 0.95,
+      };
+      store.sources.push(existingSource);
+    }
 
-  const db = getDb();
-  if (db) {
-    db.update(schema.candidateEvents)
-      .set({ status: "merged" })
-      .where(eq(schema.candidateEvents.id, candidateId))
-      .catch((e) => console.warn("Live DB error on candidate merge:", e));
+    claimsToInsert.forEach((c) => store.claims.push(c));
 
-    db.insert(schema.reviewDecisions)
-      .values({
+    const mergedParticipants: string[] = [];
+    if (Array.isArray(data.participants)) {
+      data.participants.forEach((p: { name: string; role?: string }) => {
+        const res = resolveEntity(p.name);
+        if (res.canonicalName) {
+          mergedParticipants.push(res.canonicalName);
+        }
+      });
+    }
+
+    recordAuditEvent(
+      "reviewed-merged",
+      "REW-REV-MANUAL-MERGE",
+      {
         candidateId,
-        decision: "merged",
-        decidedBy: editorName,
-        notes: `Merged into ${targetEventId}`,
-      })
-      .catch((e) => console.warn("Live DB error on merge review decision:", e));
+        targetEventId,
+        mergedBy: editorName,
+        sourceId,
+        claimsAddedCount: claimsToInsert.length,
+        mergedParticipants,
+        similarityScore: candidate.duplicateSimilarity,
+      },
+      targetEventId,
+      candidateId
+    );
+
+    return { success: true, targetEventId, claimsAddedCount: claimsToInsert.length };
+  })();
+
+  if (!db && syncCandidate && syncTarget && syncCandidate.status === "pending") {
+    // Perform synchronous store mutation immediately for offline non-db callers
+    syncCandidate.status = "merged";
+    const data = typeof syncCandidate.rawExtraction === "string" ? JSON.parse(syncCandidate.rawExtraction) : syncCandidate.rawExtraction;
+    const sourceId = data.sourceId || "src-editorial-corroboration";
+
+    let existingSource = store.sources.find((s) => s.id === sourceId);
+    if (!existingSource && sourceId !== "src-editorial-corroboration") {
+      existingSource = {
+        id: sourceId,
+        title: data.sourceTitle || `Corroborating Source: ${syncCandidate.suggestedTitle}`,
+        publisher: data.publisher || "Archival Source",
+        sourceType: data.sourceType || "official-transcript",
+        tier: syncCandidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+        url: data.url || null,
+        archiveUrl: null,
+        author: null,
+        publicationDate: syncCandidate.suggestedDate,
+        trustScore: 0.95,
+      };
+      store.sources.push(existingSource);
+    }
+
+    let claimsAdded = 0;
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
+        const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
+        const subjectId = resolvedSubject?.personId || null;
+        const statement = clm.statement || "Corroborating claim";
+
+        const isDuplicateClaim = store.claims.some(
+          (existing) =>
+            existing.eventId === targetEventId &&
+            existing.statement.toLowerCase().trim() === statement.toLowerCase().trim() &&
+            existing.subjectId === subjectId
+        );
+
+        if (!isDuplicateClaim) {
+          store.claims.push({
+            id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
+            eventId: targetEventId,
+            subjectId,
+            claimType: clm.claimType || "presence",
+            statement,
+            claimedTime: clm.claimedTime || null,
+            claimedVenue: clm.claimedVenue || null,
+            sourceId,
+            confidence: "confirmed",
+            supportingExcerpt: clm.supportingExcerpt || null,
+          });
+          claimsAdded++;
+        }
+      });
+    }
+
+    recordAuditEvent(
+      "reviewed-merged",
+      "REW-REV-MANUAL-MERGE",
+      {
+        candidateId,
+        targetEventId,
+        mergedBy: editorName,
+        sourceId,
+        claimsAddedCount: claimsAdded,
+        similarityScore: syncCandidate.duplicateSimilarity,
+      },
+      targetEventId,
+      candidateId
+    );
+
+    syncFallback.claimsAddedCount = claimsAdded;
   }
 
-  return { success: true, targetEventId, claimsAddedCount };
+  return asAsyncResult(executionPromise, syncFallback);
 }
 
 export function rejectCandidate(candidateId: string, reason: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  if (!candidate) return { success: false, error: "Candidate not found" };
-
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be rejected again`,
-    };
-  }
-
-  candidate.status = "rejected";
-  candidate.rejectionReason = reason;
-
-  recordAuditEvent(
-    "reviewed-rejected",
-    "REW-REV-MANUAL-REJECT",
-    {
-      candidateId,
-      reason,
-      rejectedBy: editorName,
-    },
-    undefined,
-    candidateId
-  );
-
   const db = getDb();
-  if (db) {
-    db.update(schema.candidateEvents)
-      .set({ status: "rejected", rejectionReason: reason })
-      .where(eq(schema.candidateEvents.id, candidateId))
-      .catch((e) => console.warn("Live DB error on candidate reject:", e));
 
-    db.insert(schema.reviewDecisions)
-      .values({
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncFallback: { success: boolean; error?: string } = !syncCandidate
+    ? { success: false, error: "Candidate not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be rejected again` }
+    : { success: true };
+
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
+
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be rejected again`,
+      };
+    }
+
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(schema.candidateEvents)
+            .set({ status: "rejected", rejectionReason: reason })
+            .where(eq(schema.candidateEvents.id, candidateId));
+
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "rejected",
+            decidedBy: editorName,
+            notes: reason,
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on rejectCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
+      }
+    }
+
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "rejected";
+      memCand.rejectionReason = reason;
+    }
+    candidate.status = "rejected";
+    candidate.rejectionReason = reason;
+
+    recordAuditEvent(
+      "reviewed-rejected",
+      "REW-REV-MANUAL-REJECT",
+      {
         candidateId,
-        decision: "rejected",
-        decidedBy: editorName,
-        notes: reason,
-      })
-      .catch((e) => console.warn("Live DB error on reject review decision:", e));
+        reason,
+        rejectedBy: editorName,
+      },
+      undefined,
+      candidateId
+    );
+
+    return { success: true };
+  })();
+
+  if (!db && syncCandidate && syncCandidate.status === "pending") {
+    syncCandidate.status = "rejected";
+    syncCandidate.rejectionReason = reason;
+
+    recordAuditEvent(
+      "reviewed-rejected",
+      "REW-REV-MANUAL-REJECT",
+      {
+        candidateId,
+        reason,
+        rejectedBy: editorName,
+      },
+      undefined,
+      candidateId
+    );
   }
 
-  return { success: true };
+  return asAsyncResult(executionPromise, syncFallback);
 }
+

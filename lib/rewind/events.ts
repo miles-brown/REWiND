@@ -406,20 +406,36 @@ async function hydrateEventRows(
     }
   }
 
-  // Fetch quotes with bounded eventId chunking
+  // Fetch quotes with bounded eventId chunking and range pagination
   const quotesMap = new Map<string, { text: string; speaker: string; language: string; timestamp?: string | null }[]>();
   let quoteRows: Record<string, unknown>[] = [];
   for (let eIdx = 0; eIdx < eventIds.length; eIdx += EVENT_ID_CHUNK_SIZE) {
     const eventIdChunk = eventIds.slice(eIdx, eIdx + EVENT_ID_CHUNK_SIZE);
-    const { data: rawQuotes, error: quotesError } = await supabase
-      .from("quotes")
-      .select("event_id, quote, speaker_id, language, timestamp_in_media")
-      .in("event_id", eventIdChunk);
-    if (quotesError) {
-      throw quotesError;
-    }
-    if (rawQuotes && rawQuotes.length > 0) {
+    const batchSize = 1000;
+    let qPage = 0;
+    let hasMoreQuotes = true;
+    while (hasMoreQuotes) {
+      const from = qPage * batchSize;
+      const to = from + batchSize - 1;
+      const { data: rawQuotes, error: quotesError } = await supabase
+        .from("quotes")
+        .select("event_id, quote, speaker_id, language, timestamp_in_media")
+        .in("event_id", eventIdChunk)
+        .order("event_id", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+      if (quotesError) {
+        throw quotesError;
+      }
+      if (!rawQuotes || rawQuotes.length === 0) {
+        break;
+      }
       quoteRows = quoteRows.concat(rawQuotes);
+      if (rawQuotes.length < batchSize) {
+        hasMoreQuotes = false;
+      } else {
+        qPage++;
+      }
     }
   }
 
@@ -689,8 +705,11 @@ export async function getEventsByIds(ids: string[], supabaseClient?: unknown): P
 
 /**
  * Retrieves a single event by slug with full participants, coordinates, sources, and quotes.
+ * Returns a discriminated { data, error } result preserving database and query failures.
  */
-export async function getEventBySlug(slug: string): Promise<EventRecord | null> {
+export async function getEventBySlug(
+  slug: string
+): Promise<{ data: EventRecord | null; error: string | null }> {
   try {
     const supabase = await createClient();
     if (supabase) {
@@ -701,166 +720,197 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
         .eq("publication_status", "published")
         .maybeSingle();
 
-      if (error || !eventRow) {
-        return null;
+      if (error) {
+        return { data: null, error: error.message };
       }
-        const eventId = eventRow.id;
+      if (!eventRow) {
+        return { data: null, error: null };
+      }
 
-        // Fetch place, venue, or address location
-        let placeData: { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null } = {};
-        if (eventRow.place_id) {
-          const { data: p, error: pError } = await supabase
-            .from("places")
-            .select("venue, city, country, latitude, longitude")
-            .eq("id", eventRow.place_id)
-            .maybeSingle();
-          if (pError) throw pError;
-          if (p) placeData = p;
-        } else if (eventRow.venue_id) {
-          const { data: v, error: vError } = await supabase
-            .from("venues")
-            .select("name, address_id, latitude, longitude")
-            .eq("id", eventRow.venue_id)
-            .maybeSingle();
-          if (vError) throw vError;
-          if (v) {
-            let addr: { city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null } | null = null;
-            if (v.address_id) {
-              const { data: a, error: aError } = await supabase
-                .from("addresses")
-                .select("city, country, latitude, longitude")
-                .eq("id", v.address_id)
-                .maybeSingle();
-              if (aError) throw aError;
-              addr = a;
-            }
-            placeData = {
-              venue: v.name,
-              city: addr?.city || "Unknown",
-              country: addr?.country || "Unknown",
-              latitude: typeof v.latitude === "number" ? v.latitude : (typeof addr?.latitude === "number" ? addr.latitude : null),
-              longitude: typeof v.longitude === "number" ? v.longitude : (typeof addr?.longitude === "number" ? addr.longitude : null),
-            };
+      const eventId = eventRow.id;
+
+      // Fetch place, venue, or address location
+      let placeData: { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null } = {};
+      if (eventRow.place_id) {
+        const { data: p, error: pError } = await supabase
+          .from("places")
+          .select("venue, city, country, latitude, longitude")
+          .eq("id", eventRow.place_id)
+          .maybeSingle();
+        if (pError) return { data: null, error: pError.message };
+        if (p) placeData = p;
+      } else if (eventRow.venue_id) {
+        const { data: v, error: vError } = await supabase
+          .from("venues")
+          .select("name, address_id, latitude, longitude")
+          .eq("id", eventRow.venue_id)
+          .maybeSingle();
+        if (vError) return { data: null, error: vError.message };
+        if (v) {
+          let addr: { city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null } | null = null;
+          if (v.address_id) {
+            const { data: a, error: aError } = await supabase
+              .from("addresses")
+              .select("city, country, latitude, longitude")
+              .eq("id", v.address_id)
+              .maybeSingle();
+            if (aError) return { data: null, error: aError.message };
+            addr = a;
           }
-        } else if (eventRow.address_id) {
-          const { data: a, error: aError } = await supabase
-            .from("addresses")
-            .select("city, country, latitude, longitude, formatted_english, descriptive_location")
-            .eq("id", eventRow.address_id)
-            .maybeSingle();
-          if (aError) throw aError;
-          if (a) {
-            placeData = {
-              venue: a.descriptive_location || a.formatted_english || undefined,
-              city: a.city || "Unknown",
-              country: a.country || "Unknown",
-              latitude: typeof a.latitude === "number" ? a.latitude : null,
-              longitude: typeof a.longitude === "number" ? a.longitude : null,
-            };
+          placeData = {
+            venue: v.name,
+            city: addr?.city || "Unknown",
+            country: addr?.country || "Unknown",
+            latitude: typeof v.latitude === "number" ? v.latitude : (typeof addr?.latitude === "number" ? addr.latitude : null),
+            longitude: typeof v.longitude === "number" ? v.longitude : (typeof addr?.longitude === "number" ? addr.longitude : null),
+          };
+        }
+      } else if (eventRow.address_id) {
+        const { data: a, error: aError } = await supabase
+          .from("addresses")
+          .select("city, country, latitude, longitude, formatted_english, descriptive_location")
+          .eq("id", eventRow.address_id)
+          .maybeSingle();
+        if (aError) return { data: null, error: aError.message };
+        if (a) {
+          placeData = {
+            venue: a.descriptive_location || a.formatted_english || undefined,
+            city: a.city || "Unknown",
+            country: a.country || "Unknown",
+            latitude: typeof a.latitude === "number" ? a.latitude : null,
+            longitude: typeof a.longitude === "number" ? a.longitude : null,
+          };
+        }
+      }
+
+      // Fetch participants and precise location coords
+      const { data: participantRows, error: partError } = await supabase
+        .from("event_people")
+        .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
+        .eq("event_id", eventId);
+      if (partError) return { data: null, error: partError.message };
+
+      const eventPersonIds = (participantRows || []).map((p) => p.id);
+      const locationsMap = new Map();
+      if (eventPersonIds.length > 0) {
+        const { data: locRows, error: locError } = await supabase
+          .from("event_person_locations")
+          .select("event_person_id, latitude, longitude, coordinate_precision")
+          .in("event_person_id", eventPersonIds)
+          .eq("is_principal_location", true);
+        if (locError) return { data: null, error: locError.message };
+        (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
+      }
+
+      const personIds = (participantRows || []).map((p) => p.person_id);
+      const personNames = new Map<string, string>();
+      const personSlugs = new Map<string, string>();
+      if (personIds.length > 0) {
+        const { data: peopleData, error: peopleError } = await supabase
+          .from("people")
+          .select("id, slug, canonical_name, display_name")
+          .in("id", personIds);
+        if (peopleError) return { data: null, error: peopleError.message };
+        (peopleData || []).forEach((p) => {
+          personNames.set(p.id, p.display_name || p.canonical_name);
+          personSlugs.set(p.id, p.slug);
+        });
+      }
+
+      const participants: Participant[] = (participantRows || []).map((p) => {
+        const loc = locationsMap.get(p.id);
+        return {
+          personId: p.person_id,
+          slug: personSlugs.get(p.person_id),
+          name: personNames.get(p.person_id) || p.person_id,
+          role: p.role_label,
+          presenceConfidence: p.presence_confidence,
+          capacityTitle: p.capacity_title || undefined,
+          attendanceMode: p.attendance_mode || "physical",
+          latitude: loc?.latitude ?? null,
+          longitude: loc?.longitude ?? null,
+          coordinatePrecision: loc?.coordinate_precision,
+        };
+      });
+
+      // Fetch sources
+      const { data: eventSourcesRows, error: esError } = await supabase
+        .from("event_sources")
+        .select("source_id")
+        .eq("event_id", eventId);
+      if (esError) return { data: null, error: esError.message };
+      const sourceIds = (eventSourcesRows || []).map((s) => s.source_id);
+
+      const sourceEntitiesMap = new Map<string, SourceRecord>();
+      if (sourceIds.length > 0) {
+        const { data: rawSources, error: srcError } = await supabase
+          .from("sources")
+          .select("*")
+          .in("id", sourceIds);
+        if (srcError) return { data: null, error: srcError.message };
+        (rawSources || []).forEach((src) => {
+          sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+        });
+      }
+
+      // Fetch quotes with pagination and deterministic ordering
+      let quotesRows: Record<string, unknown>[] = [];
+      {
+        const batchSize = 1000;
+        let qPage = 0;
+        let hasMoreQuotes = true;
+        while (hasMoreQuotes) {
+          const from = qPage * batchSize;
+          const to = from + batchSize - 1;
+          const { data: qData, error: quotesError } = await supabase
+            .from("quotes")
+            .select("quote, speaker_id, language, timestamp_in_media")
+            .eq("event_id", eventId)
+            .order("id", { ascending: true })
+            .range(from, to);
+          if (quotesError) return { data: null, error: quotesError.message };
+          if (!qData || qData.length === 0) break;
+          quotesRows = quotesRows.concat(qData);
+          if (qData.length < batchSize) {
+            hasMoreQuotes = false;
+          } else {
+            qPage++;
           }
         }
+      }
 
-        // Fetch participants and precise location coords
-        const { data: participantRows } = await supabase
-          .from("event_people")
-          .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
-          .eq("event_id", eventId);
-
-        const eventPersonIds = (participantRows || []).map((p) => p.id);
-        const locationsMap = new Map();
-        if (eventPersonIds.length > 0) {
-          const { data: locRows } = await supabase
-            .from("event_person_locations")
-            .select("event_person_id, latitude, longitude, coordinate_precision")
-            .in("event_person_id", eventPersonIds)
-            .eq("is_principal_location", true);
-          (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
-        }
-
-        const personIds = (participantRows || []).map((p) => p.person_id);
-        const personNames = new Map<string, string>();
-        const personSlugs = new Map<string, string>();
-        if (personIds.length > 0) {
-          const { data: peopleData } = await supabase
-            .from("people")
-            .select("id, slug, canonical_name, display_name")
-            .in("id", personIds);
-          (peopleData || []).forEach((p) => {
-            personNames.set(p.id, p.display_name || p.canonical_name);
-            personSlugs.set(p.id, p.slug);
-          });
-        }
-
-        const participants: Participant[] = (participantRows || []).map((p) => {
-          const loc = locationsMap.get(p.id);
+      const quotesMap = new Map<string, { text: string; speaker: string; language: string; timestamp?: string | null }[]>();
+      if (quotesRows && quotesRows.length > 0) {
+        const quotesList = quotesRows.map((q) => {
+          const speakerId = String(q.speaker_id || "");
           return {
-            personId: p.person_id,
-            slug: personSlugs.get(p.person_id),
-            name: personNames.get(p.person_id) || p.person_id,
-            role: p.role_label,
-            presenceConfidence: p.presence_confidence,
-            capacityTitle: p.capacity_title || undefined,
-            attendanceMode: p.attendance_mode || "physical",
-            latitude: loc?.latitude ?? null,
-            longitude: loc?.longitude ?? null,
-            coordinatePrecision: loc?.coordinate_precision,
+            text: String(q.quote || ""),
+            speaker: personNames.get(speakerId) || speakerId || "Unknown Speaker",
+            language: String(q.language || "en"),
+            timestamp: q.timestamp_in_media ? String(q.timestamp_in_media) : null,
           };
         });
+        quotesMap.set(eventId, quotesList);
+      }
 
-        // Fetch sources
-        const { data: eventSourcesRows } = await supabase
-          .from("event_sources")
-          .select("source_id")
-          .eq("event_id", eventId);
-        const sourceIds = (eventSourcesRows || []).map((s) => s.source_id);
+      const locationKey = String(eventRow.place_id || eventRow.venue_id || eventRow.address_id || "");
+      const placesMap = new Map([[locationKey, placeData]]);
+      const participantsMap = new Map([[eventId, participants]]);
+      const sourcesMap = new Map([[eventId, sourceIds]]);
 
-        const sourceEntitiesMap = new Map<string, SourceRecord>();
-        if (sourceIds.length > 0) {
-          const { data: rawSources } = await supabase
-            .from("sources")
-            .select("*")
-            .in("id", sourceIds);
-          (rawSources || []).forEach((src) => {
-            sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
-          });
-        }
-
-        // Fetch quotes
-        const { data: quotesRows, error: quotesError } = await supabase
-          .from("quotes")
-          .select("quote, speaker_id, language, timestamp_in_media")
-          .eq("event_id", eventId);
-        if (quotesError) throw quotesError;
-
-        const quotesMap = new Map<string, { text: string; speaker: string; language: string; timestamp?: string | null }[]>();
-        if (quotesRows && quotesRows.length > 0) {
-          const quotesList = quotesRows.map((q) => {
-            const speakerId = String(q.speaker_id || "");
-            return {
-              text: String(q.quote || ""),
-              speaker: personNames.get(speakerId) || speakerId || "Unknown Speaker",
-              language: String(q.language || "en"),
-              timestamp: q.timestamp_in_media ? String(q.timestamp_in_media) : null,
-            };
-          });
-          quotesMap.set(eventId, quotesList);
-        }
-
-        const locationKey = String(eventRow.place_id || eventRow.venue_id || eventRow.address_id || "");
-        const placesMap = new Map([[locationKey, placeData]]);
-        const participantsMap = new Map([[eventId, participants]]);
-        const sourcesMap = new Map([[eventId, sourceIds]]);
-
-        return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap, quotesMap);
+      return {
+        data: mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap, quotesMap),
+        error: null,
+      };
     }
 
     if (process.env.NODE_ENV === "production") {
-      return null;
+      return { data: null, error: "Database configuration unavailable in production environment" };
     }
     const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);
-    return fb ? mapFallbackEvent(fb) : null;
-  } catch {
-    return null;
+    return { data: fb ? mapFallbackEvent(fb) : null, error: null };
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err.message : "Failed to load event" };
   }
 }
 

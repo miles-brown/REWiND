@@ -57,8 +57,8 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
     while ((match = regex.exec(cssContent)) !== null) {
       const block = match[1];
       if (
-        /\bposition\s*:\s*sticky\b/.test(block) &&
-        /\bz-index\s*:\s*30\b/.test(block) &&
+        /\bposition\s*:\s*(?:sticky|fixed)\b/.test(block) &&
+        /\bz-index\s*:\s*(?:30|40)\b/.test(block) &&
         /\bbottom\s*:\s*0\b/.test(block)
       ) {
         return true;
@@ -68,11 +68,11 @@ test("verifies PersonTimeline.tsx has removed shouty mint DRAG TO REWIND CHRONOL
   };
   assert.ok(
     hasConsoleStickiness(".person-time-console"),
-    "globals.css must anchor .person-time-console with position: sticky, z-index: 30, and bottom: 0"
+    "globals.css must anchor .person-time-console with position: fixed/sticky, z-index: 30/40, and bottom: 0"
   );
   assert.ok(
     hasConsoleStickiness(".rewind-console"),
-    "globals.css must anchor .rewind-console with position: sticky, z-index: 30, and bottom: 0"
+    "globals.css must anchor .rewind-console with position: fixed/sticky, z-index: 30/40, and bottom: 0"
   );
 });
 
@@ -594,7 +594,7 @@ test("verifies confidence and temporal precision fallbacks across components", (
     "EventCard must apply consistent confidence and temporal precision fallbacks"
   );
   assert.ok(
-    timelineContent.includes('event.confidence || "confirmed"') &&
+    timelineContent.includes('event.confidence || "Not established"') &&
     timelineContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
     "PersonTimeline must apply consistent confidence and temporal precision fallbacks"
   );
@@ -882,13 +882,14 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
   const { formatTimelineDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
 
   // 1. Precision-aware date formatting and archival fallback preservation
+  const expectedMonth = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(1993, 8, 1));
   assert.strictEqual(formatTimelineDate("1993", "year"), "1993");
-  assert.strictEqual(formatTimelineDate("1993-09", "month"), "Sept 1993");
+  assert.strictEqual(formatTimelineDate("1993-09", "month"), `${expectedMonth} 1993`);
   assert.strictEqual(formatTimelineDate("1993-09-13"), "13 Sept 1993");
   assert.strictEqual(formatTimelineDate("Spring 1999"), "Spring 1999");
   assert.strictEqual(formatTimelineDate(""), "");
 
-  // 2. Migration timestamp columns and event_sources constraint trigger
+  // 2. Migration timestamp columns, default resets, and event_sources constraint trigger
   const migrationContent = fs.readFileSync(
     path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"),
     "utf-8"
@@ -899,12 +900,24 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     "Migration must add created_at timestamps when upgrading existing source/quote tables"
   );
   assert.ok(
+    migrationContent.includes("ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_status SET DEFAULT 'draft'") &&
+    migrationContent.includes("ALTER TABLE IF EXISTS public.events ALTER COLUMN verification_status SET DEFAULT 'provisional'") &&
+    migrationContent.includes("ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_lane SET DEFAULT 'human-review'") &&
+    migrationContent.includes("ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 'draft'"),
+    "Migration must restore safe draft and provisional defaults during existing database upgrades"
+  );
+  assert.ok(
     migrationContent.includes("CREATE CONSTRAINT TRIGGER trg_verify_event_sources_deletion") &&
     migrationContent.includes("AFTER DELETE OR UPDATE OF event_id ON public.event_sources"),
     "Migration must enforce trg_verify_event_sources_deletion deferred constraint trigger"
   );
+  assert.ok(
+    migrationContent.includes("CREATE TRIGGER trg_sources_updated_at") &&
+    migrationContent.includes("BEFORE UPDATE ON public.sources"),
+    "Migration must maintain set_updated_at trigger on public.sources"
+  );
 
-  // 3. Quotes hydration & error propagation in lib/rewind/events.ts
+  // 3. Quotes hydration, pagination & error propagation in lib/rewind/events.ts
   const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
   assert.ok(
     eventsContent.includes('.from("quotes")') &&
@@ -912,11 +925,29 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     eventsContent.includes("if (venueError) {") &&
     eventsContent.includes("throw venueError;") &&
     eventsContent.includes("if (addressError) {") &&
-    eventsContent.includes("throw addressError;"),
-    "events.ts must hydrate quotes from database and propagate venue/address errors"
+    eventsContent.includes("throw addressError;") &&
+    eventsContent.includes("Promise<{ data: EventRecord | null; error: string | null }>"),
+    "events.ts must hydrate quotes from database, paginate, and propagate venue/address errors"
   );
 
-  // 4. DiscrepancyViewer metadata fallback and unestablished confidence
+  // 4. PersonTimeline unestablished confidence and fixed viewport console
+  const ptContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    ptContent.includes('Confidence: ${event.confidence || "Not established"}') &&
+    ptContent.includes('{event.confidence || "Not established"}'),
+    "PersonTimeline must render 'Not established' rather than 'confirmed' when confidence is absent"
+  );
+
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+  assert.ok(
+    cssContent.includes(".rewind-console { position: fixed; z-index: 40; bottom: 0;") &&
+    cssContent.includes(".person-time-console { position: fixed; z-index: 40; bottom: 0;") &&
+    cssContent.includes(".rewind-workspace { color: #fff; background: var(--ink); border-top: 1px solid rgba(255,255,255,.08); padding-bottom: 120px; }") &&
+    cssContent.includes(".person-time-machine { padding-bottom: 125px; }"),
+    "globals.css must keep timeline consoles fixed to the viewport with matching bottom padding per AGENTS.md"
+  );
+
+  // 5. DiscrepancyViewer metadata fallback and unestablished confidence
   const discContent = fs.readFileSync(path.join(root, "components/rewind/DiscrepancyViewer.tsx"), "utf-8");
   assert.ok(
     discContent.includes('event.medium?.length ? event.medium : event.eventTypes?.length ? event.eventTypes : event.categories?.length ? event.categories : ["Archival record"]') &&
@@ -924,7 +955,7 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     "DiscrepancyViewer must handle empty metadata arrays and unestablished confidence display"
   );
 
-  // 5. TimelineComparison unknown slug fallback
+  // 6. TimelineComparison unknown slug fallback
   const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
     compContent.includes("if (slugA && peopleMap.has(slugA)) return slugA;") &&

@@ -415,6 +415,27 @@ ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS created_at timesta
 ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now() NOT NULL;
 ALTER TABLE IF EXISTS public.quotes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
 
+-- Restore safe defaults for upgraded pre-cutover databases
+ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_status SET DEFAULT 'draft';
+ALTER TABLE IF EXISTS public.events ALTER COLUMN verification_status SET DEFAULT 'provisional';
+ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_lane SET DEFAULT 'human-review';
+ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 'draft';
+
+-- Ensure updated_at on sources is automatically refreshed on update
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sources_updated_at ON public.sources;
+CREATE TRIGGER trg_sources_updated_at
+  BEFORE UPDATE ON public.sources
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people(slug);
 CREATE INDEX IF NOT EXISTS idx_people_publication_status ON public.people(publication_status);
 

@@ -62,17 +62,15 @@ export async function getAuditTrail(): Promise<AuditRecord[]> {
         .from(schema.auditLog)
         .orderBy(desc(schema.auditLog.recordedAt))
         .limit(100);
-      if (rows && rows.length > 0) {
-        return rows.map((r) => ({
-          id: r.id,
-          eventId: r.eventId,
-          candidateId: r.candidateId,
-          action: r.action,
-          ruleId: r.ruleId,
-          details: r.details,
-          recordedAt: r.recordedAt,
-        }));
-      }
+      return rows.map((r) => ({
+        id: r.id,
+        eventId: r.eventId,
+        candidateId: r.candidateId,
+        action: r.action,
+        ruleId: r.ruleId,
+        details: r.details,
+        recordedAt: r.recordedAt,
+      }));
     } catch (err) {
       console.warn("Failed to query live audit trail, falling back to store:", err);
     }

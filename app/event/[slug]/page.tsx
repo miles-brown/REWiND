@@ -7,7 +7,10 @@ import { EventActions } from "@/components/rewind/EventActions";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const event = await getEventBySlug(slug);
+  const { data: event, error } = await getEventBySlug(slug);
+  if (error && !event) {
+    throw new Error(`Failed to load event: ${error}`);
+  }
   if (!event) notFound();
 
   // Load surrounding events and attached source details concurrently

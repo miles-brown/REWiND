@@ -65,32 +65,50 @@ export async function getSourcesWithStatus(
   try {
     const supabase = await createClient();
     if (supabase) {
-      let query = supabase
-        .from("sources")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const allRows: Record<string, unknown>[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (filters.tier) {
-        query = query.eq("tier", filters.tier);
+      while (hasMore) {
+        let query = supabase
+          .from("sources")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (filters.tier) {
+          query = query.eq("tier", filters.tier);
+        }
+
+        if (filters.type) {
+          query = query.eq("source_type", filters.type);
+        }
+
+        if (filters.search && filters.search.trim()) {
+          const term = filters.search.trim();
+          const escaped = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          query = query.or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          return { data: [], error: error.message };
+        }
+        if (!data || data.length === 0) {
+          break;
+        }
+
+        allRows.push(...data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
       }
 
-      if (filters.type) {
-        query = query.eq("source_type", filters.type);
-      }
-
-      if (filters.search && filters.search.trim()) {
-        const term = filters.search.trim();
-        const escaped = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        query = query.or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`);
-      }
-
-      const { data, error } = await query;
-      if (!error && data) {
-        return { data: data.map(mapDatabaseSource), error: null };
-      }
-      if (error) {
-        return { data: [], error: error.message };
-      }
+      return { data: allRows.map(mapDatabaseSource), error: null };
     }
 
     if (process.env.NODE_ENV === "production") {

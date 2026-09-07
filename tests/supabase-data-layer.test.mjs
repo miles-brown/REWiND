@@ -112,7 +112,8 @@ test("handles empty Supabase database state intentionally and gracefully", async
   assert.equal(typeof events.totalPages, "number");
 
   const singleEvent = await getEventBySlug("non-existent-event-slug");
-  assert.equal(singleEvent, null);
+  assert.equal(singleEvent.data, null);
+  assert.equal(singleEvent.error, null);
 
   const verified = await getVerifiedEvents(5);
   assert.ok(Array.isArray(verified));

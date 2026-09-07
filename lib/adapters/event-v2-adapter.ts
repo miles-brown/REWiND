@@ -221,7 +221,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     verificationStatus: legacy.verificationStatus,
     confidence: (legacy.confidence as Confidence) || "confirmed",
     sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
-    reviewedAt: legacy.reviewedAt || new Date().toISOString(),
+    reviewedAt: legacy.reviewedAt || undefined,
     researchNotes: legacy.notes ?? null,
     factualFlags,
     editorialControls,
@@ -330,6 +330,6 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     conflictingClaims: Array.isArray(compat?.conflictingClaims)
       ? [...compat.conflictingClaims]
       : [],
-    reviewedAt: v2.reviewedAt || new Date().toISOString(),
+    reviewedAt: v2.reviewedAt || undefined,
   };
 }
