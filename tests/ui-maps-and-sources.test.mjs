@@ -262,7 +262,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
     "PersonTimeline epoch rail must have role='group'"
   );
   assert.ok(
-    timelineContent.includes("<time dateTime={event.startDate}>"),
+    timelineContent.includes("<time") &&
+    timelineContent.includes("dateTime={event.startDate}"),
     "PersonTimeline event detail must render machine-readable ISO-8601 dateTime"
   );
 
@@ -281,7 +282,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
     "RewindExplorer direction button must expose aria-pressed"
   );
   assert.ok(
-    explorerContent.includes("<time dateTime={event.startDate}>"),
+    explorerContent.includes("<time") &&
+    explorerContent.includes("dateTime={event.startDate}"),
     "RewindExplorer event detail must render machine-readable ISO-8601 dateTime"
   );
 });
@@ -758,7 +760,8 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
   const relContent = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
   assert.ok(
     relContent.includes("if (participations.length > 0) {") &&
-    relContent.includes("return [];\n    }\n\n    return getFallbackRelationships();"),
+    relContent.includes("return [];\n    }") &&
+    relContent.includes("return getFallbackRelationships();"),
     "lib/rewind/relationships.ts must return empty array when Supabase has zero participations"
   );
 
@@ -803,3 +806,75 @@ test("verifies forensic styles, fallback participant slugs, and deprecated entit
     "lib/rewind/events.ts mapFallbackEvent must populate participant slug"
   );
 });
+
+test("verifies Codex P1 safeguards: migration integrity, production fallback guards, venue hydration, chunking, and date clarity", async () => {
+  const { isStandardIsoDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const migrationContent = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  const sourcesContent = fs.readFileSync(path.join(root, "lib/rewind/sources.ts"), "utf-8");
+  const peopleContent = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
+  const relContent = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
+  const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  const explorerContent = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+
+  // 1. Migration pre-index column alterations and published event evidence trigger
+  assert.ok(
+    migrationContent.includes("ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS venue_id text REFERENCES public.venues(id)") &&
+    migrationContent.includes("ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id)") &&
+    migrationContent.includes("CREATE OR REPLACE FUNCTION public.verify_published_event_sources()") &&
+    migrationContent.includes("CREATE CONSTRAINT TRIGGER trg_verify_published_event_sources"),
+    "Migration must add column alterations before indexes and enforce evidence links on published events"
+  );
+
+  // 2. Production fallback guards across data access services
+  assert.ok(
+    eventsContent.includes('if (process.env.NODE_ENV === "production")') &&
+    sourcesContent.includes('if (process.env.NODE_ENV === "production")') &&
+    peopleContent.includes('if (process.env.NODE_ENV === "production")') &&
+    relContent.includes('if (process.env.NODE_ENV === "production")'),
+    "Data services must not expose archived prototype records in production environment"
+  );
+
+  // 3. Venue and address location hydration
+  assert.ok(
+    eventsContent.includes(".from(\"venues\")") &&
+    eventsContent.includes(".from(\"addresses\")") &&
+    eventsContent.includes("const venueId = row.venue_id ? String(row.venue_id) : \"\";") &&
+    eventsContent.includes("const addressId = row.address_id ? String(row.address_id) : \"\";"),
+    "lib/rewind/events.ts must hydrate venues and addresses into event location data"
+  );
+
+  // 4. Bounded chunking for event relation queries
+  assert.ok(
+    eventsContent.includes("const EVENT_ID_CHUNK_SIZE = 100;") &&
+    eventsContent.includes("const eventIdChunk = eventIds.slice(eIdx, eIdx + EVENT_ID_CHUNK_SIZE);"),
+    "lib/rewind/events.ts must chunk eventIds into bounded batches to avoid request-line overflow"
+  );
+
+  // 5. TimelineComparison strict PersonRecord | null typing
+  assert.ok(
+    compContent.includes("(): PersonRecord | null =>") &&
+    compContent.includes("(effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : null) || null") &&
+    compContent.includes("(slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null"),
+    "TimelineComparison must type personA and personB strictly as PersonRecord | null"
+  );
+
+  // 6. Date clarity and standard ISO validation
+  assert.strictEqual(isStandardIsoDate("2023-10-07"), true);
+  assert.strictEqual(isStandardIsoDate("2023-10-07T14:30:00Z"), true);
+  assert.strictEqual(isStandardIsoDate("Spring 1999"), false);
+  assert.strictEqual(isStandardIsoDate("2023-02-30"), false);
+  assert.ok(
+    explorerContent.includes("!isStandardIsoDate(event.startDate)") &&
+    explorerContent.includes("title={!isStandardIsoDate(event.startDate) ? \"Non-standard archival date format\" : undefined}"),
+    "RewindExplorer must indicate non-standard archival date formats in UI"
+  );
+
+  // 7. RewindExplorer index state synchronization
+  assert.ok(
+    explorerContent.includes("currentIndex >= filtered.length") &&
+    explorerContent.includes("setIndex((currentIndex) => {"),
+    "RewindExplorer must synchronize and bound index state when filtered events change"
+  );
+});
+

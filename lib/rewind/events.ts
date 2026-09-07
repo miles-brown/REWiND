@@ -43,7 +43,7 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     summary: e.summary,
     description: e.summary || null,
     verificationStatus: e.verificationStatus,
-    confidence: e.verificationStatus === "verified" ? "confirmed" : "moderate",
+    confidence: (e.verificationStatus === "verified" ? "confirmed" : "moderate") as Confidence,
     confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
     sourceIds: e.sourceIds || [],
     sources: sources,
@@ -137,7 +137,9 @@ export function mapDatabaseEvent(
 ): EventRecord {
   const id = String(row.id || "");
   const placeId = row.place_id ? String(row.place_id) : "";
-  const place = (placeId && placesMap.get(placeId)) || {};
+  const venueId = row.venue_id ? String(row.venue_id) : "";
+  const addressId = row.address_id ? String(row.address_id) : "";
+  const place = (placeId && placesMap.get(placeId)) || (venueId && placesMap.get(venueId)) || (addressId && placesMap.get(addressId)) || {};
   const participants = participantsMap.get(id) || [];
   const sourceIds = sourcesMap.get(id) || [];
   const sources = sourceEntitiesMap
@@ -170,7 +172,7 @@ export function mapDatabaseEvent(
 }
 
 /**
- * Hydrates an array of raw event rows with places, participants, and source references.
+ * Hydrates an array of raw event rows with places, venues, addresses, participants, and source references.
  */
 async function hydrateEventRows(
   supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>,
@@ -180,11 +182,13 @@ async function hydrateEventRows(
 
   const eventIds = eventRows.map((e) => String(e.id || ""));
   const placeIds = Array.from(new Set(eventRows.map((e) => e.place_id ? String(e.place_id) : "").filter(Boolean)));
+  const venueIds = Array.from(new Set(eventRows.map((e) => e.venue_id ? String(e.venue_id) : "").filter(Boolean)));
+  const directAddressIds = Array.from(new Set(eventRows.map((e) => e.address_id ? String(e.address_id) : "").filter(Boolean)));
 
   // Fetch places with chunking
-  const placesMap = new Map();
+  const placesMap = new Map<string, { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null }>();
   if (placeIds.length > 0) {
-    const chunkSize = 1000;
+    const chunkSize = 500;
     for (let i = 0; i < placeIds.length; i += chunkSize) {
       const chunk = placeIds.slice(i, i + chunkSize);
       const { data: placeRows, error: placeError } = await supabase
@@ -198,10 +202,77 @@ async function hydrateEventRows(
     }
   }
 
-  // Fetch participants with pagination to exceed Supabase 1,000-row limit
+  // Fetch Event Model v2 venues and linked addresses
+  const venueAddressIds = new Set<string>();
+  const venuesMap = new Map<string, { id: string; name: string; address_id?: string | null; latitude?: number | null; longitude?: number | null }>();
+  if (venueIds.length > 0) {
+    const chunkSize = 500;
+    for (let i = 0; i < venueIds.length; i += chunkSize) {
+      const chunk = venueIds.slice(i, i + chunkSize);
+      const { data: venueRows, error: venueError } = await supabase
+        .from("venues")
+        .select("id, name, address_id, latitude, longitude")
+        .in("id", chunk);
+      if (venueError) {
+        console.error("Failed to query venues:", venueError);
+      } else if (venueRows) {
+        venueRows.forEach((v) => {
+          venuesMap.set(v.id, v);
+          if (v.address_id) venueAddressIds.add(v.address_id);
+        });
+      }
+    }
+  }
+
+  // Fetch Event Model v2 addresses
+  const allAddressIds = Array.from(new Set([...directAddressIds, ...venueAddressIds]));
+  const addressesMap = new Map<string, { id: string; city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null; formatted_english?: string | null; descriptive_location?: string | null }>();
+  if (allAddressIds.length > 0) {
+    const chunkSize = 500;
+    for (let i = 0; i < allAddressIds.length; i += chunkSize) {
+      const chunk = allAddressIds.slice(i, i + chunkSize);
+      const { data: addressRows, error: addressError } = await supabase
+        .from("addresses")
+        .select("id, city, country, latitude, longitude, formatted_english, descriptive_location")
+        .in("id", chunk);
+      if (addressError) {
+        console.error("Failed to query addresses:", addressError);
+      } else if (addressRows) {
+        addressRows.forEach((a) => addressesMap.set(a.id, a));
+      }
+    }
+  }
+
+  // Synthesize venues and addresses into placesMap for unified location resolution
+  venuesMap.forEach((v) => {
+    const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
+    placesMap.set(v.id, {
+      venue: v.name,
+      city: addr?.city || "Unknown",
+      country: addr?.country || "Unknown",
+      latitude: typeof v.latitude === "number" ? v.latitude : (typeof addr?.latitude === "number" ? addr.latitude : null),
+      longitude: typeof v.longitude === "number" ? v.longitude : (typeof addr?.longitude === "number" ? addr.longitude : null),
+    });
+  });
+
+  addressesMap.forEach((a) => {
+    if (!placesMap.has(a.id)) {
+      placesMap.set(a.id, {
+        venue: a.descriptive_location || a.formatted_english || undefined,
+        city: a.city || "Unknown",
+        country: a.country || "Unknown",
+        latitude: typeof a.latitude === "number" ? a.latitude : null,
+        longitude: typeof a.longitude === "number" ? a.longitude : null,
+      });
+    }
+  });
+
+  // Fetch participants with bounded eventId chunking to prevent URL length overflow
   const participantsMap = new Map<string, Participant[]>();
   let participantRows: Record<string, unknown>[] = [];
-  {
+  const EVENT_ID_CHUNK_SIZE = 100;
+  for (let eIdx = 0; eIdx < eventIds.length; eIdx += EVENT_ID_CHUNK_SIZE) {
+    const eventIdChunk = eventIds.slice(eIdx, eIdx + EVENT_ID_CHUNK_SIZE);
     const batchSize = 1000;
     let page = 0;
     let hasMore = true;
@@ -211,7 +282,7 @@ async function hydrateEventRows(
       const { data, error } = await supabase
         .from("event_people")
         .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
-        .in("event_id", eventIds)
+        .in("event_id", eventIdChunk)
         .order("event_id", { ascending: true })
         .order("person_id", { ascending: true })
         .range(from, to);
@@ -274,11 +345,12 @@ async function hydrateEventRows(
     participantsMap.set(p.event_id, list);
   });
 
-  // Fetch source IDs and source records with pagination to exceed 1,000-row limit
+  // Fetch source IDs and source records with bounded eventId chunking
   const sourcesMap = new Map<string, string[]>();
   const allSourceIds = new Set<string>();
   let sourceRows: Record<string, unknown>[] = [];
-  {
+  for (let eIdx = 0; eIdx < eventIds.length; eIdx += EVENT_ID_CHUNK_SIZE) {
+    const eventIdChunk = eventIds.slice(eIdx, eIdx + EVENT_ID_CHUNK_SIZE);
     const batchSize = 1000;
     let page = 0;
     let hasMore = true;
@@ -288,7 +360,7 @@ async function hydrateEventRows(
       const { data, error } = await supabase
         .from("event_sources")
         .select("event_id, source_id")
-        .in("event_id", eventIds)
+        .in("event_id", eventIdChunk)
         .order("event_id", { ascending: true })
         .order("source_id", { ascending: true })
         .range(from, to);
@@ -348,6 +420,16 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
   try {
     const supabase = await createClient();
     if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: "Database configuration unavailable in production environment",
+        };
+      }
       return getFallbackEventsResult(params);
     }
 
@@ -492,7 +574,17 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
         error: hydrateError instanceof Error ? hydrateError.message : "Failed to hydrate events",
       };
     }
-  } catch {
+  } catch (err: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      return {
+        data: [],
+        count: 0,
+        page,
+        pageSize,
+        totalPages: 0,
+        error: err instanceof Error ? err.message : "Internal database error",
+      };
+    }
     return getFallbackEventsResult(params);
   }
 }
@@ -565,7 +657,7 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
       }
         const eventId = eventRow.id;
 
-        // Fetch place
+        // Fetch place, venue, or address location
         let placeData: { venue?: string; city?: string; country?: string; latitude?: number | null; longitude?: number | null } = {};
         if (eventRow.place_id) {
           const { data: p } = await supabase
@@ -574,6 +666,45 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
             .eq("id", eventRow.place_id)
             .maybeSingle();
           if (p) placeData = p;
+        } else if (eventRow.venue_id) {
+          const { data: v } = await supabase
+            .from("venues")
+            .select("name, address_id, latitude, longitude")
+            .eq("id", eventRow.venue_id)
+            .maybeSingle();
+          if (v) {
+            let addr: { city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null } | null = null;
+            if (v.address_id) {
+              const { data: a } = await supabase
+                .from("addresses")
+                .select("city, country, latitude, longitude")
+                .eq("id", v.address_id)
+                .maybeSingle();
+              addr = a;
+            }
+            placeData = {
+              venue: v.name,
+              city: addr?.city || "Unknown",
+              country: addr?.country || "Unknown",
+              latitude: typeof v.latitude === "number" ? v.latitude : (typeof addr?.latitude === "number" ? addr.latitude : null),
+              longitude: typeof v.longitude === "number" ? v.longitude : (typeof addr?.longitude === "number" ? addr.longitude : null),
+            };
+          }
+        } else if (eventRow.address_id) {
+          const { data: a } = await supabase
+            .from("addresses")
+            .select("city, country, latitude, longitude, formatted_english, descriptive_location")
+            .eq("id", eventRow.address_id)
+            .maybeSingle();
+          if (a) {
+            placeData = {
+              venue: a.descriptive_location || a.formatted_english || undefined,
+              city: a.city || "Unknown",
+              country: a.country || "Unknown",
+              latitude: typeof a.latitude === "number" ? a.latitude : null,
+              longitude: typeof a.longitude === "number" ? a.longitude : null,
+            };
+          }
         }
 
         // Fetch participants and precise location coords
@@ -641,13 +772,17 @@ export async function getEventBySlug(slug: string): Promise<EventRecord | null> 
           });
         }
 
-        const placesMap = new Map([[eventRow.place_id, placeData]]);
+        const locationKey = String(eventRow.place_id || eventRow.venue_id || eventRow.address_id || "");
+        const placesMap = new Map([[locationKey, placeData]]);
         const participantsMap = new Map([[eventId, participants]]);
         const sourcesMap = new Map([[eventId, sourceIds]]);
 
         return mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap);
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);
     return fb ? mapFallbackEvent(fb) : null;
   } catch {

@@ -72,7 +72,8 @@ export function TimelineComparison({
   }, [slugA, people]);
 
   const personA = useMemo(
-    () => (effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : undefined),
+    (): PersonRecord | null =>
+      (effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : null) || null,
     [peopleMap, people, effectiveSlugA]
   );
 
@@ -172,7 +173,8 @@ export function TimelineComparison({
   }
 
   const personB = useMemo(
-    () => (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : undefined),
+    (): PersonRecord | null =>
+      (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null,
     [peopleMap, people, slugB]
   );
 

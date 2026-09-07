@@ -52,9 +52,15 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
       }
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
     return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
     return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   }
@@ -76,6 +82,9 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
         .maybeSingle();
 
       if (error) {
+        if (process.env.NODE_ENV === "production") {
+          return null;
+        }
         const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
         return fb ? mapFallbackPerson(fb) : null;
       }
@@ -100,9 +109,15 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
       return null;
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
     return fb ? mapFallbackPerson(fb) : null;
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
     return fb ? mapFallbackPerson(fb) : null;
   }

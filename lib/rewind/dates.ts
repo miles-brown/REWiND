@@ -145,6 +145,17 @@ export function parseIsoDate(dateStr?: string | null): Date | null {
 }
 
 /**
+ * Returns true if the date string strictly matches the ISO-8601 format and parses into a valid calendar date.
+ * Allows UI components to distinguish between standard formatted dates and non-standard archival fallbacks.
+ */
+export function isStandardIsoDate(dateStr?: string | null): boolean {
+  if (!dateStr || typeof dateStr !== "string") return false;
+  const trimmed = dateStr.trim();
+  if (!ISO_DATE_PATTERN.test(trimmed)) return false;
+  return parseIsoDate(trimmed) !== null;
+}
+
+/**
  * Safely formats an ISO date string into a localized string with fallback.
  */
 export function formatIsoDate(
@@ -161,3 +172,4 @@ export function formatIsoDate(
     return dateStr;
   }
 }
+

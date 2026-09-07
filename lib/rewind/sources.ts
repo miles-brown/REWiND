@@ -93,6 +93,12 @@ export async function getSourcesWithStatus(
       }
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return {
+        data: [],
+        error: "Database configuration unavailable in production environment",
+      };
+    }
     return { data: getFallbackSources(filters), error: null };
   } catch (err) {
     return {
@@ -282,8 +288,14 @@ export async function getSourceById(
       }
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     return await getArchiveSourceById(id);
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     return await getArchiveSourceById(id);
   }
 }

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
-import { formatIsoDate } from "@/lib/rewind/dates";
+import { formatIsoDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import type { EventRecord } from "@/lib/rewind/types";
 
 export function EventCard({ event, compact = false }: { event: EventRecord; compact?: boolean }) {
   const verified = event.verificationStatus === "verified";
   const confidence = event.confidence || "Not established";
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
+  const isStandard = isStandardIsoDate(event.startDate);
 
   return (
     <Link
@@ -15,7 +16,9 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
       title={`${event.eventName} (${confidence} · ${temporalPrecision} precision)`}
     >
       <div className="event-card-top">
-        <time title={`${temporalPrecision} precision`}>
+        <time
+          title={`${temporalPrecision} precision${!isStandard && event.startDate ? " · Non-standard archival date format" : ""}`}
+        >
           {event.startDate
             ? formatIsoDate(event.startDate, {
                 day: "2-digit",
@@ -23,6 +26,9 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
                 year: "numeric",
               }) || event.startDate
             : "Unknown date"}
+          {!isStandard && event.startDate && (
+            <span className="sr-only"> (Non-standard archival date)</span>
+          )}
         </time>
         <span
           className={verified ? "status verified" : "status provisional"}

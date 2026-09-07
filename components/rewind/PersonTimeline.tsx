@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
+import { isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -261,7 +262,10 @@ export function PersonTimeline({
               {event.confidence || "confirmed"}
             </span>
           </div>
-          <time dateTime={event.startDate}>
+          <time
+            dateTime={event.startDate}
+            title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
+          >
             {date.toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -269,6 +273,9 @@ export function PersonTimeline({
               year: "numeric",
             })}
             {event.localStartTime ? ` · ${event.localStartTime}` : ""}
+            {!isStandardIsoDate(event.startDate) && (
+              <span className="sr-only"> (Non-standard archival date)</span>
+            )}
             <span
               className="time-precision-tag"
               title={`${event.timePrecision || event.datePrecision || "exact-day"} precision`}

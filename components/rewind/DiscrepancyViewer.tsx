@@ -91,7 +91,7 @@ export function DiscrepancyViewer({
                 </div>
                 <div className="breakdown-item">
                   <small>Source Medium</small>
-                  <b>{(event.medium || event.eventTypes || ["Archival record"]).join(", ").toUpperCase()}</b>
+                  <b>{(event.medium || (event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])) || ["Archival record"]).join(", ").toUpperCase()}</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Audit Review Date</small>

@@ -406,6 +406,12 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
 -- ==============================================================================
 -- INDEXES (Performance optimization according to Supabase best practices)
 -- ==============================================================================
+-- Ensure new columns exist if running against a database created from pre-cutover Drizzle schema
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS series_id text REFERENCES public.event_series(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS venue_id text REFERENCES public.venues(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.venues ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people(slug);
 CREATE INDEX IF NOT EXISTS idx_people_publication_status ON public.people(publication_status);
 
@@ -647,3 +653,26 @@ REVOKE ALL ON public.candidate_events FROM anon, authenticated;
 REVOKE ALL ON public.review_decisions FROM anon, authenticated;
 REVOKE ALL ON public.audit_log FROM anon, authenticated;
 REVOKE ALL ON public.source_fetches FROM anon, authenticated;
+
+-- ==============================================================================
+-- FORENSIC INTEGRITY: Enforce verified evidence links for published events (AGENTS.md)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.verify_published_event_sources()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.publication_status = 'published' THEN
+    IF NOT EXISTS (SELECT 1 FROM public.event_sources WHERE event_id = NEW.id) THEN
+      RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', NEW.id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_verify_published_event_sources ON public.events;
+CREATE CONSTRAINT TRIGGER trg_verify_published_event_sources
+AFTER INSERT OR UPDATE OF publication_status ON public.events
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION public.verify_published_event_sources();
+

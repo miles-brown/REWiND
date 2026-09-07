@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
+import { isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
@@ -62,11 +63,13 @@ export function RewindExplorer({
   const filtered = useMemo(
     () =>
       initialEvents
-        .filter(
-          (e) =>
-            (type === "All" || (e.eventTypes && e.eventTypes.includes(type))) &&
+        .filter((e) => {
+          const tags = e.eventTypes?.length ? e.eventTypes : (e.categories ?? []);
+          return (
+            (type === "All" || tags.includes(type)) &&
             (status === "all" || e.verificationStatus === status)
-        )
+          );
+        })
         .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [initialEvents, type, status]
   );
@@ -74,6 +77,15 @@ export function RewindExplorer({
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
+
+  // Synchronize index safely when filtered events change to prevent stale out-of-bounds state
+  useEffect(() => {
+    setIndex((currentIndex) => {
+      if (filtered.length === 0) return 0;
+      if (currentIndex >= filtered.length) return Math.max(0, filtered.length - 1);
+      return currentIndex;
+    });
+  }, [filtered]);
 
   useEffect(() => {
     if (!playing || filtered.length < 2) return;
@@ -94,7 +106,12 @@ export function RewindExplorer({
   const event = hasEvents ? filtered[safeIndex] : null;
   const source = event?.sources?.[0] || (event?.sourceIds?.[0] ? sourceById(event.sourceIds[0]) : null);
   const types = useMemo(
-    () => Array.from(new Set(initialEvents.flatMap((e) => e.eventTypes || []))).sort(),
+    () =>
+      Array.from(
+        new Set(
+          initialEvents.flatMap((e) => (e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])))
+        )
+      ).sort(),
     [initialEvents]
   );
   const date = event ? new Date(event.startDate + "T12:00:00") : null;
@@ -184,13 +201,19 @@ export function RewindExplorer({
                 {event.verificationStatus}
               </span>
             </div>
-            <time dateTime={event.startDate}>
+            <time
+              dateTime={event.startDate}
+              title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
+            >
               {date?.toLocaleDateString("en-GB", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
                 year: "numeric",
-              })}
+              }) || event.startDate}
+              {!isStandardIsoDate(event.startDate) && (
+                <span className="sr-only"> (Non-standard archival date)</span>
+              )}
             </time>
             <h1>{event.eventName}</h1>
             <p className="event-place">
@@ -201,7 +224,7 @@ export function RewindExplorer({
               </small>
             </p>
             <div className="detail-tags">
-              {event.eventTypes?.map((t) => (
+              {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((t) => (
                 <span key={t}>{t}</span>
               ))}
             </div>

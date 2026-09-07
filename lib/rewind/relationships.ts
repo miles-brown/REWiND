@@ -87,6 +87,9 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
           .range(from, from + pageSize - 1);
 
         if (error) {
+          if (process.env.NODE_ENV === "production") {
+            return [];
+          }
           return getFallbackRelationships();
         }
 
@@ -142,6 +145,9 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
             .select("id, slug, display_name, canonical_name")
             .in("id", chunk);
           if (peopleError) {
+            if (process.env.NODE_ENV === "production") {
+              return [];
+            }
             return getFallbackRelationships();
           }
           if (chunkPeople) {
@@ -181,8 +187,14 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
       return [];
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     return getFallbackRelationships();
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     return getFallbackRelationships();
   }
 }
@@ -269,6 +281,9 @@ export async function getRelationshipBetween(
       return { personA, personB, sharedEvents: [] };
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     // Fallback: check shared events across all events
     const all = await getAllEvents();
     const shared = all.filter(

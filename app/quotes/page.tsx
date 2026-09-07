@@ -94,7 +94,7 @@ export default async function QuotesPage() {
               <div>
                 <b>{e.eventName}</b>
                 <small>
-                  {e.city} · {(e.eventTypes || []).join(", ")}
+                  {e.city} · {(e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])).join(", ")}
                 </small>
               </div>
               <ArrowRight />
