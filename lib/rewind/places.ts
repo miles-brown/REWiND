@@ -10,56 +10,104 @@ export async function getPlaces(): Promise<PlaceRecord[]> {
     const supabase = await createClient();
     if (!supabase) return [];
 
-    const { data, error } = await supabase
-      .from("places")
-      .select("*")
-      .order("city", { ascending: true });
-
-    if (error) throw error;
-
     const results: PlaceRecord[] = [];
     const seenIds = new Set<string>();
     const seenSlugs = new Set<string>();
 
-    if (data) {
-      data.forEach((p) => {
-        seenIds.add(p.id);
-        seenSlugs.add(p.slug);
-        results.push({
-          id: p.id,
-          slug: p.slug,
-          venue: p.venue,
-          city: p.city,
-          country: p.country,
-          latitude: p.latitude,
-          longitude: p.longitude,
-          placeType: p.place_type,
+    // 1. Fetch places with stable range pagination
+    const pageSize = 1000;
+    let placesPage = 0;
+    let hasMorePlaces = true;
+
+    while (hasMorePlaces) {
+      const from = placesPage * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from("places")
+        .select("*")
+        .order("city", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        data.forEach((p) => {
+          seenIds.add(p.id);
+          seenSlugs.add(p.slug);
+          results.push({
+            id: p.id,
+            slug: p.slug,
+            venue: p.venue,
+            city: p.city,
+            country: p.country,
+            latitude: p.latitude,
+            longitude: p.longitude,
+            placeType: p.place_type,
+          });
         });
-      });
+      }
+
+      if (!data || data.length < pageSize) {
+        hasMorePlaces = false;
+      } else {
+        placesPage++;
+      }
     }
 
-    // Include Event Model v2 venues & locations (Codex Issue 7)
-    const { data: venueRows, error: venueError } = await supabase
-      .from("venues")
-      .select("id, name, address_id, latitude, longitude");
+    // 2. Fetch Event Model v2 venues with stable range pagination
+    const allVenueRows: Array<{
+      id: string;
+      name: string;
+      address_id?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+    }> = [];
+    let venuesPage = 0;
+    let hasMoreVenues = true;
 
-    if (venueError) throw venueError;
+    while (hasMoreVenues) {
+      const from = venuesPage * pageSize;
+      const to = from + pageSize - 1;
+      const { data: venueRows, error: venueError } = await supabase
+        .from("venues")
+        .select("id, name, address_id, latitude, longitude")
+        .order("name", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
 
-    if (venueRows && venueRows.length > 0) {
-      const addressIds = Array.from(new Set(venueRows.map((v) => v.address_id).filter(Boolean)));
+      if (venueError) throw venueError;
+
+      if (venueRows && venueRows.length > 0) {
+        allVenueRows.push(...venueRows);
+      }
+
+      if (!venueRows || venueRows.length < pageSize) {
+        hasMoreVenues = false;
+      } else {
+        venuesPage++;
+      }
+    }
+
+    if (allVenueRows.length > 0) {
+      const addressIds = Array.from(new Set(allVenueRows.map((v) => v.address_id).filter(Boolean))) as string[];
       const addressesMap = new Map<string, { city?: string | null; country_code?: string | null }>();
       if (addressIds.length > 0) {
-        const { data: addressRows, error: addressError } = await supabase
-          .from("addresses")
-          .select("id, city, country_code")
-          .in("id", addressIds);
-        if (addressError) throw addressError;
-        if (addressRows) {
-          addressRows.forEach((a) => addressesMap.set(a.id, a));
+        const chunkSize = 200;
+        for (let i = 0; i < addressIds.length; i += chunkSize) {
+          const chunk = addressIds.slice(i, i + chunkSize);
+          const { data: addressRows, error: addressError } = await supabase
+            .from("addresses")
+            .select("id, city, country_code")
+            .in("id", chunk);
+          if (addressError) throw addressError;
+          if (addressRows) {
+            addressRows.forEach((a) => addressesMap.set(a.id, a));
+          }
         }
       }
 
-      venueRows.forEach((v) => {
+      allVenueRows.forEach((v) => {
         if (!seenIds.has(v.id)) {
           const vSlug = v.id.replace(/^plc-|^ven-/, "");
           if (!seenSlugs.has(vSlug)) {

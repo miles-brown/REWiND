@@ -343,6 +343,69 @@ test("enforces evidence source rigor: rejects approval without a valid archival 
   assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
 });
 
+test("enforces evidence source rigor: rejects merge without a valid archival sourceId", async () => {
+  const { mergeCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const targetEvtId = store.events[0]?.id || "evt-1998-10-23-wye-river-memorandum";
+  const testNoSourceCandId = `cand-nosrc-mrg-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testNoSourceCandId,
+    fingerprint: `fp_nosrc_mrg_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Merge Candidate with Missing Source",
+      summary: "Candidate lacking valid source",
+      startDate: "1998-10-23",
+      eventType: "treaty-signing",
+      // sourceId omitted or synthetic sentinel
+      sourceId: "src-editorial-corroboration",
+      claims: [{ claimType: "presence", statement: "Unsubstantiated claim" }],
+    }),
+    suggestedTitle: "Merge Candidate with Missing Source",
+    suggestedDate: "1998-10-23",
+    suggestedPlace: "Washington, D.C.",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: targetEvtId,
+    duplicateSimilarity: 0.9,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const res = await mergeCandidate(testNoSourceCandId, targetEvtId, "Senior Editor");
+  assert.equal(res.success, false);
+  assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
+});
+
+test("verifies getMonogram utility and production fail-closed behavior in events loaders", async () => {
+  const { getMonogram } = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+  const { getAllEventsWithStatus, getSpeechEventsWithStatus } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // 1. Monogram utility tests
+  assert.equal(getMonogram("Benjamin Netanyahu"), "BN");
+  assert.equal(getMonogram("Bill Clinton"), "BC");
+  assert.equal(getMonogram("Arafat"), "AR");
+  assert.equal(getMonogram(""), "—");
+
+  // 2. Production fail-closed behavior without DB
+  const origNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "production";
+    const allRes = await getAllEventsWithStatus();
+    assert.equal(allRes.data.length, 0);
+    assert.match(allRes.error || "", /Database configuration unavailable in production environment/);
+
+    const speechRes = await getSpeechEventsWithStatus();
+    assert.equal(speechRes.data.length, 0);
+    assert.match(speechRes.error || "", /Database configuration unavailable in production environment/);
+  } finally {
+    process.env.NODE_ENV = origNodeEnv;
+  }
+});
+
 test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilience, and venue error handling", async () => {
   const { recordAuditEvent } = await vite.ssrLoadModule("/lib/ingestion/audit.ts");
   const { getPlaces, getPlaceBySlug } = await vite.ssrLoadModule("/lib/rewind/places.ts");
@@ -367,4 +430,3 @@ test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilien
   assert.equal(eventsResult.data.length, 0);
   assert.equal(eventsResult.error, null);
 });
-

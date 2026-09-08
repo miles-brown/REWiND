@@ -13,7 +13,7 @@ import { recordAuditEvent } from "./audit";
 export function processCandidateEvent(
   rawCandidate: ExtractedCandidateEvent,
   source: RawEvidenceItem
-): IngestionResult {
+): Promise<IngestionResult> & IngestionResult {
   // Validate candidate schema strictly (calendar dates, range validation, field lengths)
   const candidate = ExtractedCandidateEventSchema.parse(rawCandidate);
   const store = getRelationalStore();
@@ -43,6 +43,7 @@ export function processCandidateEvent(
   const candidateId = `cand-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   let publishedEventId: string | undefined;
+  let auditPromise: Promise<unknown> | undefined;
 
   // 6. Ensure Source is Registered
   let existingSource = store.sources.find((s) => s.id === source.sourceId);
@@ -86,7 +87,7 @@ export function processCandidateEvent(
         });
       });
 
-      recordAuditEvent(
+      auditPromise = recordAuditEvent(
         "merged",
         policy.ruleId,
         {
@@ -97,7 +98,9 @@ export function processCandidateEvent(
         },
         publishedEventId,
         candidateId
-      );
+      ).catch((err) => {
+        console.warn("Failed to persist audit log on merge:", err);
+      });
     } else {
       // NEW EVENT PATH: Create new verified/provisional record
       let existingPlace = store.places.find((p) => p.id === placeResolution.placeId);
@@ -161,7 +164,7 @@ export function processCandidateEvent(
         });
       });
 
-      recordAuditEvent(
+      auditPromise = recordAuditEvent(
         "auto-published",
         policy.ruleId,
         {
@@ -172,7 +175,9 @@ export function processCandidateEvent(
         },
         eventSlug,
         candidateId
-      );
+      ).catch((err) => {
+        console.warn("Failed to persist audit log on auto-publish:", err);
+      });
     }
   } else {
     // HUMAN REVIEW QUEUE PATH: Idempotent insertion by fingerprint
@@ -183,7 +188,7 @@ export function processCandidateEvent(
     if (existingPending) {
       // Reuse existing pending candidate without duplicating queue
       const auditEntry = store.auditLog[0];
-      return {
+      const syncResult: IngestionResult = {
         candidateId: existingPending.id,
         fingerprint,
         lane: policy.lane,
@@ -192,6 +197,7 @@ export function processCandidateEvent(
         policy,
         auditId: auditEntry ? auditEntry.id : 0,
       };
+      return Object.assign(Promise.resolve(syncResult), syncResult);
     }
 
     // Embed sourceId with rawExtraction payload so approval preserves citation
@@ -214,7 +220,7 @@ export function processCandidateEvent(
       createdAt: new Date(),
     });
 
-    recordAuditEvent(
+    auditPromise = recordAuditEvent(
       "queued-for-review",
       policy.ruleId,
       {
@@ -224,12 +230,14 @@ export function processCandidateEvent(
       },
       undefined,
       candidateId
-    );
+    ).catch((err) => {
+      console.warn("Failed to persist audit log on queue-for-review:", err);
+    });
   }
 
   const auditEntry = store.auditLog[0];
 
-  return {
+  const syncResult: IngestionResult = {
     candidateId,
     fingerprint,
     lane: policy.lane,
@@ -238,4 +246,13 @@ export function processCandidateEvent(
     policy,
     auditId: auditEntry ? auditEntry.id : 0,
   };
+
+  const asyncPromise = (async () => {
+    if (auditPromise) {
+      await auditPromise;
+    }
+    return syncResult;
+  })();
+
+  return Object.assign(asyncPromise, syncResult);
 }

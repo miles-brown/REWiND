@@ -1267,6 +1267,13 @@ export async function getAllEventsWithStatus(): Promise<{ data: EventRecord[]; e
       }
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return {
+        data: [],
+        error: "Database configuration unavailable in production environment",
+      };
+    }
+
     return {
       data: fallbackEvents.map(mapFallbackEvent).sort((a, b) => b.startDate.localeCompare(a.startDate)),
       error: null,
@@ -1345,7 +1352,14 @@ export async function getSpeechEventsWithStatus(): Promise<{ data: EventRecord[]
     };
   }
 
-  // Fallback if Supabase not configured
+  if (process.env.NODE_ENV === "production") {
+    return {
+      data: [],
+      error: "Database configuration unavailable in production environment",
+    };
+  }
+
+  // Fallback if Supabase not configured in non-production
   const fallback = fallbackEvents
     .map(mapFallbackEvent)
     .filter((e) =>

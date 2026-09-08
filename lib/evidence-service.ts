@@ -312,16 +312,46 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                   ep.personId = bySlug.id;
                 } else {
                   const rawName = ep.rawName || pSlug;
-                  await tx.insert(schema.people).values({
-                    id: ep.personId,
-                    slug: pSlug,
-                    displayName: ep.roleLabel ? `${rawName} (${ep.roleLabel})` : rawName,
-                    canonicalName: rawName,
-                    nationality: "International",
-                    classification: "historical-figure",
-                    notabilityBasis: "Documented participant in verified historical event",
-                    publicationStatus: "published",
-                  });
+                  const escapedName = escapeIlikePattern(rawName);
+                  const matchingByName = await tx
+                    .select({ id: schema.people.id })
+                    .from(schema.people)
+                    .where(
+                      or(
+                        ilike(schema.people.canonicalName, escapedName),
+                        ilike(schema.people.displayName, escapedName)
+                      )
+                    );
+                  const distinctNameMatches = Array.from(new Set(matchingByName.map((p) => p.id)));
+                  if (distinctNameMatches.length === 1) {
+                    ep.personId = distinctNameMatches[0];
+                  } else if (distinctNameMatches.length === 0) {
+                    // Check schema.personAliases before creating duplicate person
+                    const aliasRows = await tx
+                      .select({ personId: schema.personAliases.personId })
+                      .from(schema.personAliases)
+                      .where(
+                        or(
+                          ilike(schema.personAliases.alias, escapedName),
+                          eq(schema.personAliases.alias, rawName)
+                        )
+                      );
+                    const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                    if (distinctPersonIds.length === 1) {
+                      ep.personId = distinctPersonIds[0];
+                    } else if (distinctPersonIds.length === 0) {
+                      await tx.insert(schema.people).values({
+                        id: ep.personId,
+                        slug: pSlug,
+                        displayName: ep.roleLabel ? `${rawName} (${ep.roleLabel})` : rawName,
+                        canonicalName: rawName,
+                        nationality: "International",
+                        classification: "historical-figure",
+                        notabilityBasis: "Documented participant in verified historical event",
+                        publicationStatus: "published",
+                      });
+                    }
+                  }
                 }
               }
               const epRow = { ...ep };
@@ -330,7 +360,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 7. Insert claims with live database subject resolution
+          // 7. Insert claims with live database subject resolution (Codex: disambiguate aliases)
           if (newClaims.length > 0) {
             const dbClaims = await Promise.all(
               newClaims.map(async (clm) => {
@@ -338,30 +368,43 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 if (!resolvedDbSubjectId && clm.subjectMention) {
                   const mention = clm.subjectMention.trim();
                   const escaped = escapeIlikePattern(mention);
-                  const [dbPerson] = await tx
+                  const [exactBySlug] = await tx
                     .select({ id: schema.people.id })
                     .from(schema.people)
-                    .where(
-                      or(
-                        ilike(schema.people.canonicalName, escaped),
-                        ilike(schema.people.displayName, escaped),
-                        eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
-                      )
-                    );
-                  if (dbPerson) {
-                    resolvedDbSubjectId = dbPerson.id;
+                    .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
+                  if (exactBySlug) {
+                    resolvedDbSubjectId = exactBySlug.id;
                   } else {
-                    const [aliasRow] = await tx
-                      .select({ personId: schema.personAliases.personId })
-                      .from(schema.personAliases)
+                    const matchingPeople = await tx
+                      .select({ id: schema.people.id })
+                      .from(schema.people)
                       .where(
                         or(
-                          ilike(schema.personAliases.alias, escaped),
-                          eq(schema.personAliases.alias, mention)
+                          ilike(schema.people.canonicalName, escaped),
+                          ilike(schema.people.displayName, escaped)
                         )
                       );
-                    if (aliasRow) {
-                      resolvedDbSubjectId = aliasRow.personId;
+                    const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
+                    if (distinctDbPeople.length === 1) {
+                      resolvedDbSubjectId = distinctDbPeople[0];
+                    } else if (distinctDbPeople.length === 0) {
+                      const aliasRows = await tx
+                        .select({ personId: schema.personAliases.personId })
+                        .from(schema.personAliases)
+                        .where(
+                          or(
+                            ilike(schema.personAliases.alias, escaped),
+                            eq(schema.personAliases.alias, mention)
+                          )
+                        );
+                      const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                      if (distinctPersonIds.length === 1) {
+                        resolvedDbSubjectId = distinctPersonIds[0];
+                      } else {
+                        resolvedDbSubjectId = null;
+                      }
+                    } else {
+                      resolvedDbSubjectId = null;
                     }
                   }
                 }
@@ -449,6 +492,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         publishedEventId: eventSlug,
         approvedBy: editorName,
         sourceId,
+        claimsAddedCount: newClaims.length,
       },
       eventSlug,
       candidateId
@@ -467,10 +511,22 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
   const syncTarget = store.events.find((e) => e.id === targetEventId);
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
+
   const syncFallback: { success: boolean; targetEventId?: string; claimsAddedCount?: number; error?: string } = !syncCandidate || !syncTarget
     ? { success: false, error: "Candidate or target event not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
+    : !syncSourceId || syncSourceId === "src-editorial-corroboration"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      }
     : { success: true, targetEventId, claimsAddedCount: 0 };
 
   const executionPromise = (async () => {
@@ -499,7 +555,13 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 
     const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
-    const sourceId = data.sourceId || "src-editorial-corroboration";
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-corroboration") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
 
     const claimsToInsert: Array<
       ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
@@ -601,30 +663,43 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                 if (!resolvedDbSubjectId && clm.subjectMention) {
                   const mention = clm.subjectMention.trim();
                   const escaped = escapeIlikePattern(mention);
-                  const [dbPerson] = await tx
+                  const [exactBySlug] = await tx
                     .select({ id: schema.people.id })
                     .from(schema.people)
-                    .where(
-                      or(
-                        ilike(schema.people.canonicalName, escaped),
-                        ilike(schema.people.displayName, escaped),
-                        eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
-                      )
-                    );
-                  if (dbPerson) {
-                    resolvedDbSubjectId = dbPerson.id;
+                    .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
+                  if (exactBySlug) {
+                    resolvedDbSubjectId = exactBySlug.id;
                   } else {
-                    const [aliasRow] = await tx
-                      .select({ personId: schema.personAliases.personId })
-                      .from(schema.personAliases)
+                    const matchingPeople = await tx
+                      .select({ id: schema.people.id })
+                      .from(schema.people)
                       .where(
                         or(
-                          ilike(schema.personAliases.alias, escaped),
-                          eq(schema.personAliases.alias, mention)
+                          ilike(schema.people.canonicalName, escaped),
+                          ilike(schema.people.displayName, escaped)
                         )
                       );
-                    if (aliasRow) {
-                      resolvedDbSubjectId = aliasRow.personId;
+                    const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
+                    if (distinctDbPeople.length === 1) {
+                      resolvedDbSubjectId = distinctDbPeople[0];
+                    } else if (distinctDbPeople.length === 0) {
+                      const aliasRows = await tx
+                        .select({ personId: schema.personAliases.personId })
+                        .from(schema.personAliases)
+                        .where(
+                          or(
+                            ilike(schema.personAliases.alias, escaped),
+                            eq(schema.personAliases.alias, mention)
+                          )
+                        );
+                      const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                      if (distinctPersonIds.length === 1) {
+                        resolvedDbSubjectId = distinctPersonIds[0];
+                      } else {
+                        resolvedDbSubjectId = null;
+                      }
+                    } else {
+                      resolvedDbSubjectId = null;
                     }
                   }
                 }
