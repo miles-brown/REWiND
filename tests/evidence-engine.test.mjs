@@ -342,3 +342,29 @@ test("enforces evidence source rigor: rejects approval without a valid archival 
   assert.equal(res.success, false);
   assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
 });
+
+test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilience, and venue error handling", async () => {
+  const { recordAuditEvent } = await vite.ssrLoadModule("/lib/ingestion/audit.ts");
+  const { getPlaces, getPlaceBySlug } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // 1. recordAuditEvent returns an awaitable entry
+  const auditPromise = recordAuditEvent("test-action", "RULE-1", { test: true });
+  assert.ok(auditPromise instanceof Promise);
+  const auditEntry = await auditPromise;
+  assert.equal(auditEntry.action, "test-action");
+
+  // 2. getPlaces and getPlaceBySlug return valid collections or null safely
+  const places = await getPlaces();
+  assert.ok(Array.isArray(places));
+
+  const placeSlugResult = await getPlaceBySlug("non-existent-place-slug-xyz");
+  assert.equal(placeSlugResult, null);
+
+  // 3. getEvents handles non-existent placeSlug gracefully
+  const eventsResult = await getEvents({ placeSlug: "non-existent-place-slug-xyz" });
+  assert.ok(Array.isArray(eventsResult.data));
+  assert.equal(eventsResult.data.length, 0);
+  assert.equal(eventsResult.error, null);
+});
+

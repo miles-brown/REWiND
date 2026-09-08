@@ -21,6 +21,10 @@ interface CandidateClaimInput {
   supportingExcerpt?: string;
 }
 
+function escapeIlikePattern(str: string): string {
+  return str.replace(/[\\%_]/g, "\\$&");
+}
+
 export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const db = getDb();
   if (db) {
@@ -149,7 +153,9 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
     const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
 
-    const newClaims: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    const newClaims: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
     if (Array.isArray(data.claims)) {
       data.claims.forEach(
         (
@@ -175,6 +181,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+            subjectMention: clm.subjectMention,
           });
         }
       );
@@ -326,27 +333,43 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           // 7. Insert claims with live database subject resolution
           if (newClaims.length > 0) {
             const dbClaims = await Promise.all(
-              newClaims.map(async (clm, idx) => {
+              newClaims.map(async (clm) => {
                 let resolvedDbSubjectId = clm.subjectId;
-                const origClaim = Array.isArray(data.claims) ? data.claims[idx] : null;
-                if (!resolvedDbSubjectId && origClaim?.subjectMention) {
-                  const mention = origClaim.subjectMention.trim();
+                if (!resolvedDbSubjectId && clm.subjectMention) {
+                  const mention = clm.subjectMention.trim();
+                  const escaped = escapeIlikePattern(mention);
                   const [dbPerson] = await tx
                     .select({ id: schema.people.id })
                     .from(schema.people)
                     .where(
                       or(
-                        ilike(schema.people.canonicalName, mention),
-                        ilike(schema.people.displayName, mention),
+                        ilike(schema.people.canonicalName, escaped),
+                        ilike(schema.people.displayName, escaped),
                         eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
                       )
                     );
                   if (dbPerson) {
                     resolvedDbSubjectId = dbPerson.id;
+                  } else {
+                    const [aliasRow] = await tx
+                      .select({ personId: schema.personAliases.personId })
+                      .from(schema.personAliases)
+                      .where(
+                        or(
+                          ilike(schema.personAliases.alias, escaped),
+                          eq(schema.personAliases.alias, mention)
+                        )
+                      );
+                    if (aliasRow) {
+                      resolvedDbSubjectId = aliasRow.personId;
+                    }
                   }
                 }
+                clm.subjectId = resolvedDbSubjectId;
+                const dbRow = { ...clm };
+                delete dbRow.subjectMention;
                 return {
-                  ...clm,
+                  ...dbRow,
                   subjectId: resolvedDbSubjectId,
                 };
               })
@@ -412,7 +435,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       });
     }
 
-    newClaims.forEach((clm) => store.claims.push(clm));
+    newClaims.forEach((clm) => {
+      const inMem = { ...clm };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
+    });
 
     await recordAuditEvent(
       "reviewed-approved",
@@ -474,7 +501,9 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
     const sourceId = data.sourceId || "src-editorial-corroboration";
 
-    const claimsToInsert: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    const claimsToInsert: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
     if (Array.isArray(data.claims)) {
       data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
@@ -500,6 +529,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || null,
+            subjectMention: clm.subjectMention,
           });
         }
       });
@@ -566,27 +596,43 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
           if (claimsToInsert.length > 0) {
             const dbClaims = await Promise.all(
-              claimsToInsert.map(async (clm, idx) => {
+              claimsToInsert.map(async (clm) => {
                 let resolvedDbSubjectId = clm.subjectId;
-                const origClaim = Array.isArray(data.claims) ? data.claims[idx] : null;
-                if (!resolvedDbSubjectId && origClaim?.subjectMention) {
-                  const mention = origClaim.subjectMention.trim();
+                if (!resolvedDbSubjectId && clm.subjectMention) {
+                  const mention = clm.subjectMention.trim();
+                  const escaped = escapeIlikePattern(mention);
                   const [dbPerson] = await tx
                     .select({ id: schema.people.id })
                     .from(schema.people)
                     .where(
                       or(
-                        ilike(schema.people.canonicalName, mention),
-                        ilike(schema.people.displayName, mention),
+                        ilike(schema.people.canonicalName, escaped),
+                        ilike(schema.people.displayName, escaped),
                         eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
                       )
                     );
                   if (dbPerson) {
                     resolvedDbSubjectId = dbPerson.id;
+                  } else {
+                    const [aliasRow] = await tx
+                      .select({ personId: schema.personAliases.personId })
+                      .from(schema.personAliases)
+                      .where(
+                        or(
+                          ilike(schema.personAliases.alias, escaped),
+                          eq(schema.personAliases.alias, mention)
+                        )
+                      );
+                    if (aliasRow) {
+                      resolvedDbSubjectId = aliasRow.personId;
+                    }
                   }
                 }
+                clm.subjectId = resolvedDbSubjectId;
+                const dbRow = { ...clm };
+                delete dbRow.subjectMention;
                 return {
-                  ...clm,
+                  ...dbRow,
                   subjectId: resolvedDbSubjectId,
                 };
               })
@@ -638,7 +684,11 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       store.sources.push(existingSource);
     }
 
-    claimsToInsert.forEach((c) => store.claims.push(c));
+    claimsToInsert.forEach((c) => {
+      const inMem = { ...c };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
+    });
 
     const mergedParticipants: string[] = [];
     if (Array.isArray(data.participants)) {

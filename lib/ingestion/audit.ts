@@ -35,18 +35,14 @@ export function recordAuditEvent(
   const db = getDb();
   const persistPromise = (async () => {
     if (db) {
-      try {
-        await db.insert(schema.auditLog).values({
-          eventId: entry.eventId,
-          candidateId: entry.candidateId,
-          action: entry.action,
-          ruleId: entry.ruleId,
-          details: entry.details,
-          recordedAt: entry.recordedAt,
-        });
-      } catch (err) {
-        console.warn("Failed to persist audit log entry to live database:", err);
-      }
+      await db.insert(schema.auditLog).values({
+        eventId: entry.eventId,
+        candidateId: entry.candidateId,
+        action: entry.action,
+        ruleId: entry.ruleId,
+        details: entry.details,
+        recordedAt: entry.recordedAt,
+      });
     }
     return entry;
   })();

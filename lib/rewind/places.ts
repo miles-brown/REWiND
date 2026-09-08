@@ -15,11 +15,13 @@ export async function getPlaces(): Promise<PlaceRecord[]> {
       .select("*")
       .order("city", { ascending: true });
 
+    if (error) throw error;
+
     const results: PlaceRecord[] = [];
     const seenIds = new Set<string>();
     const seenSlugs = new Set<string>();
 
-    if (!error && data) {
+    if (data) {
       data.forEach((p) => {
         seenIds.add(p.id);
         seenSlugs.add(p.slug);
@@ -37,18 +39,21 @@ export async function getPlaces(): Promise<PlaceRecord[]> {
     }
 
     // Include Event Model v2 venues & locations (Codex Issue 7)
-    const { data: venueRows } = await supabase
+    const { data: venueRows, error: venueError } = await supabase
       .from("venues")
       .select("id, name, address_id, latitude, longitude");
+
+    if (venueError) throw venueError;
 
     if (venueRows && venueRows.length > 0) {
       const addressIds = Array.from(new Set(venueRows.map((v) => v.address_id).filter(Boolean)));
       const addressesMap = new Map<string, { city?: string | null; country_code?: string | null }>();
       if (addressIds.length > 0) {
-        const { data: addressRows } = await supabase
+        const { data: addressRows, error: addressError } = await supabase
           .from("addresses")
           .select("id, city, country_code")
           .in("id", addressIds);
+        if (addressError) throw addressError;
         if (addressRows) {
           addressRows.forEach((a) => addressesMap.set(a.id, a));
         }
@@ -94,13 +99,15 @@ export async function getPlaceBySlug(
 
     let place: PlaceRecord | null = null;
 
-    const { data: p, error } = await supabase
+    const { data: p, error: placeError } = await supabase
       .from("places")
       .select("*")
       .or(`slug.eq.${slug},id.eq.${slug}`)
       .maybeSingle();
 
-    if (!error && p) {
+    if (placeError) throw placeError;
+
+    if (p) {
       place = {
         id: p.id,
         slug: p.slug,
@@ -113,21 +120,24 @@ export async function getPlaceBySlug(
       };
     } else {
       // Check Event Model v2 venues (Codex Issue 7)
-      const { data: v } = await supabase
+      const { data: v, error: venueError } = await supabase
         .from("venues")
         .select("id, name, address_id, latitude, longitude")
         .or(`id.eq.${slug},id.eq.ven-${slug},id.eq.plc-${slug}`)
         .maybeSingle();
 
+      if (venueError) throw venueError;
+
       if (v) {
         let city = "Unknown";
         let country = "Unknown";
         if (v.address_id) {
-          const { data: addr } = await supabase
+          const { data: addr, error: addressError } = await supabase
             .from("addresses")
             .select("city, country_code")
             .eq("id", v.address_id)
             .maybeSingle();
+          if (addressError) throw addressError;
           if (addr) {
             city = addr.city || city;
             country = addr.country_code || country;

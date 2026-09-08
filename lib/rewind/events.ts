@@ -583,11 +583,22 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       }
 
       if (!placeData) {
-        const { data: venueData } = await supabase
+        const { data: venueData, error: venueError } = await supabase
           .from("venues")
           .select("id")
           .or(`id.eq.${params.placeSlug},id.eq.ven-${params.placeSlug},id.eq.plc-${params.placeSlug}`)
           .maybeSingle();
+
+        if (venueError) {
+          return {
+            data: [],
+            count: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+            error: venueError.message,
+          };
+        }
 
         if (venueData) {
           query = query.eq("venue_id", venueData.id);
