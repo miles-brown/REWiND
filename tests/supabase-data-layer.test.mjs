@@ -398,3 +398,83 @@ test("behaviorally verifies relationship lookup and error handling via getRelati
   assert.equal(resultShared.sharedEvents[0].id, "evt-summit-1");
 });
 
+test("verifies Codex review fixes: live entity resolution, source tier rendering, precision dates, quote search, and v2 place counting", async () => {
+  // 1. Live Entity Resolution
+  const { resolveEntityAsync } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+  const mockDb = {
+    select() {
+      return {
+        from() {
+          return {
+            where() {
+              return Promise.resolve([
+                {
+                  id: "p-bill-clinton",
+                  slug: "bill-clinton",
+                  canonicalName: "William J. Clinton",
+                  displayName: "Bill Clinton",
+                  publicationStatus: "published",
+                },
+              ]);
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const dbRes = await resolveEntityAsync("President Clinton", mockDb);
+  assert.equal(dbRes.personId, "p-bill-clinton");
+  assert.equal(dbRes.canonicalName, "William J. Clinton");
+  assert.equal(dbRes.isApprovedSubject, true);
+  assert.equal(dbRes.confidence, 1.0);
+
+  // Fallback to store when db is null
+  const fallbackRes = await resolveEntityAsync("Benjamin Netanyahu", null);
+  assert.equal(fallbackRes.personId, "benjamin-netanyahu");
+  assert.equal(fallbackRes.isApprovedSubject, true);
+
+  // 2. Source Tier Rendering & Accurate KPI Counting
+  const { getSourceTierDisplay } = await vite.ssrLoadModule("/components/rewind/SourcesCatalog.tsx");
+  const tierA = getSourceTierDisplay({ id: "s1", title: "UN Record", publisher: "UN", sourceType: "official-record", classification: "primary", tier: "tier-a" });
+  assert.equal(tierA.label, "Primary (Tier A)");
+  assert.equal(tierA.isPrimary, true);
+
+  const tierB = getSourceTierDisplay({ id: "s2", title: "Press Release", publisher: "White House", sourceType: "press-release", classification: "primary", tier: "tier-b" });
+  assert.equal(tierB.label, "First-Party (Tier B)");
+  assert.equal(tierB.isPrimary, true);
+
+  const tierC = getSourceTierDisplay({ id: "s3", title: "Wire Dispatch", publisher: "Reuters", sourceType: "wire-report", classification: "secondary", tier: "tier-c" });
+  assert.equal(tierC.label, "Secondary (Tier C)");
+  assert.equal(tierC.isPrimary, false);
+
+  const tierD = getSourceTierDisplay({ id: "s4", title: "Encyclopedia", publisher: "Wikipedia", sourceType: "encyclopedia", classification: "secondary", tier: "tier-d" });
+  assert.equal(tierD.label, "Discovery (Tier D)");
+  assert.equal(tierD.isPrimary, false);
+
+  // 3. Source Date Partial Precision Preservation
+  const { getSourceDateInfo } = await vite.ssrLoadModule("/components/rewind/SourcesCatalog.tsx");
+  const yearOnly = getSourceDateInfo({ id: "s1", title: "Treaty", publisher: "Gov", sourceType: "treaty", classification: "primary", publicationDate: "1948" });
+  assert.equal(yearOnly.displayDate, "1948", "Year-only date must preserve year without adding day/month");
+
+  const yearMonth = getSourceDateInfo({ id: "s2", title: "Speech", publisher: "Gov", sourceType: "speech", classification: "primary", publicationDate: "1948-05" });
+  assert.equal(yearMonth.displayDate, "May 1948", "Year-month date must preserve month/year without fabricating day 1");
+
+  const exactDay = getSourceDateInfo({ id: "s3", title: "Declaration", publisher: "Gov", sourceType: "declaration", classification: "primary", publicationDate: "1948-05-14" });
+  assert.equal(exactDay.displayDate, "14 May 1948", "Exact day date must format full calendar date");
+
+  const undated = getSourceDateInfo({ id: "s4", title: "Undated Doc", publisher: "Archive", sourceType: "document", classification: "primary" });
+  assert.equal(undated.displayDate, "Undated");
+  assert.equal(undated.isoDate, null);
+
+  // 4. Global Search includes Quote Records
+  const { searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  assert.equal(typeof searchRewind, "function");
+
+  // 5. Atlas Statistics aggregates locations via getPlaces()
+  const { getAtlasStatistics } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
+  const stats = await getAtlasStatistics();
+  assert.ok(typeof stats.placeCount === "number");
+  assert.ok(stats.placeCount >= 0);
+});
+

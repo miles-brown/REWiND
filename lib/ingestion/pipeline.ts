@@ -7,7 +7,7 @@ import {
   type RawEvidenceItem,
   type IngestionResult,
 } from "./types";
-import { resolveEntity, resolvePlace } from "./resolve";
+import { resolveEntity, resolveEntityAsync, resolvePlace } from "./resolve";
 import { calculateEventFingerprint, findDuplicateEvent } from "./deduplicate";
 import { evaluatePublicationPolicy } from "./policy-evaluator";
 import { recordAuditEvent } from "./audit";
@@ -21,7 +21,7 @@ export function processCandidateEvent(
   const store = getRelationalStore();
   const db = getDb();
 
-  // 1. Resolve Entities
+  // 1. Resolve Entities Synchronously from Store (for sync return and test fallback)
   const entityResolutions = candidate.participants.map((p) => resolveEntity(p.name));
   const resolvedParticipantIds = entityResolutions
     .map((e) => e.personId)
@@ -232,8 +232,40 @@ export function processCandidateEvent(
     );
   }
 
-  const dbPersistPromise = (async () => {
-    if (!db) return;
+  const auditEntry = store.auditLog[0];
+
+  const syncResult: IngestionResult = {
+    candidateId,
+    fingerprint,
+    lane: policy.lane,
+    publishedEventId,
+    deduplication,
+    policy,
+    auditId: auditEntry ? auditEntry.id : 0,
+  };
+
+  const asyncPromise = (async () => {
+    if (auditPromise) {
+      await auditPromise;
+    }
+
+    if (!db) {
+      return syncResult;
+    }
+
+    // In live DB execution: resolve entities against PostgreSQL to prevent false REW-POL-UNRESOLVED-ENTITY
+    const liveEntityResolutions = await Promise.all(
+      candidate.participants.map((p) => resolveEntityAsync(p.name, db))
+    );
+    const liveResolvedParticipantIds = liveEntityResolutions
+      .map((e) => e.personId)
+      .filter((id): id is string => id !== null);
+
+    const livePolicy = evaluatePublicationPolicy(candidate, source.sourceTier, liveEntityResolutions);
+
+    syncResult.lane = livePolicy.lane;
+    syncResult.policy = livePolicy;
+
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
       const [existingSrc] = await tx
@@ -255,7 +287,7 @@ export function processCandidateEvent(
         });
       }
 
-      if (policy.lane === "auto-publish" || policy.lane === "provisional") {
+      if (livePolicy.lane === "auto-publish" || livePolicy.lane === "provisional") {
         if (deduplication.isDuplicate && deduplication.matchedEventId) {
           const targetEventId = deduplication.matchedEventId;
           const [existingLink] = await tx
@@ -284,7 +316,7 @@ export function processCandidateEvent(
             .where(eq(schema.claims.eventId, targetEventId));
 
           const claimsToInsert = candidate.claims.filter((clm) => {
-            const matchingSubject = entityResolutions.find(
+            const matchingSubject = liveEntityResolutions.find(
               (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
             );
             const subId = matchingSubject?.personId || null;
@@ -298,7 +330,7 @@ export function processCandidateEvent(
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
               claimsToInsert.map((clm, idx) => {
-                const matchingSubject = entityResolutions.find(
+                const matchingSubject = liveEntityResolutions.find(
                   (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
                 );
                 return {
@@ -310,14 +342,14 @@ export function processCandidateEvent(
                   claimedTime: clm.claimedTime || null,
                   claimedVenue: clm.claimedVenue || null,
                   sourceId: source.sourceId,
-                  confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
+                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "reported",
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })
             );
           }
         } else {
-          const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${resolvedParticipantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
+          const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${liveResolvedParticipantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
           const targetSlug = placeResolution.placeId.replace(/^plc-/, "");
 
           const [existingDbPlace] = await tx
@@ -359,48 +391,74 @@ export function processCandidateEvent(
               seriesId: null,
               venueId: null,
               addressId: null,
-              verificationStatus: policy.lane === "auto-publish" ? "verified" : "provisional",
-              confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.85,
+              verificationStatus: livePolicy.lane === "auto-publish" ? "verified" : "provisional",
+              confidenceScore: livePolicy.lane === "auto-publish" ? 0.98 : 0.85,
               publicationStatus: "published",
-              publicationLane: policy.lane,
+              publicationLane: livePolicy.lane,
               significanceScore: 85,
             });
 
+            syncResult.publishedEventId = eventSlug;
+          }
+
+          // Link source to event
+          const [existingLink] = await tx
+            .select({ eventId: schema.eventSources.eventId })
+            .from(schema.eventSources)
+            .where(
+              and(
+                eq(schema.eventSources.eventId, eventSlug),
+                eq(schema.eventSources.sourceId, source.sourceId)
+              )
+            );
+          if (!existingLink) {
             await tx.insert(schema.eventSources).values({
               eventId: eventSlug,
               sourceId: source.sourceId,
-              isPrimary: true,
+              isPrimary: !existingDbEvent,
             });
+          }
 
-            for (let i = 0; i < candidate.participants.length; i++) {
-              const p = candidate.participants[i];
-              const res = entityResolutions[i];
-              const personId = res?.personId || `p-${p.name.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
-              const [existingP] = await tx
+          for (let i = 0; i < candidate.participants.length; i++) {
+            const p = candidate.participants[i];
+            const res = liveEntityResolutions[i];
+            const personId = res?.personId || `p-${p.name.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
+            const [existingP] = await tx
+              .select({ id: schema.people.id })
+              .from(schema.people)
+              .where(eq(schema.people.id, personId));
+
+            if (!existingP) {
+              const pSlug = personId.replace(/^p-/, "");
+              const [bySlug] = await tx
                 .select({ id: schema.people.id })
                 .from(schema.people)
-                .where(eq(schema.people.id, personId));
-
-              if (!existingP) {
-                const pSlug = personId.replace(/^p-/, "");
-                const [bySlug] = await tx
-                  .select({ id: schema.people.id })
-                  .from(schema.people)
-                  .where(eq(schema.people.slug, pSlug));
-                if (!bySlug) {
-                  await tx.insert(schema.people).values({
-                    id: personId,
-                    slug: pSlug,
-                    displayName: p.name,
-                    canonicalName: p.name,
-                    nationality: "International",
-                    classification: "historical-figure",
-                    notabilityBasis: "Documented participant in verified historical event",
-                    publicationStatus: "published",
-                  });
-                }
+                .where(eq(schema.people.slug, pSlug));
+              if (!bySlug) {
+                await tx.insert(schema.people).values({
+                  id: personId,
+                  slug: pSlug,
+                  displayName: p.name,
+                  canonicalName: p.name,
+                  nationality: "International",
+                  classification: "historical-figure",
+                  notabilityBasis: "Documented participant in verified historical event",
+                  publicationStatus: "published",
+                });
               }
+            }
 
+            const [existingEp] = await tx
+              .select({ id: schema.eventPeople.id })
+              .from(schema.eventPeople)
+              .where(
+                and(
+                  eq(schema.eventPeople.eventId, eventSlug),
+                  eq(schema.eventPeople.personId, personId)
+                )
+              );
+
+            if (!existingEp) {
               await tx.insert(schema.eventPeople).values({
                 id: `ep-${eventSlug}-${i}-${Date.now().toString(36).slice(-4)}`,
                 eventId: eventSlug,
@@ -411,28 +469,48 @@ export function processCandidateEvent(
                 roleConfidence: "confirmed",
               });
             }
+          }
 
-            if (candidate.claims.length > 0) {
-              await tx.insert(schema.claims).values(
-                candidate.claims.map((clm, idx) => {
-                  const matchingSubject = entityResolutions.find(
-                    (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-                  );
-                  return {
-                    id: `clm-${eventSlug}-${idx}`,
-                    eventId: eventSlug,
-                    subjectId: matchingSubject?.personId || null,
-                    claimType: clm.claimType,
-                    statement: clm.statement,
-                    claimedTime: clm.claimedTime || null,
-                    claimedVenue: clm.claimedVenue || null,
-                    sourceId: source.sourceId,
-                    confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
-                    supportingExcerpt: clm.supportingExcerpt || null,
-                  };
-                })
-              );
-            }
+          const existingClaims = await tx
+            .select({
+              subjectId: schema.claims.subjectId,
+              statement: schema.claims.statement,
+            })
+            .from(schema.claims)
+            .where(eq(schema.claims.eventId, eventSlug));
+
+          const claimsToInsert = candidate.claims.filter((clm) => {
+            const matchingSubject = liveEntityResolutions.find(
+              (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
+            );
+            const subId = matchingSubject?.personId || null;
+            return !existingClaims.some(
+              (ec) =>
+                ec.statement.trim().toLowerCase() === clm.statement.trim().toLowerCase() &&
+                ec.subjectId === subId
+            );
+          });
+
+          if (claimsToInsert.length > 0) {
+            await tx.insert(schema.claims).values(
+              claimsToInsert.map((clm, idx) => {
+                const matchingSubject = liveEntityResolutions.find(
+                  (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
+                );
+                return {
+                  id: `clm-${eventSlug}-${idx}`,
+                  eventId: eventSlug,
+                  subjectId: matchingSubject?.personId || null,
+                  claimType: clm.claimType,
+                  statement: clm.statement,
+                  claimedTime: clm.claimedTime || null,
+                  claimedVenue: clm.claimedVenue || null,
+                  sourceId: source.sourceId,
+                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "reported",
+                  supportingExcerpt: clm.supportingExcerpt || null,
+                };
+              })
+            );
           }
         }
       } else {
@@ -457,7 +535,7 @@ export function processCandidateEvent(
             suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
             suggestedParticipants: JSON.stringify(candidate.participants),
             primarySourceTier: source.sourceTier,
-            assignedLane: policy.lane,
+            assignedLane: livePolicy.lane,
             duplicateMatchId: deduplication.matchedEventId || null,
             duplicateSimilarity: deduplication.similarity,
             status: "pending",
@@ -466,25 +544,7 @@ export function processCandidateEvent(
         }
       }
     });
-  })();
 
-  const auditEntry = store.auditLog[0];
-
-  const syncResult: IngestionResult = {
-    candidateId,
-    fingerprint,
-    lane: policy.lane,
-    publishedEventId,
-    deduplication,
-    policy,
-    auditId: auditEntry ? auditEntry.id : 0,
-  };
-
-  const asyncPromise = (async () => {
-    if (auditPromise) {
-      await auditPromise;
-    }
-    await dbPersistPromise;
     return syncResult;
   })();
 
