@@ -1,9 +1,16 @@
+import { memo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
 import { formatIsoDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import type { EventRecord } from "@/lib/rewind/types";
 
-export function EventCard({ event, compact = false }: { event: EventRecord; compact?: boolean }) {
+export const EventCard = memo(function EventCard({
+  event,
+  compact = false,
+}: {
+  event: EventRecord;
+  compact?: boolean;
+}) {
   const verified = event.verificationStatus === "verified";
   const confidence = event.confidence || "Not established";
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
@@ -54,4 +61,4 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
       <ArrowUpRight className="card-arrow" size={17} />
     </Link>
   );
-}
+});

@@ -44,9 +44,36 @@ export function TimelineComparison({
   sources?: SourceRecord[];
 }) {
   const [slugA, setSlugA] = useState(initialPersonA || people[0]?.slug || "");
-  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(
-    initialPersonB || (people.length > 1 ? people[1]?.slug : undefined)
-  );
+  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(() => {
+    if (initialPersonB) return initialPersonB;
+    const targetSlugA = initialPersonA || people[0]?.slug;
+    if (!targetSlugA || events.length === 0) {
+      return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+    }
+    // Calculate top co-attendee for Person A directly from events
+    const coCounts = new Map<string, number>();
+    for (const e of events) {
+      const parts = e.participants || [];
+      const hasA = parts.some(
+        (p) => p.personId === targetSlugA || p.slug === targetSlugA
+      );
+      if (hasA) {
+        for (const p of parts) {
+          const idOrSlug = p.slug || p.personId;
+          if (idOrSlug && idOrSlug !== targetSlugA) {
+            coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
+          }
+        }
+      }
+    }
+    if (coCounts.size > 0) {
+      const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const topSlugOrId = sorted[0][0];
+      const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
+      if (match) return match.slug;
+    }
+    return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+  });
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
   const [prevPairKey, setPrevPairKey] = useState(
