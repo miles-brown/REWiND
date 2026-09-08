@@ -725,3 +725,36 @@ AFTER DELETE OR UPDATE OF event_id ON public.event_sources
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION public.verify_published_event_sources();
+
+-- ==============================================================================
+-- MIGRATION BRIDGE: Idempotently preserve legacy event_participants links
+-- ==============================================================================
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' AND table_name = 'event_participants'
+  ) THEN
+    INSERT INTO public.event_people (
+      id,
+      event_id,
+      person_id,
+      involvement_type,
+      role_label,
+      presence_confidence,
+      role_confidence
+    )
+    SELECT
+      COALESCE(ep.id, 'ep-' || ep.event_id || '-' || ep.person_id),
+      ep.event_id,
+      ep.person_id,
+      COALESCE(ep.involvement_type, 'attendee'),
+      COALESCE(ep.role_label, 'participant'),
+      COALESCE(ep.presence_confidence, 'confirmed'),
+      COALESCE(ep.role_confidence, 'confirmed')
+    FROM public.event_participants ep
+    WHERE EXISTS (SELECT 1 FROM public.events e WHERE e.id = ep.event_id)
+      AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = ep.person_id)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;

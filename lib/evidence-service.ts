@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count, or, and } from "drizzle-orm";
+import { eq, desc, count, or, and, ilike } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
 
@@ -108,10 +108,22 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   const db = getDb();
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
+
   const syncFallback: { success: boolean; eventId?: string; error?: string } = !syncCandidate
     ? { success: false, error: "Candidate not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be approved again` }
+    : !syncSourceId || syncSourceId === "src-editorial-approval"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      }
     : { success: true, eventId: `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-sync` };
 
   const executionPromise = (async () => {
@@ -126,9 +138,16 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     }
 
     const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-approval") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
+
     const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
     const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
-    const sourceId = data.sourceId || "src-editorial-approval";
 
     const newClaims: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
     if (Array.isArray(data.claims)) {
@@ -209,10 +228,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             if (!existingSrc) {
               await tx.insert(schema.sources).values({
                 id: sourceId,
-                title:
-                  sourceId === "src-editorial-approval"
-                    ? "Editorial Review Board Register"
-                    : (data.sourceTitle || `Source for ${candidate.suggestedTitle}`),
+                title: data.sourceTitle || `Source for ${candidate.suggestedTitle}`,
                 publisher: data.publisher || "Archival Source",
                 sourceType: data.sourceType || "official-transcript",
                 tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
@@ -221,7 +237,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 3. Resolve or insert canonical place (Codex Issue 2 & 4: preserve null coordinates until evidence supplies them)
+          // 3. Resolve or insert canonical place
           const targetSlug = placeId.replace(/^plc-/, "");
           const [existingDbPlace] = await tx
             .select()
@@ -272,7 +288,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             isPrimary: true,
           });
 
-          // 6. Persist approved candidate participants (Codex Issue 3 & CodeRabbit Issue 8)
+          // 6. Persist approved candidate participants (Codex: keep approved participants published so they resolve publicly)
           if (eventPeopleRows.length > 0) {
             for (const ep of eventPeopleRows) {
               const [existingPerson] = await tx
@@ -297,7 +313,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                     nationality: "International",
                     classification: "historical-figure",
                     notabilityBasis: "Documented participant in verified historical event",
-                    publicationStatus: "draft",
+                    publicationStatus: "published",
                   });
                 }
               }
@@ -307,9 +323,35 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 7. Insert claims
+          // 7. Insert claims with live database subject resolution
           if (newClaims.length > 0) {
-            await tx.insert(schema.claims).values(newClaims);
+            const dbClaims = await Promise.all(
+              newClaims.map(async (clm, idx) => {
+                let resolvedDbSubjectId = clm.subjectId;
+                const origClaim = Array.isArray(data.claims) ? data.claims[idx] : null;
+                if (!resolvedDbSubjectId && origClaim?.subjectMention) {
+                  const mention = origClaim.subjectMention.trim();
+                  const [dbPerson] = await tx
+                    .select({ id: schema.people.id })
+                    .from(schema.people)
+                    .where(
+                      or(
+                        ilike(schema.people.canonicalName, mention),
+                        ilike(schema.people.displayName, mention),
+                        eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
+                      )
+                    );
+                  if (dbPerson) {
+                    resolvedDbSubjectId = dbPerson.id;
+                  }
+                }
+                return {
+                  ...clm,
+                  subjectId: resolvedDbSubjectId,
+                };
+              })
+            );
+            await tx.insert(schema.claims).values(dbClaims);
           }
 
           // 8. Insert review decision
@@ -372,7 +414,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
     newClaims.forEach((clm) => store.claims.push(clm));
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-approved",
       "REW-REV-MANUAL-SIGN-OFF",
       {
@@ -523,7 +565,33 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
           }
 
           if (claimsToInsert.length > 0) {
-            await tx.insert(schema.claims).values(claimsToInsert);
+            const dbClaims = await Promise.all(
+              claimsToInsert.map(async (clm, idx) => {
+                let resolvedDbSubjectId = clm.subjectId;
+                const origClaim = Array.isArray(data.claims) ? data.claims[idx] : null;
+                if (!resolvedDbSubjectId && origClaim?.subjectMention) {
+                  const mention = origClaim.subjectMention.trim();
+                  const [dbPerson] = await tx
+                    .select({ id: schema.people.id })
+                    .from(schema.people)
+                    .where(
+                      or(
+                        ilike(schema.people.canonicalName, mention),
+                        ilike(schema.people.displayName, mention),
+                        eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-"))
+                      )
+                    );
+                  if (dbPerson) {
+                    resolvedDbSubjectId = dbPerson.id;
+                  }
+                }
+                return {
+                  ...clm,
+                  subjectId: resolvedDbSubjectId,
+                };
+              })
+            );
+            await tx.insert(schema.claims).values(dbClaims);
           }
 
           await tx.insert(schema.reviewDecisions).values({
@@ -582,7 +650,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       });
     }
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-merged",
       "REW-REV-MANUAL-MERGE",
       {
@@ -667,7 +735,7 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
     candidate.status = "rejected";
     candidate.rejectionReason = reason;
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-rejected",
       "REW-REV-MANUAL-REJECT",
       {

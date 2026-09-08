@@ -42,8 +42,12 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
   const authHeader = req.headers.get("authorization");
   const sessionSecret = process.env.SESSION_SECRET;
 
-  // In production, enforce constant-time bearer token or cookie verification against SESSION_SECRET
-  if (process.env.NODE_ENV === "production" && sessionSecret) {
+  // In production, enforce constant-time bearer token or cookie verification against SESSION_SECRET (strictly fail-closed)
+  if (process.env.NODE_ENV === "production") {
+    if (!sessionSecret) {
+      return { isAuthorized: false, editorActor: "Unauthorized: Admin access not configured" };
+    }
+
     let token = "";
     if (authHeader) {
       const match = authHeader.match(/^Bearer\s+(.+)$/i);

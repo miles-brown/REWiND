@@ -307,3 +307,38 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   assert.equal(reMergeResult.success, false);
   assert.match(reMergeResult.error, /already merged/);
 });
+
+test("enforces evidence source rigor: rejects approval without a valid archival sourceId", async () => {
+  const { approveCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const testNoSourceCandId = `cand-nosrc-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testNoSourceCandId,
+    fingerprint: `fp_nosrc_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Candidate with Missing Source",
+      summary: "Candidate lacking valid source",
+      startDate: "2024-01-15",
+      eventType: "speech-plenary",
+      // sourceId omitted or synthetic
+      claims: [{ claimType: "presence", statement: "Unsubstantiated claim" }],
+    }),
+    suggestedTitle: "Candidate with Missing Source",
+    suggestedDate: "2024-01-15",
+    suggestedPlace: "Jerusalem",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const res = await approveCandidate(testNoSourceCandId, "Senior Editor");
+  assert.equal(res.success, false);
+  assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
+});

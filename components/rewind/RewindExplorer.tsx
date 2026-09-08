@@ -399,23 +399,29 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event && isStandardIsoDate(event.startDate) && (
-          <Link
-            href={
-              subject
-                ? `/person/${subject.slug}/${event.startDate.slice(0, 4)}`
-                : `/events?year=${event.startDate.slice(0, 4)}`
-            }
-            className="calendar-jump"
-            aria-label={
-              subject
-                ? `Open ${event.startDate.slice(0, 4)} year view for ${subject.name}`
-                : `Open ${event.startDate.slice(0, 4)} year view`
-            }
-          >
-            <CalendarDays />
-          </Link>
-        )}
+        {(() => {
+          const eventYear = event && isStandardIsoDate(event.startDate)
+            ? event.startDate.slice(0, 4)
+            : null;
+          if (!event || !eventYear) return null;
+          return (
+            <Link
+              href={
+                subject
+                  ? `/person/${subject.slug}/${eventYear}`
+                  : `/events?year=${eventYear}`
+              }
+              className="calendar-jump"
+              aria-label={
+                subject
+                  ? `Open ${eventYear} year view for ${subject.name}`
+                  : `Open ${eventYear} year view`
+              }
+            >
+              <CalendarDays />
+            </Link>
+          );
+        })()}
       </div>
 
       {citeOpen && event && source && (
