@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeftRight, CalendarRange, Database, Map, Menu, Search, Shield, Users, X } from "lucide-react";
+import { ArrowLeftRight, CalendarRange, Database, Layers, Map, Menu, Search, Shield, Users, X } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { CommandPalette } from "./CommandPalette";
 
@@ -17,6 +17,7 @@ const baseNav: NavItem[] = [
   { label: "Explore", href: "/", icon: CalendarRange },
   { label: "Events", href: "/events", icon: Database },
   { label: "People", href: "/people", icon: Users },
+  { label: "Topics", href: "/topics", icon: Layers },
   { label: "Compare", href: "/compare", icon: ArrowLeftRight },
   { label: "Places", href: "/places", icon: Map },
   { label: "Sources", href: "/sources", icon: Database },

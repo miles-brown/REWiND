@@ -4,8 +4,12 @@ import { usUkPoliticsPeopleSeed } from "./us-uk-politics-people";
 import { mediaPeopleSeed } from "./media-people";
 import { techPeopleSeed } from "./tech-people";
 import { epsteinNetworkPeopleSeed } from "./epstein-network-people";
+import { officialRolesSeed } from "./roles-seed";
+import { milestonesSeed } from "./milestones-seed";
+import { topicsSeed } from "./topics-seed";
 
 export type { CanonicalPersonSeed };
+export { officialRolesSeed, milestonesSeed, topicsSeed };
 
 export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [
   ...israelMePeopleSeed,

@@ -8,8 +8,10 @@ import {
   MapPin,
 } from "lucide-react";
 import { events, personBySlug } from "@/data/rewind";
-import { PersonTimeline } from "@/components/rewind/PersonTimeline";
+import { PersonWorkspaceTabs } from "@/components/rewind/PersonWorkspaceTabs";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
+import { getPersonRoles } from "@/lib/rewind/roles";
+import { getPersonMilestones } from "@/lib/rewind/milestones";
 
 export default async function PersonPage({
   params,
@@ -25,6 +27,9 @@ export default async function PersonPage({
   );
   const years = Array.from(new Set(linked.map((e) => e.startDate.slice(0, 4)))).sort();
   const cities = new Set(linked.map((e) => e.city));
+
+  const roles = await getPersonRoles(person.slug);
+  const milestones = await getPersonMilestones(person.slug);
 
   return (
     <div className="page-shell person-page">
@@ -62,7 +67,12 @@ export default async function PersonPage({
         <PersonCoverageNav slug={person.slug} records={linked} />
       </header>
 
-      <PersonTimeline person={person} records={linked} />
+      <PersonWorkspaceTabs
+        person={person}
+        records={linked}
+        roles={roles}
+        milestones={milestones}
+      />
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">

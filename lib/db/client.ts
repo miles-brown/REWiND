@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import { people, events, sources } from "@/data/rewind";
-import { masterPeopleSeed } from "@/data/seeds";
+import { masterPeopleSeed, officialRolesSeed, milestonesSeed, topicsSeed } from "@/data/seeds";
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -27,6 +27,10 @@ export function getDb() {
 export interface MemoryRelationalStore {
   people: (typeof schema.people.$inferSelect)[];
   personAliases: (typeof schema.personAliases.$inferSelect)[];
+  personRoles: (typeof schema.personRoles.$inferSelect)[];
+  personMilestones: (typeof schema.personMilestones.$inferSelect)[];
+  topics: (typeof schema.topics.$inferSelect)[];
+  eventTopics: (typeof schema.eventTopics.$inferSelect)[];
   places: (typeof schema.places.$inferSelect)[];
   events: (typeof schema.events.$inferSelect)[];
   sources: (typeof schema.sources.$inferSelect)[];
@@ -270,9 +274,75 @@ function initializeSeedStore(): MemoryRelationalStore {
     }))
   );
 
+  const seedRoles: (typeof schema.personRoles.$inferSelect)[] = (officialRolesSeed || []).map((r) => ({
+    id: r.id,
+    personId: r.personId,
+    title: r.title,
+    organisationId: null,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    isCurrent: r.isCurrent,
+  }));
+
+  const seedMilestones: (typeof schema.personMilestones.$inferSelect)[] = (milestonesSeed || []).map((m) => ({
+    id: m.id,
+    personId: m.personId,
+    title: m.title,
+    category: m.category,
+    date: m.date,
+    year: m.year,
+    description: m.description,
+    metricOrStat: m.metricOrStat,
+    sourceId: m.sourceId || null,
+    createdAt: new Date(),
+  }));
+
+  const seedTopics: (typeof schema.topics.$inferSelect)[] = (topicsSeed || []).map((t) => ({
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    category: t.category,
+    summary: t.summary,
+    startedDate: t.startedDate,
+    endedDate: t.endedDate,
+    createdAt: new Date(),
+  }));
+
+  let eventTopicCounter = 1;
+  const seedEventTopics: (typeof schema.eventTopics.$inferSelect)[] = (events || []).flatMap((e) => {
+    const textLower = `${e.eventName} ${e.summary}`.toLowerCase();
+    const matchedTopics: string[] = [];
+
+    if (textLower.includes("9/11") || textLower.includes("september 11") || textLower.includes("world trade center")) {
+      matchedTopics.push("topic-911");
+    }
+    if (textLower.includes("iraq") || textLower.includes("baghdad")) {
+      matchedTopics.push("topic-iraq-war");
+    }
+    if (textLower.includes("oslo") || textLower.includes("peace process") || textLower.includes("declaration of principles")) {
+      matchedTopics.push("topic-oslo-accords");
+    }
+    if (textLower.includes("abraham accord") || textLower.includes("normalization")) {
+      matchedTopics.push("topic-abraham-accords");
+    }
+    if (textLower.includes("epstein") || textLower.includes("maxwell")) {
+      matchedTopics.push("topic-epstein-inquiries");
+    }
+
+    return matchedTopics.map((tId) => ({
+      id: eventTopicCounter++,
+      eventId: e.id,
+      topicId: tId,
+    }));
+  });
+
   return {
     people: seedPeople,
     personAliases: seedAliases,
+    personRoles: seedRoles,
+    personMilestones: seedMilestones,
+    topics: seedTopics,
+    eventTopics: seedEventTopics,
     places: seedPlaces,
     events: seedEvents,
     sources: seedSources,
