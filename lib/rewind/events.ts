@@ -520,7 +520,8 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.year) {
-      query = query.gte("start_date", `${params.year}-01-01`).lte("start_date", `${params.year}-12-31T23:59:59Z`);
+      const escapedYr = escapePostgrestValue(params.year.trim());
+      query = query.like("start_date", `${escapedYr}%`);
     }
 
     if (params.verification) {
@@ -957,6 +958,28 @@ export async function getEventBySlug(
           } else {
             qPage++;
           }
+        }
+      }
+
+      // Resolve any extra speaker names from quotes if not already in personNames
+      const extraSpeakerIds = Array.from(
+        new Set(
+          quotesRows
+            .map((q) => String(q.speaker_id || ""))
+            .filter((sId) => sId && !personNames.has(sId))
+        )
+      );
+      if (extraSpeakerIds.length > 0) {
+        for (let i = 0; i < extraSpeakerIds.length; i += 500) {
+          const chunk = extraSpeakerIds.slice(i, i + 500);
+          const { data: speakerPeople, error: speakerError } = await supabase
+            .from("people")
+            .select("id, canonical_name, display_name")
+            .in("id", chunk);
+          if (speakerError) return { data: null, error: speakerError.message };
+          (speakerPeople || []).forEach((p) => {
+            personNames.set(p.id, p.display_name || p.canonical_name);
+          });
         }
       }
 

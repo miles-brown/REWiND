@@ -386,8 +386,10 @@ test("verifies getMonogram utility and production fail-closed behavior in events
 
   // 1. Monogram utility tests
   assert.equal(getMonogram("Benjamin Netanyahu"), "BN");
+  assert.equal(getMonogram("  Benjamin \t Netanyahu  "), "BN");
   assert.equal(getMonogram("Bill Clinton"), "BC");
   assert.equal(getMonogram("Arafat"), "AR");
+  assert.equal(getMonogram("   "), "—");
   assert.equal(getMonogram(""), "—");
 
   // 2. Production fail-closed behavior without DB
@@ -402,8 +404,27 @@ test("verifies getMonogram utility and production fail-closed behavior in events
     assert.equal(speechRes.data.length, 0);
     assert.match(speechRes.error || "", /Database configuration unavailable in production environment/);
   } finally {
-    process.env.NODE_ENV = origNodeEnv;
+    if (origNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = origNodeEnv;
+    }
   }
+});
+
+test("verifies precision-aware date formatting and year filter matching", async () => {
+  const { formatTimelineDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // Partial date formatting should not fabricate days for year-only or month-only dates
+  assert.equal(formatTimelineDate("1948", "year"), "1948");
+  assert.equal(formatTimelineDate("1948-05", "month"), "May 1948");
+  assert.equal(formatTimelineDate("2011-09-23", "exact-day", { day: "numeric", month: "long", year: "numeric" }), "23 September 2011");
+
+  // Year filter matching matches year prefix
+  const res = await getEvents({ year: "1998" });
+  assert.ok(Array.isArray(res.data));
+  assert.ok(res.data.every((e) => e.startDate.startsWith("1998")));
 });
 
 test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilience, and venue error handling", async () => {

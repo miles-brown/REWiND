@@ -566,20 +566,24 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     const claimsToInsert: Array<
       ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
     > = [];
+    const seenInMemory = new Set<string>();
     if (Array.isArray(data.claims)) {
       data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         const subjectId = resolvedSubject?.personId || null;
         const statement = clm.statement || "Corroborating claim";
+        const stmtNorm = statement.trim().toLowerCase();
+        const dedupeKey = `${subjectId || "none"}::${stmtNorm}`;
 
         const isDuplicateClaim = store.claims.some(
           (existing) =>
             existing.eventId === targetEventId &&
-            existing.statement.toLowerCase().trim() === statement.toLowerCase().trim() &&
+            existing.statement.toLowerCase().trim() === stmtNorm &&
             existing.subjectId === subjectId
         );
 
-        if (!isDuplicateClaim) {
+        if (!isDuplicateClaim && !seenInMemory.has(dedupeKey)) {
+          seenInMemory.add(dedupeKey);
           claimsToInsert.push({
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
@@ -657,62 +661,93 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
           }
 
           if (claimsToInsert.length > 0) {
-            const dbClaims = await Promise.all(
-              claimsToInsert.map(async (clm) => {
-                let resolvedDbSubjectId = clm.subjectId;
-                if (!resolvedDbSubjectId && clm.subjectMention) {
-                  const mention = clm.subjectMention.trim();
-                  const escaped = escapeIlikePattern(mention);
-                  const [exactBySlug] = await tx
+            const existingDbClaims = await tx
+              .select({
+                subjectId: schema.claims.subjectId,
+                statement: schema.claims.statement,
+              })
+              .from(schema.claims)
+              .where(eq(schema.claims.eventId, targetEventId));
+
+            const resolvedDbClaims: Array<typeof schema.claims.$inferInsert> = [];
+            const seenInBatch = new Set<string>();
+
+            for (const clm of claimsToInsert) {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                const mention = clm.subjectMention.trim();
+                const escaped = escapeIlikePattern(mention);
+                const [exactBySlug] = await tx
+                  .select({ id: schema.people.id })
+                  .from(schema.people)
+                  .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
+                if (exactBySlug) {
+                  resolvedDbSubjectId = exactBySlug.id;
+                } else {
+                  const matchingPeople = await tx
                     .select({ id: schema.people.id })
                     .from(schema.people)
-                    .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
-                  if (exactBySlug) {
-                    resolvedDbSubjectId = exactBySlug.id;
-                  } else {
-                    const matchingPeople = await tx
-                      .select({ id: schema.people.id })
-                      .from(schema.people)
+                    .where(
+                      or(
+                        ilike(schema.people.canonicalName, escaped),
+                        ilike(schema.people.displayName, escaped)
+                      )
+                    );
+                  const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
+                  if (distinctDbPeople.length === 1) {
+                    resolvedDbSubjectId = distinctDbPeople[0];
+                  } else if (distinctDbPeople.length === 0) {
+                    const aliasRows = await tx
+                      .select({ personId: schema.personAliases.personId })
+                      .from(schema.personAliases)
                       .where(
                         or(
-                          ilike(schema.people.canonicalName, escaped),
-                          ilike(schema.people.displayName, escaped)
+                          ilike(schema.personAliases.alias, escaped),
+                          eq(schema.personAliases.alias, mention)
                         )
                       );
-                    const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
-                    if (distinctDbPeople.length === 1) {
-                      resolvedDbSubjectId = distinctDbPeople[0];
-                    } else if (distinctDbPeople.length === 0) {
-                      const aliasRows = await tx
-                        .select({ personId: schema.personAliases.personId })
-                        .from(schema.personAliases)
-                        .where(
-                          or(
-                            ilike(schema.personAliases.alias, escaped),
-                            eq(schema.personAliases.alias, mention)
-                          )
-                        );
-                      const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                      if (distinctPersonIds.length === 1) {
-                        resolvedDbSubjectId = distinctPersonIds[0];
-                      } else {
-                        resolvedDbSubjectId = null;
-                      }
+                    const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                    if (distinctPersonIds.length === 1) {
+                      resolvedDbSubjectId = distinctPersonIds[0];
                     } else {
                       resolvedDbSubjectId = null;
                     }
+                  } else {
+                    resolvedDbSubjectId = null;
                   }
                 }
-                clm.subjectId = resolvedDbSubjectId;
-                const dbRow = { ...clm };
-                delete dbRow.subjectMention;
-                return {
-                  ...dbRow,
+              }
+
+              clm.subjectId = resolvedDbSubjectId;
+              const stmtNorm = clm.statement.trim().toLowerCase();
+              const dedupeKey = `${resolvedDbSubjectId || "none"}::${stmtNorm}`;
+
+              const isDbDuplicate = existingDbClaims.some(
+                (ec) =>
+                  ec.statement.trim().toLowerCase() === stmtNorm &&
+                  ec.subjectId === resolvedDbSubjectId
+              );
+
+              if (!isDbDuplicate && !seenInBatch.has(dedupeKey)) {
+                seenInBatch.add(dedupeKey);
+                resolvedDbClaims.push({
+                  id: clm.id,
+                  eventId: clm.eventId,
                   subjectId: resolvedDbSubjectId,
-                };
-              })
-            );
-            await tx.insert(schema.claims).values(dbClaims);
+                  claimType: clm.claimType,
+                  statement: clm.statement,
+                  claimedTime: clm.claimedTime,
+                  claimedVenue: clm.claimedVenue,
+                  sourceId: clm.sourceId,
+                  confidence: clm.confidence,
+                  supportingExcerpt: clm.supportingExcerpt,
+                });
+              }
+            }
+
+            if (resolvedDbClaims.length > 0) {
+              await tx.insert(schema.claims).values(resolvedDbClaims);
+            }
           }
 
           await tx.insert(schema.reviewDecisions).values({

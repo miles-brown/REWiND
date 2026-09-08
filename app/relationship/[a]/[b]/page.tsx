@@ -16,15 +16,18 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const [pa, pb, people, allEvents, sources] = await Promise.all([
+  const [pa, pb] = await Promise.all([
     getPersonBySlug(a),
     getPersonBySlug(b),
+  ]);
+
+  if (!pa || !pb) notFound();
+
+  const [people, allEvents, sources] = await Promise.all([
     getPeople(),
     getAllEvents(),
     getSources(),
   ]);
-
-  if (!pa || !pb) notFound();
 
   return (
     <div className="page-shell relationship-page">

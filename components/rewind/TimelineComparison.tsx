@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
-import { formatIsoDate } from "@/lib/rewind/dates";
+import { formatTimelineDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -26,8 +26,8 @@ function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boo
   return p.personId === person.id || p.personId === person.slug;
 }
 
-function formatDate(dateStr: string): string {
-  return formatIsoDate(dateStr) || dateStr;
+function formatDate(dateStr: string, precision?: string): string {
+  return formatTimelineDate(dateStr, precision) || dateStr;
 }
 
 export function TimelineComparison({
@@ -182,16 +182,16 @@ export function TimelineComparison({
       .sort((a, b) => b.count - a.count);
   }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection if they are a valid co-attendee, otherwise default to top co-attendee, or "" if none exist
+  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0 intersections), otherwise default to top co-attendee, or "" if none exist
   const slugB = useMemo(() => {
-    if (explicitSlugB && coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)) {
+    if (explicitSlugB && peopleMap.has(explicitSlugB)) {
       return explicitSlugB;
     }
     if (coAttendeesWithCounts.length > 0) {
       return coAttendeesWithCounts[0].person.slug;
     }
     return "";
-  }, [coAttendeesWithCounts, explicitSlugB]);
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap]);
 
   const currentPairKey = `${effectiveSlugA}-${slugB}`;
   if (currentPairKey !== prevPairKey) {

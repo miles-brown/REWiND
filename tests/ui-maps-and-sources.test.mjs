@@ -727,11 +727,11 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
     "parseIsoDate must accept valid timestamp"
   );
 
-  // 2. TimelineComparison Person B resolution against co-attendees only
+  // 2. TimelineComparison Person B resolution
   const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
-    compContent.includes("coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)"),
-    "TimelineComparison must accept explicitSlugB only if figure is in coAttendeesWithCounts"
+    compContent.includes("peopleMap.has(explicitSlugB)"),
+    "TimelineComparison must accept explicitSlugB if figure exists in peopleMap"
   );
 
   // 3. app/events/page.tsx error propagation

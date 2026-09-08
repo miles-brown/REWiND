@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatIsoDate } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
@@ -35,8 +35,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {event.verificationStatus === "verified" ? <CheckCircle2 /> : <CircleDashed />}
             {event.verificationStatus} evidence
           </div>
-          <time>
-            {formatIsoDate(event.startDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
+          <time dateTime={event.startDate}>
+            {formatTimelineDate(event.startDate, event.datePrecision, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
           </time>
           <h1>{event.eventName}</h1>
           <p>{event.summary}</p>
