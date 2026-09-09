@@ -22,88 +22,76 @@ export function PersonWorkspaceTabs({
 }) {
   const [activeTab, setActiveTab] = useState<"events" | "roles" | "milestones">("events");
 
+  const tabAnnounceText = activeTab === "events"
+    ? `Events Timeline selected, showing ${records.length} events for ${person.name}.`
+    : activeTab === "roles"
+    ? `Official Roles selected, showing ${roles.length} public offices for ${person.name}.`
+    : `Milestones & Records selected, showing ${milestones.length} achievements for ${person.name}.`;
+
   return (
     <div className="person-workspace-tabs">
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {tabAnnounceText}
+      </div>
+
       <div
         className="tabs-header"
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          marginBottom: "1.5rem",
-          borderBottom: "1px solid var(--border-subtle, #262626)",
-          paddingBottom: "0.75rem",
-        }}
+        role="tablist"
+        aria-label={`${person.name} workspace timeline views`}
       >
         <button
+          id="tab-events"
+          role="tab"
+          aria-selected={activeTab === "events"}
+          aria-controls="tabpanel-events"
+          className="workspace-tab-btn"
           onClick={() => setActiveTab("events")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.6rem 1.2rem",
-            borderRadius: "6px",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            border: "1px solid",
-            borderColor: activeTab === "events" ? "var(--brand-accent, #6366f1)" : "transparent",
-            background: activeTab === "events" ? "var(--bg-surface, #1c1c1c)" : "transparent",
-            color: activeTab === "events" ? "#fff" : "var(--text-muted, #888)",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
         >
           <Calendar size={16} />
           Events Timeline ({records.length})
         </button>
 
         <button
+          id="tab-roles"
+          role="tab"
+          aria-selected={activeTab === "roles"}
+          aria-controls="tabpanel-roles"
+          className="workspace-tab-btn"
           onClick={() => setActiveTab("roles")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.6rem 1.2rem",
-            borderRadius: "6px",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            border: "1px solid",
-            borderColor: activeTab === "roles" ? "var(--brand-accent, #6366f1)" : "transparent",
-            background: activeTab === "roles" ? "var(--bg-surface, #1c1c1c)" : "transparent",
-            color: activeTab === "roles" ? "#fff" : "var(--text-muted, #888)",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
         >
           <Building2 size={16} />
           Official Roles ({roles.length})
         </button>
 
         <button
+          id="tab-milestones"
+          role="tab"
+          aria-selected={activeTab === "milestones"}
+          aria-controls="tabpanel-milestones"
+          className="workspace-tab-btn"
           onClick={() => setActiveTab("milestones")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.6rem 1.2rem",
-            borderRadius: "6px",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            border: "1px solid",
-            borderColor: activeTab === "milestones" ? "var(--brand-accent, #6366f1)" : "transparent",
-            background: activeTab === "milestones" ? "var(--bg-surface, #1c1c1c)" : "transparent",
-            color: activeTab === "milestones" ? "#fff" : "var(--text-muted, #888)",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
         >
           <Trophy size={16} />
           Milestones & Records ({milestones.length})
         </button>
       </div>
 
-      {activeTab === "events" && <PersonTimeline person={person} records={records} />}
-      {activeTab === "roles" && <RolesTimeline roles={roles} />}
-      {activeTab === "milestones" && <MilestonesTimeline milestones={milestones} />}
+      {activeTab === "events" && (
+        <div id="tabpanel-events" role="tabpanel" aria-labelledby="tab-events" className="tab-panel">
+          <PersonTimeline person={person} records={records} />
+        </div>
+      )}
+      {activeTab === "roles" && (
+        <div id="tabpanel-roles" role="tabpanel" aria-labelledby="tab-roles" className="tab-panel">
+          <RolesTimeline roles={roles} />
+        </div>
+      )}
+      {activeTab === "milestones" && (
+        <div id="tabpanel-milestones" role="tabpanel" aria-labelledby="tab-milestones" className="tab-panel">
+          <MilestonesTimeline milestones={milestones} />
+        </div>
+      )}
     </div>
   );
 }

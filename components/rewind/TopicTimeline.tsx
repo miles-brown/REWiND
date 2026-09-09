@@ -28,49 +28,29 @@ export function TopicTimeline({
     ? records
     : records.filter((r) => r.categories?.includes(selectedCategory));
 
+  const filterAnnouncement = selectedCategory === "all"
+    ? `Showing all ${records.length} events for ${topic.name}.`
+    : `Filter applied: ${selectedCategory}, showing ${filteredRecords.length} of ${records.length} events.`;
+
   return (
-    <div className="topic-timeline-container" style={{ margin: "2rem 0" }}>
-      <header
-        style={{
-          background: "var(--bg-surface, #141414)",
-          border: "1px solid var(--border-subtle, #2a2a2a)",
-          borderRadius: "12px",
-          padding: "2rem",
-          marginBottom: "2rem",
-        }}
-      >
-        <span
-          style={{
-            display: "inline-block",
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--brand-accent, #6366f1)",
-            marginBottom: "0.5rem",
-          }}
-        >
+    <div className="topic-timeline-container">
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {filterAnnouncement}
+      </div>
+
+      <header className="topic-hero-card">
+        <span className="eyebrow" style={{ color: "var(--coral, #ff5b43)" }}>
           NON-PERSON TOPIC TIMELINE — {topic.category.toUpperCase()}
         </span>
         <h1 style={{ fontSize: "2rem", fontWeight: 800, margin: "0.25rem 0 0.75rem 0" }}>
           {topic.name}
         </h1>
-        <p style={{ color: "var(--text-muted, #aaa)", fontSize: "1rem", maxWidth: "800px", lineHeight: 1.6 }}>
+        <p style={{ color: "var(--muted, #64747a)", fontSize: "1rem", maxWidth: "800px", lineHeight: 1.6 }}>
           {topic.summary}
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "1.5rem",
-            marginTop: "1.5rem",
-            paddingTop: "1.25rem",
-            borderTop: "1px solid var(--border-subtle, #222)",
-            flexWrap: "wrap",
-            fontSize: "0.85rem",
-            color: "var(--text-muted, #888)",
-          }}
-        >
+        <div className="topic-hero-meta">
           <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
             <Calendar size={14} />
             {topic.startedDate} — {topic.endedDate || "Ongoing"}
@@ -80,7 +60,7 @@ export function TopicTimeline({
             {records.length} Indexed Events
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
-            <CheckCircle2 size={14} style={{ color: "#4ade80" }} />
+            <CheckCircle2 size={14} style={{ color: "#167151" }} />
             {records.filter((r) => r.verificationStatus === "verified").length} Verified Primary
           </span>
         </div>
@@ -88,38 +68,26 @@ export function TopicTimeline({
 
       {/* Category Filter Pills */}
       {categories.length > 0 && (
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+        <div
+          className="category-filter-bar"
+          role="group"
+          aria-label="Filter events by topic sub-category"
+        >
           <button
+            type="button"
+            aria-pressed={selectedCategory === "all"}
+            className="category-filter-btn"
             onClick={() => setSelectedCategory("all")}
-            style={{
-              padding: "0.4rem 0.85rem",
-              borderRadius: "20px",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              border: "1px solid",
-              borderColor: selectedCategory === "all" ? "var(--brand-accent, #6366f1)" : "var(--border-subtle, #333)",
-              background: selectedCategory === "all" ? "var(--brand-accent, #6366f1)" : "transparent",
-              color: "#fff",
-              cursor: "pointer",
-            }}
           >
             All Sub-topics ({records.length})
           </button>
           {categories.map((cat) => (
             <button
               key={cat}
+              type="button"
+              aria-pressed={selectedCategory === cat}
+              className="category-filter-btn"
               onClick={() => setSelectedCategory(cat)}
-              style={{
-                padding: "0.4rem 0.85rem",
-                borderRadius: "20px",
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                border: "1px solid",
-                borderColor: selectedCategory === cat ? "var(--brand-accent, #6366f1)" : "var(--border-subtle, #333)",
-                background: selectedCategory === cat ? "var(--brand-accent, #6366f1)" : "transparent",
-                color: "#fff",
-                cursor: "pointer",
-              }}
             >
               {cat}
             </button>
@@ -130,34 +98,24 @@ export function TopicTimeline({
       {/* Threaded Events Timeline */}
       <div
         className="topic-events-list"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.25rem",
-        }}
+        role="list"
+        aria-label={`${topic.name} timeline event records`}
+        style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
       >
         {filteredRecords.map((evt) => (
-          <div
-            key={evt.id}
-            style={{
-              background: "var(--bg-surface, #141414)",
-              border: "1px solid var(--border-subtle, #2a2a2a)",
-              borderRadius: "10px",
-              padding: "1.5rem",
-            }}
-          >
+          <div key={evt.id} className="topic-event-card" role="listitem">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--brand-accent, #6366f1)" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--ink, #0c1820)" }}>
                     {evt.startDate}
                   </span>
                   {evt.verificationStatus === "verified" ? (
-                    <span style={{ fontSize: "0.75rem", color: "#4ade80", display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
+                    <span style={{ fontSize: "0.75rem", color: "#15803d", display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
                       <CheckCircle2 size={12} /> Verified
                     </span>
                   ) : (
-                    <span style={{ fontSize: "0.75rem", color: "#fbbf24", display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
+                    <span style={{ fontSize: "0.75rem", color: "#b45309", display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
                       <CircleDashed size={12} /> Provisional
                     </span>
                   )}
@@ -169,13 +127,13 @@ export function TopicTimeline({
                 </h3>
               </div>
 
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted, #888)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--muted, #64747a)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                 <MapPin size={13} />
                 <span>{evt.venueName ? `${evt.venueName}, ${evt.city}` : `${evt.city}, ${evt.country}`}</span>
               </div>
             </div>
 
-            <p style={{ color: "var(--text-muted, #bbb)", fontSize: "0.92rem", lineHeight: 1.5, margin: "0 0 1rem 0" }}>
+            <p style={{ color: "var(--ink-2, #142832)", fontSize: "0.92rem", lineHeight: 1.5, margin: "0 0 1rem 0" }}>
               {evt.summary}
             </p>
 
@@ -188,9 +146,9 @@ export function TopicTimeline({
                   gap: "0.5rem",
                   flexWrap: "wrap",
                   paddingTop: "0.75rem",
-                  borderTop: "1px dashed var(--border-subtle, #262626)",
+                  borderTop: "1px dashed var(--line, #dbe2de)",
                   fontSize: "0.8rem",
-                  color: "var(--text-muted, #888)",
+                  color: "var(--muted, #64747a)",
                 }}
               >
                 <Users size={13} />
@@ -199,14 +157,7 @@ export function TopicTimeline({
                   <Link
                     key={p.personId}
                     href={`/person/${p.personId}`}
-                    style={{
-                      background: "var(--bg-subtle, #1a1a1a)",
-                      color: "var(--text-main, #eee)",
-                      padding: "0.2rem 0.5rem",
-                      borderRadius: "4px",
-                      textDecoration: "none",
-                      border: "1px solid var(--border-subtle, #333)",
-                    }}
+                    className="participant-tag"
                   >
                     {p.name} ({p.role})
                   </Link>

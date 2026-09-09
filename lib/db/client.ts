@@ -309,32 +309,61 @@ function initializeSeedStore(): MemoryRelationalStore {
   }));
 
   let eventTopicCounter = 1;
+  const topicRules: { id: string; patterns: RegExp[]; dates?: [string, string] }[] = [
+    {
+      id: "topic-911",
+      patterns: [/\b9\/11\b/i, /\bseptember 11\b/i, /\bworld trade center\b/i, /\bpentagon attack\b/i],
+    },
+    {
+      id: "topic-iraq-war",
+      patterns: [/\biraq(?: war)?\b/i, /\bbaghdad\b/i, /\bsaddam\b/i, /\bweapons of mass destruction\b/i, /\bwmds?\b/i],
+    },
+    {
+      id: "topic-oslo-accords",
+      patterns: [/\boslo\b/i, /\bpeace process\b/i, /\bdeclaration of principles\b/i, /\bwye river\b/i, /\bcamp david\b/i],
+    },
+    {
+      id: "topic-abraham-accords",
+      patterns: [/\babraham accords?\b/i, /\bnormalization\b/i, /\buae-israel\b/i, /\bbahrain-israel\b/i],
+    },
+    {
+      id: "topic-epstein-inquiries",
+      patterns: [/\bepstein\b/i, /\bghislaine maxwell\b/i, /\bpalm beach indictment\b/i, /\bpalm beach police\b/i],
+    },
+    {
+      id: "topic-ukraine-2022",
+      patterns: [/\bukraine\b/i, /\bkyiv\b/i, /\bzelenskyy?\b/i, /\brussian invasion\b/i],
+    },
+    {
+      id: "topic-financial-crisis",
+      patterns: [/\bfinancial crisis\b/i, /\blehman brothers\b/i, /\bsubprime\b/i, /\b2008 bailout\b/i],
+    },
+    {
+      id: "topic-ai-revolution",
+      patterns: [/\bartificial intelligence\b/i, /\bchatgpt\b/i, /\bopenai\b/i, /\bllm\b/i, /\bgenerative ai\b/i],
+    },
+  ];
+
   const seedEventTopics: (typeof schema.eventTopics.$inferSelect)[] = (events || []).flatMap((e) => {
-    const textLower = `${e.eventName} ${e.summary}`.toLowerCase();
-    const matchedTopics: string[] = [];
+    const fullText = `${e.eventName} ${e.summary} ${(e.categories || []).join(" ")} ${(e.eventTypes || []).join(" ")} ${(e.organisations || []).join(" ")}`.toLowerCase();
+    const matchedTopics = new Set<string>();
 
-    if (textLower.includes("9/11") || textLower.includes("september 11") || textLower.includes("world trade center")) {
-      matchedTopics.push("topic-911");
-    }
-    if (textLower.includes("iraq") || textLower.includes("baghdad")) {
-      matchedTopics.push("topic-iraq-war");
-    }
-    if (textLower.includes("oslo") || textLower.includes("peace process") || textLower.includes("declaration of principles")) {
-      matchedTopics.push("topic-oslo-accords");
-    }
-    if (textLower.includes("abraham accord") || textLower.includes("normalization")) {
-      matchedTopics.push("topic-abraham-accords");
-    }
-    if (textLower.includes("epstein") || textLower.includes("maxwell")) {
-      matchedTopics.push("topic-epstein-inquiries");
+    for (const rule of topicRules) {
+      for (const pat of rule.patterns) {
+        if (pat.test(fullText)) {
+          matchedTopics.add(rule.id);
+          break;
+        }
+      }
     }
 
-    return matchedTopics.map((tId) => ({
+    return Array.from(matchedTopics).map((tId) => ({
       id: eventTopicCounter++,
       eventId: e.id,
       topicId: tId,
     }));
   });
+
 
   return {
     people: seedPeople,

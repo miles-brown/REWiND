@@ -11,13 +11,29 @@ export interface TopicRecord {
   endedDate: string | null;
 }
 
+const VALID_TOPIC_CATEGORIES: Set<TopicRecord["category"]> = new Set([
+  "geopolitics",
+  "conflict",
+  "economy",
+  "diplomacy",
+  "technology",
+  "investigation",
+]);
+
+export function parseTopicCategory(cat: string | null | undefined): TopicRecord["category"] {
+  if (cat && VALID_TOPIC_CATEGORIES.has(cat as TopicRecord["category"])) {
+    return cat as TopicRecord["category"];
+  }
+  return "geopolitics";
+}
+
 export async function getTopics(): Promise<TopicRecord[]> {
   const store = getRelationalStore();
   return store.topics.map((t) => ({
     id: t.id,
     slug: t.slug,
     name: t.name,
-    category: t.category as TopicRecord["category"],
+    category: parseTopicCategory(t.category),
     summary: t.summary,
     startedDate: t.startedDate,
     endedDate: t.endedDate,
@@ -32,12 +48,13 @@ export async function getTopicBySlug(slug: string): Promise<TopicRecord | null> 
     id: t.id,
     slug: t.slug,
     name: t.name,
-    category: t.category as TopicRecord["category"],
+    category: parseTopicCategory(t.category),
     summary: t.summary,
     startedDate: t.startedDate,
     endedDate: t.endedDate,
   };
 }
+
 
 export async function getEventsByTopic(topicSlugOrId: string): Promise<EventRecord[]> {
   const store = getRelationalStore();

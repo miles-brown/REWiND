@@ -12,6 +12,21 @@ export interface PersonMilestoneRecord {
   sourceId: string | null;
 }
 
+const VALID_MILESTONE_CATEGORIES: Set<PersonMilestoneRecord["category"]> = new Set([
+  "achievement",
+  "record",
+  "statistic",
+  "honor",
+  "landmark-fact",
+]);
+
+export function parseMilestoneCategory(cat: string | null | undefined): PersonMilestoneRecord["category"] {
+  if (cat && VALID_MILESTONE_CATEGORIES.has(cat as PersonMilestoneRecord["category"])) {
+    return cat as PersonMilestoneRecord["category"];
+  }
+  return "achievement";
+}
+
 export async function getPersonMilestones(personSlugOrId: string): Promise<PersonMilestoneRecord[]> {
   const store = getRelationalStore();
   const person = store.people.find((p) => p.slug === personSlugOrId || p.id === personSlugOrId);
@@ -22,7 +37,7 @@ export async function getPersonMilestones(personSlugOrId: string): Promise<Perso
     id: m.id,
     personId: m.personId,
     title: m.title,
-    category: m.category as PersonMilestoneRecord["category"],
+    category: parseMilestoneCategory(m.category),
     date: m.date,
     year: m.year,
     description: m.description,
@@ -30,3 +45,4 @@ export async function getPersonMilestones(personSlugOrId: string): Promise<Perso
     sourceId: m.sourceId,
   })).sort((a, b) => a.date.localeCompare(b.date));
 }
+
