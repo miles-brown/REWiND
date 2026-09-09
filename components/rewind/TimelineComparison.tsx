@@ -182,15 +182,21 @@ export function TimelineComparison({
       .sort((a, b) => b.count - a.count);
   }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0 intersections), rejecting self-pairs, otherwise default to top co-attendee, or "" if none exist
+  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0
+  // intersections), rejecting self-pairs, otherwise default to top co-attendee, or "" if none exist.
+  // explicitSlugB is authoritative even when not yet present in peopleMap (e.g. route-provided slug
+  // for a person with no shared events), so the pair renders with zero intersections rather than
+  // silently falling back to the top co-attendee.
   const slugB = useMemo(() => {
-    if (explicitSlugB && peopleMap.has(explicitSlugB)) {
+    if (explicitSlugB) {
+      // Resolve canonical slug through peopleMap when available; fall back to raw slug otherwise
       const resolvedPerson = peopleMap.get(explicitSlugB);
-      const resolvedSlug = resolvedPerson?.slug || explicitSlugB;
+      const resolvedSlug = resolvedPerson?.slug ?? explicitSlugB;
       if (resolvedSlug !== effectiveSlugA) {
         return resolvedSlug;
       }
     }
+    // No explicit selection, or explicit selection was a self-pair — use highest-frequency co-attendee
     if (coAttendeesWithCounts.length > 0) {
       const topCo = coAttendeesWithCounts.find((item) => item.person.slug !== effectiveSlugA);
       if (topCo) {

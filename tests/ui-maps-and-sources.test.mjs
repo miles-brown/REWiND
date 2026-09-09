@@ -732,8 +732,9 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
   // 2. TimelineComparison Person B resolution
   const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
-    compContent.includes("peopleMap.has(explicitSlugB)"),
-    "TimelineComparison must accept explicitSlugB if figure exists in peopleMap"
+    compContent.includes("peopleMap.get(explicitSlugB)") &&
+    compContent.includes("resolvedSlug !== effectiveSlugA"),
+    "TimelineComparison must resolve explicitSlugB through peopleMap.get() and reject self-pairs, remaining authoritative even when not in peopleMap"
   );
 
   // 3. app/events/page.tsx error propagation

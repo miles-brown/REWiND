@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count, or, and, ilike } from "drizzle-orm";
+import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity } from "@/lib/ingestion/resolve";
 
@@ -380,46 +380,98 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             );
 
             const mentionToSubjectMap = new Map<string, string | null>();
-            for (const mention of distinctMentions) {
-              const escaped = escapeIlikePattern(mention);
-              const [exactBySlug] = await tx
-                .select({ id: schema.people.id })
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
                 .from(schema.people)
-                .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
-              if (exactBySlug) {
-                mentionToSubjectMap.set(mention, exactBySlug.id);
-              } else {
-                const matchingPeople = await tx
-                  .select({ id: schema.people.id })
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
                   .from(schema.people)
                   .where(
                     or(
-                      ilike(schema.people.canonicalName, escaped),
-                      ilike(schema.people.displayName, escaped)
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
                     )
                   );
-                const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
-                if (distinctDbPeople.length === 1) {
-                  mentionToSubjectMap.set(mention, distinctDbPeople[0]);
-                } else if (distinctDbPeople.length === 0) {
-                  const aliasRows = await tx
-                    .select({ personId: schema.personAliases.personId })
-                    .from(schema.personAliases)
-                    .where(
-                      or(
-                        ilike(schema.personAliases.alias, escaped),
-                        eq(schema.personAliases.alias, mention)
-                      )
-                    );
-                  const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                  if (distinctPersonIds.length === 1) {
-                    mentionToSubjectMap.set(mention, distinctPersonIds[0]);
-                  } else {
-                    mentionToSubjectMap.set(mention, null);
-                  }
-                } else {
-                  mentionToSubjectMap.set(mention, null);
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
                 }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
               }
             }
 
@@ -694,46 +746,98 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             );
 
             const mentionToSubjectMap = new Map<string, string | null>();
-            for (const mention of distinctMentions) {
-              const escaped = escapeIlikePattern(mention);
-              const [exactBySlug] = await tx
-                .select({ id: schema.people.id })
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
                 .from(schema.people)
-                .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
-              if (exactBySlug) {
-                mentionToSubjectMap.set(mention, exactBySlug.id);
-              } else {
-                const matchingPeople = await tx
-                  .select({ id: schema.people.id })
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
                   .from(schema.people)
                   .where(
                     or(
-                      ilike(schema.people.canonicalName, escaped),
-                      ilike(schema.people.displayName, escaped)
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
                     )
                   );
-                const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
-                if (distinctDbPeople.length === 1) {
-                  mentionToSubjectMap.set(mention, distinctDbPeople[0]);
-                } else if (distinctDbPeople.length === 0) {
-                  const aliasRows = await tx
-                    .select({ personId: schema.personAliases.personId })
-                    .from(schema.personAliases)
-                    .where(
-                      or(
-                        ilike(schema.personAliases.alias, escaped),
-                        eq(schema.personAliases.alias, mention)
-                      )
-                    );
-                  const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                  if (distinctPersonIds.length === 1) {
-                    mentionToSubjectMap.set(mention, distinctPersonIds[0]);
-                  } else {
-                    mentionToSubjectMap.set(mention, null);
-                  }
-                } else {
-                  mentionToSubjectMap.set(mention, null);
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
                 }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
               }
             }
 
