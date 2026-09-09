@@ -178,11 +178,16 @@ export function mapDatabaseEvent(
     confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" && row.confidence_score < 0.7 ? "moderate" : "confirmed"),
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 1.0,
     sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
-    sources,
+    sources: Array.isArray(sources) ? sources : [],
     participants: Array.isArray(participants) ? participants : [],
     categories: [String(row.event_type || "diplomatic")],
     eventTypes: [String(row.event_type || "historical-action")],
-    quotes: quotesMap?.get(id),
+    quotes: quotesMap?.get(id) || [],
+    organisations: [],
+    medium: ["official-record"],
+    media: [],
+    provenance: [],
+    conflictingClaims: [],
   };
 }
 
@@ -581,11 +586,18 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.placeSlug) {
-      const { data: placeData, error: placeError } = await supabase
-        .from("places")
-        .select("id")
-        .eq("slug", params.placeSlug)
-        .maybeSingle();
+      const [{ data: placeData, error: placeError }, { data: venueData, error: venueError }] = await Promise.all([
+        supabase
+          .from("places")
+          .select("id")
+          .or(`slug.eq.${params.placeSlug},id.eq.${params.placeSlug}`)
+          .maybeSingle(),
+        supabase
+          .from("venues")
+          .select("id")
+          .or(`id.eq.${params.placeSlug},id.eq.ven-${params.placeSlug},id.eq.plc-${params.placeSlug}`)
+          .maybeSingle(),
+      ]);
 
       if (placeError) {
         return {
@@ -598,38 +610,35 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
         };
       }
 
-      if (!placeData) {
-        const { data: venueData, error: venueError } = await supabase
-          .from("venues")
-          .select("id")
-          .or(`id.eq.${params.placeSlug},id.eq.ven-${params.placeSlug},id.eq.plc-${params.placeSlug}`)
-          .maybeSingle();
+      if (venueError) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: venueError.message,
+        };
+      }
 
-        if (venueError) {
-          return {
-            data: [],
-            count: 0,
-            page,
-            pageSize,
-            totalPages: 0,
-            error: venueError.message,
-          };
-        }
+      const pId = placeData?.id;
+      const vId = venueData?.id;
 
-        if (venueData) {
-          query = query.eq("venue_id", venueData.id);
-        } else {
-          return {
-            data: [],
-            count: 0,
-            page,
-            pageSize,
-            totalPages: 0,
-            error: null,
-          };
-        }
+      if (pId && vId) {
+        query = query.or(`place_id.eq.${pId},venue_id.eq.${vId}`);
+      } else if (pId) {
+        query = query.eq("place_id", pId);
+      } else if (vId) {
+        query = query.eq("venue_id", vId);
       } else {
-        query = query.eq("place_id", placeData.id);
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: null,
+        };
       }
     }
 

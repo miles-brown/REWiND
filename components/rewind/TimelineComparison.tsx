@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
-import { formatTimelineDate } from "@/lib/rewind/dates";
+import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -559,7 +559,7 @@ export function TimelineComparison({
                                   title={`Temporal precision: ${temporalPrecision}`}
                                 >
                                   <Calendar size={13} />
-                                  <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
+                                  <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>{formatDate(event.startDate)}</time>
                                 </span>
 
                                 <span
@@ -680,7 +680,7 @@ export function TimelineComparison({
             <div className="side-by-side-grid">
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personA.name
                       .split(" ")
                       .map((n) => n[0])
@@ -701,7 +701,7 @@ export function TimelineComparison({
 
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personB.name
                       .split(" ")
                       .map((n) => n[0])
@@ -765,7 +765,7 @@ export function TimelineComparison({
                   }}
                   aria-label={`Select ${item.person.name} with ${item.coCount} joint encounters`}
                 >
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {item.person.name
                       .split(" ")
                       .map((n) => n[0])

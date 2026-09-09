@@ -103,6 +103,15 @@ async function resolveCandidateRecord(
   return store.candidateEvents.find((c) => c.id === candidateId);
 }
 
+/**
+ * Wraps an async database execution promise with initial synchronous fallback properties.
+ *
+ * CAUTION / ARCHITECTURAL CONTRACT:
+ * The immediate synchronous properties (e.g. `result.success`) reflect initial memory store
+ * fallback state. Callers awaiting the returned Promise receive the authoritative database result once the
+ * async database transaction completes. Synchronous property inspection should be treated as transient
+ * state while background persistence completes.
+ */
 function asAsyncResult<T extends Record<string, unknown>>(promise: Promise<T>, syncFallback: T): Promise<T> & T {
   return Object.assign(promise, syncFallback);
 }
@@ -621,6 +630,22 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         if (dbEvt) targetEvent = dbEvt;
 
         await db.transaction(async (tx) => {
+          // Atomically update candidate status inside database transaction (Codex Issue)
+          const updateResult = await tx
+            .update(schema.candidateEvents)
+            .set({ status: "merged" })
+            .where(
+              and(
+                eq(schema.candidateEvents.id, candidateId),
+                eq(schema.candidateEvents.status, "pending")
+              )
+            )
+            .returning({ id: schema.candidateEvents.id });
+
+          if (updateResult.length === 0) {
+            throw new Error("Candidate was already reviewed or claimed by another editor");
+          }
+
           // 1. Ensure Source exists in DB
           const [existingSrc] = await tx
             .select({ id: schema.sources.id })

@@ -265,7 +265,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
   );
   assert.ok(
     timelineContent.includes("<time") &&
-    timelineContent.includes("dateTime={event.startDate}"),
+    (timelineContent.includes("dateTime={event.startDate}") ||
+     timelineContent.includes("dateTime={isStandardIsoDate(event.startDate)")),
     "PersonTimeline event detail must render machine-readable ISO-8601 dateTime"
   );
 
@@ -285,7 +286,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
   );
   assert.ok(
     explorerContent.includes("<time") &&
-    explorerContent.includes("dateTime={event.startDate}"),
+    (explorerContent.includes("dateTime={event.startDate}") ||
+     explorerContent.includes("dateTime={isStandardIsoDate(event.startDate)")),
     "RewindExplorer event detail must render machine-readable ISO-8601 dateTime"
   );
 });

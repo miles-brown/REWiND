@@ -78,12 +78,16 @@ export function RewindExplorer({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
 
-  // Synchronize index safely when filtered events change to prevent stale out-of-bounds state
+  // Synchronize index safely when filtered events change: preserve selected event if still in filtered list
   useEffect(() => {
     setIndex((currentIndex) => {
       if (filtered.length === 0) return 0;
-      if (currentIndex >= filtered.length) return Math.max(0, filtered.length - 1);
-      return currentIndex;
+      const currentEvent = filtered[currentIndex];
+      if (currentEvent) {
+        const foundIdx = filtered.findIndex((e) => e.id === currentEvent.id || e.slug === currentEvent.slug);
+        if (foundIdx >= 0) return foundIdx;
+      }
+      return currentIndex >= filtered.length ? Math.max(0, filtered.length - 1) : currentIndex;
     });
   }, [filtered]);
 
@@ -216,7 +220,7 @@ export function RewindExplorer({
               </span>
             </div>
             <time
-              dateTime={event.startDate}
+              dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
               title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
             >
               {stageFormattedDate}

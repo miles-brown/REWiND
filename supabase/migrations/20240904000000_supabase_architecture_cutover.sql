@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
   confidence_score double precision DEFAULT 1.0 NOT NULL,
   publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
-  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'human-review', 'quarantine', 'withheld')),
+  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'provisional', 'human-review', 'quarantine', 'withheld', 'editorial-override', 'rejected')),
   significance_score integer DEFAULT 80 NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL

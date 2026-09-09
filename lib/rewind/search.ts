@@ -54,6 +54,11 @@ export async function searchRewind(
         .limit(limit),
     ]);
 
+    const searchError = eventsRes.error || peopleRes.error || placesRes.error || sourcesRes.error || quotesRes.error;
+    if (searchError) {
+      throw new Error(`Supabase search query failed: ${searchError.message}`);
+    }
+
     const results: SearchResultItem[] = [];
 
     (peopleRes.data || []).forEach((p) => {

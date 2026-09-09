@@ -147,13 +147,13 @@ export async function getPlaceBySlug(
 
     let place: PlaceRecord | null = null;
 
-    const { data: p, error: placeError } = await supabase
-      .from("places")
-      .select("*")
-      .or(`slug.eq.${slug},id.eq.${slug}`)
-      .maybeSingle();
+    const [{ data: p, error: placeError }, { data: v, error: venueError }] = await Promise.all([
+      supabase.from("places").select("*").or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle(),
+      supabase.from("venues").select("id, name, address_id, latitude, longitude").or(`id.eq.${slug},id.eq.ven-${slug},id.eq.plc-${slug}`).maybeSingle(),
+    ]);
 
     if (placeError) throw placeError;
+    if (venueError) throw venueError;
 
     if (p) {
       place = {
@@ -166,42 +166,31 @@ export async function getPlaceBySlug(
         longitude: p.longitude,
         placeType: p.place_type,
       };
-    } else {
-      // Check Event Model v2 venues (Codex Issue 7)
-      const { data: v, error: venueError } = await supabase
-        .from("venues")
-        .select("id, name, address_id, latitude, longitude")
-        .or(`id.eq.${slug},id.eq.ven-${slug},id.eq.plc-${slug}`)
-        .maybeSingle();
-
-      if (venueError) throw venueError;
-
-      if (v) {
-        let city = "Unknown";
-        let country = "Unknown";
-        if (v.address_id) {
-          const { data: addr, error: addressError } = await supabase
-            .from("addresses")
-            .select("city, country_code")
-            .eq("id", v.address_id)
-            .maybeSingle();
-          if (addressError) throw addressError;
-          if (addr) {
-            city = addr.city || city;
-            country = addr.country_code || country;
-          }
+    } else if (v) {
+      let city = "Unknown";
+      let country = "Unknown";
+      if (v.address_id) {
+        const { data: addr, error: addressError } = await supabase
+          .from("addresses")
+          .select("city, country_code")
+          .eq("id", v.address_id)
+          .maybeSingle();
+        if (addressError) throw addressError;
+        if (addr) {
+          city = addr.city || city;
+          country = addr.country_code || country;
         }
-        place = {
-          id: v.id,
-          slug: v.id.replace(/^plc-|^ven-/, ""),
-          venue: v.name,
-          city,
-          country,
-          latitude: v.latitude ?? null,
-          longitude: v.longitude ?? null,
-          placeType: "venue",
-        };
       }
+      place = {
+        id: v.id,
+        slug: v.id.replace(/^plc-|^ven-/, ""),
+        venue: v.name,
+        city,
+        country,
+        latitude: v.latitude ?? null,
+        longitude: v.longitude ?? null,
+        placeType: "venue",
+      };
     }
 
     if (!place) return null;

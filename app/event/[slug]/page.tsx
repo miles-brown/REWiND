@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
@@ -35,7 +35,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {event.verificationStatus === "verified" ? <CheckCircle2 /> : <CircleDashed />}
             {event.verificationStatus} evidence
           </div>
-          <time dateTime={event.startDate}>
+          <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>
             {formatTimelineDate(event.startDate, event.datePrecision, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
           </time>
           <h1>{event.eventName}</h1>
@@ -94,7 +94,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                     href={`/person/${participantSlug}`}
                     key={participant.personId}
                   >
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {participant.name
                       .split(" ")
                       .map((name) => name[0])

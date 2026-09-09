@@ -276,7 +276,7 @@ export function PersonTimeline({
             </span>
           </div>
           <time
-            dateTime={event.startDate}
+            dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
             title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
           >
             {stageFormattedDate}
