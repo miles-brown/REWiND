@@ -60,7 +60,17 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
   };
 }
 
-function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<EventRecord> {
+function sanitizeYearFilter(rawYear: string | undefined): string | null {
+  if (!rawYear) return null;
+  const trimmed = rawYear.trim();
+  if (/^\d{3,4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const sanitized = trimmed.replace(/[%_\\]/g, "");
+  return /^\d{3,4}$/.test(sanitized) ? sanitized : null;
+}
+
+export function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<EventRecord> {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
   const offset = (page - 1) * pageSize;
@@ -78,7 +88,10 @@ function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<Eve
   }
 
   if (params.year) {
-    filtered = filtered.filter((e) => e.startDate.startsWith(params.year!));
+    const validYear = sanitizeYearFilter(params.year);
+    if (validYear) {
+      filtered = filtered.filter((e) => e.startDate.startsWith(validYear));
+    }
   }
 
   if (params.verification) {
@@ -520,8 +533,10 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.year) {
-      const escapedYr = escapePostgrestValue(params.year.trim());
-      query = query.like("start_date", `${escapedYr}%`);
+      const validYear = sanitizeYearFilter(params.year);
+      if (validYear) {
+        query = query.like("start_date", `${validYear}%`);
+      }
     }
 
     if (params.verification) {

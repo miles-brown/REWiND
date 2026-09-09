@@ -360,63 +360,73 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 7. Insert claims with live database subject resolution (Codex: disambiguate aliases)
+          // 7. Insert claims with live database subject resolution (batched mention resolution)
           if (newClaims.length > 0) {
-            const dbClaims = await Promise.all(
-              newClaims.map(async (clm) => {
-                let resolvedDbSubjectId = clm.subjectId;
-                if (!resolvedDbSubjectId && clm.subjectMention) {
-                  const mention = clm.subjectMention.trim();
-                  const escaped = escapeIlikePattern(mention);
-                  const [exactBySlug] = await tx
-                    .select({ id: schema.people.id })
-                    .from(schema.people)
-                    .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
-                  if (exactBySlug) {
-                    resolvedDbSubjectId = exactBySlug.id;
-                  } else {
-                    const matchingPeople = await tx
-                      .select({ id: schema.people.id })
-                      .from(schema.people)
-                      .where(
-                        or(
-                          ilike(schema.people.canonicalName, escaped),
-                          ilike(schema.people.displayName, escaped)
-                        )
-                      );
-                    const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
-                    if (distinctDbPeople.length === 1) {
-                      resolvedDbSubjectId = distinctDbPeople[0];
-                    } else if (distinctDbPeople.length === 0) {
-                      const aliasRows = await tx
-                        .select({ personId: schema.personAliases.personId })
-                        .from(schema.personAliases)
-                        .where(
-                          or(
-                            ilike(schema.personAliases.alias, escaped),
-                            eq(schema.personAliases.alias, mention)
-                          )
-                        );
-                      const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                      if (distinctPersonIds.length === 1) {
-                        resolvedDbSubjectId = distinctPersonIds[0];
-                      } else {
-                        resolvedDbSubjectId = null;
-                      }
-                    } else {
-                      resolvedDbSubjectId = null;
-                    }
-                  }
-                }
-                clm.subjectId = resolvedDbSubjectId;
-                const dbRow = { ...clm };
-                delete dbRow.subjectMention;
-                return {
-                  ...dbRow,
-                  subjectId: resolvedDbSubjectId,
-                };
-              })
+            const distinctMentions = Array.from(
+              new Set(
+                newClaims
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
             );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+            for (const mention of distinctMentions) {
+              const escaped = escapeIlikePattern(mention);
+              const [exactBySlug] = await tx
+                .select({ id: schema.people.id })
+                .from(schema.people)
+                .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
+              if (exactBySlug) {
+                mentionToSubjectMap.set(mention, exactBySlug.id);
+              } else {
+                const matchingPeople = await tx
+                  .select({ id: schema.people.id })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ilike(schema.people.canonicalName, escaped),
+                      ilike(schema.people.displayName, escaped)
+                    )
+                  );
+                const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
+                if (distinctDbPeople.length === 1) {
+                  mentionToSubjectMap.set(mention, distinctDbPeople[0]);
+                } else if (distinctDbPeople.length === 0) {
+                  const aliasRows = await tx
+                    .select({ personId: schema.personAliases.personId })
+                    .from(schema.personAliases)
+                    .where(
+                      or(
+                        ilike(schema.personAliases.alias, escaped),
+                        eq(schema.personAliases.alias, mention)
+                      )
+                    );
+                  const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                  if (distinctPersonIds.length === 1) {
+                    mentionToSubjectMap.set(mention, distinctPersonIds[0]);
+                  } else {
+                    mentionToSubjectMap.set(mention, null);
+                  }
+                } else {
+                  mentionToSubjectMap.set(mention, null);
+                }
+              }
+            }
+
+            const dbClaims = newClaims.map((clm) => {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
+              }
+              clm.subjectId = resolvedDbSubjectId;
+              const dbRow = { ...clm };
+              delete dbRow.subjectMention;
+              return {
+                ...dbRow,
+                subjectId: resolvedDbSubjectId,
+              };
+            });
             await tx.insert(schema.claims).values(dbClaims);
           }
 
@@ -518,7 +528,9 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     : null;
   const syncSourceId = syncData?.sourceId;
 
-  const syncFallback: { success: boolean; targetEventId?: string; claimsAddedCount?: number; error?: string } = !syncCandidate || !syncTarget
+  const syncFallback:
+    | { success: false; error: string }
+    | { success: true; targetEventId: string; claimsAddedCount: number } = !syncCandidate || !syncTarget
     ? { success: false, error: "Candidate or target event not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
@@ -601,66 +613,105 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       });
     }
 
+    const dbResult: { persistedClaimIds: string[] | null } = { persistedClaimIds: null };
+
     if (db) {
       try {
-        await db.transaction(async (tx) => {
-          // Claim pending candidate atomically (Codex Issue 5)
-          const updateResult = await tx
-            .update(schema.candidateEvents)
-            .set({ status: "merged" })
-            .where(
-              and(
-                eq(schema.candidateEvents.id, candidateId),
-                eq(schema.candidateEvents.status, "pending")
-              )
-            )
-            .returning({ id: schema.candidateEvents.id });
+        const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, targetEventId));
+        if (dbEvt) targetEvent = dbEvt;
 
-          if (updateResult.length === 0) {
-            throw new Error("Candidate was already reviewed or claimed by another editor");
+        await db.transaction(async (tx) => {
+          // 1. Ensure Source exists in DB
+          const [existingSrc] = await tx
+            .select({ id: schema.sources.id })
+            .from(schema.sources)
+            .where(eq(schema.sources.id, sourceId));
+          if (!existingSrc) {
+            await tx.insert(schema.sources).values({
+              id: sourceId,
+              title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+              publisher: data.publisher || "Archival Source",
+              sourceType: data.sourceType || "official-transcript",
+              tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+              url: data.url || null,
+              archiveUrl: null,
+              author: null,
+              publicationDate: candidate.suggestedDate,
+              trustScore: candidate.primarySourceTier === "tier-a" ? 1.0 : 0.9,
+            });
           }
 
-          if (sourceId) {
-            const [existingSrc] = await tx
-              .select({ id: schema.sources.id })
-              .from(schema.sources)
-              .where(eq(schema.sources.id, sourceId));
-            if (!existingSrc) {
-              await tx.insert(schema.sources).values({
-                id: sourceId,
-                title:
-                  sourceId === "src-editorial-corroboration"
-                    ? "Editorial Corroboration Register"
-                    : (data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`),
-                publisher: data.publisher || "Archival Source",
-                sourceType: data.sourceType || "official-transcript",
-                tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
-                url: data.url || null,
-                publicationDate: candidate.suggestedDate,
-                trustScore: 0.95,
-              });
-            }
-
-            // Link corroborating source to target event (Codex Issue 6)
-            const [existingLink] = await tx
-              .select({ eventId: schema.eventSources.eventId })
-              .from(schema.eventSources)
-              .where(
-                and(
-                  eq(schema.eventSources.eventId, targetEventId),
-                  eq(schema.eventSources.sourceId, sourceId)
-                )
-              );
-            if (!existingLink) {
-              await tx.insert(schema.eventSources).values({
-                eventId: targetEventId,
-                sourceId,
-                isPrimary: false,
-              });
-            }
+          // 2. Link Source to Event if not already linked
+          const [existingLink] = await tx
+            .select({ eventId: schema.eventSources.eventId })
+            .from(schema.eventSources)
+            .where(
+              and(
+                eq(schema.eventSources.eventId, targetEventId),
+                eq(schema.eventSources.sourceId, sourceId)
+              )
+            );
+          if (!existingLink) {
+            await tx.insert(schema.eventSources).values({
+              eventId: targetEventId,
+              sourceId,
+              isPrimary: false,
+            });
           }
 
           if (claimsToInsert.length > 0) {
+            const distinctMentions = Array.from(
+              new Set(
+                claimsToInsert
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
+            );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+            for (const mention of distinctMentions) {
+              const escaped = escapeIlikePattern(mention);
+              const [exactBySlug] = await tx
+                .select({ id: schema.people.id })
+                .from(schema.people)
+                .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
+              if (exactBySlug) {
+                mentionToSubjectMap.set(mention, exactBySlug.id);
+              } else {
+                const matchingPeople = await tx
+                  .select({ id: schema.people.id })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ilike(schema.people.canonicalName, escaped),
+                      ilike(schema.people.displayName, escaped)
+                    )
+                  );
+                const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
+                if (distinctDbPeople.length === 1) {
+                  mentionToSubjectMap.set(mention, distinctDbPeople[0]);
+                } else if (distinctDbPeople.length === 0) {
+                  const aliasRows = await tx
+                    .select({ personId: schema.personAliases.personId })
+                    .from(schema.personAliases)
+                    .where(
+                      or(
+                        ilike(schema.personAliases.alias, escaped),
+                        eq(schema.personAliases.alias, mention)
+                      )
+                    );
+                  const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
+                  if (distinctPersonIds.length === 1) {
+                    mentionToSubjectMap.set(mention, distinctPersonIds[0]);
+                  } else {
+                    mentionToSubjectMap.set(mention, null);
+                  }
+                } else {
+                  mentionToSubjectMap.set(mention, null);
+                }
+              }
+            }
+
             const existingDbClaims = await tx
               .select({
                 subjectId: schema.claims.subjectId,
@@ -675,47 +726,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             for (const clm of claimsToInsert) {
               let resolvedDbSubjectId = clm.subjectId;
               if (!resolvedDbSubjectId && clm.subjectMention) {
-                const mention = clm.subjectMention.trim();
-                const escaped = escapeIlikePattern(mention);
-                const [exactBySlug] = await tx
-                  .select({ id: schema.people.id })
-                  .from(schema.people)
-                  .where(eq(schema.people.slug, mention.toLowerCase().replace(/[^\w]/g, "-")));
-                if (exactBySlug) {
-                  resolvedDbSubjectId = exactBySlug.id;
-                } else {
-                  const matchingPeople = await tx
-                    .select({ id: schema.people.id })
-                    .from(schema.people)
-                    .where(
-                      or(
-                        ilike(schema.people.canonicalName, escaped),
-                        ilike(schema.people.displayName, escaped)
-                      )
-                    );
-                  const distinctDbPeople = Array.from(new Set(matchingPeople.map((p) => p.id)));
-                  if (distinctDbPeople.length === 1) {
-                    resolvedDbSubjectId = distinctDbPeople[0];
-                  } else if (distinctDbPeople.length === 0) {
-                    const aliasRows = await tx
-                      .select({ personId: schema.personAliases.personId })
-                      .from(schema.personAliases)
-                      .where(
-                        or(
-                          ilike(schema.personAliases.alias, escaped),
-                          eq(schema.personAliases.alias, mention)
-                        )
-                      );
-                    const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                    if (distinctPersonIds.length === 1) {
-                      resolvedDbSubjectId = distinctPersonIds[0];
-                    } else {
-                      resolvedDbSubjectId = null;
-                    }
-                  } else {
-                    resolvedDbSubjectId = null;
-                  }
-                }
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
               }
 
               clm.subjectId = resolvedDbSubjectId;
@@ -747,6 +758,9 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
             if (resolvedDbClaims.length > 0) {
               await tx.insert(schema.claims).values(resolvedDbClaims);
+              dbResult.persistedClaimIds = resolvedDbClaims.map((c) => c.id!).filter(Boolean);
+            } else {
+              dbResult.persistedClaimIds = [];
             }
           }
 
@@ -794,11 +808,18 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       store.sources.push(existingSource);
     }
 
-    claimsToInsert.forEach((c) => {
+    const persistedIds = dbResult.persistedClaimIds;
+    const claimsToSync = persistedIds !== null
+      ? claimsToInsert.filter((c) => persistedIds.includes(c.id))
+      : claimsToInsert;
+
+    claimsToSync.forEach((c) => {
       const inMem = { ...c };
       delete inMem.subjectMention;
       store.claims.push(inMem);
     });
+
+    const actualAddedCount = persistedIds !== null ? persistedIds.length : claimsToInsert.length;
 
     const mergedParticipants: string[] = [];
     if (Array.isArray(data.participants)) {
@@ -818,7 +839,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         targetEventId,
         mergedBy: editorName,
         sourceId,
-        claimsAddedCount: claimsToInsert.length,
+        claimsAddedCount: actualAddedCount,
         mergedParticipants,
         similarityScore: candidate.duplicateSimilarity,
       },
@@ -826,8 +847,10 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       candidateId
     );
 
-    syncFallback.claimsAddedCount = claimsToInsert.length;
-    return { success: true, targetEventId, claimsAddedCount: claimsToInsert.length };
+    if (syncFallback.success) {
+      syncFallback.claimsAddedCount = actualAddedCount;
+    }
+    return { success: true, targetEventId, claimsAddedCount: actualAddedCount };
   })();
 
   return asAsyncResult(executionPromise, syncFallback);

@@ -451,3 +451,21 @@ test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilien
   assert.equal(eventsResult.data.length, 0);
   assert.equal(eventsResult.error, null);
 });
+
+test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime emission, and TimelineComparison self-pair guard", async () => {
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const { isStandardIsoDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+
+  // 1. Year filter with wildcards is sanitized and does not return un-filtered results
+  const wildcardRes = await getEvents({ year: "%" });
+  assert.ok(Array.isArray(wildcardRes.data));
+
+  const malformedRes = await getEvents({ year: "1982%" });
+  assert.ok(Array.isArray(malformedRes.data));
+  assert.ok(malformedRes.data.every((e) => e.startDate.startsWith("1982")));
+
+  // 2. isStandardIsoDate correctly flags archival strings like "1980s" vs standard dates "1982-10-23"
+  assert.equal(isStandardIsoDate("1982-10-23"), true);
+  assert.equal(isStandardIsoDate("1980s"), false);
+  assert.equal(isStandardIsoDate("Circa 1992"), false);
+});

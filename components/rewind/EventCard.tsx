@@ -24,7 +24,7 @@ export const EventCard = memo(function EventCard({
     >
       <div className="event-card-top">
         <time
-          dateTime={event.startDate}
+          dateTime={isStandard ? event.startDate : undefined}
           title={`${temporalPrecision} precision${!isStandard && event.startDate ? " · Non-standard archival date format" : ""}`}
         >
           {event.startDate

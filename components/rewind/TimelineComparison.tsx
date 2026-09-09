@@ -182,16 +182,23 @@ export function TimelineComparison({
       .sort((a, b) => b.count - a.count);
   }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0 intersections), otherwise default to top co-attendee, or "" if none exist
+  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0 intersections), rejecting self-pairs, otherwise default to top co-attendee, or "" if none exist
   const slugB = useMemo(() => {
     if (explicitSlugB && peopleMap.has(explicitSlugB)) {
-      return explicitSlugB;
+      const resolvedPerson = peopleMap.get(explicitSlugB);
+      const resolvedSlug = resolvedPerson?.slug || explicitSlugB;
+      if (resolvedSlug !== effectiveSlugA) {
+        return resolvedSlug;
+      }
     }
     if (coAttendeesWithCounts.length > 0) {
-      return coAttendeesWithCounts[0].person.slug;
+      const topCo = coAttendeesWithCounts.find((item) => item.person.slug !== effectiveSlugA);
+      if (topCo) {
+        return topCo.person.slug;
+      }
     }
     return "";
-  }, [coAttendeesWithCounts, explicitSlugB, peopleMap]);
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, effectiveSlugA]);
 
   const currentPairKey = `${effectiveSlugA}-${slugB}`;
   if (currentPairKey !== prevPairKey) {

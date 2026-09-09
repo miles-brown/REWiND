@@ -399,6 +399,8 @@ export function processCandidateEvent(
             });
 
             syncResult.publishedEventId = eventSlug;
+          } else {
+            syncResult.publishedEventId = eventSlug;
           }
 
           // Link source to event
@@ -547,6 +549,8 @@ export function processCandidateEvent(
 
     return syncResult;
   })();
+
+  asyncPromise.catch(() => {});
 
   return Object.assign(asyncPromise, syncResult);
 }
