@@ -471,10 +471,16 @@ test("verifies Codex review fixes: live entity resolution, source tier rendering
   const { searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
   assert.equal(typeof searchRewind, "function");
 
-  // 5. Atlas Statistics aggregates locations via getPlaces()
+  // 5. Atlas Statistics counts both location tables without materializing their rows
   const { getAtlasStatistics } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
   const stats = await getAtlasStatistics();
   assert.ok(typeof stats.placeCount === "number");
   assert.ok(stats.placeCount >= 0);
+  const statsContent = fs.readFileSync(path.join(root, "lib/rewind/stats.ts"), "utf-8");
+  assert.ok(
+    statsContent.includes('from("places").select("id", { count: "exact", head: true })') &&
+    statsContent.includes('from("venues").select("id", { count: "exact", head: true })') &&
+    !statsContent.includes("getPlaces("),
+    "getAtlasStatistics must use head-only counts rather than loading the places catalog"
+  );
 });
-

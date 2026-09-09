@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { getEventYears } from "./events";
-import { getPlaces } from "./places";
 
 export interface AtlasStatistics {
   eventCount: number;
@@ -28,12 +27,13 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
       };
     }
 
-    const [eventsRes, peopleRes, sourcesRes, verifiedRes, places, eventYears] = await Promise.all([
+    const [eventsRes, peopleRes, sourcesRes, verifiedRes, placesRes, venuesRes, eventYears] = await Promise.all([
       supabase.from("events").select("id", { count: "exact", head: true }).eq("publication_status", "published"),
       supabase.from("people").select("id", { count: "exact", head: true }).eq("publication_status", "published"),
       supabase.from("sources").select("id", { count: "exact", head: true }),
       supabase.from("events").select("id", { count: "exact", head: true }).eq("verification_status", "verified").eq("publication_status", "published"),
-      getPlaces(),
+      supabase.from("places").select("id", { count: "exact", head: true }),
+      supabase.from("venues").select("id", { count: "exact", head: true }),
       getEventYears(supabase),
     ]);
 
@@ -42,7 +42,7 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
       personCount: peopleRes.count || 0,
       sourceCount: sourcesRes.count || 0,
       verifiedCount: verifiedRes.count || 0,
-      placeCount: places.length,
+      placeCount: (placesRes.count || 0) + (venuesRes.count || 0),
       yearsCovered: eventYears.length,
     };
   } catch {
@@ -56,4 +56,3 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     };
   }
 }
-

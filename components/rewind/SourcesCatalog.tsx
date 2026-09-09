@@ -158,7 +158,7 @@ export function SourcesCatalog({
 
   // Forensic Metrics
   const tierACount = useMemo(
-    () => sources.filter((s) => s.tier === "tier-a" || (!s.tier && s.classification === "primary")).length,
+    () => sources.filter((s) => s.tier?.toLowerCase() === "tier-a" || (!s.tier && s.classification === "primary")).length,
     [sources]
   );
   const primaryPercent = sources.length > 0 ? Math.round((tierACount / sources.length) * 100) : 0;

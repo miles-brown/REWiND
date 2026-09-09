@@ -678,9 +678,6 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
     if (db) {
       try {
-        const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, targetEventId));
-        if (dbEvt) targetEvent = dbEvt;
-
         await db.transaction(async (tx) => {
           // Atomically update candidate status inside database transaction (Codex Issue)
           const updateResult = await tx

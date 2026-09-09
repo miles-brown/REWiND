@@ -597,6 +597,11 @@ test("verifies lib/rewind/events.ts confidence and datePrecision mappings", asyn
     "confirmed",
     "mapDatabaseEvent must fall back to 'confirmed' when confidence is null and confidence_score >= 0.7"
   );
+  assert.deepEqual(mapDatabaseEvent({ id: "evt-no-medium" }).medium, []);
+  assert.deepEqual(
+    mapDatabaseEvent({ id: "evt-with-medium", medium: ["broadcast"] }).medium,
+    ["broadcast"]
+  );
 });
 
 test("verifies confidence and temporal precision fallbacks across components", () => {
@@ -887,9 +892,10 @@ test("verifies Codex P1 safeguards: migration integrity, production fallback gua
 
   // 7. RewindExplorer index state synchronization
   assert.ok(
-    explorerContent.includes("currentIndex >= filtered.length") &&
-    explorerContent.includes("setIndex((currentIndex) => {"),
-    "RewindExplorer must synchronize and bound index state when filtered events change"
+    explorerContent.includes("const [selectedEventId, setSelectedEventId] = useState(") &&
+    explorerContent.includes("e.id === selectedEventId || e.slug === selectedEventId") &&
+    explorerContent.includes("setSelectedEventId(filtered[nextIndex]?.id"),
+    "RewindExplorer must preserve selected event identity and update it for direct and playback selection changes"
   );
 });
 

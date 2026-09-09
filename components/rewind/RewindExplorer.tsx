@@ -53,6 +53,7 @@ export function RewindExplorer({
   const resetFilters = () => {
     setType(DEFAULT_EXPLORER_TYPE);
     setStatus(DEFAULT_EXPLORER_STATUS);
+    setSelectedEventId(null);
     setIndex(0);
     setPlaying(false);
   };
@@ -77,33 +78,37 @@ export function RewindExplorer({
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
+  const [selectedEventId, setSelectedEventId] = useState(
+    filtered[0]?.id || filtered[0]?.slug || null
+  );
 
   // Synchronize index safely when filtered events change: preserve selected event if still in filtered list
   useEffect(() => {
     setIndex((currentIndex) => {
-      if (filtered.length === 0) return 0;
-      const currentEvent = filtered[currentIndex];
-      if (currentEvent) {
-        const foundIdx = filtered.findIndex((e) => e.id === currentEvent.id || e.slug === currentEvent.slug);
+      if (filtered.length === 0) {
+        return 0;
+      }
+      if (selectedEventId) {
+        const foundIdx = filtered.findIndex(
+          (e) => e.id === selectedEventId || e.slug === selectedEventId
+        );
         if (foundIdx >= 0) return foundIdx;
       }
-      return currentIndex >= filtered.length ? Math.max(0, filtered.length - 1) : currentIndex;
+      return Math.min(currentIndex, filtered.length - 1);
     });
-  }, [filtered]);
+  }, [filtered, selectedEventId]);
 
   useEffect(() => {
     if (!playing || filtered.length < 2) return;
     const timer = setInterval(() => {
-      setIndex((i) => {
-        if (direction === "forward") {
-          return i >= filtered.length - 1 ? 0 : i + 1;
-        } else {
-          return i <= 0 ? filtered.length - 1 : i - 1;
-        }
-      });
+      const nextIndex = direction === "forward"
+        ? index >= filtered.length - 1 ? 0 : index + 1
+        : index <= 0 ? filtered.length - 1 : index - 1;
+      setSelectedEventId(filtered[nextIndex]?.id || filtered[nextIndex]?.slug || null);
+      setIndex(nextIndex);
     }, speed);
     return () => clearInterval(timer);
-  }, [playing, speed, direction, filtered.length]);
+  }, [playing, speed, direction, filtered, index]);
 
   const hasEvents = filtered.length > 0;
   const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
@@ -136,7 +141,10 @@ export function RewindExplorer({
 
   const choose = (id: string) => {
     const i = filtered.findIndex((e) => e.id === id);
-    if (i >= 0) setIndex(i);
+    if (i >= 0) {
+      setSelectedEventId(filtered[i]?.id || filtered[i]?.slug || null);
+      setIndex(i);
+    }
   };
 
   return (
@@ -319,7 +327,11 @@ export function RewindExplorer({
         </div>
         <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            onClick={() => {
+              const nextIndex = Math.max(0, safeIndex - 1);
+              setSelectedEventId(filtered[nextIndex]?.id || filtered[nextIndex]?.slug || null);
+              setIndex(nextIndex);
+            }}
             disabled={!hasEvents || safeIndex === 0}
             aria-label="Previous event"
           >
@@ -335,9 +347,11 @@ export function RewindExplorer({
             {playing ? <CirclePause /> : <CirclePlay />}
           </button>
           <button
-            onClick={() =>
-              setIndex((i) => Math.min(filtered.length - 1, i + 1))
-            }
+            onClick={() => {
+              const nextIndex = Math.min(filtered.length - 1, safeIndex + 1);
+              setSelectedEventId(filtered[nextIndex]?.id || filtered[nextIndex]?.slug || null);
+              setIndex(nextIndex);
+            }}
             disabled={!hasEvents || safeIndex >= filtered.length - 1}
             aria-label="Next event"
           >
@@ -380,7 +394,10 @@ export function RewindExplorer({
             value={[safeIndex]}
             disabled={!hasEvents}
             onValueChange={(v) => {
-              if (hasEvents) setIndex(v[0]);
+              if (hasEvents) {
+                setSelectedEventId(filtered[v[0]]?.id || filtered[v[0]]?.slug || null);
+                setIndex(v[0]);
+              }
             }}
           />
           <div>

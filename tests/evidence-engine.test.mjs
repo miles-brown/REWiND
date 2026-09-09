@@ -142,6 +142,8 @@ test("executes end-to-end ingestion pipeline with UN primary transcript adapter"
   const event = store.events.find((e) => e.id === result.publishedEventId);
   assert.ok(event);
   assert.equal(event.verificationStatus, "verified");
+  const awaitedResult = await result;
+  assert.equal(awaitedResult.auditId, store.auditLog[0].id);
 });
 
 test("detects duplicate events and merges corroborating claims without duplicate creation", async () => {
@@ -453,12 +455,15 @@ test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilien
 });
 
 test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime emission, and TimelineComparison self-pair guard", async () => {
-  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const { getEvents, getFallbackEventsResult } = await vite.ssrLoadModule("/lib/rewind/events.ts");
   const { isStandardIsoDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
 
   // 1. Year filter with wildcards is sanitized and does not return un-filtered results
   const wildcardRes = await getEvents({ year: "%" });
   assert.ok(Array.isArray(wildcardRes.data));
+  assert.equal(wildcardRes.count, 0);
+  assert.equal(wildcardRes.totalPages, 0);
+  assert.equal(getFallbackEventsResult({ year: "%" }).count, 0);
 
   const malformedRes = await getEvents({ year: "1982%" });
   assert.ok(Array.isArray(malformedRes.data));

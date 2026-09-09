@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getEvents } from "./events";
+import { escapePostgrestValue } from "./search";
 import type { EventRecord, PlaceRecord } from "./types";
 
 /**
@@ -146,10 +147,13 @@ export async function getPlaceBySlug(
     if (!supabase) return null;
 
     let place: PlaceRecord | null = null;
+    const escapedSlug = escapePostgrestValue(slug);
+    const escapedVenueSlug = escapePostgrestValue(`ven-${slug}`);
+    const escapedLegacyPlaceSlug = escapePostgrestValue(`plc-${slug}`);
 
     const [{ data: p, error: placeError }, { data: v, error: venueError }] = await Promise.all([
-      supabase.from("places").select("*").or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle(),
-      supabase.from("venues").select("id, name, address_id, latitude, longitude").or(`id.eq.${slug},id.eq.ven-${slug},id.eq.plc-${slug}`).maybeSingle(),
+      supabase.from("places").select("*").or(`slug.eq."${escapedSlug}",id.eq."${escapedSlug}"`).maybeSingle(),
+      supabase.from("venues").select("id, name, address_id, latitude, longitude").or(`id.eq."${escapedSlug}",id.eq."${escapedVenueSlug}",id.eq."${escapedLegacyPlaceSlug}"`).maybeSingle(),
     ]);
 
     if (placeError) throw placeError;

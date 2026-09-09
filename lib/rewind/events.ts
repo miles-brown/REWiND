@@ -75,6 +75,10 @@ export function getFallbackEventsResult(params: EventFilters = {}): PaginatedRes
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
   const offset = (page - 1) * pageSize;
 
+  if (params.year && !sanitizeYearFilter(params.year)) {
+    return { data: [], count: 0, page, pageSize, totalPages: 0, error: null };
+  }
+
   let filtered = fallbackEvents.slice();
 
   if (params.search && params.search.trim()) {
@@ -184,7 +188,11 @@ export function mapDatabaseEvent(
     eventTypes: [String(row.event_type || "historical-action")],
     quotes: quotesMap?.get(id) || [],
     organisations: [],
-    medium: ["official-record"],
+    medium: Array.isArray(row.medium)
+      ? row.medium.map((value) => String(value))
+      : row.medium
+        ? [String(row.medium)]
+        : [],
     media: [],
     provenance: [],
     conflictingClaims: [],
@@ -505,6 +513,10 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
   const offset = (page - 1) * pageSize;
 
+  if (params.year && !sanitizeYearFilter(params.year)) {
+    return { data: [], count: 0, page, pageSize, totalPages: 0, error: null };
+  }
+
   try {
     const supabase = await createClient();
     if (!supabase) {
@@ -586,16 +598,19 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.placeSlug) {
+      const escapedPlaceSlug = escapePostgrestValue(params.placeSlug);
+      const escapedVenueSlug = escapePostgrestValue(`ven-${params.placeSlug}`);
+      const escapedLegacyPlaceSlug = escapePostgrestValue(`plc-${params.placeSlug}`);
       const [{ data: placeData, error: placeError }, { data: venueData, error: venueError }] = await Promise.all([
         supabase
           .from("places")
           .select("id")
-          .or(`slug.eq.${params.placeSlug},id.eq.${params.placeSlug}`)
+          .or(`slug.eq."${escapedPlaceSlug}",id.eq."${escapedPlaceSlug}"`)
           .maybeSingle(),
         supabase
           .from("venues")
           .select("id")
-          .or(`id.eq.${params.placeSlug},id.eq.ven-${params.placeSlug},id.eq.plc-${params.placeSlug}`)
+          .or(`id.eq."${escapedPlaceSlug}",id.eq."${escapedVenueSlug}",id.eq."${escapedLegacyPlaceSlug}"`)
           .maybeSingle(),
       ]);
 

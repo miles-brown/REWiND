@@ -1,6 +1,7 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, and, or } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import {
   ExtractedCandidateEventSchema,
   type ExtractedCandidateEvent,
@@ -11,6 +12,24 @@ import { resolveEntity, resolveEntityAsync, resolvePlace } from "./resolve";
 import { calculateEventFingerprint, findDuplicateEvent } from "./deduplicate";
 import { evaluatePublicationPolicy } from "./policy-evaluator";
 import { recordAuditEvent } from "./audit";
+
+function createClaimId(
+  eventSlug: string,
+  claim: ExtractedCandidateEvent["claims"][number],
+  subjectId: string | null,
+  sourceId: string
+): string {
+  const stableIdentity = JSON.stringify([
+    subjectId,
+    claim.claimType,
+    claim.statement.trim().toLowerCase(),
+    claim.claimedTime || null,
+    claim.claimedVenue || null,
+    sourceId,
+  ]);
+  const suffix = createHash("sha256").update(stableIdentity).digest("hex").slice(0, 16);
+  return `clm-${eventSlug}-${suffix}`;
+}
 
 export function processCandidateEvent(
   rawCandidate: ExtractedCandidateEvent,
@@ -34,7 +53,7 @@ export function processCandidateEvent(
   const deduplication = findDuplicateEvent(candidate);
 
   // 4. Evaluate Policy Lane
-  const policy = evaluatePublicationPolicy(candidate, source.sourceTier, entityResolutions);
+  const fallbackPolicy = evaluatePublicationPolicy(candidate, source.sourceTier, entityResolutions);
 
   // 5. Generate Candidate ID and Fingerprint
   const fingerprint = calculateEventFingerprint(
@@ -46,7 +65,8 @@ export function processCandidateEvent(
   const candidateId = `cand-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   let publishedEventId: string | undefined;
-  let auditPromise: Promise<unknown> | undefined;
+  let auditPromise: ReturnType<typeof recordAuditEvent> | undefined;
+  let resultCandidateId = candidateId;
 
   // 6. Ensure Source is Registered in Memory Store
   let existingSource = store.sources.find((s) => s.id === source.sourceId);
@@ -66,20 +86,30 @@ export function processCandidateEvent(
     store.sources.push(existingSource);
   }
 
-  // 7. Action Based on Policy Lane
+  // 7. Apply one resolved policy to the in-memory store.
+  const applyPolicyToMemory = (
+    policy: ReturnType<typeof evaluatePublicationPolicy>,
+    resolvedEntities: typeof entityResolutions,
+    participantIds: string[]
+  ) => {
+    publishedEventId = undefined;
+    auditPromise = undefined;
+    resultCandidateId = candidateId;
+
   if (policy.lane === "auto-publish" || policy.lane === "provisional") {
     if (deduplication.isDuplicate && deduplication.matchedEventId) {
       // MERGE PATH: Attach additional evidence and claims to existing event
       publishedEventId = deduplication.matchedEventId;
 
-      candidate.claims.forEach((clm, idx) => {
-        const matchingSubject = entityResolutions.find(
+      candidate.claims.forEach((clm) => {
+        const matchingSubject = resolvedEntities.find(
           (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
         );
+        const subjectId = matchingSubject?.personId || null;
         store.claims.push({
-          id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
+          id: createClaimId(publishedEventId!, clm, subjectId, source.sourceId),
           eventId: publishedEventId!,
-          subjectId: matchingSubject?.personId || null,
+          subjectId,
           claimType: clm.claimType,
           statement: clm.statement,
           claimedTime: clm.claimedTime || null,
@@ -119,7 +149,7 @@ export function processCandidateEvent(
         store.places.push(existingPlace);
       }
 
-      const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${resolvedParticipantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
+      const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${participantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
       publishedEventId = eventSlug;
 
       store.events.push({
@@ -147,14 +177,15 @@ export function processCandidateEvent(
       });
 
       // Add claims
-      candidate.claims.forEach((clm, idx) => {
-        const matchingSubject = entityResolutions.find(
+      candidate.claims.forEach((clm) => {
+        const matchingSubject = resolvedEntities.find(
           (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
         );
+        const subjectId = matchingSubject?.personId || null;
         store.claims.push({
-          id: `clm-${eventSlug}-${idx}`,
+          id: createClaimId(eventSlug, clm, subjectId, source.sourceId),
           eventId: eventSlug,
-          subjectId: matchingSubject?.personId || null,
+          subjectId,
           claimType: clm.claimType,
           statement: clm.statement,
           claimedTime: clm.claimedTime || null,
@@ -186,17 +217,8 @@ export function processCandidateEvent(
 
     if (existingPending) {
       // Reuse existing pending candidate without duplicating queue
-      const auditEntry = store.auditLog[0];
-      const syncResult: IngestionResult = {
-        candidateId: existingPending.id,
-        fingerprint,
-        lane: policy.lane,
-        publishedEventId: undefined,
-        deduplication,
-        policy,
-        auditId: auditEntry ? auditEntry.id : 0,
-      };
-      return Object.assign(Promise.resolve(syncResult), syncResult);
+      resultCandidateId = existingPending.id;
+      return;
     }
 
     // Embed sourceId with rawExtraction payload so approval preserves citation
@@ -231,25 +253,26 @@ export function processCandidateEvent(
       candidateId
     );
   }
+  };
 
-  const auditEntry = store.auditLog[0];
+  if (!db) {
+    applyPolicyToMemory(fallbackPolicy, entityResolutions, resolvedParticipantIds);
+  }
 
   const syncResult: IngestionResult = {
-    candidateId,
+    candidateId: resultCandidateId,
     fingerprint,
-    lane: policy.lane,
+    lane: fallbackPolicy.lane,
     publishedEventId,
     deduplication,
-    policy,
-    auditId: auditEntry ? auditEntry.id : 0,
+    policy: fallbackPolicy,
+    auditId: auditPromise?.id ?? 0,
   };
 
   const asyncPromise = (async () => {
-    if (auditPromise) {
-      await auditPromise;
-    }
-
     if (!db) {
+      const auditEntry = auditPromise ? await auditPromise : undefined;
+      syncResult.auditId = auditEntry?.id ?? store.auditLog[0]?.id ?? 0;
       return syncResult;
     }
 
@@ -329,14 +352,15 @@ export function processCandidateEvent(
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map((clm, idx) => {
+              claimsToInsert.map((clm) => {
                 const matchingSubject = liveEntityResolutions.find(
                   (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
                 );
+                const subjectId = matchingSubject?.personId || null;
                 return {
-                  id: `clm-${targetEventId}-${Date.now()}-${idx}`,
+                  id: createClaimId(targetEventId, clm, subjectId, source.sourceId),
                   eventId: targetEventId,
-                  subjectId: matchingSubject?.personId || null,
+                  subjectId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
@@ -495,14 +519,15 @@ export function processCandidateEvent(
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map((clm, idx) => {
+              claimsToInsert.map((clm) => {
                 const matchingSubject = liveEntityResolutions.find(
                   (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
                 );
+                const subjectId = matchingSubject?.personId || null;
                 return {
-                  id: `clm-${eventSlug}-${idx}`,
+                  id: createClaimId(eventSlug, clm, subjectId, source.sourceId),
                   eventId: eventSlug,
-                  subjectId: matchingSubject?.personId || null,
+                  subjectId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
@@ -546,6 +571,12 @@ export function processCandidateEvent(
         }
       }
     });
+
+    applyPolicyToMemory(livePolicy, liveEntityResolutions, liveResolvedParticipantIds);
+    syncResult.candidateId = resultCandidateId;
+    syncResult.publishedEventId = publishedEventId;
+    const auditEntry = auditPromise ? await auditPromise : undefined;
+    syncResult.auditId = auditEntry?.id ?? store.auditLog[0]?.id ?? 0;
 
     return syncResult;
   })();

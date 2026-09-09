@@ -144,7 +144,8 @@ export async function resolveEntityAsync(
           };
         }
       }
-    } catch {
+    } catch (error) {
+      console.warn("Failed to resolve entity from live database, falling back to store:", error);
       // Fallback to store on DB query error
     }
   }

@@ -105,11 +105,16 @@ export async function searchRewind(
       const [extraEventsRes, extraPeopleRes] = await Promise.all([
         neededEventIds.length > 0
           ? supabase.from("events").select("id, slug, title").in("id", neededEventIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         neededSpeakerIds.length > 0
           ? supabase.from("people").select("id, slug, display_name, canonical_name").in("id", neededSpeakerIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
       ]);
+
+      const followupError = extraEventsRes.error || extraPeopleRes.error;
+      if (followupError) {
+        throw new Error(`Supabase search query failed: ${followupError.message}`);
+      }
 
       const eventSlugMap = new Map<string, { slug: string; title: string }>();
       (eventsRes.data || []).forEach((e) => eventSlugMap.set(e.id, { slug: e.slug, title: e.title }));
@@ -121,7 +126,7 @@ export async function searchRewind(
 
       quoteRows.forEach((q) => {
         const evt = eventSlugMap.get(q.event_id);
-        const speaker = speakerNameMap.get(q.speaker_id) || q.speaker_id;
+        const speaker = speakerNameMap.get(q.speaker_id) || "Unresolved speaker";
         const cleanQuote = q.quote.replace(/^["“]|["”]$/g, "");
         const truncated = cleanQuote.length > 90 ? `${cleanQuote.slice(0, 87)}...` : cleanQuote;
 

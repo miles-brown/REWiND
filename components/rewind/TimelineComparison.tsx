@@ -217,6 +217,11 @@ export function TimelineComparison({
       (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null,
     [peopleMap, people, slugB]
   );
+  const unresolvedSlugB = slugB && !personB ? slugB : null;
+  const selectedPersonBWithoutSharedEvents =
+    personB && !coAttendeesWithCounts.some((item) => item.person.slug === personB.slug)
+      ? personB
+      : null;
 
   const eventsA = useMemo(
     () =>
@@ -368,6 +373,16 @@ export function TimelineComparison({
                 onChange={(e) => setExplicitSlugB(e.target.value)}
                 disabled={coAttendeesWithCounts.length === 0}
               >
+                {unresolvedSlugB && (
+                  <option value={unresolvedSlugB}>
+                    Unresolved figure ({unresolvedSlugB})
+                  </option>
+                )}
+                {selectedPersonBWithoutSharedEvents && (
+                  <option value={selectedPersonBWithoutSharedEvents.slug}>
+                    {selectedPersonBWithoutSharedEvents.name} (0 shared events)
+                  </option>
+                )}
                 {coAttendeesWithCounts.length > 0 ? (
                   coAttendeesWithCounts.map((item) => (
                     <option key={item.person.slug} value={item.person.slug}>
@@ -407,6 +422,17 @@ export function TimelineComparison({
           </div>
         )}
       </section>
+
+      {personA && unresolvedSlugB && (
+        <div className="zero-state" role="status" style={{ padding: "3rem 2rem", textAlign: "center" }}>
+          <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+          <h2>Figure 2 is unavailable</h2>
+          <p>
+            The requested figure &ldquo;{unresolvedSlugB}&rdquo; is not present in the current evidence atlas.
+            Choose an available co-attendee to continue the comparison.
+          </p>
+        </div>
+      )}
 
       {/* When co-attendees exist and both distinct figures are selected */}
       {personA && personB && personA.id !== personB.id && personA.slug !== personB.slug && (
