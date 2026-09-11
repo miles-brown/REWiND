@@ -20,6 +20,11 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     sourceIds.length > 0 ? getSourcesByIds(sourceIds) : Promise.resolve([]),
   ]);
 
+  const enrichedEvent = {
+    ...event,
+    sources: validSources,
+  };
+
   const participants = event.participants || [];
 
   return (
@@ -45,7 +50,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
               <span key={type}>{type}</span>
             ))}
           </div>
-          <EventActions event={event} />
+          <EventActions event={enrichedEvent} primarySource={validSources[0]} />
         </div>
         <dl className="record-vitals">
           <div>

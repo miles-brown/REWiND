@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import { Check, Link as LinkIcon, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
-import type { EventRecord } from "@/lib/rewind";
+import type { EventRecord, SourceRecord } from "@/lib/rewind";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
-export function EventActions({ event }: { event: EventRecord }) {
+export function EventActions({
+  event,
+  primarySource,
+}: {
+  event: EventRecord;
+  primarySource?: SourceRecord;
+}) {
   const [citeOpen, setCiteOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
@@ -67,7 +73,7 @@ export function EventActions({ event }: { event: EventRecord }) {
 
       <CitationModal
         event={event}
-        source={event.sources && event.sources.length > 0 ? event.sources[0] : undefined}
+        source={primarySource || (event.sources && event.sources.length > 0 ? event.sources[0] : undefined)}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
       />
