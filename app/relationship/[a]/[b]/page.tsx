@@ -41,7 +41,7 @@ export default async function RelationshipPage({
       </div>
 
       <header className="relationship-hero">
-        <span className="person-monogram large">
+        <span className="person-monogram large" aria-hidden="true">
           {getMonogram(pa.name)}
         </span>
         <div>
@@ -53,7 +53,7 @@ export default async function RelationshipPage({
             Verifiable spacetime intersections and bilateral diplomatic records.
           </p>
         </div>
-        <span className="person-monogram large">
+        <span className="person-monogram large" aria-hidden="true">
           {getMonogram(pb.name)}
         </span>
       </header>
