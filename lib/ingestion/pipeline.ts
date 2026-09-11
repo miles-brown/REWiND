@@ -495,12 +495,18 @@ export function processCandidateEvent(
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map((clm, idx) => {
+              claimsToInsert.map((clm) => {
                 const matchingSubject = liveEntityResolutions.find(
                   (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
                 );
+                // Derive a stable claim ID from the claim's content so re-ingestion cannot
+                // generate a duplicate PK (Codex P2: claim ID must survive re-ingestion).
+                // Use a simple djb2-style hash of the normalised statement + subject.
+                const contentKey = `${clm.subjectMention ?? ""}::${clm.statement}`.toLowerCase().trim();
+                const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
+                const stableId = `clm-${eventSlug}-${hash.toString(36)}`;
                 return {
-                  id: `clm-${eventSlug}-${idx}`,
+                  id: stableId,
                   eventId: eventSlug,
                   subjectId: matchingSubject?.personId || null,
                   claimType: clm.claimType,

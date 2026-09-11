@@ -35,14 +35,21 @@ export function recordAuditEvent(
   const db = getDb();
   const persistPromise = (async () => {
     if (db) {
-      await db.insert(schema.auditLog).values({
-        eventId: entry.eventId,
-        candidateId: entry.candidateId,
-        action: entry.action,
-        ruleId: entry.ruleId,
-        details: entry.details,
-        recordedAt: entry.recordedAt,
-      });
+      try {
+        await db.insert(schema.auditLog).values({
+          eventId: entry.eventId,
+          candidateId: entry.candidateId,
+          action: entry.action,
+          ruleId: entry.ruleId,
+          details: entry.details,
+          recordedAt: entry.recordedAt,
+        });
+      } catch (err) {
+        // Audit persistence is best-effort observability; log the failure but
+        // never propagate so a transient DB error cannot crash an already-committed
+        // review decision or leave callers with a misleading rejected promise.
+        console.warn("[Audit] Failed to persist audit record to database:", err);
+      }
     }
     return entry;
   })();

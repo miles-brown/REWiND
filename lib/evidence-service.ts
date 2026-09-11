@@ -348,7 +348,10 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                     const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
                     if (distinctPersonIds.length === 1) {
                       ep.personId = distinctPersonIds[0];
-                    } else if (distinctPersonIds.length === 0) {
+                    } else {
+                      // Zero alias matches OR ambiguous multi-alias match: create a new published person
+                      // so the event_people FK is always satisfiable and the participant is
+                      // reachable via public hydration (Codex P1: keep approved participants reachable).
                       await tx.insert(schema.people).values({
                         id: ep.personId,
                         slug: pSlug,
@@ -678,8 +681,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
     if (db) {
       try {
-        const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, targetEventId));
-        if (dbEvt) targetEvent = dbEvt;
+        // targetEvent already resolved above (lines 617-623); no second lookup needed.
 
         await db.transaction(async (tx) => {
           // Atomically update candidate status inside database transaction (Codex Issue)
