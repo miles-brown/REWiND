@@ -482,25 +482,15 @@ export function MapGraphic({
       {/* Map Control Actions Toolbar */}
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
-        {webGlSupported && mapMode === "webgl" && (
+        {/* Only expose satellite toggle when a satellite style is actually configured */}
+        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE) && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={MAPBOX_TOKEN && MAPBOX_SATELLITE_STYLE ? toggleMapTheme : undefined}
-            disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}
+            onClick={toggleMapTheme}
             aria-pressed={mapTheme === "satellite"}
-            title={
-              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
-                ? "Satellite view requires Mapbox token and style configuration"
-                : mapTheme === "satellite"
-                ? "Switch to Dark Forensic Basemap"
-                : "Switch to Mapbox Satellite 3D View"
-            }
-            aria-label={
-              !MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE
-                ? "Satellite view requires Mapbox token and style configuration"
-                : "Mapbox Satellite 3D layer"
-            }
+            title={mapTheme === "satellite" ? "Switch to Dark Forensic Basemap" : "Switch to Mapbox Satellite 3D View"}
+            aria-label="Mapbox Satellite 3D layer"
           >
             {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
             <span>{mapTheme === "satellite" ? "Dark Map" : "Satellite"}</span>

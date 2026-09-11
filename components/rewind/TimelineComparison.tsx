@@ -292,6 +292,19 @@ export function TimelineComparison({
     );
   }
 
+  if (people.length < 2) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>Second Figure Required</h2>
+        <p>
+          The co-appearance comparison requires at least two documented historical figures.
+          Add a second figure to the atlas to enable side-by-side timeline analysis.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="comparison-workspace">
       {/* Dynamic Comparison Control Console */}
