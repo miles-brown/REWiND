@@ -2,7 +2,7 @@ import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
-import { resolveEntity } from "@/lib/ingestion/resolve";
+import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -198,9 +198,9 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
     const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
     if (Array.isArray(data.participants)) {
-      data.participants.forEach((p: { name: string; role?: string; involvementType?: string }, idx: number) => {
+      data.participants.forEach((p: { name: string; role?: string; involvementType?: string; presenceMode?: string }, idx: number) => {
         const resolved = resolveEntity(p.name);
-        const personId = resolved.personId || `p-${p.name.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
+        const personId = createParticipantStubId(p.name, resolved.personId);
         eventPeopleRows.push({
           id: `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
           eventId: eventSlug,
@@ -209,6 +209,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           roleLabel: p.role || "participant",
           presenceConfidence: "confirmed",
           roleConfidence: "confirmed",
+          attendanceMode: p.presenceMode || "physical",
           rawName: p.name,
         });
       });
@@ -304,68 +305,15 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             isPrimary: true,
           });
 
-          // 6. Persist approved candidate participants (Codex: keep approved participants published so they resolve publicly)
+          // 6. Persist approved candidate participants (Codex & Gemini: resolve person canonically and promote to published)
           if (eventPeopleRows.length > 0) {
             for (const ep of eventPeopleRows) {
-              const [existingPerson] = await tx
-                .select({ id: schema.people.id })
-                .from(schema.people)
-                .where(eq(schema.people.id, ep.personId));
-              if (!existingPerson) {
-                const pSlug = ep.personId.replace(/^p-/, "");
-                const [bySlug] = await tx
-                  .select({ id: schema.people.id })
-                  .from(schema.people)
-                  .where(eq(schema.people.slug, pSlug));
-                if (bySlug) {
-                  ep.personId = bySlug.id;
-                } else {
-                  const rawName = ep.rawName || pSlug;
-                  const escapedName = escapeIlikePattern(rawName);
-                  const matchingByName = await tx
-                    .select({ id: schema.people.id })
-                    .from(schema.people)
-                    .where(
-                      or(
-                        ilike(schema.people.canonicalName, escapedName),
-                        ilike(schema.people.displayName, escapedName)
-                      )
-                    );
-                  const distinctNameMatches = Array.from(new Set(matchingByName.map((p) => p.id)));
-                  if (distinctNameMatches.length === 1) {
-                    ep.personId = distinctNameMatches[0];
-                  } else if (distinctNameMatches.length === 0) {
-                    // Check schema.personAliases before creating duplicate person
-                    const aliasRows = await tx
-                      .select({ personId: schema.personAliases.personId })
-                      .from(schema.personAliases)
-                      .where(
-                        or(
-                          ilike(schema.personAliases.alias, escapedName),
-                          eq(schema.personAliases.alias, rawName)
-                        )
-                      );
-                    const distinctPersonIds = Array.from(new Set(aliasRows.map((r) => r.personId)));
-                    if (distinctPersonIds.length === 1) {
-                      ep.personId = distinctPersonIds[0];
-                    } else {
-                      // Zero alias matches OR ambiguous multi-alias match: create a new published person
-                      // so the event_people FK is always satisfiable and the participant is
-                      // reachable via public hydration (Codex P1: keep approved participants reachable).
-                      await tx.insert(schema.people).values({
-                        id: ep.personId,
-                        slug: pSlug,
-                        displayName: ep.roleLabel ? `${rawName} (${ep.roleLabel})` : rawName,
-                        canonicalName: rawName,
-                        nationality: "International",
-                        classification: "historical-figure",
-                        notabilityBasis: "Documented participant in verified historical event",
-                        publicationStatus: "published",
-                      });
-                    }
-                  }
-                }
-              }
+              const canonicalPersonId = await resolvePersonEntityInTransaction(tx, {
+                personId: ep.personId,
+                rawName: ep.rawName || ep.personId.replace(/^p-/, ""),
+                roleLabel: ep.roleLabel,
+              });
+              ep.personId = canonicalPersonId;
               const epRow = { ...ep };
               delete epRow.rawName;
               await tx.insert(schema.eventPeople).values(epRow);

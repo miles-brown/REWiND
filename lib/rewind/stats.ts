@@ -37,11 +37,18 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
       getEventYears(supabase),
     ]);
 
+    // Any failed count query returns { count: null, error } — do not convert failures
+    // into zero counts which would make a DB outage look like an empty-but-healthy atlas.
+    if (eventsRes.error || peopleRes.error || sourcesRes.error || verifiedRes.error) {
+      const firstError = eventsRes.error ?? peopleRes.error ?? sourcesRes.error ?? verifiedRes.error;
+      throw new Error(`Atlas statistics query failed: ${firstError?.message ?? "unknown error"}`);
+    }
+
     return {
-      eventCount: eventsRes.count || 0,
-      personCount: peopleRes.count || 0,
-      sourceCount: sourcesRes.count || 0,
-      verifiedCount: verifiedRes.count || 0,
+      eventCount: eventsRes.count ?? 0,
+      personCount: peopleRes.count ?? 0,
+      sourceCount: sourcesRes.count ?? 0,
+      verifiedCount: verifiedRes.count ?? 0,
       placeCount: places.length,
       yearsCovered: eventYears.length,
     };

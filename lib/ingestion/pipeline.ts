@@ -7,7 +7,13 @@ import {
   type RawEvidenceItem,
   type IngestionResult,
 } from "./types";
-import { resolveEntity, resolveEntityAsync, resolvePlace } from "./resolve";
+import {
+  resolveEntity,
+  resolveEntityAsync,
+  resolvePlace,
+  createParticipantStubId,
+  resolvePersonEntityInTransaction,
+} from "./resolve";
 import { calculateEventFingerprint, findDuplicateEvent } from "./deduplicate";
 import { evaluatePublicationPolicy } from "./policy-evaluator";
 import { recordAuditEvent } from "./audit";
@@ -28,7 +34,13 @@ export function processCandidateEvent(
     .filter((id): id is string => id !== null);
 
   // 2. Resolve Place
-  const placeResolution = resolvePlace(candidate.venue, candidate.city, candidate.country);
+  const placeResolution = resolvePlace(
+    candidate.venue,
+    candidate.city,
+    candidate.country,
+    candidate.latitude,
+    candidate.longitude
+  );
 
   // 3. Check for Duplicate Events
   const deduplication = findDuplicateEvent(candidate);
@@ -60,7 +72,8 @@ export function processCandidateEvent(
       url: source.url || null,
       archiveUrl: null,
       author: null,
-      publicationDate: candidate.startDate,
+      // Do not copy the event date; source publication date is unknown unless explicitly supplied.
+      publicationDate: null,
       trustScore: source.sourceTier === "tier-a" ? 1.0 : source.sourceTier === "tier-b" ? 0.9 : 0.8,
     };
     store.sources.push(existingSource);
@@ -112,8 +125,8 @@ export function processCandidateEvent(
           venue: placeResolution.venue,
           city: placeResolution.city,
           country: placeResolution.country,
-          latitude: placeResolution.latitude ?? null,
-          longitude: placeResolution.longitude ?? null,
+          latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+          longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
           placeType: "venue",
         };
         store.places.push(existingPlace);
@@ -233,7 +246,6 @@ export function processCandidateEvent(
   }
 
   const auditEntry = store.auditLog[0];
-
   const syncResult: IngestionResult = {
     candidateId,
     fingerprint,
@@ -282,7 +294,8 @@ export function processCandidateEvent(
           url: source.url || null,
           archiveUrl: null,
           author: null,
-          publicationDate: candidate.startDate,
+          // Do not copy the event date; source publication date is unknown unless explicitly supplied.
+          publicationDate: null,
           trustScore: source.sourceTier === "tier-a" ? 1.0 : source.sourceTier === "tier-b" ? 0.9 : 0.8,
         });
       }
@@ -364,8 +377,8 @@ export function processCandidateEvent(
               venue: placeResolution.venue,
               city: placeResolution.city,
               country: placeResolution.country,
-              latitude: placeResolution.latitude ?? null,
-              longitude: placeResolution.longitude ?? null,
+              latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+              longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
               placeType: "venue",
             });
           }
@@ -424,31 +437,12 @@ export function processCandidateEvent(
           for (let i = 0; i < candidate.participants.length; i++) {
             const p = candidate.participants[i];
             const res = liveEntityResolutions[i];
-            const personId = res?.personId || `p-${p.name.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
-            const [existingP] = await tx
-              .select({ id: schema.people.id })
-              .from(schema.people)
-              .where(eq(schema.people.id, personId));
-
-            if (!existingP) {
-              const pSlug = personId.replace(/^p-/, "");
-              const [bySlug] = await tx
-                .select({ id: schema.people.id })
-                .from(schema.people)
-                .where(eq(schema.people.slug, pSlug));
-              if (!bySlug) {
-                await tx.insert(schema.people).values({
-                  id: personId,
-                  slug: pSlug,
-                  displayName: p.name,
-                  canonicalName: p.name,
-                  nationality: "International",
-                  classification: "historical-figure",
-                  notabilityBasis: "Documented participant in verified historical event",
-                  publicationStatus: "published",
-                });
-              }
-            }
+            const stubId = createParticipantStubId(p.name, res?.personId);
+            const personId = await resolvePersonEntityInTransaction(tx, {
+              personId: stubId,
+              rawName: p.name,
+              roleLabel: p.role,
+            });
 
             const [existingEp] = await tx
               .select({ id: schema.eventPeople.id })
@@ -469,6 +463,7 @@ export function processCandidateEvent(
                 roleLabel: p.role || "participant",
                 presenceConfidence: "confirmed",
                 roleConfidence: "confirmed",
+                attendanceMode: p.presenceMode || "physical",
               });
             }
           }

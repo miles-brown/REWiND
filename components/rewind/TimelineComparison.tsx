@@ -309,6 +309,15 @@ export function TimelineComparison({
     <div className="comparison-workspace">
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
+        {/* ARIA Live Region: Announces dynamic figure selection and automatic co-attendee changes */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {personA && personB
+            ? `Comparing ${personA.name} with ${personB.name}: ${intersections.length} shared encounter${intersections.length === 1 ? "" : "s"}.`
+            : personA
+            ? `Selected figure ${personA.name}. No co-attendees available for comparison.`
+            : "No figure selected for comparison."}
+        </div>
+
         <div className="comparison-selectors">
           {/* Selector 1: Primary Figure */}
           <div className="selector-card">

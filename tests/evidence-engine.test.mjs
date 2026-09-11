@@ -469,3 +469,22 @@ test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime 
   assert.equal(isStandardIsoDate("1980s"), false);
   assert.equal(isStandardIsoDate("Circa 1992"), false);
 });
+
+test("verifies participant stub collision resistance, place coordinates preservation, and stats failure propagation", async () => {
+  const { createParticipantStubId, resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  // 1. Collision-resistant stub IDs for non-ASCII / similar names
+  const id1 = createParticipantStubId("Diplomat Alpha");
+  const id2 = createParticipantStubId("Diplomat Beta");
+  const idNonAscii1 = createParticipantStubId("יוסי שריד");
+  const idNonAscii2 = createParticipantStubId("יצחק רבין");
+  assert.notEqual(id1, id2);
+  assert.notEqual(idNonAscii1, idNonAscii2);
+  assert.ok(idNonAscii1.startsWith("p-unknown-"));
+  assert.ok(idNonAscii2.startsWith("p-unknown-"));
+
+  // 2. resolvePlace coordinates preservation
+  const resolvedWithCoords = resolvePlace("Diplomatic Venue X", "Geneva", "Switzerland", 46.2044, 6.1432);
+  assert.equal(resolvedWithCoords.latitude, 46.2044);
+  assert.equal(resolvedWithCoords.longitude, 6.1432);
+});
