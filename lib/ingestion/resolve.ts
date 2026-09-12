@@ -453,3 +453,122 @@ export function resolvePlace(
     confidence: 0.85,
   };
 }
+
+export async function resolvePlaceAsync(
+  venue?: string,
+  city?: string,
+  country?: string,
+  latitude?: number,
+  longitude?: number,
+  dbInstance?: ReturnType<typeof getDb>
+): Promise<PlaceResolution> {
+  const db = dbInstance ?? getDb();
+  const safeCity = city || "";
+  const safeVenue = venue || "";
+  const safeCountry = country || "";
+
+  const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
+
+  // If both city and venue are empty, do not fabricate gazetteer matches
+  if (!normCity && !normVenue) {
+    return {
+      placeId: "plc-unknown-general",
+      venue: "General",
+      city: "Unknown",
+      country: safeCountry || "International",
+      latitude: latitude !== undefined ? latitude : undefined,
+      longitude: longitude !== undefined ? longitude : undefined,
+      confidence: 0.5,
+    };
+  }
+
+  if (db) {
+    try {
+      const escapedVenue = escapeIlikePattern(safeVenue);
+      const escapedCity = escapeIlikePattern(safeCity);
+
+      // 1. Match both venue and city
+      if (safeVenue && safeCity) {
+        const bothMatches = await db
+          .select()
+          .from(schema.places)
+          .where(
+            and(
+              ilike(schema.places.venue, `%${escapedVenue}%`),
+              ilike(schema.places.city, `%${escapedCity}%`)
+            )
+          );
+
+        if (bothMatches.length > 0) {
+          const pl = bothMatches[0];
+          return {
+            placeId: pl.id,
+            venue: pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: pl.latitude ?? latitude ?? undefined,
+            longitude: pl.longitude ?? longitude ?? undefined,
+            confidence: 0.98,
+          };
+        }
+      }
+
+      // 2. Match city only
+      if (safeCity) {
+        const cityMatches = await db
+          .select()
+          .from(schema.places)
+          .where(ilike(schema.places.city, `%${escapedCity}%`));
+
+        if (cityMatches.length > 0) {
+          const pl = cityMatches[0];
+          return {
+            placeId: pl.id,
+            venue: safeVenue || pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: pl.latitude ?? latitude ?? undefined,
+            longitude: pl.longitude ?? longitude ?? undefined,
+            confidence: 0.92,
+          };
+        }
+      }
+
+      // 3. Place alias match
+      if (safeVenue) {
+        const aliasMatches = await db
+          .select({
+            placeId: schema.placeAliases.placeId,
+            alias: schema.placeAliases.alias,
+            venue: schema.places.venue,
+            city: schema.places.city,
+            country: schema.places.country,
+            latitude: schema.places.latitude,
+            longitude: schema.places.longitude,
+          })
+          .from(schema.placeAliases)
+          .innerJoin(schema.places, eq(schema.placeAliases.placeId, schema.places.id))
+          .where(ilike(schema.placeAliases.alias, `%${escapedVenue}%`));
+
+        if (aliasMatches.length > 0) {
+          const pl = aliasMatches[0];
+          return {
+            placeId: pl.placeId,
+            venue: pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: pl.latitude ?? latitude ?? undefined,
+            longitude: pl.longitude ?? longitude ?? undefined,
+            confidence: 0.95,
+          };
+        }
+      }
+    } catch {
+      // Fallback to in-memory store on DB query error
+    }
+  }
+
+  return resolvePlace(venue, city, country, latitude, longitude);
+}
+

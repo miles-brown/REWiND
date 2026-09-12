@@ -490,3 +490,45 @@ test("verifies participant stub collision resistance, place coordinates preserva
   assert.equal(resolvedWithCoords.latitude, 46.2044);
   assert.equal(resolvedWithCoords.longitude, 6.1432);
 });
+
+test("verifies resolvePlaceAsync live database resolution and fallback behavior", async () => {
+  const { resolvePlaceAsync } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  const mockDb = {
+    select() {
+      return {
+        from() {
+          return {
+            where() {
+              return Promise.resolve([
+                {
+                  id: "plc-geneva-palais-des-nations",
+                  slug: "palais-des-nations",
+                  venue: "Palais des Nations",
+                  city: "Geneva",
+                  country: "Switzerland",
+                  latitude: 46.2268,
+                  longitude: 6.1402,
+                  placeType: "summit-center",
+                },
+              ]);
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const dbRes = await resolvePlaceAsync("Palais des Nations", "Geneva", "Switzerland", undefined, undefined, mockDb);
+  assert.equal(dbRes.placeId, "plc-geneva-palais-des-nations");
+  assert.equal(dbRes.venue, "Palais des Nations");
+  assert.equal(dbRes.confidence, 0.98);
+  assert.equal(dbRes.latitude, 46.2268);
+
+  // Fallback to in-memory store when DB is null
+  const fallbackRes = await resolvePlaceAsync("White House", "Washington, D.C.", "United States", undefined, undefined, null);
+  assert.ok(fallbackRes.city.includes("Washington"));
+  assert.ok(fallbackRes.confidence >= 0.9);
+});
+
+
