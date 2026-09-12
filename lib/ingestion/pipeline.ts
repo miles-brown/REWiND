@@ -55,7 +55,7 @@ export function processCandidateEvent(
     candidate.city,
     candidate.eventType
   );
-  const candidateId = `cand-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  let candidateId = `cand-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   let publishedEventId: string | undefined;
   let auditPromise: Promise<unknown> | undefined;
@@ -192,57 +192,59 @@ export function processCandidateEvent(
       );
     }
   } else {
-    // HUMAN REVIEW QUEUE PATH: Idempotent insertion by fingerprint
     const existingPending = store.candidateEvents.find(
       (c) => c.fingerprint === fingerprint && c.status === "pending"
     );
 
     if (existingPending) {
-      // Reuse existing pending candidate without duplicating queue
-      const auditEntry = store.auditLog[0];
-      const syncResult: IngestionResult = {
-        candidateId: existingPending.id,
+      candidateId = existingPending.id;
+      if (!db) {
+        // In-memory only: reuse existing pending candidate without duplicating queue
+        const auditEntry = store.auditLog[0];
+        const syncResult: IngestionResult = {
+          candidateId: existingPending.id,
+          fingerprint,
+          lane: policy.lane,
+          publishedEventId: undefined,
+          deduplication,
+          policy,
+          auditId: auditEntry ? auditEntry.id : 0,
+        };
+        return Object.assign(Promise.resolve(syncResult), syncResult);
+      }
+    } else {
+      // Embed sourceId with rawExtraction payload so approval preserves citation
+      const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
+
+      store.candidateEvents.unshift({
+        id: candidateId,
         fingerprint,
-        lane: policy.lane,
-        publishedEventId: undefined,
-        deduplication,
-        policy,
-        auditId: auditEntry ? auditEntry.id : 0,
-      };
-      return Object.assign(Promise.resolve(syncResult), syncResult);
+        rawExtraction: rawPayload,
+        suggestedTitle: candidate.title,
+        suggestedDate: candidate.startDate,
+        suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
+        suggestedParticipants: JSON.stringify(candidate.participants),
+        primarySourceTier: source.sourceTier,
+        assignedLane: policy.lane,
+        duplicateMatchId: deduplication.matchedEventId || null,
+        duplicateSimilarity: deduplication.similarity,
+        status: "pending",
+        rejectionReason: null,
+        createdAt: new Date(),
+      });
+
+      auditPromise = recordAuditEvent(
+        "queued-for-review",
+        policy.ruleId,
+        {
+          candidateId,
+          sourceId: source.sourceId,
+          reason: policy.reason,
+        },
+        undefined,
+        candidateId
+      );
     }
-
-    // Embed sourceId with rawExtraction payload so approval preserves citation
-    const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
-
-    store.candidateEvents.unshift({
-      id: candidateId,
-      fingerprint,
-      rawExtraction: rawPayload,
-      suggestedTitle: candidate.title,
-      suggestedDate: candidate.startDate,
-      suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
-      suggestedParticipants: JSON.stringify(candidate.participants),
-      primarySourceTier: source.sourceTier,
-      assignedLane: policy.lane,
-      duplicateMatchId: deduplication.matchedEventId || null,
-      duplicateSimilarity: deduplication.similarity,
-      status: "pending",
-      rejectionReason: null,
-      createdAt: new Date(),
-    });
-
-    auditPromise = recordAuditEvent(
-      "queued-for-review",
-      policy.ruleId,
-      {
-        candidateId,
-        sourceId: source.sourceId,
-        reason: policy.reason,
-      },
-      undefined,
-      candidateId
-    );
   }
 
   const auditEntry = store.auditLog[0];
@@ -328,14 +330,19 @@ export function processCandidateEvent(
             .from(schema.claims)
             .where(eq(schema.claims.eventId, targetEventId));
 
+          const seenMergeClaimKeys = new Set<string>();
           const claimsToInsert = candidate.claims.filter((clm) => {
             const matchingSubject = liveEntityResolutions.find(
               (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
             );
             const subId = matchingSubject?.personId || null;
+            const normStatement = clm.statement.trim().toLowerCase();
+            const key = `${subId ?? ""}::${normStatement}`;
+            if (seenMergeClaimKeys.has(key)) return false;
+            seenMergeClaimKeys.add(key);
             return !existingClaims.some(
               (ec) =>
-                ec.statement.trim().toLowerCase() === clm.statement.trim().toLowerCase() &&
+                ec.statement.trim().toLowerCase() === normStatement &&
                 ec.subjectId === subId
             );
           });
@@ -476,14 +483,19 @@ export function processCandidateEvent(
             .from(schema.claims)
             .where(eq(schema.claims.eventId, eventSlug));
 
+          const seenPubClaimKeys = new Set<string>();
           const claimsToInsert = candidate.claims.filter((clm) => {
             const matchingSubject = liveEntityResolutions.find(
               (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
             );
             const subId = matchingSubject?.personId || null;
+            const normStatement = clm.statement.trim().toLowerCase();
+            const key = `${subId ?? ""}::${normStatement}`;
+            if (seenPubClaimKeys.has(key)) return false;
+            seenPubClaimKeys.add(key);
             return !existingClaims.some(
               (ec) =>
-                ec.statement.trim().toLowerCase() === clm.statement.trim().toLowerCase() &&
+                ec.statement.trim().toLowerCase() === normStatement &&
                 ec.subjectId === subId
             );
           });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, or, ilike, and, ne } from "drizzle-orm";
@@ -24,10 +25,10 @@ function normalizeName(name: string): string {
 export function createParticipantStubId(name: string, resolvedPersonId?: string | null): string {
   if (resolvedPersonId) return resolvedPersonId;
   const nameKey = name.toLowerCase().trim();
-  const nameHash = Array.from(nameKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
+  const nameDigest = createHash("sha256").update(nameKey).digest("hex").slice(0, 8);
   const normalizedBase =
     nameKey.replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 16) || "unknown";
-  return `p-${normalizedBase}-${nameHash.toString(36)}`;
+  return `p-${normalizedBase}-${nameDigest}`;
 }
 
 type TransactionClient = Parameters<Parameters<NonNullable<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
@@ -47,7 +48,7 @@ export async function resolvePersonEntityInTransaction(
     roleLabel?: string;
   }
 ): Promise<string> {
-  const { personId, rawName, roleLabel } = options;
+  const { personId, rawName } = options;
   const effectivePersonId = personId;
 
   // 1. Exact ID match
@@ -135,19 +136,27 @@ export async function resolvePersonEntityInTransaction(
     }
   }
 
-  // 5. Insert new published person record
-  await tx.insert(schema.people).values({
-    id: effectivePersonId,
-    slug: pSlug,
-    displayName: roleLabel ? `${rawName} (${roleLabel})` : rawName,
-    canonicalName: rawName,
-    nationality: "International",
-    classification: "historical-figure",
-    notabilityBasis: "Documented participant in verified historical event",
-    publicationStatus: "published",
-  });
+  // 5. Insert new published person record (idempotent for concurrent inserts)
+  await tx
+    .insert(schema.people)
+    .values({
+      id: effectivePersonId,
+      slug: pSlug,
+      displayName: rawName,
+      canonicalName: rawName,
+      nationality: "International",
+      classification: "historical-figure",
+      notabilityBasis: "Documented participant in verified historical event",
+      publicationStatus: "published",
+    })
+    .onConflictDoNothing();
 
-  return effectivePersonId;
+  const [canonicalPerson] = await tx
+    .select({ id: schema.people.id })
+    .from(schema.people)
+    .where(or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)));
+
+  return canonicalPerson ? canonicalPerson.id : effectivePersonId;
 }
 
 export interface EntityResolution {

@@ -473,7 +473,7 @@ test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime 
 test("verifies participant stub collision resistance, place coordinates preservation, and stats failure propagation", async () => {
   const { createParticipantStubId, resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
 
-  // 1. Collision-resistant stub IDs for non-ASCII / similar names
+  // 1. Collision-resistant stub IDs for non-ASCII / similar names (SHA-256 hex digest)
   const id1 = createParticipantStubId("Diplomat Alpha");
   const id2 = createParticipantStubId("Diplomat Beta");
   const idNonAscii1 = createParticipantStubId("יוסי שריד");
@@ -482,6 +482,8 @@ test("verifies participant stub collision resistance, place coordinates preserva
   assert.notEqual(idNonAscii1, idNonAscii2);
   assert.ok(idNonAscii1.startsWith("p-unknown-"));
   assert.ok(idNonAscii2.startsWith("p-unknown-"));
+  assert.match(id1, /^p-diplomat-alpha-[0-9a-f]{8}$/);
+  assert.match(idNonAscii1, /^p-unknown-[0-9a-f]{8}$/);
 
   // 2. resolvePlace coordinates preservation
   const resolvedWithCoords = resolvePlace("Diplomatic Venue X", "Geneva", "Switzerland", 46.2044, 6.1432);

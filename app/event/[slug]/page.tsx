@@ -9,7 +9,35 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params;
   const { data: event, error } = await getEventBySlug(slug);
   if (error && !event) {
-    throw new Error(`Failed to load event: ${error}`);
+    return (
+      <div className="page-shell">
+        <div className="record-breadcrumb" style={{ marginBottom: "2rem" }}>
+          <Link href="/events"><ArrowLeft />All events</Link>
+        </div>
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Event record temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            {error}
+          </p>
+          <div style={{ marginTop: "1.5rem" }}>
+            <Link href="/events" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "var(--accent, #60a5fa)", textDecoration: "underline" }}>
+              <ArrowLeft size={16} /> Return to Evidence Register
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (!event) notFound();
 

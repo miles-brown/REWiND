@@ -116,7 +116,7 @@ export function TimelineComparison({
       const slugsInEvent: string[] = [];
 
       parts.forEach((p) => {
-        const matched = peopleMap.get(p.personId);
+        const matched = peopleMap.get(p.personId) ?? (p.slug ? peopleMap.get(p.slug) : undefined);
         if (matched) {
           const s = matched.slug;
           if (!slugsInEvent.includes(s)) {
