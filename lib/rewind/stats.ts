@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { getEventYears } from "./events";
-import { getPlaces } from "./places";
+import { getEventYearsStrict } from "./events";
+import { getPlacesStrict } from "./places";
 
 export interface AtlasStatistics {
   eventCount: number;
@@ -32,8 +32,8 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     supabase.from("people").select("id", { count: "exact", head: true }).eq("publication_status", "published"),
     supabase.from("sources").select("id", { count: "exact", head: true }),
     supabase.from("events").select("id", { count: "exact", head: true }).eq("verification_status", "verified").eq("publication_status", "published"),
-    getPlaces(),
-    getEventYears(supabase),
+    getPlacesStrict(supabase),
+    getEventYearsStrict(supabase),
   ]);
 
   // Any failed count query returns { count: null, error } — do not convert failures

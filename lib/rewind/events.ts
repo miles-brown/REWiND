@@ -760,10 +760,12 @@ export async function getEventsByIds(ids: string[], supabaseClient?: unknown): P
  * Returns a discriminated { data, error } result preserving database and query failures.
  */
 export async function getEventBySlug(
-  slug: string
+  slug: string,
+  supabaseClient?: unknown
 ): Promise<{ data: EventRecord | null; error: string | null }> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (supabase) {
       const { data: eventRow, error } = await supabase
         .from("events")
@@ -773,7 +775,8 @@ export async function getEventBySlug(
         .maybeSingle();
 
       if (error) {
-        return { data: null, error: error.message };
+        console.error("Failed to query event by slug from database:", error);
+        return { data: null, error: "The requested event record could not be loaded. Please try again later." };
       }
       if (!eventRow) {
         return { data: null, error: null };
@@ -789,7 +792,10 @@ export async function getEventBySlug(
           .select("venue, city, country, latitude, longitude")
           .eq("id", eventRow.place_id)
           .maybeSingle();
-        if (pError) return { data: null, error: pError.message };
+        if (pError) {
+          console.error("Failed to query place for event:", pError);
+          return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+        }
         if (p) placeData = p;
       } else if (eventRow.venue_id) {
         const { data: v, error: vError } = await supabase
@@ -797,7 +803,10 @@ export async function getEventBySlug(
           .select("name, address_id, latitude, longitude")
           .eq("id", eventRow.venue_id)
           .maybeSingle();
-        if (vError) return { data: null, error: vError.message };
+        if (vError) {
+          console.error("Failed to query venue for event:", vError);
+          return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+        }
         if (v) {
           let addr: { city?: string | null; country?: string | null; latitude?: number | null; longitude?: number | null } | null = null;
           if (v.address_id) {
@@ -806,7 +815,10 @@ export async function getEventBySlug(
               .select("city, country_code, latitude, longitude")
               .eq("id", v.address_id)
               .maybeSingle();
-            if (aError) return { data: null, error: aError.message };
+            if (aError) {
+              console.error("Failed to query address for venue:", aError);
+              return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+            }
             addr = a ? { city: a.city, country: a.country_code, latitude: a.latitude, longitude: a.longitude } : null;
           }
           placeData = {
@@ -823,7 +835,10 @@ export async function getEventBySlug(
           .select("city, country_code, latitude, longitude, formatted_english, descriptive_location")
           .eq("id", eventRow.address_id)
           .maybeSingle();
-        if (aError) return { data: null, error: aError.message };
+        if (aError) {
+          console.error("Failed to query address for event:", aError);
+          return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+        }
         if (a) {
           placeData = {
             venue: a.descriptive_location || a.formatted_english || undefined,
@@ -857,7 +872,10 @@ export async function getEventBySlug(
             .eq("event_id", eventId)
             .order("id", { ascending: true })
             .range(from, to);
-          if (partError) return { data: null, error: partError.message };
+          if (partError) {
+            console.error("Failed to query event participants:", partError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
           if (!data || data.length === 0) break;
           participantRows = participantRows.concat(data);
           if (data.length < batchSize) {
@@ -878,8 +896,13 @@ export async function getEventBySlug(
             .select("event_person_id, latitude, longitude, coordinate_precision")
             .in("event_person_id", chunk)
             .eq("is_principal_location", true);
-          if (locError) return { data: null, error: locError.message };
-          (locRows || []).forEach((loc) => locationsMap.set(loc.event_person_id, loc));
+          if (locError) {
+            console.error("Failed to query event person locations:", locError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
+          (locRows || []).forEach((loc: Record<string, unknown>) =>
+            locationsMap.set(String(loc.event_person_id), loc)
+          );
         }
       }
 
@@ -893,10 +916,13 @@ export async function getEventBySlug(
             .from("people")
             .select("id, slug, canonical_name, display_name")
             .in("id", chunk);
-          if (peopleError) return { data: null, error: peopleError.message };
-          (peopleData || []).forEach((p) => {
-            personNames.set(p.id, p.display_name || p.canonical_name);
-            personSlugs.set(p.id, p.slug);
+          if (peopleError) {
+            console.error("Failed to query people for event:", peopleError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
+          (peopleData || []).forEach((p: { id: string; display_name?: string | null; canonical_name?: string | null; slug?: string }) => {
+            personNames.set(p.id, p.display_name || p.canonical_name || p.id);
+            if (p.slug) personSlugs.set(p.id, p.slug);
           });
         }
       }
@@ -952,9 +978,12 @@ export async function getEventBySlug(
             .from("sources")
             .select("*")
             .in("id", chunk);
-          if (srcError) return { data: null, error: srcError.message };
-          (rawSources || []).forEach((src) => {
-            sourceEntitiesMap.set(src.id, mapDatabaseSource(src));
+          if (srcError) {
+            console.error("Failed to query sources for event:", srcError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
+          (rawSources || []).forEach((src: Record<string, unknown>) => {
+            sourceEntitiesMap.set(String(src.id), mapDatabaseSource(src));
           });
         }
       }
@@ -974,7 +1003,10 @@ export async function getEventBySlug(
             .eq("event_id", eventId)
             .order("id", { ascending: true })
             .range(from, to);
-          if (quotesError) return { data: null, error: quotesError.message };
+          if (quotesError) {
+            console.error("Failed to query quotes for event:", quotesError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
           if (!qData || qData.length === 0) break;
           quotesRows = quotesRows.concat(qData);
           if (qData.length < batchSize) {
@@ -1000,9 +1032,12 @@ export async function getEventBySlug(
             .from("people")
             .select("id, canonical_name, display_name")
             .in("id", chunk);
-          if (speakerError) return { data: null, error: speakerError.message };
-          (speakerPeople || []).forEach((p) => {
-            personNames.set(p.id, p.display_name || p.canonical_name);
+          if (speakerError) {
+            console.error("Failed to query speaker people for event quotes:", speakerError);
+            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+          }
+          (speakerPeople || []).forEach((p: { id: string; display_name?: string | null; canonical_name?: string | null }) => {
+            personNames.set(p.id, p.display_name || p.canonical_name || p.id);
           });
         }
       }
@@ -1038,7 +1073,8 @@ export async function getEventBySlug(
     const fb = fallbackEvents.find((e) => e.slug === slug || e.id === slug);
     return { data: fb ? mapFallbackEvent(fb) : null, error: null };
   } catch (err) {
-    return { data: null, error: err instanceof Error ? err.message : "Failed to load event" };
+    console.error("Unexpected error loading event by slug:", err);
+    return { data: null, error: "The requested event record could not be loaded. Please try again later." };
   }
 }
 
@@ -1192,58 +1228,62 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
 /**
  * Retrieves distinct event calendar years from the database.
  */
-export async function getEventYears(supabaseClient?: unknown): Promise<number[]> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
-    if (supabase) {
-      const allRows: { start_date: string }[] = [];
-      const pageSize = 1000;
-      let from = 0;
-      let hasMore = true;
+export async function getEventYearsStrict(supabaseClient?: unknown): Promise<number[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
+  if (supabase) {
+    const allRows: { start_date: string }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("events")
-          .select("start_date")
-          .eq("publication_status", "published")
-          .order("start_date", { ascending: true })
-          .order("id", { ascending: true })
-          .range(from, from + pageSize - 1);
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("events")
+        .select("start_date")
+        .eq("publication_status", "published")
+        .order("start_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
 
-        if (error) {
-          return [];
-        }
-
-        if (data) {
-          allRows.push(...data);
-        }
-
-        if (!data || data.length < pageSize) {
-          hasMore = false;
-        } else {
-          from += pageSize;
-        }
+      if (error) {
+        throw new Error(`Failed to query event years: ${error.message}`);
       }
 
-      const years = new Set<number>();
-      allRows.forEach((row) => {
-        if (row.start_date && row.start_date.length >= 4) {
-          const year = parseInt(row.start_date.slice(0, 4), 10);
-          if (!isNaN(year)) years.add(year);
-        }
-      });
-      return Array.from(years).sort((a, b) => a - b);
+      if (data) {
+        allRows.push(...data);
+      }
+
+      if (!data || data.length < pageSize) {
+        hasMore = false;
+      } else {
+        from += pageSize;
+      }
     }
 
     const years = new Set<number>();
-    fallbackEvents.forEach((e) => {
-      if (e.startDate && e.startDate.length >= 4) {
-        const year = parseInt(e.startDate.slice(0, 4), 10);
+    allRows.forEach((row) => {
+      if (row.start_date && row.start_date.length >= 4) {
+        const year = parseInt(row.start_date.slice(0, 4), 10);
         if (!isNaN(year)) years.add(year);
       }
     });
     return Array.from(years).sort((a, b) => a - b);
+  }
+
+  const years = new Set<number>();
+  fallbackEvents.forEach((e) => {
+    if (e.startDate && e.startDate.length >= 4) {
+      const year = parseInt(e.startDate.slice(0, 4), 10);
+      if (!isNaN(year)) years.add(year);
+    }
+  });
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+export async function getEventYears(supabaseClient?: unknown): Promise<number[]> {
+  try {
+    return await getEventYearsStrict(supabaseClient);
   } catch {
     return [];
   }

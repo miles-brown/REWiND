@@ -218,6 +218,14 @@ export function TimelineComparison({
     [peopleMap, people, slugB]
   );
 
+  const figure2Options = useMemo(() => {
+    const list = [...coAttendeesWithCounts];
+    if (slugB && personB && !list.some((item) => item.person.slug === slugB) && slugB !== effectiveSlugA) {
+      list.unshift({ person: personB, count: 0 });
+    }
+    return list;
+  }, [coAttendeesWithCounts, slugB, personB, effectiveSlugA]);
+
   const eventsA = useMemo(
     () =>
       personA
@@ -388,10 +396,10 @@ export function TimelineComparison({
                 aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
-                disabled={coAttendeesWithCounts.length === 0}
+                disabled={figure2Options.length === 0}
               >
-                {coAttendeesWithCounts.length > 0 ? (
-                  coAttendeesWithCounts.map((item) => (
+                {figure2Options.length > 0 ? (
+                  figure2Options.map((item) => (
                     <option key={item.person.slug} value={item.person.slug}>
                       {item.person.name} ({item.count} shared event
                       {item.count === 1 ? "" : "s"})

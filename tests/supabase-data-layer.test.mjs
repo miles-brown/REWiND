@@ -478,3 +478,52 @@ test("verifies Codex review fixes: live entity resolution, source tier rendering
   assert.ok(stats.placeCount >= 0);
 });
 
+test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and error sanitization in getEventBySlug", async () => {
+  const { getPlaces, getPlacesStrict } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const { getEventYears, getEventYearsStrict, getEventBySlug } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  const failingClient = {
+    from() {
+      const handler = {
+        select() { return handler; },
+        order() { return handler; },
+        range() { return Promise.resolve({ data: null, error: new Error("PG Connection Timeout") }); },
+        eq() { return handler; },
+        single() { return Promise.resolve({ data: null, error: new Error("PG Query Refused") }); },
+        maybeSingle() { return Promise.resolve({ data: null, error: new Error("PG Query Refused") }); },
+      };
+      return handler;
+    },
+  };
+
+  // getPlaces catches error and returns []
+  const placesTolerant = await getPlaces(failingClient);
+  assert.deepEqual(placesTolerant, []);
+
+  // getPlacesStrict throws error
+  await assert.rejects(
+    async () => {
+      await getPlacesStrict(failingClient);
+    },
+    /PG Connection Timeout/
+  );
+
+  // getEventYears catches error and returns []
+  const yearsTolerant = await getEventYears(failingClient);
+  assert.deepEqual(yearsTolerant, []);
+
+  // getEventYearsStrict throws error
+  await assert.rejects(
+    async () => {
+      await getEventYearsStrict(failingClient);
+    },
+    /PG Connection Timeout/
+  );
+
+  // getEventBySlug returns sanitized public error string and does not leak internal DB error
+  const eventRes = await getEventBySlug("nonexistent-slug", failingClient);
+  assert.equal(eventRes.data, null);
+  assert.equal(eventRes.error, "The requested event record could not be loaded. Please try again later.");
+});
+
+

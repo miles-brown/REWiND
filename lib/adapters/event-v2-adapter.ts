@@ -92,11 +92,11 @@ export function inferInvolvementType(role: string): InvolvementType {
 /**
  * Validation helpers to safely parse domain enum values without loose 'as' assertions.
  */
-function parseConfidence(c?: string | null): Confidence {
+function parseConfidence(c?: string | null, fallback: Confidence = "limited"): Confidence {
   if (c === "confirmed" || c === "strong" || c === "moderate" || c === "limited") {
     return c;
   }
-  return "confirmed";
+  return fallback;
 }
 
 function parsePrecision(p?: string | null): Precision {
@@ -147,7 +147,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       roleLabel: role,
       capacityTitle: role,
       attendanceMode: "physical",
-      presenceConfidence: parseConfidence(p.presenceConfidence),
+      presenceConfidence: parseConfidence(p.presenceConfidence, "confirmed"),
       roleConfidence: "confirmed",
       locations:
         legacy.latitude != null && legacy.longitude != null
@@ -160,13 +160,19 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 coordinatePrecision: mapLegacyLocationPrecision(legacy.locationPrecision),
                 isPrincipalLocation: true,
                 locationBasis: "archival-record",
-                confidence: parseConfidence(legacy.confidence),
+                confidence: parseConfidence(
+                  legacy.confidence,
+                  legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
+                ),
                 sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
                 sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
                   id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
                   eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
                   sourceId: sid,
-                  confidence: parseConfidence(legacy.confidence),
+                  confidence: parseConfidence(
+                    legacy.confidence,
+                    legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
+                  ),
                 })),
                 publicVisibility: locationPublicVis,
               },
@@ -253,7 +259,10 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     longitude: legacy.longitude ?? null,
     locationPrecision: mapLegacyLocationPrecision(legacy.locationPrecision || "unknown"),
     verificationStatus: parseVerification(legacy.verificationStatus),
-    confidence: parseConfidence(legacy.confidence),
+    confidence: parseConfidence(
+      legacy.confidence,
+      legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
+    ),
     sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
     reviewedAt: legacy.reviewedAt || undefined,
     researchNotes: legacy.notes ?? null,

@@ -540,7 +540,10 @@ export function processCandidateEvent(
             )
           );
 
-        if (!existingCand) {
+        if (existingCand) {
+          syncResult.candidateId = existingCand.id;
+          candidateId = existingCand.id;
+        } else {
           await tx.insert(schema.candidateEvents).values({
             id: candidateId,
             fingerprint,
