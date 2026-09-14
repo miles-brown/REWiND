@@ -175,7 +175,11 @@ export function mapDatabaseEvent(
     eventTypes: [String(row.event_type || "historical-action")],
     quotes: quotesMap?.get(id) || [],
     organisations: [],
-    medium: ["official-record"],
+    medium: Array.isArray(row.medium)
+      ? row.medium.map((value) => String(value))
+      : row.medium
+        ? [String(row.medium)]
+        : [],
     media: [],
     provenance: [],
     conflictingClaims: [],
