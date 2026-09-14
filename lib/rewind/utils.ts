@@ -20,3 +20,18 @@ export function getMonogram(name?: string | null): string {
 }
 
 export const getPersonInitials = getMonogram;
+
+/**
+ * Resolves the primary taxonomy tags for an event, prioritizing canonical `eventTypes`
+ * over legacy `categories`.
+ */
+export function getEventTaxonomyTags(event?: { eventTypes?: string[]; categories?: string[] } | null): string[] {
+  if (!event) return [];
+  if (Array.isArray(event.eventTypes) && event.eventTypes.length > 0) {
+    return event.eventTypes;
+  }
+  if (Array.isArray(event.categories) && event.categories.length > 0) {
+    return event.categories;
+  }
+  return [];
+}
