@@ -57,18 +57,97 @@ export interface CandidateExtractionPayload {
 
 export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload | null {
   if (!raw) return null;
+  let parsed: unknown = raw;
   if (typeof raw === "string") {
     try {
-      const parsed = JSON.parse(raw);
-      return typeof parsed === "object" && parsed !== null ? (parsed as CandidateExtractionPayload) : null;
+      parsed = JSON.parse(raw);
     } catch {
       return null;
     }
   }
-  if (typeof raw === "object") {
-    return raw as CandidateExtractionPayload;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return null;
   }
-  return null;
+  const obj = parsed as Record<string, unknown>;
+
+  // Validate participants array if present
+  let participants: CandidateParticipantInput[] | undefined;
+  if (Array.isArray(obj.participants)) {
+    participants = [];
+    for (const p of obj.participants) {
+      if (typeof p === "object" && p !== null && !Array.isArray(p)) {
+        const pObj = p as Record<string, unknown>;
+        if (typeof pObj.name === "string" && pObj.name.trim()) {
+          participants.push({
+            name: pObj.name.trim(),
+            role: typeof pObj.role === "string" ? pObj.role : undefined,
+            involvementType: typeof pObj.involvementType === "string" ? pObj.involvementType : undefined,
+            presenceMode: typeof pObj.presenceMode === "string" ? pObj.presenceMode : undefined,
+          });
+        }
+      }
+    }
+  }
+
+  // Validate claims array if present
+  let claims: CandidateClaimInput[] | undefined;
+  if (Array.isArray(obj.claims)) {
+    claims = [];
+    for (const c of obj.claims) {
+      if (typeof c === "object" && c !== null && !Array.isArray(c)) {
+        const cObj = c as Record<string, unknown>;
+        claims.push({
+          subjectMention: typeof cObj.subjectMention === "string" ? cObj.subjectMention : undefined,
+          claimType: typeof cObj.claimType === "string" ? cObj.claimType : undefined,
+          statement: typeof cObj.statement === "string" ? cObj.statement : undefined,
+          claimedTime: typeof cObj.claimedTime === "string" ? cObj.claimedTime : undefined,
+          claimedVenue: typeof cObj.claimedVenue === "string" ? cObj.claimedVenue : undefined,
+          supportingExcerpt: typeof cObj.supportingExcerpt === "string" ? cObj.supportingExcerpt : undefined,
+        });
+      }
+    }
+  }
+
+  // Validate quotes array if present
+  let quotes: Array<{ speaker: string; quote: string; context?: string }> | undefined;
+  if (Array.isArray(obj.quotes)) {
+    quotes = [];
+    for (const q of obj.quotes) {
+      if (typeof q === "object" && q !== null && !Array.isArray(q)) {
+        const qObj = q as Record<string, unknown>;
+        if (typeof qObj.speaker === "string" && typeof qObj.quote === "string") {
+          quotes.push({
+            speaker: qObj.speaker,
+            quote: qObj.quote,
+            context: typeof qObj.context === "string" ? qObj.context : undefined,
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    title: typeof obj.title === "string" ? obj.title : undefined,
+    summary: typeof obj.summary === "string" ? obj.summary : undefined,
+    description: typeof obj.description === "string" ? obj.description : undefined,
+    startDate: typeof obj.startDate === "string" ? obj.startDate : undefined,
+    endDate: typeof obj.endDate === "string" ? obj.endDate : undefined,
+    temporalPrecision: typeof obj.temporalPrecision === "string" ? obj.temporalPrecision : undefined,
+    venue: typeof obj.venue === "string" ? obj.venue : undefined,
+    city: typeof obj.city === "string" ? obj.city : undefined,
+    country: typeof obj.country === "string" ? obj.country : undefined,
+    latitude: typeof obj.latitude === "number" ? obj.latitude : undefined,
+    longitude: typeof obj.longitude === "number" ? obj.longitude : undefined,
+    eventType: typeof obj.eventType === "string" ? obj.eventType : undefined,
+    sourceId: typeof obj.sourceId === "string" ? obj.sourceId : undefined,
+    sourceTitle: typeof obj.sourceTitle === "string" ? obj.sourceTitle : undefined,
+    publisher: typeof obj.publisher === "string" ? obj.publisher : undefined,
+    sourceType: typeof obj.sourceType === "string" ? obj.sourceType : undefined,
+    url: typeof obj.url === "string" ? obj.url : undefined,
+    claims,
+    participants,
+    quotes,
+  };
 }
 
 function createClaimId(
@@ -340,7 +419,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     const baseSlug = deriveEventSlug(
       startDate,
       resolvedParticipantIds,
-      eventType,
+      validatedEventType,
       city,
       title
     );
@@ -375,7 +454,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           claimedTime: clm.claimedTime || candidate.suggestedDate,
           claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
           sourceId,
-          confidence: "confirmed",
+          confidence: "limited",
           supportingExcerpt: clm.supportingExcerpt || data.summary || null,
           subjectMention: clm.subjectMention,
         });
@@ -488,7 +567,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 id: eventSlug,
                 slug: eventSlug,
                 parentId: null,
-                eventType,
+                eventType: validatedEventType,
                 title,
                 summary: data.summary || title,
                 description: data.description || null,
@@ -700,7 +779,26 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     candidate.status = "approved";
 
     // Deduplicate in-memory events if not already present
-    if (!store.events.some((e) => e.id === eventSlug)) {
+    if (deduplicationMatch.isDuplicate && deduplicationMatch.matchedEventId) {
+      const canonicalId = deduplicationMatch.matchedEventId;
+      eventSlug = canonicalId;
+      if (!store.events.some((e) => e.id === canonicalId)) {
+        if (db) {
+          try {
+            const [dbEvt] = await db.select().from(schema.events).where(eq(schema.events.id, canonicalId));
+            if (dbEvt) {
+              store.events.unshift({
+                ...dbEvt,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            }
+          } catch (err) {
+            console.warn("Failed to hydrate canonical DB event into store:", err);
+          }
+        }
+      }
+    } else if (!store.events.some((e) => e.id === eventSlug)) {
       let memSlug = eventSlug;
       let collisionIdx = 2;
       while (store.events.some((e) => e.id === memSlug)) {
@@ -712,7 +810,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         id: eventSlug,
         slug: eventSlug,
         parentId: null,
-        eventType,
+        eventType: validatedEventType,
         title,
         summary: data.summary || title,
         description: data.description || null,
@@ -733,6 +831,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       });
     }
 
+    const canonicalEventPresent = store.events.some((e) => e.id === eventSlug);
+
     const existingPlace = store.places.find((p) => p.id === resolvedPlaceId);
     if (!existingPlace) {
       store.places.push({
@@ -747,17 +847,19 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       });
     }
 
-    newClaims.forEach((clm) => {
-      clm.eventId = eventSlug;
-      const inMem = { ...clm };
-      delete inMem.subjectMention;
-      if (!store.claims.some((c) => c.id === inMem.id)) {
-        store.claims.push(inMem);
-      }
-      if (!persistedClaimIds.includes(inMem.id)) {
-        persistedClaimIds.push(inMem.id);
-      }
-    });
+    if (canonicalEventPresent) {
+      newClaims.forEach((clm) => {
+        clm.eventId = eventSlug;
+        const inMem = { ...clm };
+        delete inMem.subjectMention;
+        if (!store.claims.some((c) => c.id === inMem.id)) {
+          store.claims.push(inMem);
+        }
+        if (!persistedClaimIds.includes(inMem.id)) {
+          persistedClaimIds.push(inMem.id);
+        }
+      });
+    }
 
     await recordAuditEvent(
       "reviewed-approved",
@@ -869,7 +971,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             claimedTime: clm.claimedTime || null,
             claimedVenue: clm.claimedVenue || null,
             sourceId,
-            confidence: "confirmed",
+            confidence: "limited",
             supportingExcerpt: clm.supportingExcerpt || null,
             subjectMention: clm.subjectMention,
           });
