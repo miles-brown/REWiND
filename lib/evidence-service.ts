@@ -23,6 +23,7 @@ export interface CandidateClaimInput {
   claimedTime?: string;
   claimedVenue?: string;
   supportingExcerpt?: string;
+  confidence?: "confirmed" | "supported" | "reported" | "limited" | "disputed";
 }
 
 export interface CandidateParticipantInput {
@@ -96,6 +97,15 @@ export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload 
     for (const c of obj.claims) {
       if (typeof c === "object" && c !== null && !Array.isArray(c)) {
         const cObj = c as Record<string, unknown>;
+        const rawConf = typeof cObj.confidence === "string" ? cObj.confidence : undefined;
+        const validConf =
+          rawConf === "confirmed" ||
+          rawConf === "supported" ||
+          rawConf === "reported" ||
+          rawConf === "limited" ||
+          rawConf === "disputed"
+            ? rawConf
+            : undefined;
         claims.push({
           subjectMention: typeof cObj.subjectMention === "string" ? cObj.subjectMention : undefined,
           claimType: typeof cObj.claimType === "string" ? cObj.claimType : undefined,
@@ -103,6 +113,7 @@ export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload 
           claimedTime: typeof cObj.claimedTime === "string" ? cObj.claimedTime : undefined,
           claimedVenue: typeof cObj.claimedVenue === "string" ? cObj.claimedVenue : undefined,
           supportingExcerpt: typeof cObj.supportingExcerpt === "string" ? cObj.supportingExcerpt : undefined,
+          confidence: validConf,
         });
       }
     }
@@ -454,7 +465,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           claimedTime: clm.claimedTime || candidate.suggestedDate,
           claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
           sourceId,
-          confidence: "limited",
+          confidence: clm.confidence || "limited",
           supportingExcerpt: clm.supportingExcerpt || data.summary || null,
           subjectMention: clm.subjectMention,
         });
@@ -971,7 +982,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             claimedTime: clm.claimedTime || null,
             claimedVenue: clm.claimedVenue || null,
             sourceId,
-            confidence: "limited",
+            confidence: clm.confidence || "limited",
             supportingExcerpt: clm.supportingExcerpt || null,
             subjectMention: clm.subjectMention,
           });
