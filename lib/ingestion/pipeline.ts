@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, and, or } from "drizzle-orm";
@@ -11,12 +12,35 @@ import {
   resolveEntity,
   resolveEntityAsync,
   resolvePlace,
+  resolvePlaceAsync,
   createParticipantStubId,
   resolvePersonEntityInTransaction,
 } from "./resolve";
 import { calculateEventFingerprint, findDuplicateEvent } from "./deduplicate";
 import { evaluatePublicationPolicy } from "./policy-evaluator";
 import { recordAuditEvent } from "./audit";
+
+/**
+ * Generates a collision-resistant deterministic slug for an event.
+ * Incorporates date, participant IDs, event type, city, and a title hash
+ * so distinct same-day events for the same participants do not collide.
+ */
+function deriveEventSlug(
+  startDate: string,
+  participantIds: string[],
+  eventType: string,
+  city: string,
+  title: string
+): string {
+  const normType = (eventType || "event").toLowerCase().replace(/[^\w]/g, "-");
+  const titleHash = createHash("sha256")
+    .update(`${title.trim().toLowerCase()}::${normType}`)
+    .digest("hex")
+    .slice(0, 6);
+  const pIds = participantIds.length > 0 ? participantIds.join("-") : "general";
+  const citySlug = (city || "unknown").toLowerCase().replace(/[^\w]/g, "-").slice(0, 20);
+  return `evt-${startDate.slice(0, 10)}-${pIds}-${normType}-${citySlug}-${titleHash}`;
+}
 
 export function processCandidateEvent(
   rawCandidate: ExtractedCandidateEvent,
@@ -33,7 +57,7 @@ export function processCandidateEvent(
     .map((e) => e.personId)
     .filter((id): id is string => id !== null);
 
-  // 2. Resolve Place
+  // 2. Resolve Place Synchronously
   const placeResolution = resolvePlace(
     candidate.venue,
     candidate.city,
@@ -79,7 +103,7 @@ export function processCandidateEvent(
     store.sources.push(existingSource);
   }
 
-  // 7. Action Based on Policy Lane
+  // 7. Action Based on Policy Lane (In-Memory Store)
   if (policy.lane === "auto-publish" || policy.lane === "provisional") {
     if (deduplication.isDuplicate && deduplication.matchedEventId) {
       // MERGE PATH: Attach additional evidence and claims to existing event
@@ -103,18 +127,20 @@ export function processCandidateEvent(
         });
       });
 
-      auditPromise = recordAuditEvent(
-        "merged",
-        policy.ruleId,
-        {
-          matchedEventId: publishedEventId,
-          sourceId: source.sourceId,
-          similarity: deduplication.similarity,
-          claimsAdded: candidate.claims.length,
-        },
-        publishedEventId,
-        candidateId
-      );
+      if (!db) {
+        auditPromise = recordAuditEvent(
+          "merged",
+          policy.ruleId,
+          {
+            matchedEventId: publishedEventId,
+            sourceId: source.sourceId,
+            similarity: deduplication.similarity,
+            claimsAdded: candidate.claims.length,
+          },
+          publishedEventId,
+          candidateId
+        );
+      }
     } else {
       // NEW EVENT PATH: Create new verified/provisional record
       let existingPlace = store.places.find((p) => p.id === placeResolution.placeId);
@@ -132,7 +158,13 @@ export function processCandidateEvent(
         store.places.push(existingPlace);
       }
 
-      const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${resolvedParticipantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
+      const eventSlug = deriveEventSlug(
+        candidate.startDate,
+        resolvedParticipantIds,
+        candidate.eventType,
+        candidate.city,
+        candidate.title
+      );
       publishedEventId = eventSlug;
 
       store.events.push({
@@ -178,18 +210,39 @@ export function processCandidateEvent(
         });
       });
 
-      auditPromise = recordAuditEvent(
-        "auto-published",
-        policy.ruleId,
-        {
-          eventId: eventSlug,
-          sourceId: source.sourceId,
-          sourceTier: source.sourceTier,
-          lane: policy.lane,
-        },
-        eventSlug,
-        candidateId
-      );
+      // Add quotes
+      if (candidate.quotes && candidate.quotes.length > 0) {
+        candidate.quotes.forEach((q, idx) => {
+          const matchingSpeaker = entityResolutions.find(
+            (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
+          );
+          store.quotes.push({
+            id: `quo-${eventSlug}-${idx}`,
+            eventId: eventSlug,
+            speakerId: matchingSpeaker?.personId || createParticipantStubId(q.speaker),
+            quote: q.quote,
+            context: q.context || null,
+            language: "en",
+            sourceId: source.sourceId,
+            timestampInMedia: null,
+          });
+        });
+      }
+
+      if (!db) {
+        auditPromise = recordAuditEvent(
+          "auto-published",
+          policy.ruleId,
+          {
+            eventId: eventSlug,
+            sourceId: source.sourceId,
+            sourceTier: source.sourceTier,
+            lane: policy.lane,
+          },
+          eventSlug,
+          candidateId
+        );
+      }
     }
   } else {
     const existingPending = store.candidateEvents.find(
@@ -233,17 +286,19 @@ export function processCandidateEvent(
         createdAt: new Date(),
       });
 
-      auditPromise = recordAuditEvent(
-        "queued-for-review",
-        policy.ruleId,
-        {
-          candidateId,
-          sourceId: source.sourceId,
-          reason: policy.reason,
-        },
-        undefined,
-        candidateId
-      );
+      if (!db) {
+        auditPromise = recordAuditEvent(
+          "queued-for-review",
+          policy.ruleId,
+          {
+            candidateId,
+            sourceId: source.sourceId,
+            reason: policy.reason,
+          },
+          undefined,
+          candidateId
+        );
+      }
     }
   }
 
@@ -267,7 +322,7 @@ export function processCandidateEvent(
       return syncResult;
     }
 
-    // In live DB execution: resolve entities against PostgreSQL to prevent false REW-POL-UNRESOLVED-ENTITY
+    // In live DB execution: resolve entities against PostgreSQL
     const liveEntityResolutions = await Promise.all(
       candidate.participants.map((p) => resolveEntityAsync(p.name, db))
     );
@@ -275,10 +330,27 @@ export function processCandidateEvent(
       .map((e) => e.personId)
       .filter((id): id is string => id !== null);
 
+    // Resolve place live against database gazetteer
+    const livePlaceResolution = await resolvePlaceAsync(
+      candidate.venue,
+      candidate.city,
+      candidate.country,
+      candidate.latitude,
+      candidate.longitude,
+      db
+    );
+
     const livePolicy = evaluatePublicationPolicy(candidate, source.sourceTier, liveEntityResolutions);
+    const liveFingerprint = calculateEventFingerprint(
+      liveResolvedParticipantIds,
+      candidate.startDate,
+      candidate.city,
+      candidate.eventType
+    );
 
     syncResult.lane = livePolicy.lane;
     syncResult.policy = livePolicy;
+    syncResult.fingerprint = liveFingerprint;
 
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
@@ -296,9 +368,32 @@ export function processCandidateEvent(
           url: source.url || null,
           archiveUrl: null,
           author: null,
-          // Do not copy the event date; source publication date is unknown unless explicitly supplied.
           publicationDate: null,
           trustScore: source.sourceTier === "tier-a" ? 1.0 : source.sourceTier === "tier-b" ? 0.9 : 0.8,
+        });
+      }
+
+      // 2. Hash and preserve fetched source payload in schema.sourceFetches (SOURCE_POLICY.md)
+      const rawText = source.rawText || "";
+      const sha256 = createHash("sha256").update(rawText).digest("hex");
+      const [existingFetch] = await tx
+        .select({ id: schema.sourceFetches.id })
+        .from(schema.sourceFetches)
+        .where(
+          and(
+            eq(schema.sourceFetches.sourceId, source.sourceId),
+            eq(schema.sourceFetches.sha256, sha256)
+          )
+        );
+      if (!existingFetch) {
+        await tx.insert(schema.sourceFetches).values({
+          sourceId: source.sourceId,
+          url: source.url || `urn:source:${source.sourceId}`,
+          sha256,
+          httpStatus: 200,
+          rawContent: rawText || null,
+          contentType: "text/plain",
+          fetchedAt: source.fetchedAt ? new Date(source.fetchedAt) : new Date(),
         });
       }
 
@@ -368,30 +463,91 @@ export function processCandidateEvent(
               })
             );
           }
+
+          // Insert quotes into schema.quotes on merge
+          if (candidate.quotes && candidate.quotes.length > 0) {
+            const existingQuotes = await tx
+              .select({
+                id: schema.quotes.id,
+                speakerId: schema.quotes.speakerId,
+                quote: schema.quotes.quote,
+              })
+              .from(schema.quotes)
+              .where(eq(schema.quotes.eventId, targetEventId));
+
+            for (const q of candidate.quotes) {
+              const matchingSpeaker = liveEntityResolutions.find(
+                (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
+              );
+              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeaker?.personId);
+              const speakerId = await resolvePersonEntityInTransaction(tx, {
+                personId: speakerStubId,
+                rawName: q.speaker,
+              });
+
+              const normQuoteText = q.quote.trim().toLowerCase();
+              const isDupQuote = existingQuotes.some(
+                (eqRow) =>
+                  eqRow.speakerId === speakerId &&
+                  eqRow.quote.trim().toLowerCase() === normQuoteText
+              );
+
+              if (!isDupQuote) {
+                const contentKey = `${speakerId}::${q.quote}`.toLowerCase().trim();
+                const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
+                const quoteId = `quo-${targetEventId}-${hash.toString(36)}`;
+                await tx.insert(schema.quotes).values({
+                  id: quoteId,
+                  eventId: targetEventId,
+                  speakerId,
+                  quote: q.quote,
+                  context: q.context || null,
+                  language: "en",
+                  sourceId: source.sourceId,
+                });
+              }
+            }
+          }
+
+          syncResult.publishedEventId = targetEventId;
         } else {
-          const eventSlug = `evt-${candidate.startDate.slice(0, 10)}-${liveResolvedParticipantIds.join("-")}-${candidate.city.toLowerCase().replace(/\s+/g, "-")}`;
-          const targetSlug = placeResolution.placeId.replace(/^plc-/, "");
+          const eventSlug = deriveEventSlug(
+            candidate.startDate,
+            liveResolvedParticipantIds,
+            candidate.eventType,
+            candidate.city,
+            candidate.title
+          );
+          const targetSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
 
           const [existingDbPlace] = await tx
             .select({ id: schema.places.id })
             .from(schema.places)
-            .where(or(eq(schema.places.id, placeResolution.placeId), eq(schema.places.slug, targetSlug)));
+            .where(
+              or(
+                eq(schema.places.id, livePlaceResolution.placeId),
+                eq(schema.places.slug, targetSlug)
+              )
+            );
 
-          if (!existingDbPlace) {
+          let effectivePlaceId = livePlaceResolution.placeId;
+          if (existingDbPlace) {
+            effectivePlaceId = existingDbPlace.id;
+          } else {
             await tx.insert(schema.places).values({
-              id: placeResolution.placeId,
+              id: livePlaceResolution.placeId,
               slug: targetSlug,
-              venue: placeResolution.venue,
-              city: placeResolution.city,
-              country: placeResolution.country,
-              latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-              longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+              venue: livePlaceResolution.venue,
+              city: livePlaceResolution.city,
+              country: livePlaceResolution.country,
+              latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+              longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
               placeType: "venue",
             });
           }
 
           const [existingDbEvent] = await tx
-            .select({ id: schema.events.id })
+            .select({ id: schema.events.id, title: schema.events.title, eventType: schema.events.eventType })
             .from(schema.events)
             .where(eq(schema.events.id, eventSlug));
 
@@ -407,7 +563,7 @@ export function processCandidateEvent(
               startDate: candidate.startDate,
               endDate: candidate.endDate || null,
               temporalPrecision: candidate.temporalPrecision,
-              placeId: placeResolution.placeId,
+              placeId: effectivePlaceId,
               seriesId: null,
               venueId: null,
               addressId: null,
@@ -506,9 +662,6 @@ export function processCandidateEvent(
                 const matchingSubject = liveEntityResolutions.find(
                   (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
                 );
-                // Derive a stable claim ID from the claim's content so re-ingestion cannot
-                // generate a duplicate PK (Codex P2: claim ID must survive re-ingestion).
-                // Use a simple djb2-style hash of the normalised statement + subject.
                 const contentKey = `${clm.subjectMention ?? ""}::${clm.statement}`.toLowerCase().trim();
                 const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
                 const stableId = `clm-${eventSlug}-${hash.toString(36)}`;
@@ -527,6 +680,51 @@ export function processCandidateEvent(
               })
             );
           }
+
+          // Insert quotes into schema.quotes
+          if (candidate.quotes && candidate.quotes.length > 0) {
+            const existingQuotes = await tx
+              .select({
+                id: schema.quotes.id,
+                speakerId: schema.quotes.speakerId,
+                quote: schema.quotes.quote,
+              })
+              .from(schema.quotes)
+              .where(eq(schema.quotes.eventId, eventSlug));
+
+            for (const q of candidate.quotes) {
+              const matchingSpeaker = liveEntityResolutions.find(
+                (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
+              );
+              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeaker?.personId);
+              const speakerId = await resolvePersonEntityInTransaction(tx, {
+                personId: speakerStubId,
+                rawName: q.speaker,
+              });
+
+              const normQuoteText = q.quote.trim().toLowerCase();
+              const isDupQuote = existingQuotes.some(
+                (eqRow) =>
+                  eqRow.speakerId === speakerId &&
+                  eqRow.quote.trim().toLowerCase() === normQuoteText
+              );
+
+              if (!isDupQuote) {
+                const contentKey = `${speakerId}::${q.quote}`.toLowerCase().trim();
+                const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
+                const quoteId = `quo-${eventSlug}-${hash.toString(36)}`;
+                await tx.insert(schema.quotes).values({
+                  id: quoteId,
+                  eventId: eventSlug,
+                  speakerId,
+                  quote: q.quote,
+                  context: q.context || null,
+                  language: "en",
+                  sourceId: source.sourceId,
+                });
+              }
+            }
+          }
         }
       } else {
         const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
@@ -535,7 +733,7 @@ export function processCandidateEvent(
           .from(schema.candidateEvents)
           .where(
             and(
-              eq(schema.candidateEvents.fingerprint, fingerprint),
+              eq(schema.candidateEvents.fingerprint, liveFingerprint),
               eq(schema.candidateEvents.status, "pending")
             )
           );
@@ -546,7 +744,7 @@ export function processCandidateEvent(
         } else {
           await tx.insert(schema.candidateEvents).values({
             id: candidateId,
-            fingerprint,
+            fingerprint: liveFingerprint,
             rawExtraction: rawPayload,
             suggestedTitle: candidate.title,
             suggestedDate: candidate.startDate,
@@ -562,6 +760,50 @@ export function processCandidateEvent(
         }
       }
     });
+
+    // Authoritative Audit Logging based on live policy
+    if (livePolicy.lane === "auto-publish" || livePolicy.lane === "provisional") {
+      if (deduplication.isDuplicate && deduplication.matchedEventId) {
+        await recordAuditEvent(
+          "merged",
+          livePolicy.ruleId,
+          {
+            matchedEventId: deduplication.matchedEventId,
+            sourceId: source.sourceId,
+            similarity: deduplication.similarity,
+            claimsAdded: candidate.claims.length,
+          },
+          deduplication.matchedEventId,
+          candidateId
+        );
+      } else {
+        const publishedId = syncResult.publishedEventId!;
+        await recordAuditEvent(
+          "auto-published",
+          livePolicy.ruleId,
+          {
+            eventId: publishedId,
+            sourceId: source.sourceId,
+            sourceTier: source.sourceTier,
+            lane: livePolicy.lane,
+          },
+          publishedId,
+          candidateId
+        );
+      }
+    } else {
+      await recordAuditEvent(
+        "queued-for-review",
+        livePolicy.ruleId,
+        {
+          candidateId,
+          sourceId: source.sourceId,
+          reason: livePolicy.reason,
+        },
+        undefined,
+        candidateId
+      );
+    }
 
     return syncResult;
   })();

@@ -63,6 +63,7 @@ export interface MemoryRelationalStore {
   claims: (typeof schema.claims.$inferSelect)[];
   candidateEvents: (typeof schema.candidateEvents.$inferSelect)[];
   auditLog: (typeof schema.auditLog.$inferSelect)[];
+  quotes: (typeof schema.quotes.$inferSelect)[];
 }
 
 function resolvePersonMetadata(p: TestPerson): {
@@ -159,6 +160,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       claims: [],
       candidateEvents: [],
       auditLog: [],
+      quotes: [],
     };
   }
 
@@ -305,6 +307,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     claims: seedClaims,
     candidateEvents: [],
     auditLog: [],
+    quotes: [],
   };
 }
 

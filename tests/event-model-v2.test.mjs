@@ -429,7 +429,7 @@ test("defensively handles null and undefined array fields in legacy records with
   assert.deepEqual(projected.quotes, []);
   assert.deepEqual(projected.conflictingClaims, []);
   assert.deepEqual(projected.provenance, []);
-  assert.equal(projected.confidence, "confirmed");
+  assert.equal(projected.confidence, "limited");
   assert.equal(projected.datePrecision, "exact-day");
 });
 

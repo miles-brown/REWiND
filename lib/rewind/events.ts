@@ -958,7 +958,13 @@ export async function getEventBySlug(
             .eq("event_id", eventId)
             .order("id", { ascending: true })
             .range(from, to);
-          if (esError) return { data: null, error: esError.message };
+          if (esError) {
+            console.error("Failed to query event sources:", esError);
+            return {
+              data: null,
+              error: "The requested event record could not be loaded. Please try again later.",
+            };
+          }
           if (!data || data.length === 0) break;
           eventSourcesRows = eventSourcesRows.concat(data);
           if (data.length < batchSize) {

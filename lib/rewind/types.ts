@@ -10,6 +10,7 @@ export interface Participant {
   name: string;
   role?: string;
   presenceConfidence?: string;
+  roleConfidence?: string;
   capacityTitle?: string;
   attendanceMode?: string;
   latitude?: number | null;

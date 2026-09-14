@@ -531,4 +531,87 @@ test("verifies resolvePlaceAsync live database resolution and fallback behavior"
   assert.ok(fallbackRes.confidence >= 0.9);
 });
 
+test("verifies event-v2-adapter confidence defaults to limited without unevidenced assumptions", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const legacyEventWithoutConfidence = {
+    id: "evt-test-legacy-01",
+    slug: "evt-test-legacy-01",
+    eventName: "Historical Diplomatic Meeting",
+    summary: "Diplomatic talks without explicit confidence rating",
+    startDate: "1995-10-15",
+    city: "Geneva",
+    country: "Switzerland",
+    latitude: 46.2044,
+    longitude: 6.1432,
+    locationPrecision: "venue",
+    verificationStatus: "provisional",
+    participants: [
+      {
+        personId: "p-test-1",
+        name: "Test Diplomat",
+        role: "delegate",
+      },
+    ],
+    sourceIds: ["src-1"],
+  };
+
+  const v2 = upgradeLegacyToV2(legacyEventWithoutConfidence);
+  assert.equal(v2.confidence, "limited");
+  assert.equal(v2.people[0].presenceConfidence, "limited");
+  assert.equal(v2.people[0].roleConfidence, "limited");
+  assert.equal(v2.people[0].locations[0].confidence, "limited");
+});
+
+test("verifies ingestion pipeline quote persistence, deterministic slug hashing, and source fetch hashing", async () => {
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const candidateWithQuotes = {
+    title: "Joint Press Conference at Elysée Palace",
+    summary: "French and Israeli leaders deliver remarks following bilateral summit.",
+    startDate: "2013-03-20",
+    eventType: "press-conference",
+    venue: "Elysée Palace",
+    city: "Paris",
+    country: "France",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Benjamin Netanyahu delivered joint address in Paris." },
+    ],
+    quotes: [
+      {
+        speaker: "Benjamin Netanyahu",
+        quote: "Our cooperation on shared strategic interests remains indispensable.",
+        context: "Opening remarks at joint press briefing",
+      },
+    ],
+  };
+
+  const rawSource = {
+    sourceId: "src-elysee-20130320",
+    sourceTitle: "Official Transcript of Joint Press Conference",
+    publisher: "Élysée Press Office",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://elysee.fr/transcripts/2013-03-20",
+    rawText: "President Hollande and Prime Minister Netanyahu delivered the following statements to the press corps...",
+    fetchedAt: "2013-03-20T18:00:00Z",
+  };
+
+  const result = processCandidateEvent(candidateWithQuotes, rawSource);
+  assert.equal(result.lane, "auto-publish");
+  assert.ok(result.publishedEventId);
+  assert.ok(result.publishedEventId.includes("press-conference"));
+  assert.ok(result.publishedEventId.includes("paris"));
+
+  const store = getRelationalStore();
+  const savedQuote = store.quotes.find((q) => q.eventId === result.publishedEventId);
+  assert.ok(savedQuote);
+  assert.equal(savedQuote.quote, "Our cooperation on shared strategic interests remains indispensable.");
+});
+
+
 

@@ -136,11 +136,7 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
  * Retrieves all gazetteer places and venues from Supabase.
  */
 export async function getPlaces(supabaseClient?: unknown): Promise<PlaceRecord[]> {
-  try {
-    return await getPlacesStrict(supabaseClient);
-  } catch {
-    return [];
-  }
+  return await getPlacesStrict(supabaseClient);
 }
 
 /**

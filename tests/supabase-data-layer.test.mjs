@@ -496,9 +496,13 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
     },
   };
 
-  // getPlaces catches error and returns []
-  const placesTolerant = await getPlaces(failingClient);
-  assert.deepEqual(placesTolerant, []);
+  // getPlaces propagates error from Supabase
+  await assert.rejects(
+    async () => {
+      await getPlaces(failingClient);
+    },
+    /PG Connection Timeout/
+  );
 
   // getPlacesStrict throws error
   await assert.rejects(
@@ -524,6 +528,62 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
   const eventRes = await getEventBySlug("nonexistent-slug", failingClient);
   assert.equal(eventRes.data, null);
   assert.equal(eventRes.error, "The requested event record could not be loaded. Please try again later.");
+
+  // getEventBySlug sanitizes event_sources error specifically
+  const failingSourcesClient = {
+    from(tableName) {
+      if (tableName === "events") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          maybeSingle() {
+            return Promise.resolve({
+              data: {
+                id: "evt-test-1",
+                slug: "evt-test-1",
+                title: "Test Event",
+                start_date: "2024-01-01",
+                place_id: "plc-1",
+                publication_status: "published",
+              },
+              error: null,
+            });
+          },
+        };
+      }
+      if (tableName === "event_people") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() { return this; },
+          range() { return Promise.resolve({ data: [], error: null }); },
+        };
+      }
+      if (tableName === "event_sources") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() { return this; },
+          range() {
+            return Promise.resolve({
+              data: null,
+              error: new Error("relation event_sources internal query failure"),
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
+
+  const sourcesErrRes = await getEventBySlug("evt-test-1", failingSourcesClient);
+  assert.equal(sourcesErrRes.data, null);
+  assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
 });
 
 

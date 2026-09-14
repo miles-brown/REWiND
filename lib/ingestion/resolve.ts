@@ -462,7 +462,7 @@ export async function resolvePlaceAsync(
   longitude?: number,
   dbInstance?: ReturnType<typeof getDb>
 ): Promise<PlaceResolution> {
-  const db = dbInstance ?? getDb();
+  const db = dbInstance !== undefined ? dbInstance : getDb();
   const safeCity = city || "";
   const safeVenue = venue || "";
   const safeCountry = country || "";
@@ -487,21 +487,26 @@ export async function resolvePlaceAsync(
     try {
       const escapedVenue = escapeIlikePattern(safeVenue);
       const escapedCity = escapeIlikePattern(safeCity);
+      const escapedCountry = escapeIlikePattern(safeCountry);
 
-      // 1. Match both venue and city
+      // 1. Exact match on both venue and city
       if (safeVenue && safeCity) {
+        const bothConditions = [
+          ilike(schema.places.venue, escapedVenue),
+          ilike(schema.places.city, escapedCity),
+        ];
+        if (safeCountry) {
+          bothConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
         const bothMatches = await db
           .select()
           .from(schema.places)
-          .where(
-            and(
-              ilike(schema.places.venue, `%${escapedVenue}%`),
-              ilike(schema.places.city, `%${escapedCity}%`)
-            )
-          );
+          .where(and(...bothConditions));
 
-        if (bothMatches.length > 0) {
-          const pl = bothMatches[0];
+        const distinctPlaceIds = Array.from(new Set(bothMatches.map((pl) => pl.id)));
+        if (distinctPlaceIds.length === 1) {
+          const pl = bothMatches.find((p) => p.id === distinctPlaceIds[0])!;
           return {
             placeId: pl.id,
             venue: pl.venue,
@@ -514,29 +519,21 @@ export async function resolvePlaceAsync(
         }
       }
 
-      // 2. Match city only
-      if (safeCity) {
-        const cityMatches = await db
-          .select()
-          .from(schema.places)
-          .where(ilike(schema.places.city, `%${escapedCity}%`));
-
-        if (cityMatches.length > 0) {
-          const pl = cityMatches[0];
-          return {
-            placeId: pl.id,
-            venue: safeVenue || pl.venue,
-            city: pl.city,
-            country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
-            confidence: 0.92,
-          };
-        }
-      }
-
-      // 3. Place alias match
+      // 2. Place alias match (venue alias lookup)
       if (safeVenue) {
+        const aliasConditions = [
+          or(
+            ilike(schema.placeAliases.alias, escapedVenue),
+            eq(schema.placeAliases.alias, safeVenue)
+          ),
+        ];
+        if (safeCity) {
+          aliasConditions.push(ilike(schema.places.city, escapedCity));
+        }
+        if (safeCountry) {
+          aliasConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
         const aliasMatches = await db
           .select({
             placeId: schema.placeAliases.placeId,
@@ -549,10 +546,11 @@ export async function resolvePlaceAsync(
           })
           .from(schema.placeAliases)
           .innerJoin(schema.places, eq(schema.placeAliases.placeId, schema.places.id))
-          .where(ilike(schema.placeAliases.alias, `%${escapedVenue}%`));
+          .where(and(...aliasConditions));
 
-        if (aliasMatches.length > 0) {
-          const pl = aliasMatches[0];
+        const distinctAliasPlaceIds = Array.from(new Set(aliasMatches.map((pl) => pl.placeId)));
+        if (distinctAliasPlaceIds.length === 1) {
+          const pl = aliasMatches.find((p) => p.placeId === distinctAliasPlaceIds[0])!;
           return {
             placeId: pl.placeId,
             venue: pl.venue,
@@ -562,6 +560,52 @@ export async function resolvePlaceAsync(
             longitude: pl.longitude ?? longitude ?? undefined,
             confidence: 0.95,
           };
+        }
+      }
+
+      // 3. Match city only (when venue is empty or no specific venue matched)
+      if (safeCity) {
+        const cityConditions = [ilike(schema.places.city, escapedCity)];
+        if (safeCountry) {
+          cityConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
+        const cityMatches = await db
+          .select()
+          .from(schema.places)
+          .where(and(...cityConditions));
+
+        const distinctCityPlaceIds = Array.from(new Set(cityMatches.map((pl) => pl.id)));
+        if (distinctCityPlaceIds.length === 1) {
+          const pl = cityMatches[0];
+          return {
+            placeId: pl.id,
+            venue: safeVenue || pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: pl.latitude ?? latitude ?? undefined,
+            longitude: pl.longitude ?? longitude ?? undefined,
+            confidence: 0.92,
+          };
+        } else if (cityMatches.length > 1) {
+          // If multiple places exist in the city, check for a general city marker or exact venue match
+          const specificMatch = cityMatches.find(
+            (pl) =>
+              (safeVenue && pl.venue.toLowerCase() === normVenue) ||
+              pl.venue.toLowerCase() === "general" ||
+              pl.venue.toLowerCase() === normCity
+          );
+          if (specificMatch) {
+            return {
+              placeId: specificMatch.id,
+              venue: safeVenue || specificMatch.venue,
+              city: specificMatch.city,
+              country: specificMatch.country,
+              latitude: specificMatch.latitude ?? latitude ?? undefined,
+              longitude: specificMatch.longitude ?? longitude ?? undefined,
+              confidence: 0.92,
+            };
+          }
         }
       }
     } catch {

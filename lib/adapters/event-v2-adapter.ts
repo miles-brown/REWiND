@@ -147,8 +147,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       roleLabel: role,
       capacityTitle: role,
       attendanceMode: "physical",
-      presenceConfidence: parseConfidence(p.presenceConfidence, "confirmed"),
-      roleConfidence: "confirmed",
+      presenceConfidence: parseConfidence(p.presenceConfidence),
+      roleConfidence: parseConfidence(p.roleConfidence),
       locations:
         legacy.latitude != null && legacy.longitude != null
           ? [
@@ -160,19 +160,13 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 coordinatePrecision: mapLegacyLocationPrecision(legacy.locationPrecision),
                 isPrincipalLocation: true,
                 locationBasis: "archival-record",
-                confidence: parseConfidence(
-                  legacy.confidence,
-                  legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
-                ),
+                confidence: parseConfidence(legacy.confidence),
                 sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
                 sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
                   id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
                   eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
                   sourceId: sid,
-                  confidence: parseConfidence(
-                    legacy.confidence,
-                    legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
-                  ),
+                  confidence: parseConfidence(legacy.confidence),
                 })),
                 publicVisibility: locationPublicVis,
               },
@@ -259,10 +253,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     longitude: legacy.longitude ?? null,
     locationPrecision: mapLegacyLocationPrecision(legacy.locationPrecision || "unknown"),
     verificationStatus: parseVerification(legacy.verificationStatus),
-    confidence: parseConfidence(
-      legacy.confidence,
-      legacy.verificationStatus === "verified" ? "confirmed" : "moderate"
-    ),
+    confidence: parseConfidence(legacy.confidence),
     sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
     reviewedAt: legacy.reviewedAt || undefined,
     researchNotes: legacy.notes ?? null,
