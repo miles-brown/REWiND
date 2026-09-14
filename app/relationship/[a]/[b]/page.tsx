@@ -17,12 +17,18 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
+  if (!a || !b || a.toLowerCase() === b.toLowerCase()) {
+    notFound();
+  }
+
   const [pa, pb] = await Promise.all([
     getPersonBySlug(a),
     getPersonBySlug(b),
   ]);
 
-  if (!pa || !pb) notFound();
+  if (!pa || !pb || pa.id === pb.id || pa.slug.toLowerCase() === pb.slug.toLowerCase()) {
+    notFound();
+  }
 
   const [people, allEvents, sources] = await Promise.all([
     getPeople(),

@@ -208,6 +208,10 @@ export async function getRelationshipBetween(
   slugB: string,
   supabaseClient?: unknown
 ): Promise<PairwiseRelationshipData | null> {
+  if (!slugA || !slugB || slugA.toLowerCase() === slugB.toLowerCase()) {
+    return null;
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
@@ -216,7 +220,9 @@ export async function getRelationshipBetween(
       getPersonBySlug(slugB, supabase),
     ]);
 
-    if (!personA || !personB) return null;
+    if (!personA || !personB || personA.id === personB.id || personA.slug.toLowerCase() === personB.slug.toLowerCase()) {
+      return null;
+    }
 
     if (supabase) {
       // Find events where both personA.id and personB.id participate with robust pagination

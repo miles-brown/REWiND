@@ -586,3 +586,48 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
   assert.equal(sourcesErrRes.data, null);
   assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
 });
+
+test("verifies relationship self-pair rejection, place slug regex validation, and getPeopleWithStatus", async () => {
+  const { getRelationshipBetween, getPlaceBySlug, getPeopleWithStatus } =
+    await vite.ssrLoadModule("/lib/rewind/index.ts");
+
+  // 1. Relationship self-pair rejection
+  const selfPairRes = await getRelationshipBetween("benjamin-netanyahu", "benjamin-netanyahu");
+  assert.equal(selfPairRes, null, "getRelationshipBetween must return null for self-pairs");
+
+  const selfPairCaseRes = await getRelationshipBetween("Benjamin-Netanyahu", "benjamin-netanyahu");
+  assert.equal(selfPairCaseRes, null, "getRelationshipBetween must return null for case-insensitive self-pairs");
+
+  // 2. Place slug regex validation (fail-closed)
+  const invalidPlaceRes = await getPlaceBySlug("washington,dc.or(true)");
+  assert.equal(invalidPlaceRes, null, "getPlaceBySlug must reject invalid PostgREST characters fail-closed");
+
+  const emptyPlaceRes = await getPlaceBySlug("");
+  assert.equal(emptyPlaceRes, null, "getPlaceBySlug must return null for empty slug");
+
+  // 3. getPeopleWithStatus functionality
+  const peopleStatusRes = await getPeopleWithStatus({ limit: 5 });
+  assert.ok(Array.isArray(peopleStatusRes.data), "getPeopleWithStatus must return an array of data");
+  assert.equal(peopleStatusRes.error, null, "getPeopleWithStatus must return null error in non-prod environment");
+});
+
+test("verifies migration and schema invariants: unique event_people constraint and limited defaults", async () => {
+  const migrationSql = fs.readFileSync(
+    path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"),
+    "utf8"
+  );
+  const schemaTs = fs.readFileSync(path.join(root, "db/schema.ts"), "utf8");
+
+  // Migration checks
+  assert.match(migrationSql, /uq_event_people_event_person UNIQUE \(event_id, person_id\)/);
+  assert.match(migrationSql, /presence_confidence text DEFAULT 'limited' NOT NULL/);
+  assert.match(migrationSql, /role_confidence text DEFAULT 'limited' NOT NULL/);
+  assert.match(migrationSql, /confidence_score double precision DEFAULT 0\.4 NOT NULL/);
+  assert.match(migrationSql, /confidence text DEFAULT 'limited' NOT NULL/);
+
+  // Drizzle schema checks
+  assert.match(schemaTs, /uq_event_people_event_person/);
+  assert.match(schemaTs, /presenceConfidence: text\("presence_confidence"\)\.default\("limited"\)\.notNull\(\)/);
+  assert.match(schemaTs, /roleConfidence: text\("role_confidence"\)\.default\("limited"\)\.notNull\(\)/);
+  assert.match(schemaTs, /confidence: text\("confidence"\)\.default\("limited"\)\.notNull\(\)/);
+});

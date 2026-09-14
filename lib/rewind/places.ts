@@ -145,6 +145,11 @@ export async function getPlaces(supabaseClient?: unknown): Promise<PlaceRecord[]
 export async function getPlaceBySlug(
   slug: string
 ): Promise<{ place: PlaceRecord; events: EventRecord[] } | null> {
+  const cleanSlug = (slug || "").trim();
+  if (!cleanSlug || !/^[a-zA-Z0-9_-]+$/.test(cleanSlug)) {
+    return null;
+  }
+
   try {
     const supabase = await createClient();
     if (!supabase) return null;
@@ -152,8 +157,8 @@ export async function getPlaceBySlug(
     let place: PlaceRecord | null = null;
 
     const [{ data: p, error: placeError }, { data: v, error: venueError }] = await Promise.all([
-      supabase.from("places").select("*").or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle(),
-      supabase.from("venues").select("id, name, address_id, latitude, longitude").or(`id.eq.${slug},id.eq.ven-${slug},id.eq.plc-${slug}`).maybeSingle(),
+      supabase.from("places").select("*").or(`slug.eq.${cleanSlug},id.eq.${cleanSlug}`).maybeSingle(),
+      supabase.from("venues").select("id, name, address_id, latitude, longitude").or(`id.eq.${cleanSlug},id.eq.ven-${cleanSlug},id.eq.plc-${cleanSlug}`).maybeSingle(),
     ]);
 
     if (placeError) throw placeError;

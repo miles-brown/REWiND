@@ -159,7 +159,10 @@ export async function searchRewind(
     });
 
     return results.slice(0, limit);
-  } catch {
+  } catch (err: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      throw err;
+    }
     return [];
   }
 }

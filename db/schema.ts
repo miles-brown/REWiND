@@ -7,6 +7,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 
 
@@ -170,7 +171,7 @@ export const events = pgTable("events", {
   addressId: text("address_id").references(() => addresses.id),
   verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
 
-  confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
+  confidenceScore: doublePrecision("confidence_score").default(0.4).notNull(),
   publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
   publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
   significanceScore: integer("significance_score").default(80).notNull(),
@@ -190,25 +191,31 @@ export const eventParticipants = pgTable("event_participants", {
   presenceMode: text("presence_mode").default("physical").notNull(), // physical, remote-live, remote-recorded, telephone, written
 });
 
-export const eventPeople = pgTable("event_people", {
-  id: text("id").primaryKey(),
-  eventId: text("event_id")
-    .references(() => events.id, { onDelete: "cascade" })
-    .notNull(),
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  involvementType: text("involvement_type").notNull(),
-  roleLabel: text("role_label").notNull(),
-  capacityTitle: text("capacity_title"),
-  attendanceMode: text("attendance_mode").default("physical").notNull(),
-  presenceExtent: text("presence_extent").default("entire-event").notNull(),
-  arrivalTime: text("arrival_time"),
-  departureTime: text("departure_time"),
-  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
-  roleConfidence: text("role_confidence").default("confirmed").notNull(),
-  notes: text("notes"),
-});
+export const eventPeople = pgTable(
+  "event_people",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id")
+      .references(() => events.id, { onDelete: "cascade" })
+      .notNull(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    involvementType: text("involvement_type").notNull(),
+    roleLabel: text("role_label").notNull(),
+    capacityTitle: text("capacity_title"),
+    attendanceMode: text("attendance_mode").default("physical").notNull(),
+    presenceExtent: text("presence_extent").default("entire-event").notNull(),
+    arrivalTime: text("arrival_time"),
+    departureTime: text("departure_time"),
+    presenceConfidence: text("presence_confidence").default("limited").notNull(),
+    roleConfidence: text("role_confidence").default("limited").notNull(),
+    notes: text("notes"),
+  },
+  (table) => [
+    unique("uq_event_people_event_person").on(table.eventId, table.personId),
+  ]
+);
 
 export const eventOrganisations = pgTable("event_organisations", {
   id: serial("id").primaryKey(),
@@ -273,7 +280,7 @@ export const claims = pgTable("claims", {
   claimedTime: text("claimed_time"),
   claimedVenue: text("claimed_venue"),
   sourceId: text("source_id").references(() => sources.id),
-  confidence: text("confidence").default("confirmed").notNull(), // confirmed, reported, disputed, contradicted
+  confidence: text("confidence").default("limited").notNull(), // confirmed, reported, disputed, contradicted
   supportingExcerpt: text("supporting_excerpt"),
 });
 

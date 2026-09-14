@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, UserRound, Users } from "lucide-react";
-import { getPeople } from "@/lib/rewind";
+import { AlertCircle, ArrowRight, UserRound, Users } from "lucide-react";
+import { getPeopleWithStatus } from "@/lib/rewind";
 
 export const metadata: Metadata = {
   title: "Documented People — REWIND Evidence Atlas",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /** Loads and renders the published people directory. */
 export default async function PeoplePage() {
-  const people = await getPeople();
+  const { data: people, error } = await getPeopleWithStatus();
 
   return (
     <div className="page-shell">
@@ -20,7 +20,27 @@ export default async function PeoplePage() {
         <p>People are connected through dated evidence, not static biographical prose.</p>
       </header>
 
-      {people.length === 0 ? (
+      {error ? (
+        <div
+          className="error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px solid var(--border-danger, #ef4444)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+            background: "rgba(239, 68, 68, 0.05)",
+          }}
+        >
+          <AlertCircle size={36} style={{ margin: "0 auto 1rem", color: "var(--text-danger, #ef4444)" }} />
+          <h2>Unable to load figures catalog</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            {error}
+          </p>
+        </div>
+      ) : people.length === 0 ? (
         <div
           className="zero-state"
           style={{

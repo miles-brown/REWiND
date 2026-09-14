@@ -19,9 +19,11 @@ function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
 }
 
 /**
- * Retrieves all monitored historical people from Supabase.
+ * Retrieves all monitored historical people from Supabase with status and error reporting.
  */
-export async function getPeople(params: { limit?: number } = {}): Promise<PersonRecord[]> {
+export async function getPeopleWithStatus(
+  params: { limit?: number } = {}
+): Promise<{ data: PersonRecord[]; error: string | null }> {
   try {
     const supabase = await createClient();
     if (supabase) {
@@ -34,8 +36,16 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
           .order("id", { ascending: true })
           .limit(params.limit);
 
-        if (!error && data) {
-          return data.map((p) => ({
+        if (error) {
+          if (process.env.NODE_ENV === "production") {
+            return { data: [], error: error.message };
+          }
+          const fb = fallbackPeople.map(mapFallbackPerson);
+          return { data: fb.slice(0, params.limit), error: null };
+        }
+
+        return {
+          data: (data || []).map((p) => ({
             id: p.id,
             slug: p.slug,
             name: p.display_name || p.canonical_name,
@@ -47,13 +57,13 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
             nationality: p.nationality || undefined,
             classification: p.classification || "unknown",
             avatarUrl: p.avatar_url || undefined,
-          }));
-        }
+          })),
+          error: null,
+        };
       } else {
         const allPeople: Record<string, unknown>[] = [];
         const pageSize = 1000;
         let from = 0;
-        let paginationFailed = false;
         while (true) {
           const { data, error } = await supabase
             .from("people")
@@ -62,18 +72,23 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
             .order("canonical_name", { ascending: true })
             .order("id", { ascending: true })
             .range(from, from + pageSize - 1);
+
           if (error) {
             console.error("Error paginating people catalog:", error);
-            paginationFailed = true;
-            break;
+            if (process.env.NODE_ENV === "production") {
+              return { data: [], error: error.message };
+            }
+            return { data: fallbackPeople.map(mapFallbackPerson), error: null };
           }
+
           if (!data || data.length === 0) break;
           allPeople.push(...data);
           if (data.length < pageSize) break;
           from += pageSize;
         }
-        if (!paginationFailed) {
-          return allPeople.map((p) => ({
+
+        return {
+          data: allPeople.map((p) => ({
             id: String(p.id),
             slug: String(p.slug),
             name: String(p.display_name || p.canonical_name || ""),
@@ -85,23 +100,33 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
             nationality: p.nationality ? String(p.nationality) : undefined,
             classification: String(p.classification || "unknown"),
             avatarUrl: p.avatar_url ? String(p.avatar_url) : undefined,
-          }));
-        }
+          })),
+          error: null,
+        };
       }
     }
 
     if (process.env.NODE_ENV === "production") {
-      return [];
+      return { data: [], error: "Database client is not available." };
     }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
-    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
-  } catch {
+    return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "An unexpected error occurred while fetching people records.";
     if (process.env.NODE_ENV === "production") {
-      return [];
+      return { data: [], error: message };
     }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
-    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
+    return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
   }
+}
+
+/**
+ * Retrieves all monitored historical people from Supabase.
+ */
+export async function getPeople(params: { limit?: number } = {}): Promise<PersonRecord[]> {
+  const result = await getPeopleWithStatus(params);
+  return result.data;
 }
 
 /**

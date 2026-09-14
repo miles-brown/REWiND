@@ -453,16 +453,19 @@ export function processCandidateEvent(
               );
 
             if (!existingEp) {
-              await tx.insert(schema.eventPeople).values({
-                id: `ep-${targetEventId}-${i}-${Date.now().toString(36).slice(-4)}`,
-                eventId: targetEventId,
-                personId,
-                involvementType: "attendee",
-                roleLabel: p.role || "participant",
-                presenceConfidence: "confirmed",
-                roleConfidence: "confirmed",
-                attendanceMode: p.presenceMode || "physical",
-              });
+              await tx
+                .insert(schema.eventPeople)
+                .values({
+                  id: `ep-${targetEventId}-${i}-${Date.now().toString(36).slice(-4)}`,
+                  eventId: targetEventId,
+                  personId,
+                  involvementType: "attendee",
+                  roleLabel: p.role || "participant",
+                  presenceConfidence: "limited",
+                  roleConfidence: "limited",
+                  attendanceMode: p.presenceMode || "physical",
+                })
+                .onConflictDoNothing();
             }
           }
 
@@ -682,16 +685,19 @@ export function processCandidateEvent(
               );
 
             if (!existingEp) {
-              await tx.insert(schema.eventPeople).values({
-                id: `ep-${eventSlug}-${i}-${Date.now().toString(36).slice(-4)}`,
-                eventId: eventSlug,
-                personId,
-                involvementType: "attendee",
-                roleLabel: p.role || "participant",
-                presenceConfidence: "confirmed",
-                roleConfidence: "confirmed",
-                attendanceMode: p.presenceMode || "physical",
-              });
+              await tx
+                .insert(schema.eventPeople)
+                .values({
+                  id: `ep-${eventSlug}-${i}-${Date.now().toString(36).slice(-4)}`,
+                  eventId: eventSlug,
+                  personId,
+                  involvementType: "attendee",
+                  roleLabel: p.role || "participant",
+                  presenceConfidence: "limited",
+                  roleConfidence: "limited",
+                  attendanceMode: p.presenceMode || "physical",
+                })
+                .onConflictDoNothing();
             }
           }
 

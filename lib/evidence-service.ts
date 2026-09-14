@@ -31,6 +31,8 @@ export interface CandidateParticipantInput {
   role?: string;
   involvementType?: string;
   presenceMode?: string;
+  presenceConfidence?: string;
+  roleConfidence?: string;
 }
 
 export interface CandidateExtractionPayload {
@@ -85,6 +87,8 @@ export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload 
             role: typeof pObj.role === "string" ? pObj.role : undefined,
             involvementType: typeof pObj.involvementType === "string" ? pObj.involvementType : undefined,
             presenceMode: typeof pObj.presenceMode === "string" ? pObj.presenceMode : undefined,
+            presenceConfidence: typeof pObj.presenceConfidence === "string" ? pObj.presenceConfidence : undefined,
+            roleConfidence: typeof pObj.roleConfidence === "string" ? pObj.roleConfidence : undefined,
           });
         }
       }
@@ -490,8 +494,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         personId,
         involvementType: p.involvementType || "attendee",
         roleLabel: p.role || "participant",
-        presenceConfidence: "confirmed",
-        roleConfidence: "confirmed",
+        presenceConfidence: p.presenceConfidence || "limited",
+        roleConfidence: p.roleConfidence || "limited",
         attendanceMode: p.presenceMode || "physical",
         rawName: p.name,
       });
@@ -645,7 +649,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                   )
                 );
               if (!existingEp) {
-                await tx.insert(schema.eventPeople).values(epRow);
+                await tx.insert(schema.eventPeople).values(epRow).onConflictDoNothing();
               }
             }
           }

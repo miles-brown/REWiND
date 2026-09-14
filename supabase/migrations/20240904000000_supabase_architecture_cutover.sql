@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   venue_id text REFERENCES public.venues(id),
   address_id text REFERENCES public.addresses(id),
   verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
-  confidence_score double precision DEFAULT 1.0 NOT NULL,
+  confidence_score double precision DEFAULT 0.4 NOT NULL,
   publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
   publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'provisional', 'human-review', 'quarantine', 'withheld', 'editorial-override', 'rejected')),
   significance_score integer DEFAULT 80 NOT NULL,
@@ -188,9 +188,10 @@ CREATE TABLE IF NOT EXISTS public.event_people (
   presence_extent text DEFAULT 'entire-event' NOT NULL,
   arrival_time text,
   departure_time text,
-  presence_confidence text DEFAULT 'confirmed' NOT NULL,
-  role_confidence text DEFAULT 'confirmed' NOT NULL,
-  notes text
+  presence_confidence text DEFAULT 'limited' NOT NULL,
+  role_confidence text DEFAULT 'limited' NOT NULL,
+  notes text,
+  CONSTRAINT uq_event_people_event_person UNIQUE (event_id, person_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.event_person_locations (
@@ -326,6 +327,11 @@ BEGIN
       FOREIGN KEY (source_id) REFERENCES public.sources(id)
       ON DELETE SET NULL;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_event_people_event_person') THEN
+    ALTER TABLE public.event_people
+      ADD CONSTRAINT uq_event_people_event_person
+      UNIQUE (event_id, person_id);
+  END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS public.claims (
@@ -337,7 +343,7 @@ CREATE TABLE IF NOT EXISTS public.claims (
   claimed_time text,
   claimed_venue text,
   source_id text REFERENCES public.sources(id),
-  confidence text DEFAULT 'confirmed' NOT NULL,
+  confidence text DEFAULT 'limited' NOT NULL,
   supporting_excerpt text,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
