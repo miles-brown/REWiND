@@ -10,7 +10,7 @@ import {
   MapPin,
   Users,
 } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord, Participant } from "@/lib/rewind";
 import type { TopicRecord } from "@/lib/rewind/topics";
 
 export function TopicTimeline({
@@ -153,13 +153,13 @@ export function TopicTimeline({
               >
                 <Users size={13} />
                 <span style={{ fontWeight: 600 }}>Key Participants:</span>
-                {evt.participants.map((p) => (
+                {evt.participants.map((p: Participant) => (
                   <Link
                     key={p.personId}
                     href={`/person/${p.personId}`}
                     className="participant-tag"
                   >
-                    {p.name} ({p.role})
+                    {p.name} {p.role ? `(${p.role})` : ""}
                   </Link>
                 ))}
               </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Building2, Calendar, Trophy } from "lucide-react";
-import type { EventRecord, Person } from "@/data/rewind";
+import type { EventRecord, PersonRecord } from "@/lib/rewind";
 import type { PersonRoleRecord } from "@/lib/rewind/roles";
 import type { PersonMilestoneRecord } from "@/lib/rewind/milestones";
 import { PersonTimeline } from "./PersonTimeline";
@@ -15,7 +15,7 @@ export function PersonWorkspaceTabs({
   roles,
   milestones,
 }: {
-  person: Person;
+  person: PersonRecord;
   records: EventRecord[];
   roles: PersonRoleRecord[];
   milestones: PersonMilestoneRecord[];

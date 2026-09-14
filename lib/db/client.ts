@@ -410,7 +410,8 @@ function initializeSeedStore(): MemoryRelationalStore {
   ];
 
   const seedEventTopics: (typeof schema.eventTopics.$inferSelect)[] = (events || []).flatMap((e) => {
-    const fullText = `${e.eventName} ${e.summary} ${(e.categories || []).join(" ")} ${(e.eventTypes || []).join(" ")} ${(e.organisations || []).join(" ")}`.toLowerCase();
+    const orgs = (e as unknown as { organisations?: string[] }).organisations || [];
+    const fullText = `${e.eventName} ${e.summary} ${(e.categories || []).join(" ")} ${(e.eventTypes || []).join(" ")} ${orgs.join(" ")}`.toLowerCase();
     const matchedTopics = new Set<string>();
 
     for (const rule of topicRules) {

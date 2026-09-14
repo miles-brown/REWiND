@@ -1,5 +1,6 @@
 import { getRelationalStore } from "@/lib/db/client";
-import { eventBySlug, type EventRecord } from "@/data/rewind";
+import { getEventsByIds } from "./events";
+import type { EventRecord } from "./types";
 
 export interface TopicRecord {
   id: string;
@@ -55,22 +56,14 @@ export async function getTopicBySlug(slug: string): Promise<TopicRecord | null> 
   };
 }
 
-
 export async function getEventsByTopic(topicSlugOrId: string): Promise<EventRecord[]> {
   const store = getRelationalStore();
   const topic = store.topics.find((t) => t.slug === topicSlugOrId || t.id === topicSlugOrId);
   if (!topic) return [];
 
   const mappings = store.eventTopics.filter((et) => et.topicId === topic.id);
-  const eventIds = new Set(mappings.map((m) => m.eventId));
+  const eventIds = Array.from(new Set(mappings.map((m) => m.eventId)));
 
-  const matchingEvents: EventRecord[] = [];
-  for (const e of store.events) {
-    if (eventIds.has(e.id)) {
-      const fullEvt = eventBySlug(e.slug);
-      if (fullEvt) matchingEvents.push(fullEvt);
-    }
-  }
-
+  const matchingEvents = await getEventsByIds(eventIds);
   return matchingEvents.sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
 }
