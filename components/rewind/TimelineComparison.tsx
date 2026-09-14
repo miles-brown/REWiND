@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
-import { formatIsoDate } from "@/lib/rewind/dates";
+import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -26,8 +26,8 @@ function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boo
   return p.personId === person.id || p.personId === person.slug;
 }
 
-function formatDate(dateStr: string): string {
-  return formatIsoDate(dateStr) || dateStr;
+function formatDate(dateStr: string, precision?: string): string {
+  return formatTimelineDate(dateStr, precision) || dateStr;
 }
 
 export function TimelineComparison({
@@ -44,9 +44,36 @@ export function TimelineComparison({
   sources?: SourceRecord[];
 }) {
   const [slugA, setSlugA] = useState(initialPersonA || people[0]?.slug || "");
-  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(
-    initialPersonB || (people.length > 1 ? people[1]?.slug : undefined)
-  );
+  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(() => {
+    if (initialPersonB) return initialPersonB;
+    const targetSlugA = initialPersonA || people[0]?.slug;
+    if (!targetSlugA || events.length === 0) {
+      return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+    }
+    // Calculate top co-attendee for Person A directly from events
+    const coCounts = new Map<string, number>();
+    for (const e of events) {
+      const parts = e.participants || [];
+      const hasA = parts.some(
+        (p) => p.personId === targetSlugA || p.slug === targetSlugA
+      );
+      if (hasA) {
+        for (const p of parts) {
+          const idOrSlug = p.slug || p.personId;
+          if (idOrSlug && idOrSlug !== targetSlugA) {
+            coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
+          }
+        }
+      }
+    }
+    if (coCounts.size > 0) {
+      const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const topSlugOrId = sorted[0][0];
+      const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
+      if (match) return match.slug;
+    }
+    return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+  });
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
   const [prevPairKey, setPrevPairKey] = useState(
@@ -89,7 +116,7 @@ export function TimelineComparison({
       const slugsInEvent: string[] = [];
 
       parts.forEach((p) => {
-        const matched = peopleMap.get(p.personId);
+        const matched = peopleMap.get(p.personId) ?? (p.slug ? peopleMap.get(p.slug) : undefined);
         if (matched) {
           const s = matched.slug;
           if (!slugsInEvent.includes(s)) {
@@ -155,16 +182,29 @@ export function TimelineComparison({
       .sort((a, b) => b.count - a.count);
   }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection if they are a valid co-attendee, otherwise default to top co-attendee, or "" if none exist
+  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0
+  // intersections), rejecting self-pairs, otherwise default to top co-attendee, or "" if none exist.
+  // explicitSlugB is authoritative even when not yet present in peopleMap (e.g. route-provided slug
+  // for a person with no shared events), so the pair renders with zero intersections rather than
+  // silently falling back to the top co-attendee.
   const slugB = useMemo(() => {
-    if (explicitSlugB && coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)) {
-      return explicitSlugB;
+    if (explicitSlugB) {
+      // Resolve canonical slug through peopleMap when available; fall back to raw slug otherwise
+      const resolvedPerson = peopleMap.get(explicitSlugB);
+      const resolvedSlug = resolvedPerson?.slug ?? explicitSlugB;
+      if (resolvedSlug !== effectiveSlugA) {
+        return resolvedSlug;
+      }
     }
+    // No explicit selection, or explicit selection was a self-pair — use highest-frequency co-attendee
     if (coAttendeesWithCounts.length > 0) {
-      return coAttendeesWithCounts[0].person.slug;
+      const topCo = coAttendeesWithCounts.find((item) => item.person.slug !== effectiveSlugA);
+      if (topCo) {
+        return topCo.person.slug;
+      }
     }
     return "";
-  }, [coAttendeesWithCounts, explicitSlugB]);
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, effectiveSlugA]);
 
   const currentPairKey = `${effectiveSlugA}-${slugB}`;
   if (currentPairKey !== prevPairKey) {
@@ -177,6 +217,14 @@ export function TimelineComparison({
       (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null,
     [peopleMap, people, slugB]
   );
+
+  const figure2Options = useMemo(() => {
+    const list = [...coAttendeesWithCounts];
+    if (slugB && personB && !list.some((item) => item.person.slug === slugB) && slugB !== effectiveSlugA) {
+      list.unshift({ person: personB, count: 0 });
+    }
+    return list;
+  }, [coAttendeesWithCounts, slugB, personB, effectiveSlugA]);
 
   const eventsA = useMemo(
     () =>
@@ -252,10 +300,32 @@ export function TimelineComparison({
     );
   }
 
+  if (people.length < 2) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>Second Figure Required</h2>
+        <p>
+          The co-appearance comparison requires at least two documented historical figures.
+          Add a second figure to the atlas to enable side-by-side timeline analysis.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="comparison-workspace">
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
+        {/* ARIA Live Region: Announces dynamic figure selection and automatic co-attendee changes */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {personA && personB
+            ? `Comparing ${personA.name} with ${personB.name}: ${intersections.length} shared encounter${intersections.length === 1 ? "" : "s"}.`
+            : personA
+            ? `Selected figure ${personA.name}. No co-attendees available for comparison.`
+            : "No figure selected for comparison."}
+        </div>
+
         <div className="comparison-selectors">
           {/* Selector 1: Primary Figure */}
           <div className="selector-card">
@@ -326,10 +396,10 @@ export function TimelineComparison({
                 aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
-                disabled={coAttendeesWithCounts.length === 0}
+                disabled={figure2Options.length === 0}
               >
-                {coAttendeesWithCounts.length > 0 ? (
-                  coAttendeesWithCounts.map((item) => (
+                {figure2Options.length > 0 ? (
+                  figure2Options.map((item) => (
                     <option key={item.person.slug} value={item.person.slug}>
                       {item.person.name} ({item.count} shared event
                       {item.count === 1 ? "" : "s"})
@@ -525,7 +595,7 @@ export function TimelineComparison({
                                   title={`Temporal precision: ${temporalPrecision}`}
                                 >
                                   <Calendar size={13} />
-                                  <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
+                                  <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>{formatDate(event.startDate)}</time>
                                 </span>
 
                                 <span
@@ -646,7 +716,7 @@ export function TimelineComparison({
             <div className="side-by-side-grid">
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personA.name
                       .split(" ")
                       .map((n) => n[0])
@@ -667,7 +737,7 @@ export function TimelineComparison({
 
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personB.name
                       .split(" ")
                       .map((n) => n[0])
@@ -731,7 +801,7 @@ export function TimelineComparison({
                   }}
                   aria-label={`Select ${item.person.name} with ${item.coCount} joint encounters`}
                 >
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {item.person.name
                       .split(" ")
                       .map((n) => n[0])

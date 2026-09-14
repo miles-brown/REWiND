@@ -1,8 +1,8 @@
 import { getRelationalStore, getDb, markDbUnreachable } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count, or, and, gte } from "drizzle-orm";
+import { eq, desc, count, or, and, gte, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
-import { resolveEntity } from "@/lib/ingestion/resolve";
+import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
 
 async function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 1500): Promise<T> {
   let timer: NodeJS.Timeout;
@@ -29,6 +29,10 @@ interface CandidateClaimInput {
   claimedTime?: string;
   claimedVenue?: string;
   supportingExcerpt?: string;
+}
+
+function escapeIlikePattern(str: string): string {
+  return str.replace(/[\\%_]/g, "\\$&");
 }
 
 export async function getEvidentiaryStats(): Promise<EvidenceStats> {
@@ -129,6 +133,15 @@ async function resolveCandidateRecord(
   return store.candidateEvents.find((c) => c.id === candidateId);
 }
 
+/**
+ * Wraps an async database execution promise with initial synchronous fallback properties.
+ *
+ * CAUTION / ARCHITECTURAL CONTRACT:
+ * The immediate synchronous properties (e.g. `result.success`) reflect initial memory store
+ * fallback state. Callers awaiting the returned Promise receive the authoritative database result once the
+ * async database transaction completes. Synchronous property inspection should be treated as transient
+ * state while background persistence completes.
+ */
 function asAsyncResult<T extends Record<string, unknown>>(promise: Promise<T>, syncFallback: T): Promise<T> & T {
   return Object.assign(promise, syncFallback);
 }
@@ -138,10 +151,22 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   const db = getDb();
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
+
   const syncFallback: { success: boolean; eventId?: string; error?: string } = !syncCandidate
     ? { success: false, error: "Candidate not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be approved again` }
+    : !syncSourceId || syncSourceId === "src-editorial-approval"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      }
     : { success: true, eventId: `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-sync` };
 
   const executionPromise = (async () => {
@@ -156,11 +181,20 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     }
 
     const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-approval") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
+
     const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
     const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
-    const sourceId = data.sourceId || "src-editorial-approval";
 
-    const newClaims: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    const newClaims: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
     if (Array.isArray(data.claims)) {
       data.claims.forEach(
         (
@@ -186,6 +220,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+            subjectMention: clm.subjectMention,
           });
         }
       );
@@ -193,9 +228,9 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
     const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
     if (Array.isArray(data.participants)) {
-      data.participants.forEach((p: { name: string; role?: string; involvementType?: string }, idx: number) => {
+      data.participants.forEach((p: { name: string; role?: string; involvementType?: string; presenceMode?: string }, idx: number) => {
         const resolved = resolveEntity(p.name);
-        const personId = resolved.personId || `p-${p.name.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
+        const personId = createParticipantStubId(p.name, resolved.personId);
         eventPeopleRows.push({
           id: `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
           eventId: eventSlug,
@@ -204,6 +239,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           roleLabel: p.role || "participant",
           presenceConfidence: "confirmed",
           roleConfidence: "confirmed",
+          attendanceMode: p.presenceMode || "physical",
           rawName: p.name,
         });
       });
@@ -239,10 +275,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             if (!existingSrc) {
               await tx.insert(schema.sources).values({
                 id: sourceId,
-                title:
-                  sourceId === "src-editorial-approval"
-                    ? "Editorial Review Board Register"
-                    : (data.sourceTitle || `Source for ${candidate.suggestedTitle}`),
+                title: data.sourceTitle || `Source for ${candidate.suggestedTitle}`,
                 publisher: data.publisher || "Archival Source",
                 sourceType: data.sourceType || "official-transcript",
                 tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
@@ -251,7 +284,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 3. Resolve or insert canonical place (Codex Issue 2 & 4: preserve null coordinates until evidence supplies them)
+          // 3. Resolve or insert canonical place
           const targetSlug = placeId.replace(/^plc-/, "");
           const [existingDbPlace] = await tx
             .select()
@@ -302,44 +335,141 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             isPrimary: true,
           });
 
-          // 6. Persist approved candidate participants (Codex Issue 3 & CodeRabbit Issue 8)
+          // 6. Persist approved candidate participants (Codex & Gemini: resolve person canonically and promote to published)
           if (eventPeopleRows.length > 0) {
             for (const ep of eventPeopleRows) {
-              const [existingPerson] = await tx
-                .select({ id: schema.people.id })
-                .from(schema.people)
-                .where(eq(schema.people.id, ep.personId));
-              if (!existingPerson) {
-                const pSlug = ep.personId.replace(/^p-/, "");
-                const [bySlug] = await tx
-                  .select({ id: schema.people.id })
-                  .from(schema.people)
-                  .where(eq(schema.people.slug, pSlug));
-                if (bySlug) {
-                  ep.personId = bySlug.id;
-                } else {
-                  const rawName = ep.rawName || pSlug;
-                  await tx.insert(schema.people).values({
-                    id: ep.personId,
-                    slug: pSlug,
-                    displayName: ep.roleLabel ? `${rawName} (${ep.roleLabel})` : rawName,
-                    canonicalName: rawName,
-                    nationality: "International",
-                    classification: "historical-figure",
-                    notabilityBasis: "Documented participant in verified historical event",
-                    publicationStatus: "draft",
-                  });
-                }
-              }
+              const canonicalPersonId = await resolvePersonEntityInTransaction(tx, {
+                personId: ep.personId,
+                rawName: ep.rawName || ep.personId.replace(/^p-/, ""),
+                roleLabel: ep.roleLabel,
+              });
+              ep.personId = canonicalPersonId;
               const epRow = { ...ep };
               delete epRow.rawName;
               await tx.insert(schema.eventPeople).values(epRow);
             }
           }
 
-          // 7. Insert claims
+          // 7. Insert claims with live database subject resolution (batched mention resolution)
           if (newClaims.length > 0) {
-            await tx.insert(schema.claims).values(newClaims);
+            const distinctMentions = Array.from(
+              new Set(
+                newClaims
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
+            );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
+                .from(schema.people)
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
+                    )
+                  );
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
+                }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
+              }
+            }
+
+            const dbClaims = newClaims.map((clm) => {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
+              }
+              clm.subjectId = resolvedDbSubjectId;
+              const dbRow = { ...clm };
+              delete dbRow.subjectMention;
+              return {
+                ...dbRow,
+                subjectId: resolvedDbSubjectId,
+              };
+            });
+            await tx.insert(schema.claims).values(dbClaims);
           }
 
           // 8. Insert review decision
@@ -400,9 +530,13 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       });
     }
 
-    newClaims.forEach((clm) => store.claims.push(clm));
+    newClaims.forEach((clm) => {
+      const inMem = { ...clm };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
+    });
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-approved",
       "REW-REV-MANUAL-SIGN-OFF",
       {
@@ -410,6 +544,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         publishedEventId: eventSlug,
         approvedBy: editorName,
         sourceId,
+        claimsAddedCount: newClaims.length,
       },
       eventSlug,
       candidateId
@@ -429,10 +564,24 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
   const syncTarget = store.events.find((e) => e.id === targetEventId || e.slug === targetEventId);
   const resolvedTargetId = syncTarget?.id || targetEventId;
-  const syncFallback: { success: boolean; targetEventId?: string; claimsAddedCount?: number; error?: string } = !syncCandidate || !syncTarget
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
+
+  const syncFallback:
+    | { success: false; error: string }
+    | { success: true; targetEventId: string; claimsAddedCount: number } = !syncCandidate || !syncTarget
     ? { success: false, error: "Candidate or target event not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
+    : !syncSourceId || syncSourceId === "src-editorial-corroboration"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      }
     : { success: true, targetEventId: resolvedTargetId, claimsAddedCount: 0 };
 
   const executionPromise = (async () => {
@@ -464,23 +613,35 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 
     const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
-    const sourceId = data.sourceId || "src-editorial-corroboration";
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-corroboration") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
 
-    const claimsToInsert: Array<ReturnType<typeof getRelationalStore>["claims"][0]> = [];
+    const claimsToInsert: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
+    const seenInMemory = new Set<string>();
     if (Array.isArray(data.claims)) {
       data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         const subjectId = resolvedSubject?.personId || null;
         const statement = clm.statement || "Corroborating claim";
+        const stmtNorm = statement.trim().toLowerCase();
+        const dedupeKey = `${subjectId || "none"}::${stmtNorm}`;
 
         const isDuplicateClaim = store.claims.some(
           (existing) =>
             existing.eventId === targetEventId &&
-            existing.statement.toLowerCase().trim() === statement.toLowerCase().trim() &&
+            existing.statement.toLowerCase().trim() === stmtNorm &&
             existing.subjectId === subjectId
         );
 
-        if (!isDuplicateClaim) {
+        if (!isDuplicateClaim && !seenInMemory.has(dedupeKey)) {
+          seenInMemory.add(dedupeKey);
           claimsToInsert.push({
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
@@ -492,15 +653,20 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || null,
+            subjectMention: clm.subjectMention,
           });
         }
       });
     }
 
+    const dbResult: { persistedClaimIds: string[] | null } = { persistedClaimIds: null };
+
     if (db) {
       try {
+        // targetEvent already resolved above (lines 617-623); no second lookup needed.
+
         await db.transaction(async (tx) => {
-          // Claim pending candidate atomically (Codex Issue 5)
+          // Atomically update candidate status inside database transaction (Codex Issue)
           const updateResult = await tx
             .update(schema.candidateEvents)
             .set({ status: "merged" })
@@ -516,48 +682,199 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             throw new Error("Candidate was already reviewed or claimed by another editor");
           }
 
-          if (sourceId) {
-            const [existingSrc] = await tx
-              .select({ id: schema.sources.id })
-              .from(schema.sources)
-              .where(eq(schema.sources.id, sourceId));
-            if (!existingSrc) {
-              await tx.insert(schema.sources).values({
-                id: sourceId,
-                title:
-                  sourceId === "src-editorial-corroboration"
-                    ? "Editorial Corroboration Register"
-                    : (data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`),
-                publisher: data.publisher || "Archival Source",
-                sourceType: data.sourceType || "official-transcript",
-                tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
-                url: data.url || null,
-                publicationDate: candidate.suggestedDate,
-                trustScore: 0.95,
-              });
-            }
+          // 1. Ensure Source exists in DB
+          const [existingSrc] = await tx
+            .select({ id: schema.sources.id })
+            .from(schema.sources)
+            .where(eq(schema.sources.id, sourceId));
+          if (!existingSrc) {
+            await tx.insert(schema.sources).values({
+              id: sourceId,
+              title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+              publisher: data.publisher || "Archival Source",
+              sourceType: data.sourceType || "official-transcript",
+              tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+              url: data.url || null,
+              archiveUrl: null,
+              author: null,
+              publicationDate: candidate.suggestedDate,
+              trustScore: candidate.primarySourceTier === "tier-a" ? 1.0 : 0.9,
+            });
+          }
 
-            // Link corroborating source to target event (Codex Issue 6)
-            const [existingLink] = await tx
-              .select({ eventId: schema.eventSources.eventId })
-              .from(schema.eventSources)
-              .where(
-                and(
-                  eq(schema.eventSources.eventId, targetEventId),
-                  eq(schema.eventSources.sourceId, sourceId)
-                )
-              );
-            if (!existingLink) {
-              await tx.insert(schema.eventSources).values({
-                eventId: targetEventId,
-                sourceId,
-                isPrimary: false,
-              });
-            }
+          // 2. Link Source to Event if not already linked
+          const [existingLink] = await tx
+            .select({ eventId: schema.eventSources.eventId })
+            .from(schema.eventSources)
+            .where(
+              and(
+                eq(schema.eventSources.eventId, targetEventId),
+                eq(schema.eventSources.sourceId, sourceId)
+              )
+            );
+          if (!existingLink) {
+            await tx.insert(schema.eventSources).values({
+              eventId: targetEventId,
+              sourceId,
+              isPrimary: false,
+            });
           }
 
           if (claimsToInsert.length > 0) {
-            await tx.insert(schema.claims).values(claimsToInsert);
+            const distinctMentions = Array.from(
+              new Set(
+                claimsToInsert
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
+            );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
+                .from(schema.people)
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
+                    )
+                  );
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
+                }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
+              }
+            }
+
+            const existingDbClaims = await tx
+              .select({
+                subjectId: schema.claims.subjectId,
+                statement: schema.claims.statement,
+              })
+              .from(schema.claims)
+              .where(eq(schema.claims.eventId, targetEventId));
+
+            const resolvedDbClaims: Array<typeof schema.claims.$inferInsert> = [];
+            const seenInBatch = new Set<string>();
+
+            for (const clm of claimsToInsert) {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
+              }
+
+              clm.subjectId = resolvedDbSubjectId;
+              const stmtNorm = clm.statement.trim().toLowerCase();
+              const dedupeKey = `${resolvedDbSubjectId || "none"}::${stmtNorm}`;
+
+              const isDbDuplicate = existingDbClaims.some(
+                (ec) =>
+                  ec.statement.trim().toLowerCase() === stmtNorm &&
+                  ec.subjectId === resolvedDbSubjectId
+              );
+
+              if (!isDbDuplicate && !seenInBatch.has(dedupeKey)) {
+                seenInBatch.add(dedupeKey);
+                resolvedDbClaims.push({
+                  id: clm.id,
+                  eventId: clm.eventId,
+                  subjectId: resolvedDbSubjectId,
+                  claimType: clm.claimType,
+                  statement: clm.statement,
+                  claimedTime: clm.claimedTime,
+                  claimedVenue: clm.claimedVenue,
+                  sourceId: clm.sourceId,
+                  confidence: clm.confidence,
+                  supportingExcerpt: clm.supportingExcerpt,
+                });
+              }
+            }
+
+            if (resolvedDbClaims.length > 0) {
+              await tx.insert(schema.claims).values(resolvedDbClaims);
+              dbResult.persistedClaimIds = resolvedDbClaims.map((c) => c.id!).filter(Boolean);
+            } else {
+              dbResult.persistedClaimIds = [];
+            }
           }
 
           await tx.insert(schema.reviewDecisions).values({
@@ -604,7 +921,18 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       store.sources.push(existingSource);
     }
 
-    claimsToInsert.forEach((c) => store.claims.push(c));
+    const persistedIds = dbResult.persistedClaimIds;
+    const claimsToSync = persistedIds !== null
+      ? claimsToInsert.filter((c) => persistedIds.includes(c.id))
+      : claimsToInsert;
+
+    claimsToSync.forEach((c) => {
+      const inMem = { ...c };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
+    });
+
+    const actualAddedCount = persistedIds !== null ? persistedIds.length : claimsToInsert.length;
 
     const mergedParticipants: string[] = [];
     if (Array.isArray(data.participants)) {
@@ -616,7 +944,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       });
     }
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-merged",
       "REW-REV-MANUAL-MERGE",
       {
@@ -624,7 +952,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         targetEventId,
         mergedBy: editorName,
         sourceId,
-        claimsAddedCount: claimsToInsert.length,
+        claimsAddedCount: actualAddedCount,
         mergedParticipants,
         similarityScore: candidate.duplicateSimilarity,
       },
@@ -632,8 +960,10 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       candidateId
     );
 
-    syncFallback.claimsAddedCount = claimsToInsert.length;
-    return { success: true, targetEventId, claimsAddedCount: claimsToInsert.length };
+    if (syncFallback.success) {
+      syncFallback.claimsAddedCount = actualAddedCount;
+    }
+    return { success: true, targetEventId, claimsAddedCount: actualAddedCount };
   })();
 
   return asAsyncResult(executionPromise, syncFallback);
@@ -701,7 +1031,7 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
     candidate.status = "rejected";
     candidate.rejectionReason = reason;
 
-    recordAuditEvent(
+    await recordAuditEvent(
       "reviewed-rejected",
       "REW-REV-MANUAL-REJECT",
       {

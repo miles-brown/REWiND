@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatIsoDate } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
@@ -9,7 +9,35 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params;
   const { data: event, error } = await getEventBySlug(slug);
   if (error && !event) {
-    throw new Error(`Failed to load event: ${error}`);
+    return (
+      <div className="page-shell">
+        <div className="record-breadcrumb" style={{ marginBottom: "2rem" }}>
+          <Link href="/events"><ArrowLeft />All events</Link>
+        </div>
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Event record temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            {error}
+          </p>
+          <div style={{ marginTop: "1.5rem" }}>
+            <Link href="/events" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "var(--accent, #60a5fa)", textDecoration: "underline" }}>
+              <ArrowLeft size={16} /> Return to Evidence Register
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (!event) notFound();
 
@@ -19,6 +47,15 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     getAdjacentEvents(event.startDate, event.id),
     sourceIds.length > 0 ? getSourcesByIds(sourceIds) : Promise.resolve([]),
   ]);
+
+  const enrichedEvent = {
+    ...event,
+    sources: validSources,
+  };
+
+  const primarySource = sourceIds.length > 0
+    ? (validSources.find((s) => s.id === sourceIds[0]) ?? validSources[0])
+    : undefined;
 
   const participants = event.participants || [];
 
@@ -35,8 +72,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             {event.verificationStatus === "verified" ? <CheckCircle2 /> : <CircleDashed />}
             {event.verificationStatus} evidence
           </div>
-          <time>
-            {formatIsoDate(event.startDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
+          <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>
+            {formatTimelineDate(event.startDate, event.datePrecision, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
           </time>
           <h1>{event.eventName}</h1>
           <p>{event.summary}</p>
@@ -45,7 +82,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
               <span key={type}>{type}</span>
             ))}
           </div>
-          <EventActions event={event} />
+          <EventActions event={enrichedEvent} primarySource={primarySource} />
         </div>
         <dl className="record-vitals">
           <div>
@@ -94,7 +131,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                     href={`/person/${participantSlug}`}
                     key={participant.personId}
                   >
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {participant.name
                       .split(" ")
                       .map((name) => name[0])

@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
   confidence_score double precision DEFAULT 1.0 NOT NULL,
   publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
-  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'human-review', 'quarantine', 'withheld')),
+  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'provisional', 'human-review', 'quarantine', 'withheld', 'editorial-override', 'rejected')),
   significance_score integer DEFAULT 80 NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -469,6 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_event_id ON public.quotes(event_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes(speaker_id);
 CREATE INDEX IF NOT EXISTS idx_media_assets_event_id ON public.media_assets(event_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_candidate_events_pending_fingerprint ON public.candidate_events (fingerprint) WHERE status = 'pending';
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) & ACCESS CONTROL
@@ -543,7 +544,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_id = venues.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -556,7 +557,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_area_id = venue_areas.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -575,7 +576,7 @@ BEGIN
               JOIN public.events e ON e.id = ep.event_id
               WHERE epl.venue_id = v.id
               AND e.publication_status = 'published'
-              AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+              AND epl.public_visibility = 'public-exact'
             )
           )
         )
@@ -601,7 +602,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_locations' AND policyname = 'Allow public read on event_person_locations') THEN
     CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated
       USING (
-        public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        public_visibility = 'public-exact'
         AND EXISTS (
           SELECT 1 FROM public.event_people ep
           JOIN public.events e ON e.id = ep.event_id
@@ -653,7 +654,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.id = event_person_location_sources.event_person_location_id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -725,3 +726,71 @@ AFTER DELETE OR UPDATE OF event_id ON public.event_sources
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
 EXECUTE FUNCTION public.verify_published_event_sources();
+
+-- ==============================================================================
+-- MIGRATION BRIDGE: Idempotently preserve legacy event_participants links
+-- ==============================================================================
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' AND table_name = 'event_participants'
+  ) THEN
+    INSERT INTO public.event_people (
+      id,
+      event_id,
+      person_id,
+      involvement_type,
+      role_label,
+      presence_confidence,
+      role_confidence
+    )
+    SELECT
+      COALESCE(ep.id, 'ep-' || ep.event_id || '-' || ep.person_id),
+      ep.event_id,
+      ep.person_id,
+      COALESCE(ep.involvement_type, 'attendee'),
+      COALESCE(ep.role_label, 'participant'),
+      COALESCE(ep.presence_confidence, 'confirmed'),
+      COALESCE(ep.role_confidence, 'confirmed')
+    FROM public.event_participants ep
+    WHERE EXISTS (SELECT 1 FROM public.events e WHERE e.id = ep.event_id)
+      AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = ep.person_id)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+-- ==============================================================================
+-- FORENSIC DATA INTEGRITY: Backfill & Validate Published Event Evidence Sources
+-- ==============================================================================
+-- 1. Backfill event_sources from claims table for existing legacy records
+INSERT INTO public.event_sources (event_id, source_id, is_primary)
+SELECT DISTINCT c.event_id, c.source_id, true
+FROM public.claims c
+WHERE c.event_id IS NOT NULL AND c.source_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = c.event_id)
+  AND EXISTS (SELECT 1 FROM public.sources s WHERE s.id = c.source_id)
+ON CONFLICT (event_id, source_id) DO NOTHING;
+
+-- 2. Withhold (demote to draft) any published events that still lack source links
+UPDATE public.events
+SET publication_status = 'draft',
+    verification_status = 'provisional'
+WHERE publication_status = 'published'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.event_sources es WHERE es.event_id = events.id
+  );
+
+-- 3. Assert zero published events lack primary evidence sources (AGENTS.md rigor contract)
+DO $$
+DECLARE
+  unlinked_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO unlinked_count
+  FROM public.events e
+  WHERE e.publication_status = 'published'
+    AND NOT EXISTS (SELECT 1 FROM public.event_sources es WHERE es.event_id = e.id);
+  IF unlinked_count > 0 THEN
+    RAISE EXCEPTION 'Forensic Integrity Validation Failed: % published events lack source links in event_sources (AGENTS.md contract)', unlinked_count;
+  END IF;
+END $$;

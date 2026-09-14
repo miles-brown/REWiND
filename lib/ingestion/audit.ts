@@ -26,7 +26,7 @@ export function recordAuditEvent(
   details: Record<string, unknown>,
   eventId?: string,
   candidateId?: string
-): AuditRecord {
+): Promise<AuditRecord> & AuditRecord {
   const store = getRelationalStore();
   const entry: AuditRecord = {
     id: store.auditLog.length + 1,
@@ -41,22 +41,28 @@ export function recordAuditEvent(
   store.auditLog.unshift(entry);
 
   const db = getDb();
-  if (db) {
-    db.insert(schema.auditLog)
-      .values({
-        eventId: entry.eventId,
-        candidateId: entry.candidateId,
-        action: entry.action,
-        ruleId: entry.ruleId,
-        details: entry.details,
-        recordedAt: entry.recordedAt,
-      })
-      .catch((err) => {
-        console.warn("Failed to persist audit log entry to live database:", err);
-      });
-  }
+  const persistPromise = (async () => {
+    if (db) {
+      try {
+        await db.insert(schema.auditLog).values({
+          eventId: entry.eventId,
+          candidateId: entry.candidateId,
+          action: entry.action,
+          ruleId: entry.ruleId,
+          details: entry.details,
+          recordedAt: entry.recordedAt,
+        });
+      } catch (err) {
+        // Audit persistence is best-effort observability; log the failure but
+        // never propagate so a transient DB error cannot crash an already-committed
+        // review decision or leave callers with a misleading rejected promise.
+        console.warn("[Audit] Failed to persist audit record to database:", err);
+      }
+    }
+    return entry;
+  })();
 
-  return entry;
+  return Object.assign(persistPromise, entry);
 }
 
 export async function getAuditTrail(): Promise<AuditRecord[]> {

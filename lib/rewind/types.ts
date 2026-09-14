@@ -10,6 +10,7 @@ export interface Participant {
   name: string;
   role?: string;
   presenceConfidence?: string;
+  roleConfidence?: string;
   capacityTitle?: string;
   attendanceMode?: string;
   latitude?: number | null;
@@ -21,7 +22,14 @@ export interface EventRecord {
   id: string;
   slug: string;
   eventName: string;
+  /**
+   * Machine-readable ISO-8601 formatted start date/timestamp string (e.g. 'YYYY-MM-DD', 'YYYY-MM-DDTHH:mm:ssZ', 'YYYY-MM', 'YYYY').
+   * Guarantees unambiguous chronological sorting and machine readability across the platform.
+   */
   startDate: string;
+  /**
+   * Machine-readable ISO-8601 formatted end date/timestamp string (optional).
+   */
   endDate?: string | null;
   /**
    * Temporal resolution of the event start date (e.g. 'exact', 'day', 'month', 'year', 'exact-day').

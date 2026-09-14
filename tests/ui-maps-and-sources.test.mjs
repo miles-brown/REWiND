@@ -151,10 +151,10 @@ test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", 
     "mapMode must initialize to svg to prevent hydration mismatch"
   );
 
-  // Satellite token safeguard
+  // Satellite token safeguard: button must be completely hidden when satellite style is absent
   assert.ok(
-    content.includes("disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}"),
-    "Satellite toggle button must be disabled when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
+    content.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "Satellite toggle button must be hidden entirely when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
   );
 });
 
@@ -265,7 +265,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
   );
   assert.ok(
     timelineContent.includes("<time") &&
-    timelineContent.includes("dateTime={event.startDate}"),
+    (timelineContent.includes("dateTime={event.startDate}") ||
+     timelineContent.includes("dateTime={isStandardIsoDate(event.startDate)")),
     "PersonTimeline event detail must render machine-readable ISO-8601 dateTime"
   );
 
@@ -285,7 +286,8 @@ test("verifies PersonTimeline.tsx and RewindExplorer.tsx playback toolbar roles 
   );
   assert.ok(
     explorerContent.includes("<time") &&
-    explorerContent.includes("dateTime={event.startDate}"),
+    (explorerContent.includes("dateTime={event.startDate}") ||
+     explorerContent.includes("dateTime={isStandardIsoDate(event.startDate)")),
     "RewindExplorer event detail must render machine-readable ISO-8601 dateTime"
   );
 });
@@ -727,11 +729,12 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
     "parseIsoDate must accept valid timestamp"
   );
 
-  // 2. TimelineComparison Person B resolution against co-attendees only
+  // 2. TimelineComparison Person B resolution
   const compContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
-    compContent.includes("coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)"),
-    "TimelineComparison must accept explicitSlugB only if figure is in coAttendeesWithCounts"
+    compContent.includes("peopleMap.get(explicitSlugB)") &&
+    compContent.includes("resolvedSlug !== effectiveSlugA"),
+    "TimelineComparison must resolve explicitSlugB through peopleMap.get() and reject self-pairs, remaining authoritative even when not in peopleMap"
   );
 
   // 3. app/events/page.tsx error propagation

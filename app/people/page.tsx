@@ -45,7 +45,7 @@ export default async function PeoplePage() {
             const deathYear = p.death ? p.death.slice(0, 4) : "present";
             return (
               <Link href={`/person/${p.slug}`} key={p.id}>
-                <span className="person-monogram">
+                <span className="person-monogram" aria-hidden="true">
                   {p.name
                     .split(" ")
                     .map((n) => n[0])

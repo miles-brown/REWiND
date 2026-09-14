@@ -172,7 +172,7 @@ export const events = pgTable("events", {
 
   confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
   publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
-  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, human-review, quarantine, withheld
+  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
   significanceScore: integer("significance_score").default(80).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

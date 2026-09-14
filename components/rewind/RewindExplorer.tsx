@@ -78,12 +78,16 @@ export function RewindExplorer({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
 
-  // Synchronize index safely when filtered events change to prevent stale out-of-bounds state
+  // Synchronize index safely when filtered events change: preserve selected event if still in filtered list
   useEffect(() => {
     setIndex((currentIndex) => {
       if (filtered.length === 0) return 0;
-      if (currentIndex >= filtered.length) return Math.max(0, filtered.length - 1);
-      return currentIndex;
+      const currentEvent = filtered[currentIndex];
+      if (currentEvent) {
+        const foundIdx = filtered.findIndex((e) => e.id === currentEvent.id || e.slug === currentEvent.slug);
+        if (foundIdx >= 0) return foundIdx;
+      }
+      return currentIndex >= filtered.length ? Math.max(0, filtered.length - 1) : currentIndex;
     });
   }, [filtered]);
 
@@ -216,7 +220,7 @@ export function RewindExplorer({
               </span>
             </div>
             <time
-              dateTime={event.startDate}
+              dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
               title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
             >
               {stageFormattedDate}
@@ -399,23 +403,29 @@ export function RewindExplorer({
             <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event && isStandardIsoDate(event.startDate) && (
-          <Link
-            href={
-              subject
-                ? `/person/${subject.slug}/${event.startDate.slice(0, 4)}`
-                : `/events?year=${event.startDate.slice(0, 4)}`
-            }
-            className="calendar-jump"
-            aria-label={
-              subject
-                ? `Open ${event.startDate.slice(0, 4)} year view for ${subject.name}`
-                : `Open ${event.startDate.slice(0, 4)} year view`
-            }
-          >
-            <CalendarDays />
-          </Link>
-        )}
+        {(() => {
+          const eventYear = event && isStandardIsoDate(event.startDate)
+            ? event.startDate.slice(0, 4)
+            : null;
+          if (!event || !eventYear) return null;
+          return (
+            <Link
+              href={
+                subject
+                  ? `/person/${subject.slug}/${eventYear}`
+                  : `/events?year=${eventYear}`
+              }
+              className="calendar-jump"
+              aria-label={
+                subject
+                  ? `Open ${eventYear} year view for ${subject.name}`
+                  : `Open ${eventYear} year view`
+              }
+            >
+              <CalendarDays />
+            </Link>
+          );
+        })()}
       </div>
 
       {citeOpen && event && source && (
