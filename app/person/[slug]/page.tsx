@@ -7,7 +7,7 @@ import {
   CircleDashed,
   MapPin,
 } from "lucide-react";
-import { events, personBySlug } from "@/data/rewind";
+import { getPersonTimeline } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
 
@@ -17,13 +17,10 @@ export default async function PersonPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const person = personBySlug(slug);
-  if (!person) notFound();
+  const timelineData = await getPersonTimeline(slug);
+  if (!timelineData) notFound();
 
-  const linked = events.filter((e) =>
-    e.participants.some((p) => p.personId === person.id)
-  );
-  const years = Array.from(new Set(linked.map((e) => e.startDate.slice(0, 4)))).sort();
+  const { person, events: linked, years } = timelineData;
   const cities = new Set(linked.map((e) => e.city));
 
   return (
@@ -74,7 +71,7 @@ export default async function PersonPage({
         </div>
         <div className="year-grid">
           {years.map((y) => {
-            const n = linked.filter((e) => e.startDate.startsWith(y)).length;
+            const n = linked.filter((e) => e.startDate.startsWith(String(y))).length;
             return (
               <Link href={`/person/${slug}/${y}`} key={y}>
                 <b>{y}</b>

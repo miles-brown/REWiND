@@ -224,7 +224,7 @@ export default function EvidenceControlConsole() {
 
 
   return (
-    <div className="evidence-console-main">
+    <main className="evidence-console-main">
       {/* Header */}
 
 
@@ -580,7 +580,7 @@ export default function EvidenceControlConsole() {
             </div>
           )}
         </section>
-      </div>
+      </main>
     );
   }
 

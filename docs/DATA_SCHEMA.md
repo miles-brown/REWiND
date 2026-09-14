@@ -132,4 +132,28 @@ For detailed architectural principles, relational PostgreSQL Drizzle models, tri
 - **Relational PostgreSQL Schema**: [schema-v2.ts](../db/schema-v2.ts)
 - **Bidirectional Migration Adapter**: [event-v2-adapter.ts](../lib/adapters/event-v2-adapter.ts)
 
+---
+
+## 4. Core Architectural & Ingestion Invariants
+
+All ingestion, data modeling, API querying, and visualization modules MUST strictly comply with these 5 architectural invariants:
+
+1. **Default Evidentiary Confidence**:
+   - The default confidence level for claims, participant event presence, and uncorroborated records must strictly be `"limited"`. Never default unverified claims or fallback records to `"confirmed"` or `"strong"`.
+
+2. **Database-First Live Entity/Place Resolution & Ingestion Deduplication**:
+   - Ingestion pipelines (`lib/ingestion/pipeline.ts`) must perform asynchronous duplicate detection (`findDuplicateEventAsync`) against live Supabase PostgreSQL tables before insertion.
+   - For distinct historical events occurring on the same date with matching base slugs, generate deterministic collision suffixes (`evt-...-2`, `evt-...-3`) rather than overwriting or throwing errors.
+
+3. **Row-Level Security (RLS) & Coordinate Visibility**:
+   - Location coordinate records in `event_person_locations` must enforce `public_visibility = 'public-exact'` in RLS policies to prevent unintentional leakage of sensitive coordinates or timestamps.
+
+4. **Fail-Closed Year & Query Validation**:
+   - All query parameters (such as `year` in `lib/rewind/events.ts`) must be strictly validated with regex (e.g. `/^\d{4}$/`) with immediate fail-closed return (empty array or 400 error) before passing into PostgREST `.like` or `.eq` filters to prevent malformed queries or unbounded scans.
+
+5. **Transactional Claim Synchronization & Relationship Integrity**:
+   - Synchronize claims using `persistedClaimIds` to prevent duplicate claim creation across adapters and services.
+   - Route figures in comparison views (`/relationship/[a]/[b]`) must guard against self-pairs (`slugA !== slugB`) and preserve authoritative references across navigation.
+
+
 

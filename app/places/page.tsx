@@ -1,4 +1,59 @@
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
-import { events } from "@/data/rewind";
-export default function PlacesPage(){const places=Array.from(new Set(events.map(e=>e.city))).map(city=>({city,count:events.filter(e=>e.city===city).length,verified:events.filter(e=>e.city===city&&e.verificationStatus==="verified").length,country:events.find(e=>e.city===city)?.country||""})).sort((a,b)=>b.count-a.count);return <div className="page-shell"><header className="page-hero"><span className="eyebrow">PLACE INDEX</span><h1>Documented geography</h1><p>Locations are shown only at the precision supported by evidence. No route silently fills undocumented gaps.</p></header><div className="place-grid">{places.map(p=><Link href={`/place/${p.city.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`} key={p.city}><MapPin/><div><small>{p.country}</small><h2>{p.city}</h2><p>{p.count} records · {p.verified} verified</p></div><ArrowRight/></Link>)}</div></div>}
+import { getPlaces } from "@/lib/rewind";
+
+export const metadata = {
+  title: "Documented Places — REWIND Evidence Atlas",
+  description: "Global gazetteer and diplomatic venues documented in the REWIND evidence corpus.",
+};
+
+export default async function PlacesPage() {
+  const places = await getPlaces();
+
+  return (
+    <div className="page-shell">
+      <header className="page-hero">
+        <span className="eyebrow">PLACE INDEX</span>
+        <h1>Documented geography</h1>
+        <p>
+          Locations are shown only at the precision supported by evidence. No route silently fills undocumented gaps.
+        </p>
+      </header>
+
+      {places.length === 0 ? (
+        <div
+          className="zero-state"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <MapPin size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+          <h2>No places registered yet</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The canonical Supabase database is connected. Venues and places will appear here as research
+            records are entered in Milestone B.
+          </p>
+        </div>
+      ) : (
+        <div className="place-grid">
+          {places.map((p) => (
+            <Link href={`/place/${p.slug}`} key={p.id}>
+              <MapPin />
+              <div>
+                <small>{p.country}</small>
+                <h2>{p.venue || p.city}</h2>
+                <p>{p.city}, {p.country} · {p.placeType.toUpperCase()}</p>
+              </div>
+              <ArrowRight />
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
