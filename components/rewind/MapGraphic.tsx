@@ -26,7 +26,7 @@ function isWebGLAvailable() {
   }
 }
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || process.env.MAPBOX_TOKEN || "";
 
 // Mapbox Vector Styles (when token is provided or environment override set)
 const MAPBOX_DARK_STYLE =
