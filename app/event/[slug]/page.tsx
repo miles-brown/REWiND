@@ -75,6 +75,9 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </div>
           <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>
             {formatTimelineDate(event.startDate, event.datePrecision, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
+            {!isStandardIsoDate(event.startDate) && event.startDate && (
+              <span className="sr-only"> (Non-standard archival date)</span>
+            )}
           </time>
           <h1>{event.eventName}</h1>
           <p>{event.summary}</p>

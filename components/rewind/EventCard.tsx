@@ -15,6 +15,13 @@ export const EventCard = memo(function EventCard({
   const confidence = event.confidence || "Not established";
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
   const isStandard = isStandardIsoDate(event.startDate);
+  const formattedDate = event.startDate
+    ? formatTimelineDate(event.startDate, temporalPrecision, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
 
   return (
     <Link
@@ -27,13 +34,7 @@ export const EventCard = memo(function EventCard({
           dateTime={isStandard ? event.startDate : undefined}
           title={`${temporalPrecision} precision${!isStandard && event.startDate ? " · Non-standard archival date format" : ""}`}
         >
-          {event.startDate
-            ? formatTimelineDate(event.startDate, temporalPrecision, {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              }) || event.startDate
-            : "Unknown date"}
+          {formattedDate || event.startDate || "Unknown date"}
           {!isStandard && event.startDate && (
             <span className="sr-only"> (Non-standard archival date)</span>
           )}
