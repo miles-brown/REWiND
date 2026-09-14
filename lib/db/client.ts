@@ -316,8 +316,6 @@ function initializeSeedStore(): MemoryRelationalStore {
     };
   });
 
-  const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
-
   const seedClaims: (typeof schema.claims.$inferSelect)[] = (events || []).flatMap((e) =>
     (e.participants || []).map((p, idx) => ({
       id: `clm-${e.id}-${idx}`,
