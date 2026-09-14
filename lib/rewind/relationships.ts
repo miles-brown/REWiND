@@ -70,18 +70,41 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
   try {
     const supabase = await createClient();
     if (supabase) {
-      // Filter participations by verified and published events
-      const { data: participations, error } = await supabase
-        .from("event_people")
-        .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
-        .eq("events.verification_status", "verified")
-        .eq("events.publication_status", "published");
+      // Filter participations by verified and published events with robust pagination
+      const participations: { event_id: string; person_id: string; role_label: string | null }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (error) {
-        return getFallbackRelationships();
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("event_people")
+          .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
+          .eq("events.verification_status", "verified")
+          .eq("events.publication_status", "published")
+          .order("event_id", { ascending: true })
+          .order("person_id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          if (process.env.NODE_ENV === "production") {
+            return [];
+          }
+          return getFallbackRelationships();
+        }
+
+        if (data) {
+          participations.push(...(data as typeof participations));
+        }
+
+        if (!data || data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
       }
 
-      if (participations) {
+      if (participations.length > 0) {
         // Group persons by event
         const eventPersons = new Map<string, string[]>();
         participations.forEach((p) => {
@@ -107,16 +130,30 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
           return [];
         }
 
-        // Fetch person names
+        // Fetch person names in 500-ID chunks
         const allPersonIds = Array.from(
           new Set(
             Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
           )
         );
-        const { data: people } = await supabase
-          .from("people")
-          .select("id, slug, display_name, canonical_name")
-          .in("id", allPersonIds);
+        const CHUNK_SIZE = 500;
+        const people: Array<{ id: string; slug: string; display_name: string | null; canonical_name: string }> = [];
+        for (let i = 0; i < allPersonIds.length; i += CHUNK_SIZE) {
+          const chunk = allPersonIds.slice(i, i + CHUNK_SIZE);
+          const { data: chunkPeople, error: peopleError } = await supabase
+            .from("people")
+            .select("id, slug, display_name, canonical_name")
+            .in("id", chunk);
+          if (peopleError) {
+            if (process.env.NODE_ENV === "production") {
+              return [];
+            }
+            return getFallbackRelationships();
+          }
+          if (chunkPeople) {
+            people.push(...chunkPeople);
+          }
+        }
 
         const personMap = new Map<string, { slug: string; name: string }>();
         (people || []).forEach((p) => {
@@ -146,10 +183,18 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
 
         return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
       }
+
+      return [];
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     return getFallbackRelationships();
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     return getFallbackRelationships();
   }
 }
@@ -159,35 +204,74 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
  */
 export async function getRelationshipBetween(
   slugA: string,
-  slugB: string
+  slugB: string,
+  supabaseClient?: unknown
 ): Promise<PairwiseRelationshipData | null> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     const [personA, personB] = await Promise.all([
-      getPersonBySlug(slugA),
-      getPersonBySlug(slugB),
+      getPersonBySlug(slugA, supabase),
+      getPersonBySlug(slugB, supabase),
     ]);
 
     if (!personA || !personB) return null;
 
-    const supabase = await createClient();
     if (supabase) {
-      // Find events where both personA.id and personB.id participate
-      const { data: partA } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", personA.id);
-      const { data: partB } = await supabase
-        .from("event_people")
-        .select("event_id")
-        .eq("person_id", personB.id);
+      // Find events where both personA.id and personB.id participate with robust pagination
+      const fetchParticipations = async (personId: string) => {
+        const participations: { event_id: string }[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
 
-      const eventsA = new Set((partA || []).map((p) => p.event_id));
-      const sharedIds = (partB || [])
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("event_people")
+            .select("event_id")
+            .eq("person_id", personId)
+            .order("event_id", { ascending: true })
+            .range(from, from + pageSize - 1);
+
+          if (error) {
+            return { data: null, error };
+          }
+
+          if (data) {
+            participations.push(...data);
+          }
+
+          if (!data || data.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return { data: participations, error: null };
+      };
+
+      const [resA, resB] = await Promise.all([
+        fetchParticipations(personA.id),
+        fetchParticipations(personB.id),
+      ]);
+
+      if (resA.error || resB.error) {
+        return null;
+      }
+
+      const eventsA = new Set((resA.data || []).map((p) => p.event_id));
+      const sharedIds = (resB.data || [])
         .map((p) => p.event_id)
         .filter((id) => eventsA.has(id));
 
       if (sharedIds.length > 0) {
-        const fetchedEvents = await getEventsByIds(sharedIds);
+        const CHUNK_SIZE = 500;
+        const fetchedEvents: EventRecord[] = [];
+        for (let i = 0; i < sharedIds.length; i += CHUNK_SIZE) {
+          const chunk = sharedIds.slice(i, i + CHUNK_SIZE);
+          const chunkEvents = await getEventsByIds(chunk, supabase);
+          fetchedEvents.push(...chunkEvents);
+        }
         const sharedEvents: EventRecord[] = fetchedEvents.filter(
           (e) => e.verificationStatus === "verified"
         );
@@ -197,6 +281,9 @@ export async function getRelationshipBetween(
       return { personA, personB, sharedEvents: [] };
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     // Fallback: check shared events across all events
     const all = await getAllEvents();
     const shared = all.filter(

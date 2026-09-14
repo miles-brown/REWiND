@@ -6,16 +6,9 @@ import {
   getPeople,
   getAllEvents,
   getSources,
+  getMonogram,
 } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
-
-function getMonogram(name: string): string {
-  if (!name) return "—";
-  const parts = name.split(" ").filter(Boolean);
-  if (parts.length === 0) return "—";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 export default async function RelationshipPage({
   params,
@@ -23,15 +16,18 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const [pa, pb, people, allEvents, sources] = await Promise.all([
+  const [pa, pb] = await Promise.all([
     getPersonBySlug(a),
     getPersonBySlug(b),
+  ]);
+
+  if (!pa || !pb) notFound();
+
+  const [people, allEvents, sources] = await Promise.all([
     getPeople(),
     getAllEvents(),
     getSources(),
   ]);
-
-  if (!pa || !pb) notFound();
 
   return (
     <div className="page-shell relationship-page">
@@ -45,7 +41,7 @@ export default async function RelationshipPage({
       </div>
 
       <header className="relationship-hero">
-        <span className="person-monogram large">
+        <span className="person-monogram large" aria-hidden="true">
           {getMonogram(pa.name)}
         </span>
         <div>
@@ -57,7 +53,7 @@ export default async function RelationshipPage({
             Verifiable spacetime intersections and bilateral diplomatic records.
           </p>
         </div>
-        <span className="person-monogram large">
+        <span className="person-monogram large" aria-hidden="true">
           {getMonogram(pb.name)}
         </span>
       </header>

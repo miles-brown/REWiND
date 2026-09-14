@@ -1,11 +1,20 @@
+import { memo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
-import type { EventRecord } from "@/lib/rewind";
+import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
+import type { EventRecord } from "@/lib/rewind/types";
 
-export function EventCard({ event, compact = false }: { event: EventRecord; compact?: boolean }) {
+export const EventCard = memo(function EventCard({
+  event,
+  compact = false,
+}: {
+  event: EventRecord;
+  compact?: boolean;
+}) {
   const verified = event.verificationStatus === "verified";
-  const confidence = event.confidence || "confirmed";
-  const temporalPrecision = event.timePrecision || event.datePrecision || "exact-day";
+  const confidence = event.confidence || "Not established";
+  const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
+  const isStandard = isStandardIsoDate(event.startDate);
 
   return (
     <Link
@@ -14,14 +23,20 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
       title={`${event.eventName} (${confidence} · ${temporalPrecision} precision)`}
     >
       <div className="event-card-top">
-        <time title={`${temporalPrecision} precision`}>
+        <time
+          dateTime={isStandard ? event.startDate : undefined}
+          title={`${temporalPrecision} precision${!isStandard && event.startDate ? " · Non-standard archival date format" : ""}`}
+        >
           {event.startDate
-            ? new Date(event.startDate.includes("T") ? event.startDate : event.startDate + "T12:00:00").toLocaleDateString("en-GB", {
+            ? formatTimelineDate(event.startDate, temporalPrecision, {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
-              })
+              }) || event.startDate
             : "Unknown date"}
+          {!isStandard && event.startDate && (
+            <span className="sr-only"> (Non-standard archival date)</span>
+          )}
         </time>
         <span
           className={verified ? "status verified" : "status provisional"}
@@ -47,4 +62,4 @@ export function EventCard({ event, compact = false }: { event: EventRecord; comp
       <ArrowUpRight className="card-arrow" size={17} />
     </Link>
   );
-}
+});

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
@@ -10,16 +10,57 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const event = await getEventBySlug(slug);
+  const { data: event, error } = await getEventBySlug(slug);
+  if (error && !event) {
+    return (
+      <div className="page-shell">
+        <div className="record-breadcrumb" style={{ marginBottom: "2rem" }}>
+          <Link href="/events"><ArrowLeft />All events</Link>
+        </div>
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Event record temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            {error}
+          </p>
+          <div style={{ marginTop: "1.5rem" }}>
+            <Link href="/events" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "var(--accent, #60a5fa)", textDecoration: "underline" }}>
+              <ArrowLeft size={16} /> Return to Evidence Register
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!event) notFound();
 
-  // Load surrounding events for chronological navigation
-  const { prev, next } = await getAdjacentEvents(event.startDate, event.id);
+  // Load surrounding events and attached source details concurrently
+  const sourceIds = event.sourceIds || [];
+  const [{ prev, next }, validSources] = await Promise.all([
+    getAdjacentEvents(event.startDate, event.id),
+    sourceIds.length > 0 ? getSourcesByIds(sourceIds) : Promise.resolve([]),
+  ]);
 
-  // Load attached source details in a single batched query
-  const validSources = event.sourceIds.length > 0
-    ? await getSourcesByIds(event.sourceIds)
-    : [];
+  const enrichedEvent = {
+    ...event,
+    sources: validSources,
+  };
+
+  const primarySource = sourceIds.length > 0
+    ? (validSources.find((s) => s.id === sourceIds[0]) ?? validSources[0])
+    : undefined;
+
+  const participants = event.participants || [];
 
   return (
     <div className="page-shell event-page">
@@ -62,8 +103,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
               {event.verificationStatus}
             </span>
           </div>
-          <EventActions event={event} />
+          <EventActions event={enrichedEvent} primarySource={primarySource} />
         </div>
+
+        <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>
+          {formatTimelineDate(event.startDate, event.datePrecision, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) || event.startDate}
+        </time>
 
         <h1>{event.eventName}</h1>
         <p className="event-summary">{event.summary}</p>
@@ -81,12 +126,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </div>
           <div>
             <dt><UsersRound size={16} /> Participants</dt>
-            <dd>{event.participants.length}</dd>
-            <small>indexed figures</small>
+            <dd>{participants.length}</dd>
+            <small>documented participants</small>
           </div>
           <div>
             <dt><FileText size={16} /> Sources</dt>
-            <dd>{event.sourceIds.length}</dd>
+            <dd>{sourceIds.length}</dd>
             <small>attached records</small>
           </div>
         </dl>
@@ -116,12 +161,14 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <span className="eyebrow">PARTICIPANTS</span>
             <h2>People in this event</h2>
             <div className="participant-list">
-              {event.participants.map((participant) => (
-                <Link
-                  href={`/person/${participant.personId.replace(/^p-/, "")}`}
-                  key={participant.personId}
-                >
-                  <span className="person-monogram">
+              {participants.map((participant) => {
+                const participantSlug = participant.slug || participant.personId.replace(/^p-/, "");
+                return (
+                  <Link
+                    href={`/person/${participantSlug}`}
+                    key={participant.personId}
+                  >
+                  <span className="person-monogram" aria-hidden="true">
                     {participant.name
                       .split(" ")
                       .map((name) => name[0])
@@ -137,7 +184,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                   </div>
                   <ArrowRight />
                 </Link>
-              ))}
+              );
+            })}
             </div>
           </section>
 
@@ -153,33 +201,31 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         <aside className="evidence-rail">
           <span className="eyebrow">EVIDENCE</span>
           <h2>Source trail</h2>
-          {validSources.map((source) =>
-            source ? (
-              <article key={source.id}>
+          {validSources.map((source) => (
+            <article key={source.id}>
+              <div>
+                <span>{source.classification}</span>
+                <span>{source.sourceType.replaceAll("-", " ")}</span>
+              </div>
+              <h3>{source.title}</h3>
+              <p>{source.publisher}</p>
+              <dl>
                 <div>
-                  <span>{source.classification}</span>
-                  <span>{source.sourceType.replaceAll("-", " ")}</span>
+                  <dt>Language</dt>
+                  <dd>{source.language || "en"}</dd>
                 </div>
-                <h3>{source.title}</h3>
-                <p>{source.publisher}</p>
-                <dl>
-                  <div>
-                    <dt>Language</dt>
-                    <dd>{source.language || "en"}</dd>
-                  </div>
-                  <div>
-                    <dt>Accessed</dt>
-                    <dd>{source.accessedDate || "Archived"}</dd>
-                  </div>
-                </dl>
-                {source.url && (
-                  <a href={source.url} target="_blank" rel="noreferrer">
-                    Open original record <ExternalLink />
-                  </a>
-                )}
-              </article>
-            ) : null
-          )}
+                <div>
+                  <dt>Accessed</dt>
+                  <dd>{source.accessedDate || "Archived"}</dd>
+                </div>
+              </dl>
+              {source.url && (
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  Open original record <ExternalLink />
+                </a>
+              )}
+            </article>
+          ))}
           <div className="confidence-box">
             <b>Why “{event.confidence || "confirmed"}”?</b>
             <p>

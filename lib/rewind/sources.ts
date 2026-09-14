@@ -1,8 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { sources as fallbackSources } from "@/archive/legacy-data/rewind";
+import { isStandardIsoDate, normalizeIsoDate } from "./dates";
 import type { EventRecord, SourceRecord } from "./types";
 
 export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
+  const pubDateNorm = s.publication_date ? normalizeIsoDate(s.publication_date) : undefined;
+  const accDateNorm = s.accessed_date
+    ? normalizeIsoDate(s.accessed_date)
+    : s.accessedDate
+    ? normalizeIsoDate(s.accessedDate)
+    : undefined;
+
   return {
     id: String(s.id || ""),
     title: String(s.title || ""),
@@ -13,26 +21,30 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     url: s.url ? String(s.url) : undefined,
     archiveUrl: s.archive_url ? String(s.archive_url) : undefined,
     author: s.author ? String(s.author) : undefined,
-    publicationDate: s.publication_date ? String(s.publication_date) : undefined,
-    accessedDate: s.accessed_date ? String(s.accessed_date) : s.accessedDate ? String(s.accessedDate) : undefined,
+    publicationDate: pubDateNorm && isStandardIsoDate(pubDateNorm) ? pubDateNorm : undefined,
+    accessedDate: accDateNorm && isStandardIsoDate(accDateNorm) ? accDateNorm : undefined,
     language: s.language ? String(s.language) : undefined,
     trustScore: typeof s.trust_score === "number" ? s.trust_score : undefined,
   };
 }
 
-function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
-  let fb = (fallbackSources || []).map((s) => ({
+export function mapArchiveSource(s: (typeof fallbackSources)[0]): SourceRecord {
+  return {
     id: s.id,
     title: s.title,
     publisher: s.publisher,
-    sourceType: s.sourceType,
+    sourceType: s.sourceType as SourceRecord["sourceType"],
     classification: s.classification,
     tier: (s.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
     url: s.url,
     publicationDate: s.publicationDate,
     accessedDate: s.accessedDate,
     language: s.language,
-  }));
+  };
+}
+
+function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
+  let fb = (fallbackSources || []).map(mapArchiveSource);
 
   if (filters.tier) {
     fb = fb.filter((s) => s.tier === filters.tier);
@@ -56,38 +68,62 @@ export async function getSourcesWithStatus(
   try {
     const supabase = await createClient();
     if (supabase) {
-      let query = supabase
-        .from("sources")
-        .select("*")
-        .order("trust_score", { ascending: false });
+      const allRows: Record<string, unknown>[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (filters.tier) {
-        query = query.eq("tier", filters.tier);
+      while (hasMore) {
+        let query = supabase
+          .from("sources")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (filters.tier) {
+          query = query.eq("tier", filters.tier);
+        }
+
+        if (filters.type) {
+          query = query.eq("source_type", filters.type);
+        }
+
+        if (filters.search && filters.search.trim()) {
+          const term = filters.search.trim();
+          const escaped = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          query = query.or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          return { data: [], error: error.message };
+        }
+        if (!data || data.length === 0) {
+          break;
+        }
+
+        allRows.push(...data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
       }
 
-      if (filters.type) {
-        query = query.eq("source_type", filters.type);
-      }
-
-      if (filters.search && filters.search.trim()) {
-        const term = filters.search.trim();
-        const escaped = term.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        query = query.or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`);
-      }
-
-      const { data, error } = await query;
-      if (!error && data) {
-        return { data: data.map(mapDatabaseSource), error: null };
-      }
-      if (error) {
-        return { data: getFallbackSources(filters), error: error.message };
-      }
+      return { data: allRows.map(mapDatabaseSource), error: null };
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return {
+        data: [],
+        error: "Database configuration unavailable in production environment",
+      };
+    }
     return { data: getFallbackSources(filters), error: null };
   } catch (err) {
     return {
-      data: getFallbackSources(filters),
+      data: [],
       error: err instanceof Error ? err.message : "Failed to load sources",
     };
   }
@@ -192,6 +228,20 @@ export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
   }
 }
 
+export async function getArchiveSourceById(
+  id: string
+): Promise<{ source: SourceRecord; events: EventRecord[] } | null> {
+  const fbSrc = fallbackSources.find((s) => s.id === id);
+  if (!fbSrc) return null;
+  const { getAllEvents } = await import("./events");
+  const all = await getAllEvents();
+  const linked = all.filter((e) => e.sourceIds.includes(id));
+  return {
+    source: mapArchiveSource(fbSrc),
+    events: linked,
+  };
+}
+
 /**
  * Retrieves a single source by ID along with events that reference it.
  */
@@ -210,13 +260,37 @@ export async function getSourceById(
       if (!error && s) {
         const source = mapDatabaseSource(s);
 
-        // Find referencing events via relational join
-        const { data: eventSources } = await supabase
-          .from("event_sources")
-          .select("event_id")
-          .eq("source_id", id);
+        // Find referencing events via relational join with full pagination
+        const eventIds: string[] = [];
+        {
+          const batchSize = 1000;
+          let esPage = 0;
+          let hasMore = true;
+          while (hasMore) {
+            const from = esPage * batchSize;
+            const to = from + batchSize - 1;
+            const { data: eventSources, error: esError } = await supabase
+              .from("event_sources")
+              .select("event_id")
+              .eq("source_id", id)
+              .order("event_id", { ascending: true })
+              .range(from, to);
 
-        const eventIds = (eventSources || []).map((es) => es.event_id);
+            if (esError) {
+              throw esError;
+            }
+            if (!eventSources || eventSources.length === 0) {
+              break;
+            }
+            eventSources.forEach((es) => eventIds.push(es.event_id));
+            if (eventSources.length < batchSize) {
+              hasMore = false;
+            } else {
+              esPage++;
+            }
+          }
+        }
+
         let events: EventRecord[] = [];
         if (eventIds.length > 0) {
           const { getEventsByIds } = await import("./events");
@@ -228,48 +302,21 @@ export async function getSourceById(
           events,
         };
       }
+
+      if (!error && !s) {
+        // Successful Supabase query with no matching source: return canonical miss
+        return null;
+      }
     }
 
-    const fbSrc = fallbackSources.find((s) => s.id === id);
-    if (!fbSrc) return null;
-    const { getAllEvents } = await import("./events");
-    const all = await getAllEvents();
-    const linked = all.filter((e) => e.sourceIds.includes(id));
-    return {
-      source: {
-        id: fbSrc.id,
-        title: fbSrc.title,
-        publisher: fbSrc.publisher,
-        sourceType: fbSrc.sourceType,
-        classification: fbSrc.classification,
-        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
-        url: fbSrc.url,
-        publicationDate: fbSrc.publicationDate,
-        accessedDate: fbSrc.accessedDate,
-        language: fbSrc.language,
-      },
-      events: linked,
-    };
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
+    return await getArchiveSourceById(id);
   } catch {
-    const fbSrc = fallbackSources.find((s) => s.id === id);
-    if (!fbSrc) return null;
-    const { getAllEvents } = await import("./events");
-    const all = await getAllEvents();
-    const linked = all.filter((e) => e.sourceIds.includes(id));
-    return {
-      source: {
-        id: fbSrc.id,
-        title: fbSrc.title,
-        publisher: fbSrc.publisher,
-        sourceType: fbSrc.sourceType,
-        classification: fbSrc.classification,
-        tier: (fbSrc.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
-        url: fbSrc.url,
-        publicationDate: fbSrc.publicationDate,
-        accessedDate: fbSrc.accessedDate,
-        language: fbSrc.language,
-      },
-      events: linked,
-    };
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
+    return await getArchiveSourceById(id);
   }
 }

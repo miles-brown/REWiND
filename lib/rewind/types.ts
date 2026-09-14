@@ -1,6 +1,8 @@
-export type Precision = "exact" | "day" | "month" | "year" | "range" | "unknown";
+export type Precision = "exact" | "exact-day" | "exact-minute" | "day" | "month" | "year" | "decade" | "range" | "unknown";
 export type Verification = "verified" | "provisional" | "disputed";
 export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
+export type LocationPrecision = "venue" | "city" | "country" | "unknown";
+export type EventScope = "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media";
 
 export type ClaimStatus =
   | "ESTABLISHED"
@@ -31,6 +33,7 @@ export interface Participant {
   name: string;
   role?: string;
   presenceConfidence?: string;
+  roleConfidence?: string;
   capacityTitle?: string;
   attendanceMode?: string;
   latitude?: number | null;
@@ -77,14 +80,21 @@ export interface EventRecord {
   id: string;
   slug: string;
   eventName: string;
+  /**
+   * Machine-readable ISO-8601 formatted start date/timestamp string (e.g. 'YYYY-MM-DD', 'YYYY-MM-DDTHH:mm:ssZ', 'YYYY-MM', 'YYYY').
+   * Guarantees unambiguous chronological sorting and machine readability across the platform.
+   */
   startDate: string;
+  /**
+   * Machine-readable ISO-8601 formatted end date/timestamp string (optional).
+   */
   endDate?: string | null;
   /**
    * Temporal resolution of the event start date (e.g. 'exact', 'day', 'month', 'year', 'exact-day').
    * Normalized with a sensible default ('exact-day') by the data mapping layer.
    */
-  datePrecision?: Precision | string;
-  timePrecision?: Precision | string;
+  datePrecision?: Precision;
+  timePrecision?: Precision;
   localStartTime?: string | null;
   localEndTime?: string | null;
   utcStartTime?: string | null;
@@ -105,7 +115,7 @@ export interface EventRecord {
   holidayName?: string | null;
   holidayType?: string | null;
   holidayJurisdiction?: string | null;
-  locationPrecision?: "venue" | "city" | "country" | "unknown" | string;
+  locationPrecision?: LocationPrecision;
   city: string;
   region?: string | null;
   country: string;
@@ -122,35 +132,35 @@ export interface EventRecord {
    * Evaluated confidence tier for this event record.
    * Normalized by the data layer to 'confirmed', 'strong', 'moderate', or 'limited'.
    */
-  confidence?: Confidence | string | null;
-  scope?: "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media" | string;
+  confidence?: Confidence | null;
+  scope?: EventScope;
   organisations?: string[];
   sourceIds: string[];
   participants: Participant[];
   /**
-   * Legacy categorization tags retained for backward compatibility with historical registers.
-   * New consumers should prefer canonical `eventTypes`.
+   * @deprecated Legacy categorization tags retained strictly for backward compatibility with historical registers.
+   * Primary application features, search filters, and UI badges should consume canonical `eventTypes`.
    */
-  categories?: string[];
+  categories?: string[] | undefined;
   /**
    * Canonical event taxonomy tags (e.g. 'diplomatic', 'press-conference', 'investigation').
    * Populated as the primary taxonomy by the data mapping layer.
    */
-  eventTypes?: string[];
-  medium?: string[];
+  eventTypes?: string[] | undefined;
+  medium?: string[] | undefined;
   notes?: string | null;
-  provenance?: string[];
+  provenance?: string[] | undefined;
   reviewedAt?: string;
-  sources?: SourceRecord[];
-  media?: { kind: string; label: string; url: string }[];
-  conflictingClaims?: string[];
-  claims?: ClaimRecord[];
+  sources?: SourceRecord[] | undefined;
+  media?: { kind: string; label: string; url: string }[] | undefined;
+  conflictingClaims?: string[] | undefined;
+  claims?: ClaimRecord[] | undefined;
   quotes?: {
     text: string;
     speaker: string;
     language: string;
     timestamp?: string | null;
-  }[];
+  }[] | undefined;
 }
 
 export interface PersonEducation {
@@ -311,7 +321,7 @@ export interface SearchResultItem {
   id: string;
   title: string;
   subtitle?: string;
-  type: "event" | "person" | "place" | "source";
+  type: "event" | "person" | "place" | "source" | "quote";
   url: string;
   date?: string;
   badge?: string;

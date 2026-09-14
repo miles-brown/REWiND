@@ -16,7 +16,8 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind";
+import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
+import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -25,26 +26,13 @@ function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boo
   return p.personId === person.id || p.personId === person.slug;
 }
 
-function formatDate(dateStr: string): string {
-  try {
-    const parts = dateStr.split("T")[0].split("-");
-    if (parts.length === 3) {
-      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    }
-    if (parts.length === 2) {
-      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
-      return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-    }
-    return parts[0] || dateStr;
-  } catch {
-    return dateStr;
-  }
+function formatDate(dateStr: string, precision?: string): string {
+  return formatTimelineDate(dateStr, precision) || dateStr;
 }
 
 export function TimelineComparison({
-  initialPersonA = "",
-  initialPersonB = "",
+  initialPersonA,
+  initialPersonB,
   people = [],
   events = [],
   sources = [],
@@ -55,10 +43,42 @@ export function TimelineComparison({
   events?: EventRecord[];
   sources?: SourceRecord[];
 }) {
-  const [slugA, setSlugA] = useState(initialPersonA);
-  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(initialPersonB || undefined);
+  const [slugA, setSlugA] = useState(initialPersonA || people[0]?.slug || "");
+  const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(() => {
+    if (initialPersonB) return initialPersonB;
+    const targetSlugA = initialPersonA || people[0]?.slug;
+    if (!targetSlugA || events.length === 0) {
+      return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+    }
+    // Calculate top co-attendee for Person A directly from events
+    const coCounts = new Map<string, number>();
+    for (const e of events) {
+      const parts = e.participants || [];
+      const hasA = parts.some(
+        (p) => p.personId === targetSlugA || p.slug === targetSlugA
+      );
+      if (hasA) {
+        for (const p of parts) {
+          const idOrSlug = p.slug || p.personId;
+          if (idOrSlug && idOrSlug !== targetSlugA) {
+            coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
+          }
+        }
+      }
+    }
+    if (coCounts.size > 0) {
+      const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const topSlugOrId = sorted[0][0];
+      const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
+      if (match) return match.slug;
+    }
+    return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
+  });
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
   const [searchQuery, setSearchQuery] = useState("");
+  const [prevPairKey, setPrevPairKey] = useState(
+    `${initialPersonA || people[0]?.slug || ""}-${initialPersonB || (people.length > 1 ? people[1]?.slug : "")}`
+  );
 
   const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
   const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
@@ -74,35 +94,84 @@ export function TimelineComparison({
   }, [people]);
 
   const effectiveSlugA = useMemo(() => {
-    if (slugA) return slugA;
+    if (slugA && peopleMap.has(slugA)) return slugA;
     return people[0]?.slug || "";
-  }, [slugA, people]);
+  }, [slugA, peopleMap, people]);
 
   const personA = useMemo(
-    () => (effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : undefined),
+    (): PersonRecord | null =>
+      (effectiveSlugA ? peopleMap.get(effectiveSlugA) || people.find((p) => p.slug === effectiveSlugA) : null) || null,
     [peopleMap, people, effectiveSlugA]
   );
+
+  // Pre-index event participations, pairwise co-attendance counts, and overall leader statistics
+  // in a single pass over events to ensure sub-millisecond lookups on large datasets
+  const { personEventsMap, coOccurrenceIndex, precomputedLeaderStats } = useMemo(() => {
+    const pEvents = new Map<string, EventRecord[]>();
+    const coMap = new Map<string, Map<string, number>>();
+    const coCountMap = new Map<string, number>();
+
+    events.forEach((e) => {
+      const parts = e.participants || [];
+      const slugsInEvent: string[] = [];
+
+      parts.forEach((p) => {
+        const matched = peopleMap.get(p.personId) ?? (p.slug ? peopleMap.get(p.slug) : undefined);
+        if (matched) {
+          const s = matched.slug;
+          if (!slugsInEvent.includes(s)) {
+            slugsInEvent.push(s);
+          }
+          let arr = pEvents.get(s);
+          if (!arr) {
+            arr = [];
+            pEvents.set(s, arr);
+          }
+          arr.push(e);
+        }
+      });
+
+      if (slugsInEvent.length > 1) {
+        slugsInEvent.forEach((s) => {
+          coCountMap.set(s, (coCountMap.get(s) || 0) + 1);
+        });
+
+        for (let i = 0; i < slugsInEvent.length; i++) {
+          const s1 = slugsInEvent[i];
+          let inner = coMap.get(s1);
+          if (!inner) {
+            inner = new Map<string, number>();
+            coMap.set(s1, inner);
+          }
+          for (let j = 0; j < slugsInEvent.length; j++) {
+            if (i === j) continue;
+            const s2 = slugsInEvent[j];
+            inner.set(s2, (inner.get(s2) || 0) + 1);
+          }
+        }
+      }
+    });
+
+    const leaderStats = people
+      .map((p) => {
+        const list = pEvents.get(p.slug) || [];
+        const coCount = coCountMap.get(p.slug) || 0;
+        return { person: p, eventCount: list.length, coCount };
+      })
+      .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
+
+    return {
+      personEventsMap: pEvents,
+      coOccurrenceIndex: coMap,
+      precomputedLeaderStats: leaderStats,
+    };
+  }, [events, peopleMap, people]);
 
   // Calculate co-attendees for Person A: figures who share at least 1 event with Person A
   const coAttendeesWithCounts = useMemo(() => {
     if (!personA) return [];
-
-    const eventsWithA = events.filter((e) =>
-      (e.participants || []).some((p) => isParticipantMatch(p, personA))
-    );
-
-    const counts = new Map<string, number>();
-
-    eventsWithA.forEach((e) => {
-      (e.participants || []).forEach((p) => {
-        if (!isParticipantMatch(p, personA)) {
-          const match = peopleMap.get(p.personId);
-          if (match) {
-            counts.set(match.slug, (counts.get(match.slug) || 0) + 1);
-          }
-        }
-      });
-    });
+    const counts = coOccurrenceIndex.get(personA.slug);
+    if (!counts) return [];
 
     return Array.from(counts.entries())
       .map(([slug, count]) => {
@@ -111,56 +180,80 @@ export function TimelineComparison({
       })
       .filter((item): item is { person: PersonRecord; count: number } => item !== null)
       .sort((a, b) => b.count - a.count);
-  }, [events, peopleMap, personA]);
+  }, [coOccurrenceIndex, peopleMap, personA]);
 
-  // Derive effective Person B: prioritize explicit user selection if still valid, otherwise default to top co-attendee
+  // Derive effective Person B: prioritize explicit user selection or initial route selection (even if 0
+  // intersections), rejecting self-pairs, otherwise default to top co-attendee, or "" if none exist.
+  // explicitSlugB is authoritative even when not yet present in peopleMap (e.g. route-provided slug
+  // for a person with no shared events), so the pair renders with zero intersections rather than
+  // silently falling back to the top co-attendee.
   const slugB = useMemo(() => {
-    if (coAttendeesWithCounts.length === 0) return "";
-    if (explicitSlugB && coAttendeesWithCounts.some((item) => item.person.slug === explicitSlugB)) {
-      return explicitSlugB;
+    if (explicitSlugB) {
+      // Resolve canonical slug through peopleMap when available; fall back to raw slug otherwise
+      const resolvedPerson = peopleMap.get(explicitSlugB);
+      const resolvedSlug = resolvedPerson?.slug ?? explicitSlugB;
+      if (resolvedSlug !== effectiveSlugA) {
+        return resolvedSlug;
+      }
     }
-    return coAttendeesWithCounts[0].person.slug;
-  }, [coAttendeesWithCounts, explicitSlugB]);
+    // No explicit selection, or explicit selection was a self-pair — use highest-frequency co-attendee
+    if (coAttendeesWithCounts.length > 0) {
+      const topCo = coAttendeesWithCounts.find((item) => item.person.slug !== effectiveSlugA);
+      if (topCo) {
+        return topCo.person.slug;
+      }
+    }
+    return "";
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, effectiveSlugA]);
+
+  const currentPairKey = `${effectiveSlugA}-${slugB}`;
+  if (currentPairKey !== prevPairKey) {
+    setPrevPairKey(currentPairKey);
+    setSearchQuery("");
+  }
 
   const personB = useMemo(
-    () => (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : undefined),
+    (): PersonRecord | null =>
+      (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null,
     [peopleMap, people, slugB]
   );
+
+  const figure2Options = useMemo(() => {
+    const list = [...coAttendeesWithCounts];
+    if (slugB && personB && !list.some((item) => item.person.slug === slugB) && slugB !== effectiveSlugA) {
+      list.unshift({ person: personB, count: 0 });
+    }
+    return list;
+  }, [coAttendeesWithCounts, slugB, personB, effectiveSlugA]);
 
   const eventsA = useMemo(
     () =>
       personA
-        ? events
-            .filter((e) => (e.participants || []).some((p) => isParticipantMatch(p, personA)))
+        ? (personEventsMap.get(personA.slug) || [])
+            .slice()
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
         : [],
-    [events, personA]
+    [personEventsMap, personA]
   );
 
   const eventsB = useMemo(
     () =>
       personB
-        ? events
-            .filter((e) => (e.participants || []).some((p) => isParticipantMatch(p, personB)))
+        ? (personEventsMap.get(personB.slug) || [])
+            .slice()
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
         : [],
-    [events, personB]
+    [personEventsMap, personB]
   );
 
-  // All shared events both figures attended
-  const intersections = useMemo(
-    () =>
-      personA && personB
-        ? events
-            .filter(
-              (e) =>
-                (e.participants || []).some((p) => isParticipantMatch(p, personA)) &&
-                (e.participants || []).some((p) => isParticipantMatch(p, personB))
-            )
-            .sort((a, b) => a.startDate.localeCompare(b.startDate))
-        : [],
-    [events, personA, personB]
-  );
+  // All shared events both figures attended, computed via O(1) set membership
+  const intersections = useMemo(() => {
+    if (!personA || !personB) return [];
+    const eventsBIds = new Set((personEventsMap.get(personB.slug) || []).map((e) => e.id));
+    return (personEventsMap.get(personA.slug) || [])
+      .filter((e) => eventsBIds.has(e.id))
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [personEventsMap, personA, personB]);
 
   const filteredIntersections = useMemo(() => {
     if (!searchQuery.trim()) return intersections;
@@ -188,24 +281,12 @@ export function TimelineComparison({
     return start === end ? start : `${start} – ${end}`;
   }, [intersections]);
 
-  // Candidate leaders with rich co-attendance records for empty state cycling (Forensic UX enhancement)
+  // Candidate leaders with rich co-attendance records for empty state cycling, sliced in O(N) from precomputed matrix
   const recommendedLeaders = useMemo(() => {
-    if (!people.length) return [];
-    return people
-      .filter((p) => p.slug !== effectiveSlugA)
-      .map((p) => {
-        const pEvents = events.filter((e) =>
-          (e.participants || []).some((part) => isParticipantMatch(part, p))
-        );
-        const coCount = events.filter(
-          (e) =>
-            (e.participants || []).some((part) => isParticipantMatch(part, p)) &&
-            (e.participants || []).length > 1
-        ).length;
-        return { person: p, eventCount: pEvents.length, coCount };
-      })
-      .sort((a, b) => b.coCount - a.coCount || b.eventCount - a.eventCount);
-  }, [events, people, effectiveSlugA]);
+    return precomputedLeaderStats.filter(
+      (item) => item.person.slug !== effectiveSlugA && item.coCount > 0
+    );
+  }, [precomputedLeaderStats, effectiveSlugA]);
 
   const topRecommendedLeader = recommendedLeaders[0]?.person;
 
@@ -215,6 +296,19 @@ export function TimelineComparison({
         <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
         <h2>No Figures Recorded</h2>
         <p>The evidence atlas database does not currently contain documented historical figures for comparison.</p>
+      </div>
+    );
+  }
+
+  if (people.length < 2) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>Second Figure Required</h2>
+        <p>
+          The co-appearance comparison requires at least two documented historical figures.
+          Add a second figure to the atlas to enable side-by-side timeline analysis.
+        </p>
       </div>
     );
   }
@@ -229,6 +323,15 @@ export function TimelineComparison({
 
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
+        {/* ARIA Live Region: Announces dynamic figure selection and automatic co-attendee changes */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {personA && personB
+            ? `Comparing ${personA.name} with ${personB.name}: ${intersections.length} shared encounter${intersections.length === 1 ? "" : "s"}.`
+            : personA
+            ? `Selected figure ${personA.name}. No co-attendees available for comparison.`
+            : "No figure selected for comparison."}
+        </div>
+
         <div className="comparison-selectors">
           {/* Selector 1: Primary Figure */}
           <div className="selector-card">
@@ -299,10 +402,10 @@ export function TimelineComparison({
                 aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
-                disabled={coAttendeesWithCounts.length === 0}
+                disabled={figure2Options.length === 0}
               >
-                {coAttendeesWithCounts.length > 0 ? (
-                  coAttendeesWithCounts.map((item) => (
+                {figure2Options.length > 0 ? (
+                  figure2Options.map((item) => (
                     <option key={item.person.slug} value={item.person.slug}>
                       {item.person.name} ({item.count} shared event
                       {item.count === 1 ? "" : "s"})
@@ -392,7 +495,7 @@ export function TimelineComparison({
             <button
               type="button"
               aria-pressed={activeTab === "intersections"}
-              className={`comp-tab ${activeTab === "intersections" ? "active" : ""}`}
+              className={`comp-tab timeline-tab-btn ${activeTab === "intersections" ? "active" : ""}`}
               onClick={() => setActiveTab("intersections")}
             >
               <Users size={15} />
@@ -401,12 +504,19 @@ export function TimelineComparison({
             <button
               type="button"
               aria-pressed={activeTab === "sideBySide"}
-              className={`comp-tab ${activeTab === "sideBySide" ? "active" : ""}`}
+              className={`comp-tab timeline-tab-btn ${activeTab === "sideBySide" ? "active" : ""}`}
               onClick={() => setActiveTab("sideBySide")}
             >
               <Calendar size={15} />
               <span>Side-by-Side Dual Chronology ({eventsA.length} vs {eventsB.length})</span>
             </button>
+          </div>
+
+          {/* ARIA Live Region for Screen Readers: announces comparison tab and counts */}
+          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {activeTab === "intersections"
+              ? `Displaying ${intersections.length} shared encounters and geospatial map for ${personA.name} and ${personB.name}`
+              : `Displaying side-by-side dual chronology: ${eventsA.length} events for ${personA.name} vs ${eventsB.length} events for ${personB.name}`}
           </div>
 
           {/* Tab 1: Dedicated Shared Timeline & Map */}
@@ -415,7 +525,10 @@ export function TimelineComparison({
               {intersections.length > 0 ? (
                 <>
                   {/* Geospatial Map Section */}
-                  <div className="intersection-map-section" role="region" aria-label="Geospatial Footprint Map">
+                  <section
+                    className="intersection-map-section"
+                    aria-label="Meeting Locations Geospatial Footprint"
+                  >
                     <div className="section-header">
                       <span className="eyebrow">GEOSPATIAL FOOTPRINT</span>
                       <h3>Meeting Locations Across the Globe</h3>
@@ -424,10 +537,13 @@ export function TimelineComparison({
                       </p>
                     </div>
                     <MapGraphic events={intersections} />
-                  </div>
+                  </section>
 
                   {/* Shared Timeline Chronology */}
-                  <div className="intersection-timeline-stream" role="region" aria-label="Chronological stream of shared events">
+                  <section
+                    className="intersection-timeline-stream"
+                    aria-label="Shared Joint Timeline Chronology"
+                  >
                     <div className="section-header">
                       <span className="eyebrow">SHARED TIMELINE</span>
                       <h3>
@@ -456,40 +572,53 @@ export function TimelineComparison({
                     )}
 
                     {/* Shared Encounter Cards */}
-                    <div className="encounter-cards-list" role="feed" aria-label="Shared chronological encounters">
-                      {filteredIntersections.map((event) => {
-                        const source = event.sources?.[0] || sourceById(event.sourceIds?.[0]);
-                        const participantA = (event.participants || []).find((p) => isParticipantMatch(p, personA));
-                        const participantB = (event.participants || []).find((p) => isParticipantMatch(p, personB));
-                        const otherParticipants = (event.participants || []).filter(
-                          (p) => !isParticipantMatch(p, personA) && !isParticipantMatch(p, personB)
-                        );
+                    {intersections.length > 0 && filteredIntersections.length === 0 && searchQuery.trim() !== "" ? (
+                      <div className="empty-intersections" style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted, #888)" }}>
+                        <p>No encounters matching &ldquo;{searchQuery}&rdquo;</p>
+                      </div>
+                    ) : (
+                      <div className="encounter-cards-list" role="list" aria-label="Shared chronological encounters">
+                        {filteredIntersections.map((event) => {
+                          const source = event.sources?.[0] || sourceById(event.sourceIds?.[0]);
+                          const participantA = (event.participants || []).find((p) => isParticipantMatch(p, personA));
+                          const participantB = (event.participants || []).find((p) => isParticipantMatch(p, personB));
+                          const otherParticipants = (event.participants || []).filter(
+                            (p) => !isParticipantMatch(p, personA) && !isParticipantMatch(p, personB)
+                          );
+                          const status = event.verificationStatus || "unknown";
+                          const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
+                          const confidence = event.confidence || "Not established";
 
-                        return (
-                          <article key={event.id} className="encounter-card">
-                            <div className="encounter-card-header">
-                              <span
-                                className="encounter-date-pill"
-                                title={`Temporal precision: ${event.timePrecision || event.datePrecision || "exact-day"}`}
-                              >
-                                <Calendar size={13} />
-                                <time dateTime={event.startDate}>{formatDate(event.startDate)}</time>
-                              </span>
+                          return (
+                            <article
+                              key={event.id}
+                              className="encounter-card"
+                              role="listitem"
+                              aria-labelledby={`encounter-title-${event.id}`}
+                            >
+                              <div className="encounter-card-header">
+                                <span
+                                  className="encounter-date-pill"
+                                  title={`Temporal precision: ${temporalPrecision}`}
+                                >
+                                  <Calendar size={13} />
+                                  <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>{formatDate(event.startDate)}</time>
+                                </span>
 
-                              <span
-                                className={`status ${event.verificationStatus || "verified"}`}
-                                title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "confirmed"} · ${event.timePrecision || event.datePrecision || "exact-day"} precision`}
-                              >
-                                {event.verificationStatus === "verified" ? (
-                                  <CheckCircle2 size={12} />
-                                ) : (
-                                  <CircleDashed size={12} />
-                                )}
-                                {event.verificationStatus || "verified"}
-                              </span>
-                            </div>
+                                <span
+                                  className={`status ${status}`}
+                                  title={`Verification: ${status} · Confidence: ${confidence} · ${temporalPrecision} precision`}
+                                >
+                                  {status === "verified" ? (
+                                     <CheckCircle2 size={12} />
+                                  ) : (
+                                    <CircleDashed size={12} />
+                                  )}
+                                  {status}
+                                </span>
+                              </div>
 
-                            <h4>{event.eventName}</h4>
+                              <h4 id={`encounter-title-${event.id}`}>{event.eventName}</h4>
 
                             <p className="encounter-place">
                               <MapPin size={14} />
@@ -573,8 +702,9 @@ export function TimelineComparison({
                           </article>
                         );
                       })}
-                    </div>
-                  </div>
+                      </div>
+                    )}
+                  </section>
                 </>
               ) : (
                 <div className="zero-state">
@@ -593,7 +723,7 @@ export function TimelineComparison({
             <div className="side-by-side-grid">
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personA.name
                       .split(" ")
                       .map((n) => n[0])
@@ -614,7 +744,7 @@ export function TimelineComparison({
 
               <div className="figure-column">
                 <div className="column-header">
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {personB.name
                       .split(" ")
                       .map((n) => n[0])
@@ -678,7 +808,7 @@ export function TimelineComparison({
                   }}
                   aria-label={`Select ${item.person.name} with ${item.coCount} joint encounters`}
                 >
-                  <span className="person-monogram">
+                  <span className="person-monogram" aria-hidden="true">
                     {item.person.name
                       .split(" ")
                       .map((n) => n[0])

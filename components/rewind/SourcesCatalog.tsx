@@ -15,18 +15,38 @@ import {
   Video,
 } from "lucide-react";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
+import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 
 type SortOption = "events-desc" | "date-desc" | "date-asc" | "title-asc" | "publisher-asc";
 type ViewMode = "table" | "cards";
 
+export function getSourceTierDisplay(s: SourceRecord): { label: string; badgeClass: string; isPrimary: boolean } {
+  const tier = s.tier?.toLowerCase();
+  if (tier === "tier-a") {
+    return { label: "Primary (Tier A)", badgeClass: "tier-a primary", isPrimary: true };
+  }
+  if (tier === "tier-b") {
+    return { label: "First-Party (Tier B)", badgeClass: "tier-b primary", isPrimary: true };
+  }
+  if (tier === "tier-c") {
+    return { label: "Secondary (Tier C)", badgeClass: "tier-c secondary", isPrimary: false };
+  }
+  if (tier === "tier-d") {
+    return { label: "Discovery (Tier D)", badgeClass: "tier-d secondary", isPrimary: false };
+  }
+  if (s.classification === "primary") {
+    return { label: "Primary (Tier A)", badgeClass: "primary", isPrimary: true };
+  }
+  return { label: "Secondary (Tier C)", badgeClass: "secondary", isPrimary: false };
+}
+
 export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; displayDate: string } {
   const raw = s.publicationDate || s.accessedDate || "";
   if (!raw) return { isoDate: null, displayDate: "Undated" };
-  const d = new Date(raw.includes("T") ? raw : raw + "T12:00:00Z");
-  if (isNaN(d.getTime())) return { isoDate: raw, displayDate: raw };
+  const displayDate = formatTimelineDate(raw);
   return {
-    isoDate: raw,
-    displayDate: d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }),
+    isoDate: isStandardIsoDate(raw) ? raw : null,
+    displayDate: displayDate || raw,
   };
 }
 
@@ -137,11 +157,11 @@ export function SourcesCatalog({
   }
 
   // Forensic Metrics
-  const primaryCount = useMemo(
-    () => sources.filter((s) => s.classification === "primary").length,
+  const tierACount = useMemo(
+    () => sources.filter((s) => s.tier === "tier-a" || (!s.tier && s.classification === "primary")).length,
     [sources]
   );
-  const primaryPercent = sources.length > 0 ? Math.round((primaryCount / sources.length) * 100) : 0;
+  const primaryPercent = sources.length > 0 ? Math.round((tierACount / sources.length) * 100) : 0;
   const totalEvidencedLinks = useMemo(
     () => sources.reduce((sum, s) => sum + (sourceEventMap.get(s.id) || 0), 0),
     [sources, sourceEventMap]
@@ -213,7 +233,7 @@ export function SourcesCatalog({
           </div>
           <div className="source-kpi">
             <dt className="kpi-label">Total Corroborated Claims</dt>
-            <dd className="kpi-num">{eventMetricsError ? "—" : totalEvidencedLinks}</dd>
+            <dd className="kpi-num">{eventMetricsError ? "Unavailable" : totalEvidencedLinks}</dd>
           </div>
         </dl>
       </header>
@@ -407,6 +427,7 @@ export function SourcesCatalog({
               {filteredSources.map((s) => {
                 const eventCount = sourceEventMap.get(s.id) || 0;
                 const { isoDate, displayDate } = getSourceDateInfo(s);
+                const tierInfo = getSourceTierDisplay(s);
                 const isVideo = s.sourceType.includes("video");
 
                 return (
@@ -427,14 +448,14 @@ export function SourcesCatalog({
                       </span>
                     </td>
                     <td className="col-tier">
-                      <span className={`source-tier-pill ${s.classification}`}>
-                        {s.classification === "primary" ? (
+                      <span className={`source-tier-pill ${tierInfo.badgeClass}`}>
+                        {tierInfo.isPrimary ? (
                           <>
                             <ShieldCheck size={12} />
-                            <span>Primary (Tier A)</span>
+                            <span>{tierInfo.label}</span>
                           </>
                         ) : (
-                          <span>Secondary (Tier B)</span>
+                          <span>{tierInfo.label}</span>
                         )}
                       </span>
                     </td>
@@ -444,7 +465,7 @@ export function SourcesCatalog({
                     <td className="col-events">
                       {eventMetricsError ? (
                         <span className="event-count-badge dimmed" title="Event metrics unavailable">
-                          <b>—</b>
+                          <span>Unavailable</span>
                         </span>
                       ) : (
                         <span className="event-count-badge">
@@ -488,19 +509,20 @@ export function SourcesCatalog({
           {filteredSources.map((s) => {
             const eventCount = sourceEventMap.get(s.id) || 0;
             const { isoDate, displayDate } = getSourceDateInfo(s);
+            const tierInfo = getSourceTierDisplay(s);
             const isVideo = s.sourceType.includes("video");
 
             return (
               <div key={s.id} className={`source-dossier-card ${s.classification}`}>
                 <div className="card-top-meta">
-                  <span className={`source-tier-pill ${s.classification}`}>
-                    {s.classification === "primary" ? (
+                  <span className={`source-tier-pill ${tierInfo.badgeClass}`}>
+                    {tierInfo.isPrimary ? (
                       <>
                         <ShieldCheck size={11} />
-                        <span>Primary</span>
+                        <span>{tierInfo.label}</span>
                       </>
                     ) : (
-                      <span>Secondary</span>
+                      <span>{tierInfo.label}</span>
                     )}
                   </span>
                   <span className="source-type-tag">

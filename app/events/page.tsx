@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
-import { getAtlasStatistics, getEvents } from "@/lib/rewind";
+import { getAtlasStatistics, getAllEventsWithStatus } from "@/lib/rewind";
 
 export const metadata: Metadata = {
   title: "Documented Events — REWIND Evidence Atlas",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function EventsPage() {
   const [stats, eventsResult] = await Promise.all([
     getAtlasStatistics(),
-    getEvents({ limit: 100 }),
+    getAllEventsWithStatus(),
   ]);
 
   return (
@@ -23,7 +23,27 @@ export default async function EventsPage() {
           the rest remain visibly provisional.
         </p>
       </header>
-      <EventExplorer initialEvents={eventsResult.data} />
+      {eventsResult.error ? (
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Events register temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            {eventsResult.error}
+          </p>
+        </div>
+      ) : (
+        <EventExplorer initialEvents={eventsResult.data} />
+      )}
     </div>
   );
 }

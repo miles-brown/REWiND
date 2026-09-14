@@ -3,73 +3,65 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import { AlertCircle, Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import type { SearchResultItem } from "@/lib/rewind";
 
-interface ResultItem {
-  id: string;
-  category: "Events" | "People" | "Quotes" | "Places" | "Sources";
-  title: string;
-  subtitle: string;
-  badge?: string;
-  href: string;
-}
-
-const DEFAULT_ACTIONS: ResultItem[] = [
+const DEFAULT_ACTIONS: SearchResultItem[] = [
   {
     id: "action-people",
-    category: "People",
+    type: "person",
     title: "Monitored Figures",
     subtitle: "Explore documented historical actors and chronologies",
     badge: "Registry",
-    href: "/people",
+    url: "/people",
   },
   {
     id: "action-sources",
-    category: "Sources",
+    type: "source",
     title: "Archival Primary Sources",
     subtitle: "Verified repository records, transcripts, and press releases",
     badge: "Registry",
-    href: "/sources",
+    url: "/sources",
   },
   {
     id: "action-relationships",
-    category: "People",
+    type: "person",
     title: "Diplomatic Relationships",
     subtitle: "Spacetime co-presence and bilateral meeting network",
     badge: "Analysis",
-    href: "/relationships",
+    url: "/relationships",
   },
   {
     id: "action-compare",
-    category: "Events",
+    type: "event",
     title: "Timeline Comparison",
     subtitle: "Side-by-side chronological analysis of multiple figures",
     badge: "Analysis",
-    href: "/compare",
+    url: "/compare",
   },
   {
     id: "action-quotes",
-    category: "Quotes",
+    type: "quote",
     title: "Archival Quote Register",
     subtitle: "Attributable speeches, statements, and verified transcripts",
     badge: "Registry",
-    href: "/quotes",
+    url: "/quotes",
   },
   {
     id: "action-places",
-    category: "Places",
+    type: "place",
     title: "Geographic Atlas",
     subtitle: "Documented venues, capitals, and event coordinates",
     badge: "Registry",
-    href: "/places",
+    url: "/places",
   },
   {
     id: "action-methodology",
-    category: "Sources",
+    type: "source",
     title: "Forensic Evidence Methodology",
     subtitle: "Standards for source classification and confidence grading",
     badge: "Guide",
-    href: "/methodology",
+    url: "/methodology",
   },
 ];
 
@@ -82,9 +74,10 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ResultItem[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
 
   const trimmed = query.trim();
@@ -97,37 +90,33 @@ export function CommandPalette({
       return;
     }
 
+    const abortController = new AbortController();
     const requestId = ++searchRequestIdRef.current;
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setSearchResults([]);
+      setSearchError(null);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`, {
+          signal: abortController.signal,
+        });
         if (requestId !== searchRequestIdRef.current) return;
         if (res.ok) {
           const json = await res.json();
           if (requestId !== searchRequestIdRef.current) return;
-          const items: ResultItem[] = (json.results || []).map((r: { id: string; type: string; title: string; subtitle?: string; badge?: string; url: string }) => {
-            let cat: ResultItem["category"] = "Events";
-            if (r.type === "person") cat = "People";
-            else if (r.type === "place") cat = "Places";
-            else if (r.type === "source") cat = "Sources";
-            return {
-              id: r.id,
-              category: cat,
-              title: r.title,
-              subtitle: r.subtitle || "",
-              badge: r.badge,
-              href: r.url,
-            };
-          });
-          setSearchResults(items);
+          setSearchResults(json.results || []);
+          setSearchError(null);
         } else {
           setSearchResults([]);
+          setSearchError("Search failed, please try again.");
         }
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         if (requestId === searchRequestIdRef.current) {
           setSearchResults([]);
+          setSearchError("Search failed, please try again.");
         }
       } finally {
         if (requestId === searchRequestIdRef.current) {
@@ -138,6 +127,7 @@ export function CommandPalette({
 
     return () => {
       clearTimeout(timer);
+      abortController.abort();
     };
   }, [query]);
 
@@ -153,7 +143,7 @@ export function CommandPalette({
     } else if (e.key === "Enter" && results[activeIndex]) {
       e.preventDefault();
       onClose();
-      router.push(results[activeIndex].href);
+      router.push(results[activeIndex].url);
     } else if (e.key === "Escape") {
       e.preventDefault();
       onClose();
@@ -162,18 +152,20 @@ export function CommandPalette({
 
   if (!isOpen) return null;
 
-  const categoryIcon = (category: ResultItem["category"]) => {
-    switch (category) {
-      case "Events":
+  const categoryIcon = (type: SearchResultItem["type"]) => {
+    switch (type) {
+      case "event":
         return <Calendar size={14} />;
-      case "People":
+      case "person":
         return <Users size={14} />;
-      case "Quotes":
+      case "quote":
         return <MessageSquareQuote size={14} />;
-      case "Places":
+      case "place":
         return <MapPin size={14} />;
-      case "Sources":
+      case "source":
         return <Database size={14} />;
+      default:
+        return <Search size={14} />;
     }
   };
 
@@ -192,6 +184,7 @@ export function CommandPalette({
               setQuery(val);
               setSelectedIndex(0);
               setSearchResults([]);
+              setSearchError(null);
               if (val.trim()) {
                 setIsLoading(true);
               } else {
@@ -215,6 +208,7 @@ export function CommandPalette({
                 setQuery("");
                 setSelectedIndex(0);
                 setSearchResults([]);
+                setSearchError(null);
                 setIsLoading(false);
               }}
               aria-label="Clear query"
@@ -226,30 +220,40 @@ export function CommandPalette({
           )}
         </div>
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {isLoading
+          {searchError
+            ? searchError
+            : isLoading
             ? "Searching archival records…"
             : trimmed
             ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
             : ""}
         </div>
         <div className="command-palette-results" aria-live="polite">
-          {query && !results.length && (
+          {searchError ? (
+            <div className="empty-copy search-error-copy" role="alert">
+              <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "var(--color-crimson, #ef4444)" }}>
+                <AlertCircle size={15} />
+                <span>{searchError}</span>
+              </p>
+              <small>Check your network connection or try a different search query.</small>
+            </div>
+          ) : query && !results.length && !isLoading ? (
             <div className="empty-copy">
               <p>No historical records match “{query}”.</p>
               <small>Try searching by person, treaty name, city, or date.</small>
             </div>
-          )}
+          ) : null}
           {results.map((item, index) => {
             const isSelected = index === activeIndex;
             return (
               <Link
                 key={item.id}
-                href={item.href}
+                href={item.url}
                 onClick={onClose}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`command-item ${isSelected ? "selected" : ""}`}
               >
-                <div className="command-item-icon">{categoryIcon(item.category)}</div>
+                <div className="command-item-icon">{categoryIcon(item.type)}</div>
                 <div className="command-item-text">
                   <div className="command-item-header">
                     <b>{item.title}</b>

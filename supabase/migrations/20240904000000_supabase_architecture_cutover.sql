@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
   confidence_score double precision DEFAULT 1.0 NOT NULL,
   publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
-  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'human-review', 'quarantine', 'withheld')),
+  publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'provisional', 'human-review', 'quarantine', 'withheld', 'editorial-override', 'rejected')),
   significance_score integer DEFAULT 80 NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -406,12 +406,47 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
 -- ==============================================================================
 -- INDEXES (Performance optimization according to Supabase best practices)
 -- ==============================================================================
+-- Ensure new columns exist if running against a database created from pre-cutover Drizzle schema
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS series_id text REFERENCES public.event_series(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS venue_id text REFERENCES public.venues(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.events ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.venues ADD COLUMN IF NOT EXISTS address_id text REFERENCES public.addresses(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
+ALTER TABLE IF EXISTS public.sources ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now() NOT NULL;
+ALTER TABLE IF EXISTS public.quotes ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
+
+-- Restore safe defaults for upgraded pre-cutover databases
+ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_status SET DEFAULT 'draft';
+ALTER TABLE IF EXISTS public.events ALTER COLUMN verification_status SET DEFAULT 'provisional';
+ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_lane SET DEFAULT 'human-review';
+ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 'draft';
+
+-- Ensure updated_at on sources is automatically refreshed on update
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER
+SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = pg_catalog.now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sources_updated_at ON public.sources;
+CREATE TRIGGER trg_sources_updated_at
+  BEFORE UPDATE ON public.sources
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people(slug);
 CREATE INDEX IF NOT EXISTS idx_people_publication_status ON public.people(publication_status);
 
 CREATE INDEX IF NOT EXISTS idx_events_slug ON public.events(slug);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON public.events(start_date);
 CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events(place_id);
+CREATE INDEX IF NOT EXISTS idx_events_venue_id ON public.events(venue_id);
+CREATE INDEX IF NOT EXISTS idx_events_address_id ON public.events(address_id);
+CREATE INDEX IF NOT EXISTS idx_venues_address_id ON public.venues(address_id);
 CREATE INDEX IF NOT EXISTS idx_events_publication_status ON public.events(publication_status);
 
 CREATE INDEX IF NOT EXISTS idx_places_slug ON public.places(slug);
@@ -434,6 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_event_id ON public.quotes(event_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes(speaker_id);
 CREATE INDEX IF NOT EXISTS idx_media_assets_event_id ON public.media_assets(event_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_candidate_events_pending_fingerprint ON public.candidate_events (fingerprint) WHERE status = 'pending';
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) & ACCESS CONTROL
@@ -508,7 +544,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_id = venues.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -521,7 +557,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_area_id = venue_areas.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -540,7 +576,7 @@ BEGIN
               JOIN public.events e ON e.id = ep.event_id
               WHERE epl.venue_id = v.id
               AND e.publication_status = 'published'
-              AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+              AND epl.public_visibility = 'public-exact'
             )
           )
         )
@@ -566,7 +602,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_locations' AND policyname = 'Allow public read on event_person_locations') THEN
     CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated
       USING (
-        public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        public_visibility = 'public-exact'
         AND EXISTS (
           SELECT 1 FROM public.event_people ep
           JOIN public.events e ON e.id = ep.event_id
@@ -618,7 +654,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.id = event_person_location_sources.event_person_location_id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -644,3 +680,117 @@ REVOKE ALL ON public.candidate_events FROM anon, authenticated;
 REVOKE ALL ON public.review_decisions FROM anon, authenticated;
 REVOKE ALL ON public.audit_log FROM anon, authenticated;
 REVOKE ALL ON public.source_fetches FROM anon, authenticated;
+
+-- ==============================================================================
+-- FORENSIC INTEGRITY: Enforce verified evidence links for published events (AGENTS.md)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.verify_published_event_sources()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'events' THEN
+    IF NEW.publication_status = 'published' THEN
+      IF NOT EXISTS (SELECT 1 FROM public.event_sources WHERE event_id = NEW.id) THEN
+        RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', NEW.id;
+      END IF;
+    END IF;
+    RETURN NEW;
+  ELSIF TG_TABLE_NAME = 'event_sources' THEN
+    -- Check if OLD.event_id remains published and has no remaining sources
+    IF EXISTS (
+      SELECT 1 FROM public.events
+      WHERE id = OLD.event_id AND publication_status = 'published'
+    ) THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM public.event_sources
+        WHERE event_id = OLD.event_id
+      ) THEN
+        RAISE EXCEPTION 'Forensic Integrity Violation: Published event % must have at least one valid source link in event_sources (AGENTS.md rigor contract)', OLD.event_id;
+      END IF;
+    END IF;
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_verify_published_event_sources ON public.events;
+CREATE CONSTRAINT TRIGGER trg_verify_published_event_sources
+AFTER INSERT OR UPDATE OF publication_status ON public.events
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION public.verify_published_event_sources();
+
+DROP TRIGGER IF EXISTS trg_verify_event_sources_deletion ON public.event_sources;
+CREATE CONSTRAINT TRIGGER trg_verify_event_sources_deletion
+AFTER DELETE OR UPDATE OF event_id ON public.event_sources
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION public.verify_published_event_sources();
+
+-- ==============================================================================
+-- MIGRATION BRIDGE: Idempotently preserve legacy event_participants links
+-- ==============================================================================
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' AND table_name = 'event_participants'
+  ) THEN
+    INSERT INTO public.event_people (
+      id,
+      event_id,
+      person_id,
+      involvement_type,
+      role_label,
+      presence_confidence,
+      role_confidence
+    )
+    SELECT
+      COALESCE(ep.id, 'ep-' || ep.event_id || '-' || ep.person_id),
+      ep.event_id,
+      ep.person_id,
+      COALESCE(ep.involvement_type, 'attendee'),
+      COALESCE(ep.role_label, 'participant'),
+      COALESCE(ep.presence_confidence, 'confirmed'),
+      COALESCE(ep.role_confidence, 'confirmed')
+    FROM public.event_participants ep
+    WHERE EXISTS (SELECT 1 FROM public.events e WHERE e.id = ep.event_id)
+      AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = ep.person_id)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+-- ==============================================================================
+-- FORENSIC DATA INTEGRITY: Backfill & Validate Published Event Evidence Sources
+-- ==============================================================================
+-- 1. Backfill event_sources from claims table for existing legacy records
+INSERT INTO public.event_sources (event_id, source_id, is_primary)
+SELECT DISTINCT c.event_id, c.source_id, true
+FROM public.claims c
+WHERE c.event_id IS NOT NULL AND c.source_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = c.event_id)
+  AND EXISTS (SELECT 1 FROM public.sources s WHERE s.id = c.source_id)
+ON CONFLICT (event_id, source_id) DO NOTHING;
+
+-- 2. Withhold (demote to draft) any published events that still lack source links
+UPDATE public.events
+SET publication_status = 'draft',
+    verification_status = 'provisional'
+WHERE publication_status = 'published'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.event_sources es WHERE es.event_id = events.id
+  );
+
+-- 3. Assert zero published events lack primary evidence sources (AGENTS.md rigor contract)
+DO $$
+DECLARE
+  unlinked_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO unlinked_count
+  FROM public.events e
+  WHERE e.publication_status = 'published'
+    AND NOT EXISTS (SELECT 1 FROM public.event_sources es WHERE es.event_id = e.id);
+  IF unlinked_count > 0 THEN
+    RAISE EXCEPTION 'Forensic Integrity Validation Failed: % published events lack source links in event_sources (AGENTS.md contract)', unlinked_count;
+  END IF;
+END $$;

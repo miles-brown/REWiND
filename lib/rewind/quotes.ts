@@ -11,27 +11,58 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
       return { data: [], error: "Supabase connection is not configured." };
     }
 
-    const { data: quotesData, error } = await supabase
-      .from("quotes")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const quotesData: Array<{
+      id: string;
+      event_id: string;
+      speaker_id: string;
+      quote: string;
+      context?: string | null;
+      language?: string | null;
+      source_id?: string | null;
+      timestamp_in_media?: string | null;
+    }> = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
 
-    if (error) {
-      return { data: [], error: error.message };
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        return { data: [], error: error.message };
+      }
+
+      if (data && data.length > 0) {
+        quotesData.push(...data);
+      }
+
+      if (!data || data.length < pageSize) {
+        hasMore = false;
+      } else {
+        from += pageSize;
+      }
     }
-    if (!quotesData || quotesData.length === 0) {
+
+    if (quotesData.length === 0) {
       return { data: [], error: null };
     }
 
     const speakerIds = Array.from(new Set(quotesData.map((q) => q.speaker_id)));
     const eventIds = Array.from(new Set(quotesData.map((q) => q.event_id)));
 
+    const CHUNK_SIZE = 500;
     const speakerMap = new Map<string, string>();
-    if (speakerIds.length > 0) {
+    for (let i = 0; i < speakerIds.length; i += CHUNK_SIZE) {
+      const chunk = speakerIds.slice(i, i + CHUNK_SIZE);
       const { data: people, error: peopleError } = await supabase
         .from("people")
         .select("id, display_name, canonical_name")
-        .in("id", speakerIds);
+        .in("id", chunk);
       if (peopleError) {
         return { data: [], error: peopleError.message };
       }
@@ -39,11 +70,12 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
     }
 
     const eventMap = new Map<string, { slug: string; title: string; date: string }>();
-    if (eventIds.length > 0) {
+    for (let i = 0; i < eventIds.length; i += CHUNK_SIZE) {
+      const chunk = eventIds.slice(i, i + CHUNK_SIZE);
       const { data: events, error: eventsError } = await supabase
         .from("events")
         .select("id, slug, title, start_date")
-        .in("id", eventIds);
+        .in("id", chunk);
       if (eventsError) {
         return { data: [], error: eventsError.message };
       }
@@ -55,7 +87,7 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
       return {
         id: q.id,
         eventId: q.event_id,
-        eventSlug: evt?.slug || q.event_id,
+        eventSlug: evt?.slug,
         speakerId: q.speaker_id,
         speakerName: speakerMap.get(q.speaker_id) || q.speaker_id,
         quote: q.quote,

@@ -17,6 +17,46 @@ function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
   };
 }
 
+function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
+  return {
+    id: String(p.id),
+    slug: String(p.slug),
+    name: String(p.display_name || p.canonical_name || ""),
+    canonicalName: String(p.canonical_name || ""),
+    displayName: String(p.display_name || p.canonical_name || ""),
+    description: String(p.primary_role || p.summary || ""),
+    fullBirthName: p.full_birth_name ? String(p.full_birth_name) : undefined,
+    birth: p.birth_date ? String(p.birth_date) : undefined,
+    death: p.death_date ? String(p.death_date) : undefined,
+    nationality: p.nationality ? String(p.nationality) : undefined,
+    citizenship: Array.isArray(p.citizenship) ? p.citizenship.map(String) : [],
+    nationalIdentity: p.national_identity ? String(p.national_identity) : undefined,
+    ethnicity: p.ethnicity ? String(p.ethnicity) : undefined,
+    ancestry: p.ancestry ? String(p.ancestry) : undefined,
+    religion: p.religion ? String(p.religion) : undefined,
+    religiousDenomination: p.religious_denomination ? String(p.religious_denomination) : undefined,
+    religionStatus: p.religion_status ? String(p.religion_status) : undefined,
+    languages: Array.isArray(p.languages) ? p.languages.map(String) : [],
+    classification: String(p.classification || "unknown"),
+    notabilityBasis: p.notability_basis ? String(p.notability_basis) : undefined,
+    inclusionBasis: Array.isArray(p.inclusion_basis) ? p.inclusion_basis.map(String) : [],
+    inclusionRationale: p.inclusion_rationale ? String(p.inclusion_rationale) : undefined,
+    culturalImpactSummary: p.cultural_impact_summary ? String(p.cultural_impact_summary) : undefined,
+    achievements: Array.isArray(p.achievements)
+      ? (p.achievements as Array<Record<string, unknown> | string>).map((ach) =>
+          typeof ach === "string"
+            ? { milestone: ach }
+            : {
+                milestone: String(ach.milestone || ""),
+                year: typeof ach.year === "number" ? ach.year : undefined,
+                evidence: ach.evidence ? String(ach.evidence) : undefined,
+              }
+        )
+      : undefined,
+    avatarUrl: p.avatar_url ? String(p.avatar_url) : undefined,
+  };
+}
+
 /**
  * Retrieves all monitored historical people from Supabase.
  */
@@ -24,51 +64,56 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
   try {
     const supabase = await createClient();
     if (supabase) {
-      let query = supabase
-        .from("people")
-        .select("*")
-        .eq("publication_status", "published")
-        .order("canonical_name", { ascending: true });
-
       if (params.limit) {
-        query = query.limit(params.limit);
-      }
+        const { data, error } = await supabase
+          .from("people")
+          .select("*")
+          .eq("publication_status", "published")
+          .order("canonical_name", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(params.limit);
 
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data.map((p) => ({
-          id: p.id,
-          slug: p.slug,
-          name: p.display_name || p.canonical_name,
-          canonicalName: p.canonical_name,
-          displayName: p.display_name,
-          description: p.primary_role || p.summary || "",
-          fullBirthName: p.full_birth_name || undefined,
-          birth: p.birth_date || undefined,
-          death: p.death_date || undefined,
-          nationality: p.nationality || undefined,
-          citizenship: Array.isArray(p.citizenship) ? p.citizenship : [],
-          nationalIdentity: p.national_identity || undefined,
-          ethnicity: p.ethnicity || undefined,
-          ancestry: p.ancestry || undefined,
-          religion: p.religion || undefined,
-          religiousDenomination: p.religious_denomination || undefined,
-          religionStatus: p.religion_status || undefined,
-          languages: Array.isArray(p.languages) ? p.languages : [],
-          classification: p.classification || "unknown",
-          notabilityBasis: p.notability_basis || undefined,
-          inclusionBasis: Array.isArray(p.inclusion_basis) ? p.inclusion_basis : [],
-          inclusionRationale: p.inclusion_rationale || undefined,
-          culturalImpactSummary: p.cultural_impact_summary || undefined,
-          achievements: Array.isArray(p.achievements) ? p.achievements : [],
-          avatarUrl: p.avatar_url || undefined,
-        }));
+        if (!error && data) {
+          return data.map((p) => mapDatabasePerson(p as Record<string, unknown>));
+        }
+      } else {
+        const allPeople: Record<string, unknown>[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let paginationFailed = false;
+        while (true) {
+          const { data, error } = await supabase
+            .from("people")
+            .select("*")
+            .eq("publication_status", "published")
+            .order("canonical_name", { ascending: true })
+            .order("id", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (error) {
+            console.error("Error paginating people catalog:", error);
+            paginationFailed = true;
+            break;
+          }
+          if (!data || data.length === 0) break;
+          allPeople.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        if (!paginationFailed) {
+          return allPeople.map((p) => mapDatabasePerson(p));
+        }
       }
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
     return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return [];
+    }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
     return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
   }
@@ -77,9 +122,10 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
 /**
  * Retrieves a single person by slug, including structured biographical relations.
  */
-export async function getPersonBySlug(slug: string): Promise<PersonRecord | null> {
+export async function getPersonBySlug(slug: string, supabaseClient?: unknown): Promise<PersonRecord | null> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (supabase) {
       const { data: p, error } = await supabase
         .from("people")
@@ -89,98 +135,95 @@ export async function getPersonBySlug(slug: string): Promise<PersonRecord | null
         .maybeSingle();
 
       if (error) {
+        console.log("DEBUG getPersonBySlug error:", { slug, error });
+        if (process.env.NODE_ENV === "production") {
+          return null;
+        }
         const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
         return fb ? mapFallbackPerson(fb) : null;
       }
 
+      if (!p) {
+        console.log("DEBUG getPersonBySlug no p:", { slug });
+      }
+
       if (p) {
-        const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
-          supabase.from("person_education").select("*").eq("person_id", p.id).order("start_date", { ascending: true }),
-          supabase.from("person_career").select("*").eq("person_id", p.id).order("start_date", { ascending: true }),
-          supabase.from("person_awards").select("*").eq("person_id", p.id).order("award_year", { ascending: false }),
-          supabase.from("person_works").select("*").eq("person_id", p.id).order("release_date", { ascending: false }),
-        ]);
+        let eduData: Record<string, unknown>[] = [];
+        let careerData: Record<string, unknown>[] = [];
+        let awardsData: Record<string, unknown>[] = [];
+        let worksData: Record<string, unknown>[] = [];
 
-        const education = (eduRes.data || []).map((e) => ({
-          id: e.id,
-          personId: e.person_id,
-          institution: e.institution,
-          location: e.location || undefined,
-          startDate: e.start_date || undefined,
-          endDate: e.end_date || undefined,
-          qualification: e.qualification || undefined,
-          subject: e.subject || undefined,
-          degree: e.degree || undefined,
-          honours: e.honours || undefined,
+        try {
+          const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
+            Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_career")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("award_year", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("release_date", { ascending: false }) ?? { data: [] }),
+          ]);
+          eduData = (eduRes?.data || []) as Record<string, unknown>[];
+          careerData = (careerRes?.data || []) as Record<string, unknown>[];
+          awardsData = (awardsRes?.data || []) as Record<string, unknown>[];
+          worksData = (worksRes?.data || []) as Record<string, unknown>[];
+        } catch {
+          // Biographical relations optional or not present in client stub
+        }
+
+        const education = eduData.map((e: Record<string, unknown>) => ({
+          id: String(e.id || ""),
+          personId: String(e.person_id || ""),
+          institution: String(e.institution || ""),
+          location: e.location ? String(e.location) : undefined,
+          startDate: e.start_date ? String(e.start_date) : undefined,
+          endDate: e.end_date ? String(e.end_date) : undefined,
+          qualification: e.qualification ? String(e.qualification) : undefined,
+          subject: e.subject ? String(e.subject) : undefined,
+          degree: e.degree ? String(e.degree) : undefined,
+          honours: e.honours ? String(e.honours) : undefined,
           completedStatus: (e.completed_status as "completed" | "not completed" | "honorary" | "in progress") || "completed",
-          sourceId: e.source_id || undefined,
+          sourceId: e.source_id ? String(e.source_id) : undefined,
         }));
 
-        const career = (careerRes.data || []).map((c) => ({
-          id: c.id,
-          personId: c.person_id,
-          organisationName: c.organisation_name,
-          positionTitle: c.position_title,
-          occupationCategory: c.occupation_category || undefined,
-          startDate: c.start_date || undefined,
-          endDate: c.end_date || undefined,
-          location: c.location || undefined,
-          appointmentMethod: c.appointment_method || undefined,
-          predecessor: c.predecessor || undefined,
-          successor: c.successor || undefined,
-          notes: c.notes || undefined,
-          sourceId: c.source_id || undefined,
+        const career = careerData.map((c: Record<string, unknown>) => ({
+          id: String(c.id || ""),
+          personId: String(c.person_id || ""),
+          organisationName: String(c.organisation_name || ""),
+          positionTitle: String(c.position_title || ""),
+          occupationCategory: c.occupation_category ? String(c.occupation_category) : undefined,
+          startDate: c.start_date ? String(c.start_date) : undefined,
+          endDate: c.end_date ? String(c.end_date) : undefined,
+          location: c.location ? String(c.location) : undefined,
+          appointmentMethod: c.appointment_method ? String(c.appointment_method) : undefined,
+          predecessor: c.predecessor ? String(c.predecessor) : undefined,
+          successor: c.successor ? String(c.successor) : undefined,
+          notes: c.notes ? String(c.notes) : undefined,
+          sourceId: c.source_id ? String(c.source_id) : undefined,
         }));
 
-        const awards = (awardsRes.data || []).map((a) => ({
-          id: a.id,
-          personId: a.person_id,
-          awardName: a.award_name,
-          awardingBody: a.awarding_body,
-          category: a.category || undefined,
-          awardYear: a.award_year || undefined,
+        const awards = awardsData.map((a: Record<string, unknown>) => ({
+          id: String(a.id || ""),
+          personId: String(a.person_id || ""),
+          awardName: String(a.award_name || ""),
+          awardingBody: String(a.awarding_body || ""),
+          category: a.category ? String(a.category) : undefined,
+          awardYear: typeof a.award_year === "number" ? a.award_year : undefined,
           result: (a.result as "winner" | "honouree" | "nominee" | "finalist") || "winner",
-          citationReason: a.citation_reason || undefined,
-          sourceId: a.source_id || undefined,
+          citationReason: a.citation_reason ? String(a.citation_reason) : undefined,
+          sourceId: a.source_id ? String(a.source_id) : undefined,
         }));
 
-        const works = (worksRes.data || []).map((w) => ({
-          id: w.id,
-          personId: w.person_id,
-          workTitle: w.work_title,
-          workType: w.work_type,
-          releaseDate: w.release_date || undefined,
-          publisherOrVenue: w.publisher_or_venue || undefined,
-          significanceNote: w.significance_note || undefined,
-          sourceId: w.source_id || undefined,
+        const works = worksData.map((w: Record<string, unknown>) => ({
+          id: String(w.id || ""),
+          personId: String(w.person_id || ""),
+          workTitle: String(w.work_title || ""),
+          workType: String(w.work_type || ""),
+          releaseDate: w.release_date ? String(w.release_date) : undefined,
+          publisherOrVenue: w.publisher_or_venue ? String(w.publisher_or_venue) : undefined,
+          significanceNote: w.significance_note ? String(w.significance_note) : undefined,
+          sourceId: w.source_id ? String(w.source_id) : undefined,
         }));
 
         return {
-          id: p.id,
-          slug: p.slug,
-          name: p.display_name || p.canonical_name,
-          canonicalName: p.canonical_name,
-          displayName: p.display_name,
-          description: p.primary_role || p.summary || "",
-          fullBirthName: p.full_birth_name || undefined,
-          birth: p.birth_date || undefined,
-          death: p.death_date || undefined,
-          nationality: p.nationality || undefined,
-          citizenship: Array.isArray(p.citizenship) ? p.citizenship : [],
-          nationalIdentity: p.national_identity || undefined,
-          ethnicity: p.ethnicity || undefined,
-          ancestry: p.ancestry || undefined,
-          religion: p.religion || undefined,
-          religiousDenomination: p.religious_denomination || undefined,
-          religionStatus: p.religion_status || undefined,
-          languages: Array.isArray(p.languages) ? p.languages : [],
-          classification: p.classification,
-          notabilityBasis: p.notability_basis || undefined,
-          inclusionBasis: Array.isArray(p.inclusion_basis) ? p.inclusion_basis : [],
-          inclusionRationale: p.inclusion_rationale || undefined,
-          culturalImpactSummary: p.cultural_impact_summary || undefined,
-          achievements: Array.isArray(p.achievements) ? p.achievements : [],
-          avatarUrl: p.avatar_url || undefined,
+          ...mapDatabasePerson(p),
           education,
           career,
           awards,
@@ -188,13 +231,19 @@ export async function getPersonBySlug(slug: string): Promise<PersonRecord | null
         };
       }
 
-      const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
-      return fb ? mapFallbackPerson(fb) : null;
+      // Successful Supabase query with no matching record: return null canonical miss
+      return null;
     }
 
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
     return fb ? mapFallbackPerson(fb) : null;
   } catch {
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
     return fb ? mapFallbackPerson(fb) : null;
   }

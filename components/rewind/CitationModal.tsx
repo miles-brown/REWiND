@@ -10,12 +10,12 @@ type Format = "bibtex" | "apa" | "chicago" | "json";
 export function CitationModal({
   event,
   source: explicitSource,
-  isOpen = true,
+  isOpen,
   onClose,
 }: {
   event: EventRecord;
   source?: SourceRecord;
-  isOpen?: boolean;
+  isOpen: boolean;
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<Format>("bibtex");
@@ -88,11 +88,7 @@ export function CitationModal({
           {source ? (
             <pre className="citation-preview"><code>{text}</code></pre>
           ) : (
-            <div
-              className="citation-unavailable"
-              role="alert"
-              style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#94a3b8" }}
-            >
+            <div className="citation-unavailable" role="alert" aria-live="assertive" style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#94a3b8" }}>
               <p style={{ margin: 0, fontWeight: 600, color: "#cbd5e1" }}>Primary archival source record pending verification.</p>
               <small style={{ display: "block", marginTop: "0.5rem", opacity: 0.8 }}>
                 Citation export is disabled until an authenticated primary documentary source is attached.

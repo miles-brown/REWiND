@@ -127,7 +127,7 @@ export default async function Home() {
           <div className="hub-subject-grid">
             {people.map((person) => (
               <Link href={`/person/${person.slug}`} key={person.id}>
-                <span className="person-monogram">
+                <span className="person-monogram" aria-hidden="true">
                   {person.name
                     .split(" ")
                     .map((name) => name[0])

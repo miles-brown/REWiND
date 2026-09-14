@@ -15,6 +15,40 @@ export default async function ComparePage() {
     getSources(),
   ]);
 
+  const personA = people[0];
+  let initialPersonB = people[1]?.slug;
+
+  if (personA && allEvents.length > 0) {
+    const coCounts = new Map<string, number>();
+    for (const e of allEvents) {
+      const participants = e.participants || [];
+      const hasPersonA = participants.some(
+        (p) => p.personId === personA.id || p.personId === personA.slug || p.slug === personA.slug
+      );
+      if (hasPersonA) {
+        for (const p of participants) {
+          const pId = p.personId;
+          const pSlug = p.slug;
+          if (
+            (pId && pId !== personA.id && pId !== personA.slug) ||
+            (pSlug && pSlug !== personA.slug && pSlug !== personA.id)
+          ) {
+            const key = pSlug || pId;
+            coCounts.set(key, (coCounts.get(key) || 0) + 1);
+          }
+        }
+      }
+    }
+    if (coCounts.size > 0) {
+      const sortedCoAttendees = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const topTarget = sortedCoAttendees[0][0];
+      const matched = people.find((p) => p.slug === topTarget || p.id === topTarget);
+      if (matched) {
+        initialPersonB = matched.slug;
+      }
+    }
+  }
+
   return (
     <div className="page-shell compare-page">
       <header className="page-hero">
@@ -29,8 +63,8 @@ export default async function ComparePage() {
 
       <ErrorBoundary sectionName="Timeline Comparison">
         <TimelineComparison
-          initialPersonA="benjamin-netanyahu"
-          initialPersonB="bill-clinton"
+          initialPersonA={personA?.slug}
+          initialPersonB={initialPersonB}
           people={people}
           events={allEvents}
           sources={sources}

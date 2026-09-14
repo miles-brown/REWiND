@@ -17,8 +17,9 @@ export function DiscrepancyViewer({
 
   if (!isOpen) return null;
 
-  const confidence = event.confidence || "confirmed";
+  const confidence = event.confidence || null;
   const isDisputed = event.verificationStatus === "disputed" || confidence === "moderate" || confidence === "limited";
+  const confidenceDisplay = confidence ? confidence.toUpperCase() : "UNESTABLISHED";
 
   return (
     <div className="discrepancy-modal-overlay" role="dialog" aria-modal="true" aria-label="Evidence Discrepancy & Verification Audit">
@@ -64,7 +65,7 @@ export function DiscrepancyViewer({
                   )}
                 </div>
                 <div>
-                  <h4>Classification: {event.verificationStatus.toUpperCase()} (Confidence: {(event.confidence || "confirmed").toUpperCase()})</h4>
+                  <h4>Classification: {event.verificationStatus.toUpperCase()} (Confidence: {confidenceDisplay})</h4>
                   <p>
                     {event.verificationStatus === "verified"
                       ? "This event is corroborated by direct primary source documentation (e.g. government stenographic transcripts, timestamped broadcast recordings, or signed diplomatic instruments)."
@@ -91,7 +92,7 @@ export function DiscrepancyViewer({
                 </div>
                 <div className="breakdown-item">
                   <small>Source Medium</small>
-                  <b>{(event.medium || event.eventTypes || ["Archival record"]).join(", ").toUpperCase()}</b>
+                  <b>{(event.medium?.length ? event.medium : event.eventTypes?.length ? event.eventTypes : event.categories?.length ? event.categories : ["Archival record"]).join(", ").toUpperCase()}</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Audit Review Date</small>

@@ -419,7 +419,7 @@ export interface EventV2 {
   verificationStatus: Verification;
   confidence: Confidence;
   sourceIds: string[];
-  reviewedAt: string;
+  reviewedAt?: string;
   reviewedBy?: string;
   researchNotes?: string | null;
 
