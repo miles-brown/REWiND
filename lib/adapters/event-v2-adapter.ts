@@ -90,6 +90,40 @@ export function inferInvolvementType(role: string): InvolvementType {
 }
 
 /**
+ * Validation helpers to safely parse domain enum values without loose 'as' assertions.
+ */
+function parseConfidence(c?: string | null, fallback: Confidence = "limited"): Confidence {
+  if (c === "confirmed" || c === "strong" || c === "moderate" || c === "limited") {
+    return c;
+  }
+  return fallback;
+}
+
+function parsePrecision(p?: string | null): Precision {
+  if (
+    p === "exact" ||
+    p === "exact-day" ||
+    p === "exact-minute" ||
+    p === "day" ||
+    p === "month" ||
+    p === "year" ||
+    p === "decade" ||
+    p === "range" ||
+    p === "unknown"
+  ) {
+    return p;
+  }
+  return "exact-day";
+}
+
+function parseVerification(v?: string | null): "verified" | "provisional" | "disputed" {
+  if (v === "verified" || v === "provisional" || v === "disputed") {
+    return v;
+  }
+  return "provisional";
+}
+
+/**
  * Upgrades a legacy EventRecord into Event Model v2.
  */
 export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
@@ -113,8 +147,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       roleLabel: role,
       capacityTitle: role,
       attendanceMode: "physical",
-      presenceConfidence: (p.presenceConfidence as Confidence) || "confirmed",
-      roleConfidence: "confirmed",
+      presenceConfidence: parseConfidence(p.presenceConfidence),
+      roleConfidence: parseConfidence(p.roleConfidence),
       locations:
         legacy.latitude != null && legacy.longitude != null
           ? [
@@ -126,13 +160,13 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 coordinatePrecision: mapLegacyLocationPrecision(legacy.locationPrecision),
                 isPrincipalLocation: true,
                 locationBasis: "archival-record",
-                confidence: (legacy.confidence as Confidence) || "confirmed",
+                confidence: parseConfidence(legacy.confidence),
                 sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
                 sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
                   id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
                   eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
                   sourceId: sid,
-                  confidence: (legacy.confidence as Confidence) || "confirmed",
+                  confidence: parseConfidence(legacy.confidence),
                 })),
                 publicVisibility: locationPublicVis,
               },
@@ -208,8 +242,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     localStartTime: legacy.localStartTime ?? null,
     localEndTime: legacy.localEndTime ?? null,
     timezone: legacy.timezone ?? null,
-    datePrecision: (legacy.datePrecision as Precision) || "exact-day",
-    timePrecision: (legacy.timePrecision as Precision) || "exact-day",
+    datePrecision: parsePrecision(legacy.datePrecision),
+    timePrecision: parsePrecision(legacy.timePrecision),
     locationType,
     venueName: legacy.venueName ?? null,
     city: legacy.city,
@@ -218,8 +252,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     latitude: legacy.latitude ?? null,
     longitude: legacy.longitude ?? null,
     locationPrecision: mapLegacyLocationPrecision(legacy.locationPrecision || "unknown"),
-    verificationStatus: legacy.verificationStatus,
-    confidence: (legacy.confidence as Confidence) || "confirmed",
+    verificationStatus: parseVerification(legacy.verificationStatus),
+    confidence: parseConfidence(legacy.confidence),
     sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
     reviewedAt: legacy.reviewedAt || undefined,
     researchNotes: legacy.notes ?? null,
@@ -278,17 +312,21 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     summary: v2.summary,
     categories: Array.isArray(compat?.categories)
       ? [...compat.categories]
-      : (v2.topics?.map((t) => t.topicId) || []),
+      : Array.isArray(v2.topics)
+      ? v2.topics.map((t) => t.topicId).filter((t): t is string => Boolean(t))
+      : [],
     eventTypes: Array.isArray(compat?.eventTypes)
       ? [...compat.eventTypes]
-      : (v2.hierarchyType ? [v2.hierarchyType] : []),
+      : v2.hierarchyType
+      ? [v2.hierarchyType]
+      : [],
     startDate: v2.startDate,
     endDate: v2.endDate || null,
     localStartTime: v2.localStartTime || null,
     localEndTime: v2.localEndTime || null,
     timezone: v2.timezone || null,
-    datePrecision: v2.datePrecision || "exact-day",
-    timePrecision: v2.timePrecision || v2.datePrecision || "exact-day",
+    datePrecision: parsePrecision(v2.datePrecision),
+    timePrecision: parsePrecision(v2.timePrecision || v2.datePrecision),
     platform: compat ? compat.platform : (v2.eventSeriesId || null),
     venueName: v2.venueName || null,
     address: compat ? compat.address : null,
@@ -314,13 +352,8 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     medium: Array.isArray(compat?.medium)
       ? [...compat.medium]
       : (v2.factualFlags?.televised === "yes" ? ["broadcast"] : ["official-record"]),
-    confidence: v2.confidence || "confirmed",
-    verificationStatus:
-      v2.verificationStatus === "verified" ||
-      v2.verificationStatus === "provisional" ||
-      v2.verificationStatus === "disputed"
-        ? v2.verificationStatus
-        : "provisional",
+    confidence: parseConfidence(v2.confidence),
+    verificationStatus: parseVerification(v2.verificationStatus),
     sourceIds: Array.isArray(v2.sourceIds) ? [...v2.sourceIds] : [],
     quotes: Array.isArray(compat?.quotes) ? [...compat.quotes] : [],
     media: Array.isArray(compat?.media) ? [...compat.media] : [],

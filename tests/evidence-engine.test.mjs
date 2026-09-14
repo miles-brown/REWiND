@@ -474,3 +474,226 @@ test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime 
   assert.equal(isStandardIsoDate("1980s"), false);
   assert.equal(isStandardIsoDate("Circa 1992"), false);
 });
+
+test("verifies participant stub collision resistance, place coordinates preservation, and stats failure propagation", async () => {
+  const { createParticipantStubId, resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  // 1. Collision-resistant stub IDs for non-ASCII / similar names (SHA-256 hex digest)
+  const id1 = createParticipantStubId("Diplomat Alpha");
+  const id2 = createParticipantStubId("Diplomat Beta");
+  const idNonAscii1 = createParticipantStubId("יוסי שריד");
+  const idNonAscii2 = createParticipantStubId("יצחק רבין");
+  assert.notEqual(id1, id2);
+  assert.notEqual(idNonAscii1, idNonAscii2);
+  assert.ok(idNonAscii1.startsWith("p-unknown-"));
+  assert.ok(idNonAscii2.startsWith("p-unknown-"));
+  assert.match(id1, /^p-diplomat-alpha-[0-9a-f]{8}$/);
+  assert.match(idNonAscii1, /^p-unknown-[0-9a-f]{8}$/);
+
+  // 2. resolvePlace coordinates preservation
+  const resolvedWithCoords = resolvePlace("Diplomatic Venue X", "Geneva", "Switzerland", 46.2044, 6.1432);
+  assert.equal(resolvedWithCoords.latitude, 46.2044);
+  assert.equal(resolvedWithCoords.longitude, 6.1432);
+});
+
+test("verifies resolvePlaceAsync live database resolution and fallback behavior", async () => {
+  const { resolvePlaceAsync } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  const mockDb = {
+    select() {
+      return {
+        from() {
+          return {
+            where() {
+              return Promise.resolve([
+                {
+                  id: "plc-geneva-palais-des-nations",
+                  slug: "palais-des-nations",
+                  venue: "Palais des Nations",
+                  city: "Geneva",
+                  country: "Switzerland",
+                  latitude: 46.2268,
+                  longitude: 6.1402,
+                  placeType: "summit-center",
+                },
+              ]);
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const dbRes = await resolvePlaceAsync("Palais des Nations", "Geneva", "Switzerland", undefined, undefined, mockDb);
+  assert.equal(dbRes.placeId, "plc-geneva-palais-des-nations");
+  assert.equal(dbRes.venue, "Palais des Nations");
+  assert.equal(dbRes.confidence, 0.98);
+  assert.equal(dbRes.latitude, 46.2268);
+
+  // Fallback to in-memory store when DB is null
+  const fallbackRes = await resolvePlaceAsync("White House", "Washington, D.C.", "United States", undefined, undefined, null);
+  assert.ok(fallbackRes.city.includes("Washington"));
+  assert.ok(fallbackRes.confidence >= 0.9);
+});
+
+test("verifies event-v2-adapter confidence defaults to limited without unevidenced assumptions", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const legacyEventWithoutConfidence = {
+    id: "evt-test-legacy-01",
+    slug: "evt-test-legacy-01",
+    eventName: "Historical Diplomatic Meeting",
+    summary: "Diplomatic talks without explicit confidence rating",
+    startDate: "1995-10-15",
+    city: "Geneva",
+    country: "Switzerland",
+    latitude: 46.2044,
+    longitude: 6.1432,
+    locationPrecision: "venue",
+    verificationStatus: "provisional",
+    participants: [
+      {
+        personId: "p-test-1",
+        name: "Test Diplomat",
+        role: "delegate",
+      },
+    ],
+    sourceIds: ["src-1"],
+  };
+
+  const v2 = upgradeLegacyToV2(legacyEventWithoutConfidence);
+  assert.equal(v2.confidence, "limited");
+  assert.equal(v2.people[0].presenceConfidence, "limited");
+  assert.equal(v2.people[0].roleConfidence, "limited");
+  assert.equal(v2.people[0].locations[0].confidence, "limited");
+});
+
+test("verifies ingestion pipeline quote persistence, deterministic slug hashing, and source fetch hashing", async () => {
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const candidateWithQuotes = {
+    title: "Joint Press Conference at Elysée Palace",
+    summary: "French and Israeli leaders deliver remarks following bilateral summit.",
+    startDate: "2013-03-20",
+    eventType: "press-conference",
+    venue: "Elysée Palace",
+    city: "Paris",
+    country: "France",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Benjamin Netanyahu delivered joint address in Paris." },
+    ],
+    quotes: [
+      {
+        speaker: "Benjamin Netanyahu",
+        quote: "Our cooperation on shared strategic interests remains indispensable.",
+        context: "Opening remarks at joint press briefing",
+      },
+    ],
+  };
+
+  const rawSource = {
+    sourceId: "src-elysee-20130320",
+    sourceTitle: "Official Transcript of Joint Press Conference",
+    publisher: "Élysée Press Office",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://elysee.fr/transcripts/2013-03-20",
+    rawText: "President Hollande and Prime Minister Netanyahu delivered the following statements to the press corps...",
+    fetchedAt: "2013-03-20T18:00:00Z",
+  };
+
+  const result = processCandidateEvent(candidateWithQuotes, rawSource);
+  assert.equal(result.lane, "auto-publish");
+  assert.ok(result.publishedEventId);
+  assert.ok(result.publishedEventId.includes("press-conference"));
+  assert.ok(result.publishedEventId.includes("paris"));
+
+  const store = getRelationalStore();
+  const savedQuote = store.quotes.find((q) => q.eventId === result.publishedEventId);
+  assert.ok(savedQuote);
+  assert.equal(savedQuote.quote, "Our cooperation on shared strategic interests remains indispensable.");
+});
+
+test("verifies strict year filter rejection for malformed or wildcard queries", async () => {
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // Valid 4-digit year query
+  const validRes = await getEvents({ year: "1998" });
+  assert.ok(Array.isArray(validRes.data));
+  assert.ok(validRes.data.every((e) => e.startDate.startsWith("1998")));
+
+  // Malformed or wildcard year queries must return 0 results
+  const wildcardRes = await getEvents({ year: "199%" });
+  assert.equal(wildcardRes.data.length, 0);
+  assert.equal(wildcardRes.count, 0);
+
+  const nonDigitRes = await getEvents({ year: "invalid" });
+  assert.equal(nonDigitRes.data.length, 0);
+  assert.equal(nonDigitRes.count, 0);
+
+  const shortDigitRes = await getEvents({ year: "98" });
+  assert.equal(shortDigitRes.data.length, 0);
+  assert.equal(shortDigitRes.count, 0);
+});
+
+test("verifies findDuplicateEventAsync and collision-resistant event slug disambiguation", async () => {
+  const { findDuplicateEventAsync } = await vite.ssrLoadModule("/lib/ingestion/deduplicate.ts");
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+
+  const candidateA = {
+    title: "Geneva Peace Talks - Morning Plenary Session",
+    summary: "Plenary discussions on regional security frameworks.",
+    startDate: "2015-06-12",
+    eventType: "multilateral-summit",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended Geneva peace plenary." },
+    ],
+  };
+
+  const candidateB = {
+    title: "Geneva Nuclear Accord Working Group",
+    summary: "Technical discussions on nuclear monitoring protocols.",
+    startDate: "2015-06-12",
+    eventType: "bilateral-meeting",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended nuclear working group." },
+    ],
+  };
+
+  const rawSrc = {
+    sourceId: "src-geneva-20150612",
+    sourceTitle: "Swiss Federal Department of Foreign Affairs Dispatch",
+    publisher: "FDFA Switzerland",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://eda.admin.ch/transcripts/2015-06-12",
+  };
+
+  const resA = processCandidateEvent(candidateA, rawSrc);
+  const resB = processCandidateEvent(candidateB, rawSrc);
+
+  assert.ok(resA.publishedEventId);
+  assert.ok(resB.publishedEventId);
+  // Distinct events on the same date with same participant must receive distinct IDs
+  assert.notEqual(resA.publishedEventId, resB.publishedEventId);
+
+  // findDuplicateEventAsync with store fallback
+  const dupMatch = await findDuplicateEventAsync(candidateA);
+  assert.ok(dupMatch);
+});

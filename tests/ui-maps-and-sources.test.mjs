@@ -151,10 +151,10 @@ test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", 
     "mapMode must initialize to svg to prevent hydration mismatch"
   );
 
-  // Satellite token safeguard
+  // Satellite token safeguard: button must be completely hidden when satellite style is absent
   assert.ok(
-    content.includes("disabled={!MAPBOX_TOKEN || !MAPBOX_SATELLITE_STYLE}"),
-    "Satellite toggle button must be disabled when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
+    content.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "Satellite toggle button must be hidden entirely when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
   );
 });
 

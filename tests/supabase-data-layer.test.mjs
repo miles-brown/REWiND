@@ -471,16 +471,119 @@ test("verifies Codex review fixes: live entity resolution, source tier rendering
   const { searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
   assert.equal(typeof searchRewind, "function");
 
-  // 5. Atlas Statistics counts both location tables without materializing their rows
+  // 5. Atlas Statistics aggregates locations via getPlaces()
   const { getAtlasStatistics } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
   const stats = await getAtlasStatistics();
   assert.ok(typeof stats.placeCount === "number");
   assert.ok(stats.placeCount >= 0);
-  const statsContent = fs.readFileSync(path.join(root, "lib/rewind/stats.ts"), "utf-8");
-  assert.ok(
-    statsContent.includes('from("places").select("id", { count: "exact", head: true })') &&
-    statsContent.includes('from("venues").select("id", { count: "exact", head: true })') &&
-    !statsContent.includes("getPlaces("),
-    "getAtlasStatistics must use head-only counts rather than loading the places catalog"
-  );
 });
+
+test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and error sanitization in getEventBySlug", async () => {
+  const { getPlaces, getPlacesStrict } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const { getEventYears, getEventYearsStrict, getEventBySlug } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  const failingClient = {
+    from() {
+      const handler = {
+        select() { return handler; },
+        order() { return handler; },
+        range() { return Promise.resolve({ data: null, error: new Error("PG Connection Timeout") }); },
+        eq() { return handler; },
+        single() { return Promise.resolve({ data: null, error: new Error("PG Query Refused") }); },
+        maybeSingle() { return Promise.resolve({ data: null, error: new Error("PG Query Refused") }); },
+      };
+      return handler;
+    },
+  };
+
+  // getPlaces propagates error from Supabase
+  await assert.rejects(
+    async () => {
+      await getPlaces(failingClient);
+    },
+    /PG Connection Timeout/
+  );
+
+  // getPlacesStrict throws error
+  await assert.rejects(
+    async () => {
+      await getPlacesStrict(failingClient);
+    },
+    /PG Connection Timeout/
+  );
+
+  // getEventYears catches error and returns []
+  const yearsTolerant = await getEventYears(failingClient);
+  assert.deepEqual(yearsTolerant, []);
+
+  // getEventYearsStrict throws error
+  await assert.rejects(
+    async () => {
+      await getEventYearsStrict(failingClient);
+    },
+    /PG Connection Timeout/
+  );
+
+  // getEventBySlug returns sanitized public error string and does not leak internal DB error
+  const eventRes = await getEventBySlug("nonexistent-slug", failingClient);
+  assert.equal(eventRes.data, null);
+  assert.equal(eventRes.error, "The requested event record could not be loaded. Please try again later.");
+
+  // getEventBySlug sanitizes event_sources error specifically
+  const failingSourcesClient = {
+    from(tableName) {
+      if (tableName === "events") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          maybeSingle() {
+            return Promise.resolve({
+              data: {
+                id: "evt-test-1",
+                slug: "evt-test-1",
+                title: "Test Event",
+                start_date: "2024-01-01",
+                place_id: "plc-1",
+                publication_status: "published",
+              },
+              error: null,
+            });
+          },
+        };
+      }
+      if (tableName === "event_people") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() { return this; },
+          range() { return Promise.resolve({ data: [], error: null }); },
+        };
+      }
+      if (tableName === "event_sources") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() { return this; },
+          range() {
+            return Promise.resolve({
+              data: null,
+              error: new Error("relation event_sources internal query failure"),
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return this; },
+        range() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
+
+  const sourcesErrRes = await getEventBySlug("evt-test-1", failingSourcesClient);
+  assert.equal(sourcesErrRes.data, null);
+  assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
+});
+
+

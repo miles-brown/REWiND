@@ -116,7 +116,7 @@ export function TimelineComparison({
       const slugsInEvent: string[] = [];
 
       parts.forEach((p) => {
-        const matched = peopleMap.get(p.personId);
+        const matched = peopleMap.get(p.personId) ?? (p.slug ? peopleMap.get(p.slug) : undefined);
         if (matched) {
           const s = matched.slug;
           if (!slugsInEvent.includes(s)) {
@@ -217,11 +217,14 @@ export function TimelineComparison({
       (slugB ? peopleMap.get(slugB) || people.find((p) => p.slug === slugB) : null) || null,
     [peopleMap, people, slugB]
   );
-  const unresolvedSlugB = slugB && !personB ? slugB : null;
-  const selectedPersonBWithoutSharedEvents =
-    personB && !coAttendeesWithCounts.some((item) => item.person.slug === personB.slug)
-      ? personB
-      : null;
+
+  const figure2Options = useMemo(() => {
+    const list = [...coAttendeesWithCounts];
+    if (slugB && personB && !list.some((item) => item.person.slug === slugB) && slugB !== effectiveSlugA) {
+      list.unshift({ person: personB, count: 0 });
+    }
+    return list;
+  }, [coAttendeesWithCounts, slugB, personB, effectiveSlugA]);
 
   const eventsA = useMemo(
     () =>
@@ -297,10 +300,32 @@ export function TimelineComparison({
     );
   }
 
+  if (people.length < 2) {
+    return (
+      <div className="zero-state" style={{ padding: "4rem 2rem", textAlign: "center" }}>
+        <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
+        <h2>Second Figure Required</h2>
+        <p>
+          The co-appearance comparison requires at least two documented historical figures.
+          Add a second figure to the atlas to enable side-by-side timeline analysis.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="comparison-workspace">
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
+        {/* ARIA Live Region: Announces dynamic figure selection and automatic co-attendee changes */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {personA && personB
+            ? `Comparing ${personA.name} with ${personB.name}: ${intersections.length} shared encounter${intersections.length === 1 ? "" : "s"}.`
+            : personA
+            ? `Selected figure ${personA.name}. No co-attendees available for comparison.`
+            : "No figure selected for comparison."}
+        </div>
+
         <div className="comparison-selectors">
           {/* Selector 1: Primary Figure */}
           <div className="selector-card">
@@ -371,20 +396,10 @@ export function TimelineComparison({
                 aria-describedby="figure-2-badge"
                 value={slugB}
                 onChange={(e) => setExplicitSlugB(e.target.value)}
-                disabled={coAttendeesWithCounts.length === 0}
+                disabled={figure2Options.length === 0}
               >
-                {unresolvedSlugB && (
-                  <option value={unresolvedSlugB}>
-                    Unresolved figure ({unresolvedSlugB})
-                  </option>
-                )}
-                {selectedPersonBWithoutSharedEvents && (
-                  <option value={selectedPersonBWithoutSharedEvents.slug}>
-                    {selectedPersonBWithoutSharedEvents.name} (0 shared events)
-                  </option>
-                )}
-                {coAttendeesWithCounts.length > 0 ? (
-                  coAttendeesWithCounts.map((item) => (
+                {figure2Options.length > 0 ? (
+                  figure2Options.map((item) => (
                     <option key={item.person.slug} value={item.person.slug}>
                       {item.person.name} ({item.count} shared event
                       {item.count === 1 ? "" : "s"})
@@ -422,17 +437,6 @@ export function TimelineComparison({
           </div>
         )}
       </section>
-
-      {personA && unresolvedSlugB && (
-        <div className="zero-state" role="status" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <Users size={32} style={{ margin: "0 auto 1rem auto", opacity: 0.6 }} />
-          <h2>Figure 2 is unavailable</h2>
-          <p>
-            The requested figure &ldquo;{unresolvedSlugB}&rdquo; is not present in the current evidence atlas.
-            Choose an available co-attendee to continue the comparison.
-          </p>
-        </div>
-      )}
 
       {/* When co-attendees exist and both distinct figures are selected */}
       {personA && personB && personA.id !== personB.id && personA.slug !== personB.slug && (
