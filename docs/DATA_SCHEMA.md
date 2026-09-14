@@ -146,7 +146,7 @@ All ingestion, data modeling, API querying, and visualization modules MUST stric
    - For distinct historical events occurring on the same date with matching base slugs, generate deterministic collision suffixes (`evt-...-2`, `evt-...-3`) rather than overwriting or throwing errors.
 
 3. **Row-Level Security (RLS) & Coordinate Visibility**:
-   - Location coordinate records in `event_person_locations` must enforce `public_visibility = 'public-exact'` in RLS policies to prevent unintentional leakage of sensitive coordinates or timestamps.
+   - Location coordinate records in `event_person_locations` must enforce `public_visibility IN ('public-exact', 'public-city')` in public RLS read policies (`'public-exact'` for exact venue/building coordinates and `'public-city'` for coarse city-level precision) to prevent unintentional leakage of sensitive coordinates or timestamps.
 
 4. **Fail-Closed Year & Query Validation**:
    - All query parameters (such as `year` in `lib/rewind/events.ts`) must be strictly validated with regex (e.g. `/^\d{4}$/`) with immediate fail-closed return (empty array or 400 error) before passing into PostgREST `.like` or `.eq` filters to prevent malformed queries or unbounded scans.

@@ -336,7 +336,7 @@ export function MapGraphic({
 
   // Toggle between Dark Basemap and Satellite 3D View
   const toggleMapTheme = () => {
-    if (!mapInstanceRef.current || !MAPBOX_TOKEN) return;
+    if (!mapInstanceRef.current || !MAPBOX_SATELLITE_STYLE) return;
     const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
     setMapTheme(nextTheme);
 
@@ -483,7 +483,7 @@ export function MapGraphic({
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
         {/* Only expose satellite toggle when a satellite style is actually configured */}
-        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE) && (
+        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_SATELLITE_STYLE) && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}

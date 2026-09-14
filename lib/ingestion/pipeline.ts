@@ -30,7 +30,7 @@ import { recordAuditEvent } from "./audit";
  * Incorporates date, participant IDs, event type, city, and a title hash
  * so distinct same-day events for the same participants do not collide.
  */
-function deriveEventSlug(
+export function deriveEventSlug(
   startDate: string,
   participantIds: string[],
   eventType: string,

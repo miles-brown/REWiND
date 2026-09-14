@@ -692,3 +692,122 @@ test("verifies findDuplicateEventAsync and collision-resistant event slug disamb
   const dupMatch = await findDuplicateEventAsync(candidateA);
   assert.ok(dupMatch);
 });
+
+test("verifies approveCandidate deterministic slug generation, persistedClaimIds, and collision suffixing", async () => {
+  const { approveCandidate, parseCandidatePayload } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  // 1. parseCandidatePayload strictness
+  const validParsed = parseCandidatePayload(JSON.stringify({ title: "Test Event", sourceId: "src-test" }));
+  assert.equal(validParsed?.title, "Test Event");
+  assert.equal(validParsed?.sourceId, "src-test");
+  assert.equal(parseCandidatePayload("invalid json {{{"), null);
+  assert.equal(parseCandidatePayload(null), null);
+
+  const store = getRelationalStore();
+  const testCandId1 = `cand-det-1-${Date.now()}`;
+  const testCandId2 = `cand-det-2-${Date.now()}`;
+
+  store.candidateEvents.push({
+    id: testCandId1,
+    fingerprint: `fp_det_1_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Geneva Peace Plenary",
+      summary: "High-level plenary session in Geneva.",
+      startDate: "2015-06-12",
+      eventType: "speech-plenary",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-archive-1",
+      claims: [{ claimType: "presence", statement: "Delivered remarks at plenary" }],
+    }),
+    suggestedTitle: "Geneva Peace Plenary",
+    suggestedDate: "2015-06-12",
+    suggestedPlace: "Geneva",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const app1 = await approveCandidate(testCandId1, "Senior Historical Editor");
+  assert.equal(app1.success, true);
+  assert.ok(app1.eventId);
+  assert.ok(Array.isArray(app1.persistedClaimIds));
+  assert.equal(app1.persistedClaimIds?.length, 1);
+  // Deterministic slug format: evt-YYYY-MM-DD-...
+  assert.match(app1.eventId, /^evt-2015-06-12-/);
+
+  // 2. Second candidate with identical details is detected as duplicate and linked to existing published event
+  store.candidateEvents.push({
+    id: testCandId2,
+    fingerprint: `fp_det_2_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Geneva Peace Plenary",
+      summary: "High-level plenary session in Geneva.",
+      startDate: "2015-06-12",
+      eventType: "speech-plenary",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-archive-2",
+      claims: [{ claimType: "presence", statement: "Delivered remarks in follow-up" }],
+    }),
+    suggestedTitle: "Geneva Peace Plenary",
+    suggestedDate: "2015-06-12",
+    suggestedPlace: "Geneva",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const app2 = await approveCandidate(testCandId2, "Senior Historical Editor");
+  assert.equal(app2.success, true);
+  // Duplicate candidate matches and links to published event
+  assert.equal(app2.eventId, app1.eventId);
+
+  // 3. Distinct candidate on the same date with simulated slug collision
+  const testCandId3 = `cand-det-3-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testCandId3,
+    fingerprint: `fp_det_3_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Geneva Humanitarian Protocol Summit",
+      summary: "Distinct summit on humanitarian protocols.",
+      startDate: "2015-06-12",
+      eventType: "multilateral-summit",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-archive-3",
+      claims: [{ claimType: "presence", statement: "Attended humanitarian protocol summit" }],
+    }),
+    suggestedTitle: "Geneva Humanitarian Protocol Summit",
+    suggestedDate: "2015-06-12",
+    suggestedPlace: "Geneva",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const app3 = await approveCandidate(testCandId3, "Senior Historical Editor");
+  assert.equal(app3.success, true);
+  assert.ok(app3.eventId);
+  assert.notEqual(app3.eventId, app1.eventId);
+});
+

@@ -164,8 +164,11 @@ export function CommandPalette({
         return <MapPin size={14} />;
       case "source":
         return <Database size={14} />;
-      default:
+      default: {
+        const _exhaustiveCheck: never = type;
+        void _exhaustiveCheck;
         return <Search size={14} />;
+      }
     }
   };
 

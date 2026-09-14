@@ -42,7 +42,7 @@ Audit the following pull request diff against the core architectural invariants 
 1. TypeScript Strict Typing & React 19 Performance (memoization, effect lifecycles, no unnecessary remounts, no 'any' escape hatches).
 2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, aria-live announcements).
 3. Forensic Evidence Rigor & Archival Integrity (verified citations, primary sources, coordinates, ISO-8601 dates, default confidence strictly 'limited').
-4. Database & Ingestion Invariants (PostgreSQL Drizzle schema alignment, live database-first deduplication with findDuplicateEventAsync, deterministic slug collision suffixing, RLS public_visibility = 'public-exact', fail-closed year regex validation /^\\d{4}$/, persistedClaimIds synchronization).
+4. Database & Ingestion Invariants (PostgreSQL Drizzle schema alignment, live database-first deduplication with findDuplicateEventAsync, deterministic slug collision suffixing, RLS public_visibility IN ('public-exact', 'public-city'), fail-closed year regex validation /^\\d{4}$/, persistedClaimIds synchronization).
 5. Security & Error Recovery (no token leaks, graceful fallback styles, network resilience).
 
 Changed Files (${changedFiles.length}):

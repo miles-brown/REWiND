@@ -66,7 +66,7 @@
 - **Relational PostgreSQL Schema**: Normalized entities spanning `events`, `people`, `sources`, `claims`, `places`, and `event_person_locations`.
 - **Live Database Deduplication**: Asynchronous matching via `findDuplicateEventAsync` prevents redundant event insertion during automated and batch ingest.
 - **Deterministic Suffixing**: Resolves same-day multi-event slug collisions (`evt-...-2`) without data loss.
-- **Row-Level Security (RLS)**: Enforces `public_visibility = 'public-exact'` on location tables to prevent private coordinate leaks.
+- **Row-Level Security (RLS)**: Enforces `public_visibility IN ('public-exact', 'public-city')` on location tables to prevent private or sensitive coordinate leaks.
 - **Fail-Closed Year Validation**: Pre-validates `/^\d{4}$/` inputs before PostgREST query execution.
 - **Transactional Claim Synchronization**: Prevents duplicate claims using `persistedClaimIds`.
 

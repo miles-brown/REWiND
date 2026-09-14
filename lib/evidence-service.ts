@@ -1,8 +1,12 @@
+import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
 import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
+import { findDuplicateEvent, findDuplicateEventAsync, tokenSimilarity } from "@/lib/ingestion/deduplicate";
+import { deriveEventSlug } from "@/lib/ingestion/pipeline";
+import type { ExtractedCandidateEvent } from "@/lib/ingestion/types";
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -12,13 +16,75 @@ export interface EvidenceStats {
   autoPublishedCount: number;
 }
 
-interface CandidateClaimInput {
+export interface CandidateClaimInput {
   subjectMention?: string;
   claimType?: string;
   statement?: string;
   claimedTime?: string;
   claimedVenue?: string;
   supportingExcerpt?: string;
+}
+
+export interface CandidateParticipantInput {
+  name: string;
+  role?: string;
+  involvementType?: string;
+  presenceMode?: string;
+}
+
+export interface CandidateExtractionPayload {
+  title?: string;
+  summary?: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  temporalPrecision?: string;
+  venue?: string;
+  city?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  eventType?: string;
+  sourceId?: string;
+  sourceTitle?: string;
+  publisher?: string;
+  sourceType?: string;
+  url?: string;
+  claims?: CandidateClaimInput[];
+  participants?: CandidateParticipantInput[];
+  quotes?: Array<{ speaker: string; quote: string; context?: string }>;
+}
+
+export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null ? (parsed as CandidateExtractionPayload) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw === "object") {
+    return raw as CandidateExtractionPayload;
+  }
+  return null;
+}
+
+function createClaimId(
+  eventSlug: string,
+  subjectMentionOrId: string | null | undefined,
+  statement: string,
+  sourceId: string,
+  idx: number
+): string {
+  const normStmt = statement.trim().toLowerCase();
+  const subj = (subjectMentionOrId || "none").trim().toLowerCase();
+  const hash = createHash("sha256")
+    .update(`${eventSlug}::${subj}::${normStmt}::${sourceId}`)
+    .digest("hex")
+    .slice(0, 8);
+  return `clm-${eventSlug}-${hash}-${idx}`;
 }
 
 function escapeIlikePattern(str: string): string {
@@ -121,14 +187,10 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   const db = getDb();
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
-  const syncData = syncCandidate
-    ? typeof syncCandidate.rawExtraction === "string"
-      ? JSON.parse(syncCandidate.rawExtraction)
-      : syncCandidate.rawExtraction
-    : null;
+  const syncData = parseCandidatePayload(syncCandidate?.rawExtraction);
   const syncSourceId = syncData?.sourceId;
 
-  const syncFallback: { success: boolean; eventId?: string; error?: string } = !syncCandidate
+  const syncFallback: { success: boolean; eventId?: string; persistedClaimIds?: string[]; error?: string } = !syncCandidate
     ? { success: false, error: "Candidate not found" }
     : syncCandidate.status !== "pending"
     ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be approved again` }
@@ -150,8 +212,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       };
     }
 
-    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
-    const sourceId = data?.sourceId;
+    const data = parseCandidatePayload(candidate.rawExtraction) || {};
+    const sourceId = data.sourceId;
     if (!sourceId || sourceId === "src-editorial-approval") {
       return {
         success: false,
@@ -159,68 +221,192 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       };
     }
 
-    const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
-    const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+    const title = candidate.suggestedTitle || data.title || "Approved Event";
+    const startDate = candidate.suggestedDate || data.startDate || new Date().toISOString().slice(0, 10);
+    const eventType = data.eventType || "historical-action";
+    const venue = data.venue || candidate.suggestedPlace || "Unspecified Location";
+    const city = data.city || candidate.suggestedPlace || "Unknown City";
+    const country = data.country || "International";
+
+    // 1. Resolve participants
+    let candidateParticipants: CandidateParticipantInput[] = [];
+    if (Array.isArray(data.participants) && data.participants.length > 0) {
+      candidateParticipants = data.participants;
+    } else if (candidate.suggestedParticipants) {
+      try {
+        const parsedP = JSON.parse(candidate.suggestedParticipants);
+        if (Array.isArray(parsedP)) candidateParticipants = parsedP;
+      } catch {}
+    }
+
+    const resolvedEntities = candidateParticipants.map((p) => resolveEntity(p.name));
+    const resolvedParticipantIds = resolvedEntities
+      .map((r) => r.personId)
+      .filter((id): id is string => id !== null);
+
+    // 2. Deduplication check against published records
+    const rawTemporal = data.temporalPrecision;
+    const temporalPrecision: ExtractedCandidateEvent["temporalPrecision"] =
+      rawTemporal === "exact-minute" ||
+      rawTemporal === "exact-day" ||
+      rawTemporal === "month" ||
+      rawTemporal === "year" ||
+      rawTemporal === "decade"
+        ? rawTemporal
+        : "exact-day";
+
+    const allowedEventTypes: ReadonlyArray<ExtractedCandidateEvent["eventType"]> = [
+      "bilateral-meeting",
+      "multilateral-summit",
+      "speech-plenary",
+      "press-conference",
+      "interview",
+      "official-visit",
+      "signing-ceremony",
+      "parliamentary-debate",
+      "historical-action",
+    ];
+    const validatedEventType: ExtractedCandidateEvent["eventType"] = allowedEventTypes.includes(
+      eventType as ExtractedCandidateEvent["eventType"]
+    )
+      ? (eventType as ExtractedCandidateEvent["eventType"])
+      : "historical-action";
+
+    const candidateEventObj: ExtractedCandidateEvent = {
+      title,
+      summary: data.summary && data.summary.length >= 10 ? data.summary : title.length >= 10 ? title : `${title} - historical record`,
+      description: data.description,
+      startDate,
+      endDate: data.endDate,
+      temporalPrecision,
+      venue,
+      city,
+      country,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      eventType: validatedEventType,
+      participants: candidateParticipants.map((p) => ({
+        name: p.name,
+        role:
+          p.role === "principal" || p.role === "co-principal" || p.role === "secondary" || p.role === "attendee"
+            ? p.role
+            : "attendee",
+        presenceMode:
+          p.presenceMode === "physical" ||
+          p.presenceMode === "remote-live" ||
+          p.presenceMode === "remote-recorded" ||
+          p.presenceMode === "telephone" ||
+          p.presenceMode === "written"
+            ? p.presenceMode
+            : "physical",
+      })),
+      claims: (data.claims || []).map((c) => {
+        const ct = c.claimType;
+        const validatedClaimType =
+          ct === "presence" || ct === "start-time" || ct === "statement-quote" || ct === "agreement" || ct === "action"
+            ? ct
+            : "presence";
+        return {
+          subjectMention: c.subjectMention || title,
+          claimType: validatedClaimType,
+          statement: c.statement || title,
+          claimedTime: c.claimedTime,
+          claimedVenue: c.claimedVenue,
+          supportingExcerpt: c.supportingExcerpt,
+        };
+      }),
+      quotes: (data.quotes || []).map((q) => ({
+        speaker: q.speaker,
+        quote: q.quote,
+        context: q.context,
+      })),
+      hasSensitiveLegalMatters: false,
+      involvesLivingPersonPrivateMovement: false,
+      involvesMinors: false,
+    };
+
+    let deduplicationMatch = findDuplicateEvent(candidateEventObj);
+    if (db) {
+      try {
+        const dbDup = await findDuplicateEventAsync(candidateEventObj, db);
+        if (dbDup.isDuplicate) {
+          deduplicationMatch = dbDup;
+        }
+      } catch (err) {
+        console.warn("Error running async deduplication check in approveCandidate:", err);
+      }
+    }
+
+    const baseSlug = deriveEventSlug(
+      startDate,
+      resolvedParticipantIds,
+      eventType,
+      city,
+      title
+    );
+
+    let eventSlug = baseSlug;
+    if (deduplicationMatch.isDuplicate && deduplicationMatch.matchedEventId) {
+      eventSlug = deduplicationMatch.matchedEventId;
+    } else if (!db) {
+      let memSlug = baseSlug;
+      let collisionIdx = 2;
+      while (store.events.some((e) => e.id === memSlug)) {
+        memSlug = `${baseSlug}-${collisionIdx++}`;
+      }
+      eventSlug = memSlug;
+    }
+
+    const placeId = `plc-${venue ? venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
 
     const newClaims: Array<
       ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
     > = [];
     if (Array.isArray(data.claims)) {
-      data.claims.forEach(
-        (
-          clm: {
-            subjectMention?: string;
-            claimType?: string;
-            statement?: string;
-            claimedTime?: string;
-            claimedVenue?: string;
-            supportingExcerpt?: string;
-          },
-          idx: number
-        ) => {
-          const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
-          newClaims.push({
-            id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
-            eventId: eventSlug,
-            subjectId: resolvedSubject?.personId || null,
-            claimType: clm.claimType || "presence",
-            statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
-            claimedTime: clm.claimedTime || candidate.suggestedDate,
-            claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
-            sourceId,
-            confidence: "confirmed",
-            supportingExcerpt: clm.supportingExcerpt || data.summary || null,
-            subjectMention: clm.subjectMention,
-          });
-        }
-      );
-    }
-
-    const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
-    if (Array.isArray(data.participants)) {
-      data.participants.forEach((p: { name: string; role?: string; involvementType?: string; presenceMode?: string }, idx: number) => {
-        const resolved = resolveEntity(p.name);
-        const personId = createParticipantStubId(p.name, resolved.personId);
-        eventPeopleRows.push({
-          id: `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
+      data.claims.forEach((clm, idx) => {
+        const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
+        const claimId = createClaimId(eventSlug, resolvedSubject?.personId || clm.subjectMention, clm.statement || title, sourceId, idx);
+        newClaims.push({
+          id: claimId,
           eventId: eventSlug,
-          personId,
-          involvementType: p.involvementType || "attendee",
-          roleLabel: p.role || "participant",
-          presenceConfidence: "confirmed",
-          roleConfidence: "confirmed",
-          attendanceMode: p.presenceMode || "physical",
-          rawName: p.name,
+          subjectId: resolvedSubject?.personId || null,
+          claimType: clm.claimType || "presence",
+          statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
+          claimedTime: clm.claimedTime || candidate.suggestedDate,
+          claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
+          sourceId,
+          confidence: "confirmed",
+          supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+          subjectMention: clm.subjectMention,
         });
       });
     }
 
+    const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
+    candidateParticipants.forEach((p, idx) => {
+      const resolved = resolveEntity(p.name);
+      const personId = createParticipantStubId(p.name, resolved.personId);
+      const epHash = createHash("sha256").update(`${eventSlug}::${personId}`).digest("hex").slice(0, 6);
+      eventPeopleRows.push({
+        id: `ep-${eventSlug}-${epHash}-${idx}`,
+        eventId: eventSlug,
+        personId,
+        involvementType: p.involvementType || "attendee",
+        roleLabel: p.role || "participant",
+        presenceConfidence: "confirmed",
+        roleConfidence: "confirmed",
+        attendanceMode: p.presenceMode || "physical",
+        rawName: p.name,
+      });
+    });
+
     let resolvedPlaceId = placeId;
+    const persistedClaimIds: string[] = [];
 
     if (db) {
       try {
         await db.transaction(async (tx) => {
-          // 1. Claim pending candidate atomically (Codex Issue 5)
+          // 1. Claim pending candidate atomically
           const updateResult = await tx
             .update(schema.candidateEvents)
             .set({ status: "approved" })
@@ -266,48 +452,84 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             await tx.insert(schema.places).values({
               id: placeId,
               slug: targetSlug,
-              venue: candidate.suggestedPlace || "Unspecified Location",
-              city: candidate.suggestedPlace || "Unknown City",
-              country: "International",
-              latitude: null,
-              longitude: null,
+              venue: venue,
+              city: city,
+              country: country,
+              latitude: data.latitude ?? null,
+              longitude: data.longitude ?? null,
               placeType: "venue",
             });
           }
 
-          // 4. Insert published event
-          await tx.insert(schema.events).values({
-            id: eventSlug,
-            slug: eventSlug,
-            parentId: null,
-            eventType: data.eventType || "historical-action",
-            title: candidate.suggestedTitle,
-            summary: data.summary || candidate.suggestedTitle,
-            description: data.description || null,
-            startDate: candidate.suggestedDate,
-            endDate: data.endDate || null,
-            temporalPrecision: data.temporalPrecision || "exact-day",
-            placeId: resolvedPlaceId,
-            seriesId: null,
-            venueId: null,
-            addressId: null,
-            verificationStatus: "verified",
-            confidenceScore: 0.98,
-            publicationStatus: "published",
-            publicationLane: "human-review",
-            significanceScore: 80,
-          });
+          // 4. Deterministic collision suffixing if baseSlug is taken by a distinct event
+          if (!deduplicationMatch.isDuplicate) {
+            let [existingDbEvent] = await tx
+              .select({ id: schema.events.id, title: schema.events.title })
+              .from(schema.events)
+              .where(eq(schema.events.id, eventSlug));
 
-          // 5. Insert evidence link before commit (Codex Issue 1)
-          await tx.insert(schema.eventSources).values({
-            eventId: eventSlug,
-            sourceId,
-            isPrimary: true,
-          });
+            if (existingDbEvent) {
+              const titleSim = tokenSimilarity(title, existingDbEvent.title);
+              const isMatch = titleSim >= 0.3 || title.toLowerCase().trim() === existingDbEvent.title.toLowerCase().trim();
+              if (!isMatch) {
+                let collisionIdx = 2;
+                while (existingDbEvent) {
+                  eventSlug = `${baseSlug}-${collisionIdx++}`;
+                  [existingDbEvent] = await tx
+                    .select({ id: schema.events.id, title: schema.events.title })
+                    .from(schema.events)
+                    .where(eq(schema.events.id, eventSlug));
+                }
+              }
+            }
 
-          // 6. Persist approved candidate participants (Codex & Gemini: resolve person canonically and promote to published)
+            if (!existingDbEvent) {
+              await tx.insert(schema.events).values({
+                id: eventSlug,
+                slug: eventSlug,
+                parentId: null,
+                eventType,
+                title,
+                summary: data.summary || title,
+                description: data.description || null,
+                startDate,
+                endDate: data.endDate || null,
+                temporalPrecision: data.temporalPrecision || "exact-day",
+                placeId: resolvedPlaceId,
+                seriesId: null,
+                venueId: null,
+                addressId: null,
+                verificationStatus: "verified",
+                confidenceScore: 0.98,
+                publicationStatus: "published",
+                publicationLane: "human-review",
+                significanceScore: 80,
+              });
+            }
+          }
+
+          // 5. Insert evidence link before commit
+          const [existingEventSource] = await tx
+            .select({ eventId: schema.eventSources.eventId })
+            .from(schema.eventSources)
+            .where(
+              and(
+                eq(schema.eventSources.eventId, eventSlug),
+                eq(schema.eventSources.sourceId, sourceId)
+              )
+            );
+          if (!existingEventSource) {
+            await tx.insert(schema.eventSources).values({
+              eventId: eventSlug,
+              sourceId,
+              isPrimary: true,
+            });
+          }
+
+          // 6. Persist approved candidate participants
           if (eventPeopleRows.length > 0) {
             for (const ep of eventPeopleRows) {
+              ep.eventId = eventSlug;
               const canonicalPersonId = await resolvePersonEntityInTransaction(tx, {
                 personId: ep.personId,
                 rawName: ep.rawName || ep.personId.replace(/^p-/, ""),
@@ -316,12 +538,26 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
               ep.personId = canonicalPersonId;
               const epRow = { ...ep };
               delete epRow.rawName;
-              await tx.insert(schema.eventPeople).values(epRow);
+              const [existingEp] = await tx
+                .select({ id: schema.eventPeople.id })
+                .from(schema.eventPeople)
+                .where(
+                  and(
+                    eq(schema.eventPeople.eventId, eventSlug),
+                    eq(schema.eventPeople.personId, canonicalPersonId)
+                  )
+                );
+              if (!existingEp) {
+                await tx.insert(schema.eventPeople).values(epRow);
+              }
             }
           }
 
-          // 7. Insert claims with live database subject resolution (batched mention resolution)
+          // 7. Insert claims with live database subject resolution & claim deduplication
           if (newClaims.length > 0) {
+            newClaims.forEach((c) => {
+              c.eventId = eventSlug;
+            });
             const distinctMentions = Array.from(
               new Set(
                 newClaims
@@ -333,7 +569,6 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             const mentionToSubjectMap = new Map<string, string | null>();
 
             if (distinctMentions.length > 0) {
-              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
               const mentionToSlug = new Map<string, string>(
                 distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
               );
@@ -348,7 +583,6 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
               );
 
-              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
               let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
               if (unmatchedAfterSlug.length > 0) {
                 ilikeMatchedPeople = await tx
@@ -364,7 +598,6 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                   );
               }
 
-              // Build mention → matched person IDs map (in-memory join)
               const mentionToIlikeIds = new Map<string, string[]>();
               for (const m of unmatchedAfterSlug) {
                 const mLower = m.toLowerCase();
@@ -378,10 +611,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 mentionToIlikeIds.set(m, ids);
               }
 
-              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
               const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
 
-              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
               let aliasRows: Array<{ personId: string; alias: string }> = [];
               if (unmatchedForAlias.length > 0) {
                 aliasRows = await tx
@@ -397,28 +628,21 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                   );
               }
 
-              // ── Resolve each mention from the collected results ───────────────────────────
               for (const m of distinctMentions) {
                 const normalizedSlug = mentionToSlug.get(m)!;
-
-                // Priority 1: exact slug match
                 if (slugToPersonId.has(normalizedSlug)) {
                   mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
                   continue;
                 }
-
-                // Priority 2: ILIKE name match (only when exactly one result)
                 const ilikeIds = mentionToIlikeIds.get(m) || [];
                 if (ilikeIds.length === 1) {
                   mentionToSubjectMap.set(m, ilikeIds[0]);
                   continue;
                 }
                 if (ilikeIds.length > 1) {
-                  mentionToSubjectMap.set(m, null); // ambiguous
+                  mentionToSubjectMap.set(m, null);
                   continue;
                 }
-
-                // Priority 3: alias match (only when exactly one person has this alias)
                 const mLower = m.toLowerCase();
                 const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
                 const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
@@ -439,7 +663,19 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 subjectId: resolvedDbSubjectId,
               };
             });
-            await tx.insert(schema.claims).values(dbClaims);
+
+            // Prevent duplicate claim insertions via persistedClaimIds verification
+            const existingDbClaims = await tx
+              .select({ id: schema.claims.id })
+              .from(schema.claims)
+              .where(eq(schema.claims.eventId, eventSlug));
+            const existingClaimIdSet = new Set(existingDbClaims.map((c) => c.id));
+
+            const claimsToInsert = dbClaims.filter((c) => !existingClaimIdSet.has(c.id));
+            if (claimsToInsert.length > 0) {
+              await tx.insert(schema.claims).values(claimsToInsert);
+            }
+            persistedClaimIds.push(...dbClaims.map((c) => c.id));
           }
 
           // 8. Insert review decision
@@ -456,54 +692,71 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       }
     }
 
+    // In-memory store updates
     const memCand = store.candidateEvents.find((c) => c.id === candidateId);
     if (memCand) {
       memCand.status = "approved";
     }
     candidate.status = "approved";
 
-    store.events.unshift({
-      id: eventSlug,
-      slug: eventSlug,
-      parentId: null,
-      eventType: data.eventType || "historical-action",
-      title: candidate.suggestedTitle,
-      summary: data.summary || candidate.suggestedTitle,
-      description: data.description || null,
-      startDate: candidate.suggestedDate,
-      endDate: data.endDate || null,
-      temporalPrecision: data.temporalPrecision || "exact-day",
-      placeId: resolvedPlaceId,
-      seriesId: null,
-      venueId: null,
-      addressId: null,
-      verificationStatus: "verified",
-      confidenceScore: 0.98,
-      publicationStatus: "published",
-      publicationLane: "human-review",
-      significanceScore: 80,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    // Deduplicate in-memory events if not already present
+    if (!store.events.some((e) => e.id === eventSlug)) {
+      let memSlug = eventSlug;
+      let collisionIdx = 2;
+      while (store.events.some((e) => e.id === memSlug)) {
+        memSlug = `${eventSlug}-${collisionIdx++}`;
+      }
+      eventSlug = memSlug;
+
+      store.events.unshift({
+        id: eventSlug,
+        slug: eventSlug,
+        parentId: null,
+        eventType,
+        title,
+        summary: data.summary || title,
+        description: data.description || null,
+        startDate,
+        endDate: data.endDate || null,
+        temporalPrecision: data.temporalPrecision || "exact-day",
+        placeId: resolvedPlaceId,
+        seriesId: null,
+        venueId: null,
+        addressId: null,
+        verificationStatus: "verified",
+        confidenceScore: 0.98,
+        publicationStatus: "published",
+        publicationLane: "human-review",
+        significanceScore: 80,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     const existingPlace = store.places.find((p) => p.id === resolvedPlaceId);
     if (!existingPlace) {
       store.places.push({
         id: resolvedPlaceId,
         slug: resolvedPlaceId.replace(/^plc-/, ""),
-        venue: candidate.suggestedPlace || "Unspecified Location",
-        city: candidate.suggestedPlace || "Unknown City",
-        country: "International",
-        latitude: 31.7683,
-        longitude: 35.2137,
+        venue,
+        city,
+        country,
+        latitude: data.latitude ?? 31.7683,
+        longitude: data.longitude ?? 35.2137,
         placeType: "venue",
       });
     }
 
     newClaims.forEach((clm) => {
+      clm.eventId = eventSlug;
       const inMem = { ...clm };
       delete inMem.subjectMention;
-      store.claims.push(inMem);
+      if (!store.claims.some((c) => c.id === inMem.id)) {
+        store.claims.push(inMem);
+      }
+      if (!persistedClaimIds.includes(inMem.id)) {
+        persistedClaimIds.push(inMem.id);
+      }
     });
 
     await recordAuditEvent(
@@ -515,13 +768,15 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         approvedBy: editorName,
         sourceId,
         claimsAddedCount: newClaims.length,
+        persistedClaimIds,
       },
       eventSlug,
       candidateId
     );
 
     syncFallback.eventId = eventSlug;
-    return { success: true, eventId: eventSlug };
+    syncFallback.persistedClaimIds = persistedClaimIds;
+    return { success: true, eventId: eventSlug, persistedClaimIds };
   })();
 
   return asAsyncResult(executionPromise, syncFallback);
@@ -533,11 +788,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
   const syncTarget = store.events.find((e) => e.id === targetEventId);
-  const syncData = syncCandidate
-    ? typeof syncCandidate.rawExtraction === "string"
-      ? JSON.parse(syncCandidate.rawExtraction)
-      : syncCandidate.rawExtraction
-    : null;
+  const syncData = parseCandidatePayload(syncCandidate?.rawExtraction);
   const syncSourceId = syncData?.sourceId;
 
   const syncFallback:
@@ -578,8 +829,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     }
     if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 
-    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
-    const sourceId = data?.sourceId;
+    const data = parseCandidatePayload(candidate.rawExtraction) || {};
+    const sourceId = data.sourceId;
     if (!sourceId || sourceId === "src-editorial-corroboration") {
       return {
         success: false,
@@ -608,8 +859,9 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
         if (!isDuplicateClaim && !seenInMemory.has(dedupeKey)) {
           seenInMemory.add(dedupeKey);
+          const claimId = createClaimId(targetEventId, subjectId || clm.subjectMention, statement, sourceId, idx);
           claimsToInsert.push({
-            id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
+            id: claimId,
             eventId: targetEventId,
             subjectId,
             claimType: clm.claimType || "presence",
