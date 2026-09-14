@@ -21,6 +21,7 @@ export interface PairwiseRelationshipData {
   sharedEvents: EventRecord[];
 }
 
+/** Derives verified pairwise relationships from archived fallback events. */
 function getFallbackRelationships(): RelationshipItem[] {
   const personSlugToName = new Map(fallbackPeople.map((p) => [p.slug, p.name]));
   const personIdToSlug = new Map(fallbackPeople.map((p) => [p.id, p.slug]));

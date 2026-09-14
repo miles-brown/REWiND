@@ -7,6 +7,7 @@ export const metadata = {
   description: "Global gazetteer and diplomatic venues documented in the REWIND evidence corpus.",
 };
 
+/** Loads and renders the published place directory. */
 export default async function PlacesPage() {
   const places = await getPlaces();
 

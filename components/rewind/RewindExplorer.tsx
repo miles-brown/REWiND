@@ -38,6 +38,7 @@ export interface RewindExplorerProps {
   subject?: { name: string; slug: string } | null;
 }
 
+/** Provides timeline navigation and filtering over a supplied event collection. */
 export function RewindExplorer({
   initialType = DEFAULT_EXPLORER_TYPE,
   initialStatus = DEFAULT_EXPLORER_STATUS,

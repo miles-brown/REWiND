@@ -3,10 +3,10 @@ import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, or, ilike, and, ne } from "drizzle-orm";
 
+/** Escapes PostgreSQL ILIKE wildcard characters for literal matching. */
 function escapeIlikePattern(str: string): string {
   return str.replace(/[%_\\]/g, "\\$&");
 }
-
 // Normalize names by removing punctuation, titles, and extra whitespace
 function normalizeName(name: string): string {
   return name
@@ -166,6 +166,7 @@ export interface EntityResolution {
   isApprovedSubject: boolean;
 }
 
+/** Resolves a person against the live database before consulting local fallback data. */
 export async function resolveEntityAsync(
   rawName: string,
   dbInstance?: ReturnType<typeof getDb>
@@ -370,6 +371,7 @@ export interface PlaceResolution {
   confidence: number;
 }
 
+/** Resolves a place against the local gazetteer while preserving supplied coordinates. */
 export function resolvePlace(
   venue?: string,
   city?: string,
@@ -454,6 +456,7 @@ export function resolvePlace(
   };
 }
 
+/** Resolves a place against PostgreSQL before falling back to the local gazetteer. */
 export async function resolvePlaceAsync(
   venue?: string,
   city?: string,
@@ -615,4 +618,3 @@ export async function resolvePlaceAsync(
 
   return resolvePlace(venue, city, country, latitude, longitude);
 }
-

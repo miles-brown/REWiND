@@ -7,6 +7,7 @@ import { formatAPA, formatBibTeX, formatChicago, formatJSON } from "@/lib/citati
 
 type Format = "bibtex" | "apa" | "chicago" | "json";
 
+/** Displays citation formats and copy/download actions for an event source. */
 export function CitationModal({
   event,
   source: explicitSource,

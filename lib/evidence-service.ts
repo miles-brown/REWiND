@@ -56,6 +56,7 @@ export interface CandidateExtractionPayload {
   quotes?: Array<{ speaker: string; quote: string; context?: string }>;
 }
 
+/** Parses a candidate extraction payload from serialized or object input. */
 export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload | null {
   if (!raw) return null;
   let parsed: unknown = raw;
@@ -161,6 +162,7 @@ export function parseCandidatePayload(raw: unknown): CandidateExtractionPayload 
   };
 }
 
+/** Builds a deterministic claim identifier from its event, subject, statement, and source. */
 function createClaimId(
   eventSlug: string,
   subjectMentionOrId: string | null | undefined,
@@ -177,10 +179,12 @@ function createClaimId(
   return `clm-${eventSlug}-${hash}-${idx}`;
 }
 
+/** Escapes PostgreSQL ILIKE wildcard characters for literal matching. */
 function escapeIlikePattern(str: string): string {
   return str.replace(/[\\%_]/g, "\\$&");
 }
 
+/** Returns current evidence-review statistics from PostgreSQL or the local fallback store. */
 export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const db = getDb();
   if (db) {
@@ -221,6 +225,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   };
 }
 
+/** Returns evidence candidates ordered for editorial review. */
 export async function getCandidateQueue() {
   const db = getDb();
   const store = getRelationalStore();
@@ -240,6 +245,7 @@ export async function getCandidateQueue() {
   return store.candidateEvents;
 }
 
+/** Resolves a candidate from PostgreSQL, falling back to the in-memory store. */
 async function resolveCandidateRecord(
   candidateId: string,
   store: ReturnType<typeof getRelationalStore>,
@@ -272,6 +278,7 @@ function asAsyncResult<T extends Record<string, unknown>>(promise: Promise<T>, s
   return Object.assign(promise, syncFallback);
 }
 
+/** Approves a pending candidate and persists its event, participants, claims, and sources. */
 export function approveCandidate(candidateId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
   const db = getDb();
@@ -895,6 +902,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   return asAsyncResult(executionPromise, syncFallback);
 }
 
+/** Merges a pending candidate's evidence into an existing canonical event. */
 export function mergeCandidate(candidateId: string, targetEventId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
   const db = getDb();
@@ -1300,6 +1308,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
   return asAsyncResult(executionPromise, syncFallback);
 }
 
+/** Rejects a pending evidence candidate and records the editorial decision. */
 export function rejectCandidate(candidateId: string, reason: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
   const db = getDb();

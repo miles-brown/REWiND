@@ -12,6 +12,7 @@ export interface AuditRecord {
   recordedAt: Date;
 }
 
+/** Records an audit event in memory and persists it to PostgreSQL when available. */
 export function recordAuditEvent(
   action: string,
   ruleId: string | null,
@@ -57,6 +58,7 @@ export function recordAuditEvent(
   return Object.assign(persistPromise, entry);
 }
 
+/** Returns the most recent audit records from PostgreSQL or the fallback store. */
 export async function getAuditTrail(): Promise<AuditRecord[]> {
   const db = getDb();
   const store = getRelationalStore();

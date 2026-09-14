@@ -21,15 +21,18 @@ import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
+/** Determines whether a participation row belongs to the supplied person. */
 function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boolean {
   if (!person) return false;
   return p.personId === person.id || p.personId === person.slug;
 }
 
+/** Formats an event date while preserving its recorded precision. */
 function formatDate(dateStr: string, precision?: string): string {
   return formatTimelineDate(dateStr, precision) || dateStr;
 }
 
+/** Compares two distinct figures across shared and individual event timelines. */
 export function TimelineComparison({
   initialPersonA,
   initialPersonB,

@@ -8,6 +8,7 @@ const supabaseAnonKey =
   "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+/** Accepts secure Supabase URLs and local HTTP endpoints used for development. */
 function isValidSupabaseUrl(rawUrl: string): boolean {
   if (!rawUrl) return false;
   try {

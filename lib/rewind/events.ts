@@ -23,6 +23,7 @@ const fallbackSourceMap = new Map<string, SourceRecord>(
   ])
 );
 
+/** Maps an archived event fixture into the canonical application event shape. */
 function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
   const sources = (e.sourceIds || [])
     .map((sId) => fallbackSourceMap.get(sId))
@@ -60,6 +61,7 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
   };
 }
 
+/** Filters archived events when the canonical Supabase data source is unavailable. */
 export function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<EventRecord> {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
@@ -1283,6 +1285,7 @@ export async function getEventYearsStrict(supabaseClient?: unknown): Promise<num
   return Array.from(years).sort((a, b) => a - b);
 }
 
+/** Returns distinct indexed event years in descending order. */
 export async function getEventYears(supabaseClient?: unknown): Promise<number[]> {
   try {
     return await getEventYearsStrict(supabaseClient);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle, FileSearch, ShieldAlert, X } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
 
+/** Presents conflicting evidentiary claims without hiding their disagreement. */
 export function DiscrepancyViewer({
   event,
   isOpen,

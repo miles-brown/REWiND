@@ -3,6 +3,7 @@ import { sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import { isStandardIsoDate, normalizeIsoDate } from "./dates";
 import type { EventRecord, SourceRecord } from "./types";
 
+/** Maps a Supabase source row into the canonical application source shape. */
 export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   const pubDateNorm = s.publication_date ? normalizeIsoDate(s.publication_date) : undefined;
   const accDateNorm = s.accessed_date
@@ -28,6 +29,7 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   };
 }
 
+/** Maps an archived source fixture into the canonical application source shape. */
 export function mapArchiveSource(s: (typeof fallbackSources)[0]): SourceRecord {
   return {
     id: s.id,
@@ -43,6 +45,7 @@ export function mapArchiveSource(s: (typeof fallbackSources)[0]): SourceRecord {
   };
 }
 
+/** Filters archived sources when the canonical Supabase data source is unavailable. */
 function getFallbackSources(filters: { tier?: string; type?: string; search?: string } = {}): SourceRecord[] {
   let fb = (fallbackSources || []).map(mapArchiveSource);
 
@@ -228,6 +231,7 @@ export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
   }
 }
 
+/** Returns an archived source and the events that cite it. */
 export async function getArchiveSourceById(
   id: string
 ): Promise<{ source: SourceRecord; events: EventRecord[] } | null> {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, MessageSquareQuote, Play, Radio, Volume2, X } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
 
+/** Displays the media and quotation details associated with an event. */
 export function MediaDrawer({
   event,
   isOpen,

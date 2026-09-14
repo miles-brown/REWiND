@@ -12,6 +12,7 @@ import postgres from "postgres";
 import * as schema from "../db/schema";
 import { people, events, sources } from "../archive/legacy-data/rewind";
 
+/** Runs the explicitly enabled legacy seed workflow for non-production use. */
 async function main() {
   if (process.env.ALLOW_LEGACY_PROTOTYPE_SEED !== "true") {
     console.error("❌ SEEDING BLOCKED: ALLOW_LEGACY_PROTOTYPE_SEED must be explicitly set to 'true' to run seed-supabase.");

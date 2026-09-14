@@ -16,7 +16,7 @@ export function calculateEventFingerprint(
   return `fp_${sortedP}_${dateDay}_${normCity}_${eventType}`;
 }
 
-// Calculate token similarity between two strings (Jaccard)
+/** Calculates Jaccard token similarity between two strings. */
 export function tokenSimilarity(strA: string, strB: string): number {
   const setA = new Set(strA.toLowerCase().split(/\W+/).filter(Boolean));
   const setB = new Set(strB.toLowerCase().split(/\W+/).filter(Boolean));

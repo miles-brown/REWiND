@@ -5,6 +5,7 @@ import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate,
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 
+/** Renders a database-backed event record identified by its route slug. */
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { data: event, error } = await getEventBySlug(slug);

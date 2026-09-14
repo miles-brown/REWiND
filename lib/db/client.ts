@@ -4,6 +4,7 @@ import postgres from "postgres";
 import * as schema from "@/db/schema";
 import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
 
+/** Determines whether a PostgreSQL connection targets a local loopback host. */
 export function isLocalDatabaseHost(connStr: string): boolean {
   try {
     const url = new URL(connStr);
@@ -66,6 +67,7 @@ export interface MemoryRelationalStore {
   quotes: (typeof schema.quotes.$inferSelect)[];
 }
 
+/** Derives canonical classification metadata for a non-production person fixture. */
 function resolvePersonMetadata(p: TestPerson): {
   nationality: string;
   classification: string;
@@ -148,6 +150,7 @@ function mapToCanonicalEventType(categories: string[], types: string[]): "bilate
   return "historical-action";
 }
 
+/** Initializes the in-memory relational store, loading fixtures outside production only. */
 function initializeSeedStore(): MemoryRelationalStore {
   // In production, fallback in-memory store is empty to ensure no prototype records enter the production path
   if (process.env.NODE_ENV === "production") {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleDashed, Database, GitBranch, MapPinned, Quote, Search, Users } from "lucide-react";
 import { getAtlasStatistics, getPeople } from "@/lib/rewind";
 
+/** Renders the atlas home page with current event, person, and source data. */
 export default async function Home() {
   const stats = await getAtlasStatistics();
   const people = await getPeople({ limit: 6 });

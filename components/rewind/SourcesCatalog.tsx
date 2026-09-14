@@ -20,6 +20,7 @@ import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
 type SortOption = "events-desc" | "date-desc" | "date-asc" | "title-asc" | "publisher-asc";
 type ViewMode = "table" | "cards";
 
+/** Maps a source's evidentiary tier to its display label and styling metadata. */
 export function getSourceTierDisplay(s: SourceRecord): { label: string; badgeClass: string; isPrimary: boolean } {
   const tier = s.tier?.toLowerCase();
   if (tier === "tier-a") {
@@ -40,6 +41,7 @@ export function getSourceTierDisplay(s: SourceRecord): { label: string; badgeCla
   return { label: "Secondary (Tier C)", badgeClass: "secondary", isPrimary: false };
 }
 
+/** Selects and formats the best available publication or access date for a source. */
 export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; displayDate: string } {
   const raw = s.publicationDate || s.accessedDate || "";
   if (!raw) return { isoDate: null, displayDate: "Undated" };
@@ -50,6 +52,7 @@ export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; di
   };
 }
 
+/** Renders searchable, filterable table and card views of source records. */
 export function SourcesCatalog({
   sources = [],
   events = [],
@@ -152,6 +155,7 @@ export function SourcesCatalog({
       });
   }, [query, classificationFilter, typeFilter, publisherFilter, sortOption, sourceEventMap, sources]);
 
+  /** Returns the sortable source date, using an empty value for undated records. */
   function sDate(s: SourceRecord): string {
     return s.publicationDate || s.accessedDate || "";
   }
@@ -167,6 +171,7 @@ export function SourcesCatalog({
     [sources, sourceEventMap]
   );
 
+  /** Restores all catalogue filters and sorting controls to their defaults. */
   function resetFilters() {
     setQuery("");
     setClassificationFilter("all");

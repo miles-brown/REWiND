@@ -8,6 +8,7 @@ export const metadata = {
     "Primary and secondary documentary sources supporting the REWiND Evidence Atlas timeline.",
 };
 
+/** Loads source records and renders the searchable source catalogue. */
 export default async function SourcesPage() {
   const [sourcesResult, countsResult] = await Promise.all([
     getSourcesWithStatus(),

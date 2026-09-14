@@ -7,6 +7,7 @@ export const metadata = {
   description: "Cross-timeline intersection analysis and side-by-side chronological comparisons of historical figures.",
 };
 
+/** Loads atlas entities and renders the figure-comparison workspace. */
 export default async function ComparePage() {
   const [people, allEvents, sources] = await Promise.all([
     getPeople(),

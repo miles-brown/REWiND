@@ -11,6 +11,7 @@ interface SliderProps
   getAriaLabel?: (index: number) => string
 }
 
+/** Wraps the Radix slider primitive with shared styling and accessible thumbs. */
 function Slider({
   className,
   defaultValue,

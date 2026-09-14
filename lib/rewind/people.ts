@@ -3,6 +3,7 @@ import { people as fallbackPeople } from "@/archive/legacy-data/rewind";
 import { getEventsByPerson } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
 
+/** Maps an archived person fixture into the canonical application person shape. */
 function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
   return {
     id: p.id,

@@ -19,6 +19,7 @@ after(async () => {
 });
 
 test("verifies complete elimination of legacy @/data/rewind in production app and components", async () => {
+  /** Recursively gathers source files beneath a test target directory. */
   function scanDir(dir, fileList = []) {
     const files = fs.readdirSync(dir);
     for (const file of files) {
@@ -585,5 +586,3 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
   assert.equal(sourcesErrRes.data, null);
   assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
 });
-
-

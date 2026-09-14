@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: "Chronological registry of documented historical appearances, bilateral summits, and official actions.",
 };
 
+/** Loads published events and renders the atlas event index. */
 export default async function EventsPage() {
   const [stats, eventsResult] = await Promise.all([
     getAtlasStatistics(),

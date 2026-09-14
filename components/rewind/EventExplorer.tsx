@@ -5,6 +5,7 @@ import { Filter, Search, X } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
 import { EventCard } from "./EventCard";
 
+/** Filters, sorts, and renders a supplied collection of atlas events. */
 export function EventExplorer({
   initialEvents = [],
   year,

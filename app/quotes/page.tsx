@@ -7,6 +7,7 @@ export const metadata = {
   description: "Attributable speech, plenary addresses, and verified quotations with exact coordinates.",
 };
 
+/** Loads and renders sourced quotations and recorded speeches. */
 export default async function QuotesPage() {
   const [quotesResult, speechEventsResult] = await Promise.all([
     getQuotesWithStatus(),

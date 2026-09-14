@@ -7,6 +7,7 @@ import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
+/** Renders sharing and citation actions for an event. */
 export function EventActions({
   event,
   primarySource,

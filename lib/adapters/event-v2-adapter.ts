@@ -99,6 +99,7 @@ function parseConfidence(c?: string | null, fallback: Confidence = "limited"): C
   return fallback;
 }
 
+/** Normalizes an optional legacy date precision to a supported precision value. */
 function parsePrecision(p?: string | null): Precision {
   if (
     p === "exact" ||
@@ -116,6 +117,7 @@ function parsePrecision(p?: string | null): Precision {
   return "exact-day";
 }
 
+/** Normalizes an optional legacy verification state, defaulting to provisional. */
 function parseVerification(v?: string | null): "verified" | "provisional" | "disputed" {
   if (v === "verified" || v === "provisional" || v === "disputed") {
     return v;

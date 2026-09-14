@@ -47,6 +47,7 @@ export function deriveEventSlug(
   return `evt-${startDate.slice(0, 10)}-${pIds}-${normType}-${citySlug}-${titleHash}`;
 }
 
+/** Validates, resolves, deduplicates, and persists an extracted evidence candidate. */
 export function processCandidateEvent(
   rawCandidate: ExtractedCandidateEvent,
   source: RawEvidenceItem

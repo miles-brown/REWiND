@@ -19,6 +19,7 @@ function timingSafeCompare(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** Enforces fail-closed authentication for production administrative routes. */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -57,4 +58,3 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/admin/:path*"],
 };
-

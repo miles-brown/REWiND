@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getPersonTimeline } from "@/lib/rewind";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
 
+/** Renders one person's timeline for a strictly validated calendar year. */
 export default async function PersonYearPage({
   params,
 }: {

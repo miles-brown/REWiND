@@ -37,7 +37,7 @@ function timingSafeCompare(a: string, b: string): boolean {
   }
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
-
+/** Authenticates an evidence-console request and resolves its editor identity. */
 function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editorActor: string } {
   const authHeader = req.headers.get("authorization");
   const sessionSecret = process.env.SESSION_SECRET;
@@ -74,6 +74,7 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 }
 
 
+/** Returns evidence statistics, review candidates, and audit records for authorized editors. */
 export async function GET(req: Request) {
   const auth = authenticateAdminRequest(req);
   if (!auth.isAuthorized) {
@@ -94,6 +95,7 @@ export async function GET(req: Request) {
   });
 }
 
+/** Applies an authorized approve, merge, or reject action to an evidence candidate. */
 export async function POST(req: Request) {
   try {
     const auth = authenticateAdminRequest(req);
@@ -150,4 +152,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-

@@ -118,6 +118,7 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
   }
 }
 
+/** Renders an accessible geographic view of events and optional trajectories. */
 export function MapGraphic({
   events,
   selected,

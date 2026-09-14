@@ -11,6 +11,7 @@ import { getPersonTimeline } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
 
+/** Renders a person's profile and complete indexed timeline. */
 export default async function PersonPage({
   params,
 }: {

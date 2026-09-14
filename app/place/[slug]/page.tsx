@@ -3,6 +3,7 @@ import { getPlaceBySlug } from "@/lib/rewind";
 import { EventCard } from "@/components/rewind/EventCard";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 
+/** Renders a place record and its linked published events. */
 export default async function PlacePage({
   params,
 }: {

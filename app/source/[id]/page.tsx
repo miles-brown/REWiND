@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getSourceById } from "@/lib/rewind";
 import { EventCard } from "@/components/rewind/EventCard";
 
+/** Renders a source record and the published events that cite it. */
 export default async function SourcePage({
   params,
 }: {

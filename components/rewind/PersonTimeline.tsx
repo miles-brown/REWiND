@@ -28,6 +28,7 @@ import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
+/** Renders an interactive chronological timeline for one person's events. */
 export function PersonTimeline({
   person,
   records,

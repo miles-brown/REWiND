@@ -35,6 +35,7 @@ function getChangedFiles() {
   }
 }
 
+/** Submits the pull-request diff to Gemini for a structured forensic review. */
 async function callGeminiReview(diff, changedFiles) {
   const prompt = `You are the Lead Forensic Software Engineer & Accessibility Auditor for the REWiND Evidence Atlas.
 

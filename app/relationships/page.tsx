@@ -7,6 +7,7 @@ export const metadata = {
   description: "Temporal co-appearance social graph generated dynamically from verified primary event records.",
 };
 
+/** Loads and renders the indexed relationships between atlas figures. */
 export default async function RelationshipsPage() {
   const relationships = await getRelationships();
 

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description: "Historical figures and actors documented across the REWIND diplomatic evidence corpus.",
 };
 
+/** Loads and renders the published people directory. */
 export default async function PeoplePage() {
   const people = await getPeople();
 

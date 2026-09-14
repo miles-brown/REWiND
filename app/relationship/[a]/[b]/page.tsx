@@ -10,6 +10,7 @@ import {
 } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
+/** Renders a comparison for two distinct figures identified by route slugs. */
 export default async function RelationshipPage({
   params,
 }: {

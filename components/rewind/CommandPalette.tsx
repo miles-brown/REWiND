@@ -65,6 +65,7 @@ const DEFAULT_ACTIONS: SearchResultItem[] = [
   },
 ];
 
+/** Provides a keyboard-accessible, server-backed search palette for atlas records. */
 export function CommandPalette({
   isOpen,
   onClose,
