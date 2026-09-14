@@ -290,6 +290,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
   const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
   const syncData = parseCandidatePayload(syncCandidate?.rawExtraction);
   const syncSourceId = syncData?.sourceId;
+  const syncDate = (syncCandidate?.suggestedDate || syncData?.startDate || "").trim();
 
   const syncFallback: { success: boolean; eventId?: string; persistedClaimIds?: string[]; error?: string } = !syncCandidate
     ? { success: false, error: "Candidate not found" }
@@ -300,7 +301,12 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         success: false,
         error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
       }
-    : { success: true, eventId: `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-sync` };
+    : !syncDate
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires an established historical date (startDate or suggestedDate). Cannot approve records with missing dates.",
+      }
+    : { success: true, eventId: `evt-${syncDate.slice(0, 10)}-cand-sync` };
 
   const executionPromise = (async () => {
     const candidate = await resolveCandidateRecord(candidateId, store, db);
@@ -323,7 +329,14 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     }
 
     const title = candidate.suggestedTitle || data.title || "Approved Event";
-    const startDate = candidate.suggestedDate || data.startDate || new Date().toISOString().slice(0, 10);
+    const rawDate = (candidate.suggestedDate || data.startDate || "").trim();
+    if (!rawDate) {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires an established historical date (startDate or suggestedDate). Cannot approve records with missing dates.",
+      };
+    }
+    const startDate = rawDate;
     const eventType = data.eventType || "historical-action";
     const venue = data.venue || candidate.suggestedPlace || "Unspecified Location";
     const city = data.city || candidate.suggestedPlace || "Unknown City";
@@ -863,8 +876,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         venue,
         city,
         country,
-        latitude: data.latitude ?? 31.7683,
-        longitude: data.longitude ?? 35.2137,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         placeType: "venue",
       });
     }

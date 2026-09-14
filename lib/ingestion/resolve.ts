@@ -427,7 +427,9 @@ export function resolvePlace(
       };
     }
 
-    if (cityMatches) {
+    const isGeneralVenueRequested = !safeVenue || normVenue === "general" || normVenue === normCity;
+    const isGeneralGazetteerPlace = plVenue === "general" || plVenue === normCity || pl.placeType === "city";
+    if (cityMatches && (isGeneralVenueRequested || isGeneralGazetteerPlace)) {
       return {
         placeId: pl.id,
         venue: safeVenue || pl.venue,
@@ -566,8 +568,9 @@ export async function resolvePlaceAsync(
         }
       }
 
-      // 3. Match city only (when venue is empty or no specific venue matched)
+      // 3. Match city only (when no specific venue was supplied or general city marker matches)
       if (safeCity) {
+        const isGeneralVenueRequested = !safeVenue || normVenue === "general" || normVenue === normCity;
         const cityConditions = [ilike(schema.places.city, escapedCity)];
         if (safeCountry) {
           cityConditions.push(ilike(schema.places.country, escapedCountry));
@@ -578,25 +581,44 @@ export async function resolvePlaceAsync(
           .from(schema.places)
           .where(and(...cityConditions));
 
-        const distinctCityPlaceIds = Array.from(new Set(cityMatches.map((pl) => pl.id)));
-        if (distinctCityPlaceIds.length === 1) {
-          const pl = cityMatches[0];
-          return {
-            placeId: pl.id,
-            venue: safeVenue || pl.venue,
-            city: pl.city,
-            country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
-            confidence: 0.92,
-          };
-        } else if (cityMatches.length > 1) {
-          // If multiple places exist in the city, check for a general city marker or exact venue match
+        if (isGeneralVenueRequested) {
+          const generalMatch = cityMatches.find(
+            (pl) =>
+              pl.venue.toLowerCase() === "general" ||
+              pl.venue.toLowerCase() === normCity ||
+              pl.placeType === "city"
+          );
+          if (generalMatch) {
+            return {
+              placeId: generalMatch.id,
+              venue: safeVenue || generalMatch.venue,
+              city: generalMatch.city,
+              country: generalMatch.country,
+              latitude: generalMatch.latitude ?? latitude ?? undefined,
+              longitude: generalMatch.longitude ?? longitude ?? undefined,
+              confidence: 0.92,
+            };
+          }
+          if (cityMatches.length === 1) {
+            const pl = cityMatches[0];
+            return {
+              placeId: pl.id,
+              venue: safeVenue || pl.venue,
+              city: pl.city,
+              country: pl.country,
+              latitude: pl.latitude ?? latitude ?? undefined,
+              longitude: pl.longitude ?? longitude ?? undefined,
+              confidence: 0.92,
+            };
+          }
+        } else {
+          // Specific venue was requested: match only if the existing place venue explicitly matches
           const specificMatch = cityMatches.find(
             (pl) =>
-              (safeVenue && pl.venue.toLowerCase() === normVenue) ||
+              pl.venue.toLowerCase() === normVenue ||
               pl.venue.toLowerCase() === "general" ||
-              pl.venue.toLowerCase() === normCity
+              pl.venue.toLowerCase() === normCity ||
+              pl.placeType === "city"
           );
           if (specificMatch) {
             return {

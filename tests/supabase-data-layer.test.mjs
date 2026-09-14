@@ -617,6 +617,7 @@ test("verifies migration and schema invariants: unique event_people constraint a
     "utf8"
   );
   const schemaTs = fs.readFileSync(path.join(root, "db/schema.ts"), "utf8");
+  const schemaV2Ts = fs.readFileSync(path.join(root, "db/schema-v2.ts"), "utf8");
 
   // Migration checks
   assert.match(migrationSql, /uq_event_people_event_person UNIQUE \(event_id, person_id\)/);
@@ -630,4 +631,50 @@ test("verifies migration and schema invariants: unique event_people constraint a
   assert.match(schemaTs, /presenceConfidence: text\("presence_confidence"\)\.default\("limited"\)\.notNull\(\)/);
   assert.match(schemaTs, /roleConfidence: text\("role_confidence"\)\.default\("limited"\)\.notNull\(\)/);
   assert.match(schemaTs, /confidence: text\("confidence"\)\.default\("limited"\)\.notNull\(\)/);
+  assert.match(schemaV2Ts, /confidence: text\("confidence"\)\.default\("limited"\)\.notNull\(\)/);
+});
+
+test("verifies distinct venue resolution, date requirement on approval, and fallback limited confidence", async () => {
+  const { resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+  const { approveCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getAllEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  // 1. Distinct venue resolution does not corrupt existing place ID
+  const distinctPlace = resolvePlace("Waldorf Astoria", "New York", "USA");
+  assert.notEqual(distinctPlace.placeId, "plc-new-york-general");
+  assert.ok(distinctPlace.placeId.includes("waldorf"), "Must generate distinct place ID for distinct venue");
+
+  // 2. Candidate approval requires an established date
+  const store = getRelationalStore();
+  store.candidateEvents.push({
+    id: "candidate-no-date",
+    suggestedTitle: "Undated Summit",
+    suggestedDate: "",
+    suggestedPlace: "New York",
+    suggestedCountry: "USA",
+    suggestedSource: "Archival Record",
+    status: "pending",
+    rawExtraction: JSON.stringify({
+      title: "Undated Summit",
+      sourceId: "src-1",
+      startDate: "",
+    }),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const missingDateApproval = await approveCandidate("candidate-no-date");
+  assert.equal(missingDateApproval.success, false);
+  assert.match(missingDateApproval.error || "", /established historical date/);
+
+  // 3. Fallback unverified events map to limited confidence
+  const allEvents = await getAllEvents();
+  const provisionalEvents = allEvents.filter((e) => e.verificationStatus !== "verified");
+  if (provisionalEvents.length > 0) {
+    for (const pe of provisionalEvents) {
+      assert.equal(pe.confidence, "limited", "Unverified fallback events must map to 'limited' confidence");
+      assert.equal(pe.confidenceScore, 0.4, "Unverified fallback events must have confidenceScore 0.4");
+    }
+  }
 });

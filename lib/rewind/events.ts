@@ -44,8 +44,8 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     summary: e.summary,
     description: e.summary || null,
     verificationStatus: e.verificationStatus,
-    confidence: (e.verificationStatus === "verified" ? "confirmed" : "moderate") as Confidence,
-    confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
+    confidence: (e.verificationStatus === "verified" ? "confirmed" : "limited") as Confidence,
+    confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.4,
     sourceIds: e.sourceIds || [],
     sources: sources,
     participants: (e.participants || []).map((p) => ({

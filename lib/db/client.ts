@@ -277,7 +277,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       venueId: null,
       addressId: null,
       verificationStatus: e.verificationStatus,
-      confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
+      confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.4,
       publicationStatus: "published",
       publicationLane: "auto-publish",
       significanceScore: 80,
@@ -296,7 +296,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       claimedTime: e.startDate,
       claimedVenue: e.venueName || e.city,
       sourceId: e.sourceIds[0] || null,
-      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "reported",
+      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
       supportingExcerpt: e.summary,
     }))
   );
