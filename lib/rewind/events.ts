@@ -60,16 +60,6 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
   };
 }
 
-function sanitizeYearFilter(rawYear: string | undefined): string | null {
-  if (!rawYear) return null;
-  const trimmed = rawYear.trim();
-  if (/^\d{3,4}$/.test(trimmed)) {
-    return trimmed;
-  }
-  const sanitized = trimmed.replace(/[%_\\]/g, "");
-  return /^\d{3,4}$/.test(sanitized) ? sanitized : null;
-}
-
 export function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<EventRecord> {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
@@ -88,10 +78,11 @@ export function getFallbackEventsResult(params: EventFilters = {}): PaginatedRes
   }
 
   if (params.year) {
-    const validYear = sanitizeYearFilter(params.year);
-    if (validYear) {
-      filtered = filtered.filter((e) => e.startDate.startsWith(validYear));
+    const yr = params.year.trim();
+    if (!/^\d{4}$/.test(yr)) {
+      return { data: [], count: 0, page, pageSize, totalPages: 0, error: null };
     }
+    filtered = filtered.filter((e) => e.startDate.startsWith(yr));
   }
 
   if (params.verification) {
@@ -538,10 +529,11 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.year) {
-      const validYear = sanitizeYearFilter(params.year);
-      if (validYear) {
-        query = query.like("start_date", `${validYear}%`);
+      const yr = params.year.trim();
+      if (!/^\d{4}$/.test(yr)) {
+        return { data: [], count: 0, page, pageSize, totalPages: 0, error: null };
       }
+      query = query.like("start_date", `${yr}%`);
     }
 
     if (params.verification) {

@@ -613,5 +613,82 @@ test("verifies ingestion pipeline quote persistence, deterministic slug hashing,
   assert.equal(savedQuote.quote, "Our cooperation on shared strategic interests remains indispensable.");
 });
 
+test("verifies strict year filter rejection for malformed or wildcard queries", async () => {
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
 
+  // Valid 4-digit year query
+  const validRes = await getEvents({ year: "1998" });
+  assert.ok(Array.isArray(validRes.data));
+  assert.ok(validRes.data.every((e) => e.startDate.startsWith("1998")));
 
+  // Malformed or wildcard year queries must return 0 results
+  const wildcardRes = await getEvents({ year: "199%" });
+  assert.equal(wildcardRes.data.length, 0);
+  assert.equal(wildcardRes.count, 0);
+
+  const nonDigitRes = await getEvents({ year: "invalid" });
+  assert.equal(nonDigitRes.data.length, 0);
+  assert.equal(nonDigitRes.count, 0);
+
+  const shortDigitRes = await getEvents({ year: "98" });
+  assert.equal(shortDigitRes.data.length, 0);
+  assert.equal(shortDigitRes.count, 0);
+});
+
+test("verifies findDuplicateEventAsync and collision-resistant event slug disambiguation", async () => {
+  const { findDuplicateEventAsync } = await vite.ssrLoadModule("/lib/ingestion/deduplicate.ts");
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+
+  const candidateA = {
+    title: "Geneva Peace Talks - Morning Plenary Session",
+    summary: "Plenary discussions on regional security frameworks.",
+    startDate: "2015-06-12",
+    eventType: "multilateral-summit",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended Geneva peace plenary." },
+    ],
+  };
+
+  const candidateB = {
+    title: "Geneva Nuclear Accord Working Group",
+    summary: "Technical discussions on nuclear monitoring protocols.",
+    startDate: "2015-06-12",
+    eventType: "bilateral-meeting",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended nuclear working group." },
+    ],
+  };
+
+  const rawSrc = {
+    sourceId: "src-geneva-20150612",
+    sourceTitle: "Swiss Federal Department of Foreign Affairs Dispatch",
+    publisher: "FDFA Switzerland",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://eda.admin.ch/transcripts/2015-06-12",
+  };
+
+  const resA = processCandidateEvent(candidateA, rawSrc);
+  const resB = processCandidateEvent(candidateB, rawSrc);
+
+  assert.ok(resA.publishedEventId);
+  assert.ok(resB.publishedEventId);
+  // Distinct events on the same date with same participant must receive distinct IDs
+  assert.notEqual(resA.publishedEventId, resB.publishedEventId);
+
+  // findDuplicateEventAsync with store fallback
+  const dupMatch = await findDuplicateEventAsync(candidateA);
+  assert.ok(dupMatch);
+});

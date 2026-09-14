@@ -544,7 +544,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_id = venues.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -557,7 +557,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.venue_area_id = venue_areas.id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
@@ -576,7 +576,7 @@ BEGIN
               JOIN public.events e ON e.id = ep.event_id
               WHERE epl.venue_id = v.id
               AND e.publication_status = 'published'
-              AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+              AND epl.public_visibility = 'public-exact'
             )
           )
         )
@@ -602,7 +602,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_locations' AND policyname = 'Allow public read on event_person_locations') THEN
     CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated
       USING (
-        public_visibility IN ('public-exact', 'public-venue', 'public-city')
+        public_visibility = 'public-exact'
         AND EXISTS (
           SELECT 1 FROM public.event_people ep
           JOIN public.events e ON e.id = ep.event_id
@@ -654,7 +654,7 @@ BEGIN
           JOIN public.events e ON e.id = ep.event_id
           WHERE epl.id = event_person_location_sources.event_person_location_id
           AND e.publication_status = 'published'
-          AND epl.public_visibility IN ('public-exact', 'public-venue', 'public-city')
+          AND epl.public_visibility = 'public-exact'
         )
       );
   END IF;
