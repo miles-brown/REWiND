@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
-import { personBySlug } from "@/data/rewind";
+import {
+  getPersonBySlug,
+  getPeople,
+  getAllEvents,
+  getSources,
+  getMonogram,
+} from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
 export default async function RelationshipPage({
@@ -10,9 +16,18 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const pa = personBySlug(a);
-  const pb = personBySlug(b);
+  const [pa, pb] = await Promise.all([
+    getPersonBySlug(a),
+    getPersonBySlug(b),
+  ]);
+
   if (!pa || !pb) notFound();
+
+  const [people, allEvents, sources] = await Promise.all([
+    getPeople(),
+    getAllEvents(),
+    getSources(),
+  ]);
 
   return (
     <div className="page-shell relationship-page">
@@ -26,12 +41,8 @@ export default async function RelationshipPage({
       </div>
 
       <header className="relationship-hero">
-        <span className="person-monogram large">
-          {pa.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+        <span className="person-monogram large" aria-hidden="true">
+          {getMonogram(pa.name)}
         </span>
         <div>
           <span className="eyebrow">DOCUMENTED INTERSECTIONS</span>
@@ -42,16 +53,18 @@ export default async function RelationshipPage({
             Verifiable spacetime intersections and bilateral diplomatic records.
           </p>
         </div>
-        <span className="person-monogram large">
-          {pb.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+        <span className="person-monogram large" aria-hidden="true">
+          {getMonogram(pb.name)}
         </span>
       </header>
 
-      <TimelineComparison initialPersonA={pa.slug} initialPersonB={pb.slug} />
+      <TimelineComparison
+        initialPersonA={pa.slug}
+        initialPersonB={pb.slug}
+        people={people}
+        events={allEvents}
+        sources={sources}
+      />
     </div>
   );
 }

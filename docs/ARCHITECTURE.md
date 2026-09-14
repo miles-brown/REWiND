@@ -16,15 +16,19 @@
     │  - /person/[slug]     │     │  - MapGraphic         │
     │  - /event/[slug]      │     │  - CommandPalette     │
     │  - /sources           │     │  - CitationModal      │
+    │  - /relationship/[a]/[b]   │  - TimelineComparison │
     └───────────┬───────────┘     └───────────┬───────────┘
                 │                             │
                 └──────────────┬──────────────┘
                                │
                ┌───────────────▼───────────────┐
                │    Data & Forensic Engine     │
-               │   - @/data/rewind.ts          │
+               │   - Supabase PostgreSQL Layer │
+               │   - Drizzle ORM (schema-v2.ts)│
+               │   - EventV2 Adapters & Models │
+               │   - Ingestion Deduplication   │
+               │   - @/data/rewind.ts (Memory) │
                │   - @/lib/citations.ts        │
-               │   - Drizzle ORM Schema        │
                └───────────────────────────────┘
 ```
 
@@ -57,6 +61,15 @@
   - **APA 7th Edition**
   - **Chicago 17th Edition** (Notes & Bibliography)
   - **Raw JSON** structured payload with atlas metadata.
+
+### 5. PostgreSQL Architecture & Ingestion Pipeline (`lib/ingestion/`, `supabase/migrations/`, `db/schema-v2.ts`)
+- **Relational PostgreSQL Schema**: Normalized entities spanning `events`, `people`, `sources`, `claims`, `places`, and `event_person_locations`.
+- **Live Database Deduplication**: Asynchronous matching via `findDuplicateEventAsync` prevents redundant event insertion during automated and batch ingest.
+- **Deterministic Suffixing**: Resolves same-day multi-event slug collisions (`evt-...-2`) without data loss.
+- **Row-Level Security (RLS)**: Enforces `public_visibility = 'public-exact'` on location tables to prevent private coordinate leaks.
+- **Fail-Closed Year Validation**: Pre-validates `/^\d{4}$/` inputs before PostgREST query execution.
+- **Transactional Claim Synchronization**: Prevents duplicate claims using `persistedClaimIds`.
+
 
 ---
 
