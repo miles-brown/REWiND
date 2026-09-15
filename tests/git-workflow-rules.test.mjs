@@ -3,43 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  getOpenChildPrs,
+  safeMergeAndCleanBranch,
+  validateBranchTarget,
+  validateSafeBranchDeletion,
+} from "../scripts/safe-branch-merge.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-
-/**
- * Pure validation logic for PR branch targets and safe branch deletion invariants.
- */
-export function validateBranchTarget(baseRefName, headRefName) {
-  if (!baseRefName || typeof baseRefName !== "string") {
-    return { valid: false, error: "Base branch reference is missing or invalid" };
-  }
-  if (!headRefName || typeof headRefName !== "string") {
-    return { valid: false, error: "Head branch reference is missing or invalid" };
-  }
-  if (baseRefName === headRefName) {
-    return { valid: false, error: "Head and base branch cannot be identical" };
-  }
-  if (baseRefName !== "main") {
-    return {
-      valid: false,
-      error: `Rule 1 Violation: PR base branch must strictly be 'main'. Found '${baseRefName}'.`,
-    };
-  }
-  return { valid: true };
-}
-
-export function validateSafeBranchDeletion(branchName, openChildPrCount = 0) {
-  if (!branchName || branchName === "main") {
-    return { canDelete: false, error: "Cannot delete canonical main branch" };
-  }
-  if (openChildPrCount > 0) {
-    return {
-      canDelete: false,
-      error: `Rule 4 Violation: Cannot delete branch '${branchName}' because ${openChildPrCount} open PR(s) target it. Retarget child PRs to 'main' first.`,
-    };
-  }
-  return { canDelete: true };
-}
 
 test("validates Rule 1: Single Canonical Base (main) in documentation and config", () => {
   // Check AGENTS.md
@@ -64,7 +35,16 @@ test("validates Rule 1: Single Canonical Base (main) in documentation and config
     "docs/CONTRIBUTING.md must mandate --base main"
   );
 
-  // Check .coderabbit.yaml base_branches
+  // Check docs/guides/getting-started.md
+  const guidePath = path.join(root, "docs/guides/getting-started.md");
+  assert.ok(fs.existsSync(guidePath), "docs/guides/getting-started.md must exist");
+  const guideContent = fs.readFileSync(guidePath, "utf-8");
+  assert.ok(
+    guideContent.includes("--base main"),
+    "docs/guides/getting-started.md must mandate --base main"
+  );
+
+  // Check .coderabbit.yaml base_branches strictly contains only ['main']
   const yamlPath = path.join(root, ".coderabbit.yaml");
   assert.ok(fs.existsSync(yamlPath), ".coderabbit.yaml must exist");
   const yamlContent = fs.readFileSync(yamlPath, "utf-8");
@@ -140,5 +120,51 @@ test("validates programmatic branch target and safe deletion validation function
   assert.equal(validateSafeBranchDeletion("feature/parent", 3).canDelete, false);
   assert.ok(
     validateSafeBranchDeletion("feature/parent", 2).error?.includes("open PR(s) target it")
+  );
+});
+
+test("validates safeMergeAndCleanBranch execution and child PR cascade protection", () => {
+  const executedCommands = [];
+  const mockExec = (cmd) => {
+    executedCommands.push(cmd);
+    if (cmd.includes("gh pr list")) {
+      return JSON.stringify([]);
+    }
+    return "Merged successfully";
+  };
+
+  // 1. Success case: PR targeting main with 0 child PRs
+  const result = safeMergeAndCleanBranch(21, {
+    prDetails: { number: 21, baseRefName: "main", headRefName: "feature/branch-isolation-and-pr-rules" },
+    childPrs: [],
+    execFn: mockExec,
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.deletedBranch, true);
+  assert.ok(executedCommands.some((c) => c.includes("gh pr merge 21") && c.includes("--delete-branch")));
+
+  // 2. Failure case: PR targeting non-main branch (Rule 1 violation)
+  assert.throws(
+    () => {
+      safeMergeAndCleanBranch(22, {
+        prDetails: { number: 22, baseRefName: "feature/parent-branch", headRefName: "feature/child-branch" },
+        childPrs: [],
+        execFn: mockExec,
+      });
+    },
+    /Rule 1 Violation/
+  );
+
+  // 3. Cascade protection: Branch has open child PRs (Rule 4 violation)
+  assert.throws(
+    () => {
+      safeMergeAndCleanBranch(23, {
+        prDetails: { number: 23, baseRefName: "main", headRefName: "feature/parent-branch" },
+        childPrs: [{ number: 24, title: "Child PR" }],
+        execFn: mockExec,
+      });
+    },
+    /Rule 4 Violation/
   );
 });

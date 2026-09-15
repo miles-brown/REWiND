@@ -68,7 +68,7 @@ node --test tests/ui-components.test.mjs
 ## 5. Pull Requests & Branch Isolation
 
 All contributions follow isolated feature branches targeting `main`:
-1. Always branch from `origin/main`: `git checkout -b feature/<name>`.
+1. Always branch from updated `origin/main`: `git fetch origin && git checkout -b feature/<name> origin/main`.
 2. Target `main` on PR creation: `gh pr create --repo miles-brown/REWiND --base main --head feature/<name>`.
 3. Never open PRs against unmerged feature branches. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../../AGENTS.md) for full operational protocols.
 

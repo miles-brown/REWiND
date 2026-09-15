@@ -34,6 +34,7 @@ graph LR
    git checkout main
    git pull origin main
    git checkout -b feature/<descriptive-feature-name>
+   # Or directly: git fetch origin && git checkout -b feature/<descriptive-feature-name> origin/main
    ```
 
 2. **Implement & Test**:
@@ -79,6 +80,7 @@ graph LR
 7. **Wait for User Review & Merge Sign-Off**:
    - Provide the PR URL and a clear walkthrough summary to the user.
    - Do **NOT** merge the PR until the user has reviewed and approved it.
+   - Once approved, merge safely using `npm run pr:safe-merge <PR_NUMBER>` (or `gh pr merge --squash --delete-branch` after verifying zero open child PRs target the branch).
 
 ### Mandatory PR Branch Isolation & Anti-Cascade Invariants
 
@@ -98,7 +100,7 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 
 4. **Rule 4: Safe Deletion & Cascade Prevention**:
    - `--delete-branch` is strictly permitted only for merged branches targeting `main`.
-   - If stacked or child branches are ever encountered, retarget all child PRs to `main` via `gh pr edit <PR> --base main` *before* deleting any parent branch.
+   - If stacked or child branches are ever encountered, rebase each child branch onto `origin/main` (`git fetch origin && git rebase origin/main`) and retarget child PRs to `main` via `gh pr edit <PR> --base main` *before* deleting any parent branch.
 
 ---
 

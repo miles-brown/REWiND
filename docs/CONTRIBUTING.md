@@ -61,7 +61,8 @@ npm test
    - Avoid unmerged branch dependencies.
 4. **Rule 4: Safe Deletion & Cascade Prevention**:
    - `--delete-branch` is strictly permitted only for merged PRs targeting `main`.
-   - Never delete an intermediate parent branch while child PRs are open without first retargeting child PRs to `main`.
+   - Never delete an intermediate parent branch while child PRs are open. Rebase each child branch onto `origin/main` (`git fetch origin && git rebase origin/main`) and retarget child PRs to `main` via `gh pr edit <PR> --base main` before deleting the parent branch.
+   - Recommended merge command: `npm run pr:safe-merge <PR_NUMBER>`.
 5. **Atomic Commits**: Use clear, conventional commit messages:
    - `feat(timeline): add bidirectional rewind playback`
    - `fix(slider): forward aria-valuetext to thumb`

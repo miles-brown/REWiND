@@ -42,9 +42,15 @@ async function callGeminiReview(diff, changedFiles) {
       const eventData = JSON.parse(fs.readFileSync(GITHUB_EVENT_PATH, "utf-8"));
       const pr = eventData.pull_request;
       if (pr) {
-        prMetadataContext = `\nPR Metadata:\n- Base Branch: ${pr.base?.ref}\n- Head Branch: ${pr.head?.ref}\n- PR Title: ${pr.title}\n`;
+        prMetadataContext = `\nAuthoritative PR Metadata (from GitHub Action Event):\n- Pull Request Number: #${pr.number}\n- Title: ${pr.title}\n- Target Base Branch: ${pr.base?.ref} (SHA: ${pr.base?.sha || "N/A"})\n- Head Branch: ${pr.head?.ref} (SHA: ${pr.head?.sha || "N/A"})\n- Repository: ${pr.base?.repo?.full_name || GITHUB_REPOSITORY}\n`;
       }
-    } catch {}
+    } catch (err) {
+      console.warn("Warning: Could not parse GITHUB_EVENT_PATH:", err.message);
+    }
+  }
+
+  if (!prMetadataContext) {
+    prMetadataContext = "\nPR Metadata Context: Running in local / offline mode without GITHUB_EVENT_PATH. Note: Live GitHub PR base/head invariants cannot be validated offline and are enforced via CI step 'scripts/verify-git-workflow.mjs'.\n";
   }
 
   const prompt = `You are the Lead Forensic Software Engineer & Accessibility Auditor for the REWiND Evidence Atlas.
@@ -54,7 +60,7 @@ Audit the following pull request diff for:
 2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, live announcements).
 3. Forensic Evidence Rigor & Archival Integrity (verified citations, primary sources, coordinates, ISO-8601 dates).
 4. Security & Error Recovery (no token leaks, graceful fallback styles, network resilience).
-5. PR Branch Isolation & Base Invariants (isolated feature branches, canonical base main, no unmerged branch stacking).
+5. PR Branch Isolation & Base Invariants (isolated feature branches cut from origin/main, canonical base strictly 'main', no unmerged branch stacking, safe deletion).
 
 Changed Files (${changedFiles.length}):
 ${changedFiles.join("\n")}
@@ -114,7 +120,6 @@ Provide your review in clean GitHub-Flavored Markdown with:
     throw new Error(`Gemini API error ${res.status}: ${errorText}`);
   }
 
-
   const data = await res.json();
   const candidate = data?.candidates?.[0];
   const parts = candidate?.content?.parts || [];
@@ -135,6 +140,11 @@ Provide your review in clean GitHub-Flavored Markdown with:
 }
 
 function generateLocalSummary(changedFiles) {
+  const isCiMain = process.env.GITHUB_BASE_REF === "main";
+  const branchIsolationItem = isCiMain
+    ? "- [x] **PR Branch Isolation**: Verified target base is 'main' via CI GITHUB_BASE_REF."
+    : "- [?] **PR Branch Isolation**: Static/offline pass (Live PR metadata check unavailable without GITHUB_EVENT_PATH; verified via CI scripts/verify-git-workflow.mjs).";
+
   return `### ♊ Gemini PR Review Agent (Static Verification Pass)
 
 **Changed Files Evaluated (${changedFiles.length}):**
@@ -145,7 +155,7 @@ ${changedFiles.map((f) => `- \`${f}\``).join("\n")}
 - [x] **WCAG 2.1 AA Accessibility**: Semantic button markers, focus visible outlines, and Radix slider semantics.
 - [x] **Map Resilience & Error Recovery**: Scoped MapLibre initialization, unmount cleanup, and fallback raster tiles.
 - [x] **CI Verification Pipeline**: Mandatory \`npm run build:vercel\` gate and \`persist-credentials: false\` security.
-- [x] **PR Branch Isolation**: Feature branch cut from \`origin/main\` targeting canonical \`--base main\`.
+${branchIsolationItem}
 
 > [!NOTE]
 > To enable dynamic Gemini 2.5 Flash LLM reviews directly on GitHub PRs, set the \`GEMINI_API_KEY\` secret in repository Settings → Secrets and variables → Actions.`;
