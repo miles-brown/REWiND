@@ -161,7 +161,8 @@ export async function getSourceEventCountsWithStatus(): Promise<{
       const to = from + batchSize - 1;
       const { data, error } = await supabase
         .from("event_sources")
-        .select("source_id")
+        .select("source_id, events!inner(publication_status)")
+        .eq("events.publication_status", "published")
         .order("id", { ascending: true })
         .range(from, to);
 
@@ -303,19 +304,26 @@ export async function getSourceById(
         };
       }
 
-      if (!error && !s) {
+      if (error) {
+        if (process.env.NODE_ENV === "production") {
+          throw error;
+        }
+        return await getArchiveSourceById(id);
+      }
+
+      if (!s) {
         // Successful Supabase query with no matching source: return canonical miss
         return null;
       }
     }
 
     if (process.env.NODE_ENV === "production") {
-      return null;
+      throw new Error("Database client unavailable in production");
     }
     return await getArchiveSourceById(id);
-  } catch {
+  } catch (err) {
     if (process.env.NODE_ENV === "production") {
-      return null;
+      throw err;
     }
     return await getArchiveSourceById(id);
   }

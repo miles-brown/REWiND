@@ -9,6 +9,10 @@ export default async function PlacePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    notFound();
+  }
+
   const placeData = await getPlaceBySlug(slug);
   if (!placeData) notFound();
 

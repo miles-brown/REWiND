@@ -10,6 +10,10 @@ export default async function SourcePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!id || !/^[a-zA-Z0-9_\-.:]{1,128}$/.test(id)) {
+    notFound();
+  }
+
   const data = await getSourceById(id);
   if (!data) notFound();
 

@@ -234,12 +234,12 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
             <div className="identity-item">
               <small>CITIZENSHIP / LEGAL NATIONALITY</small>
-              <b>{person.citizenship && person.citizenship.length > 0 ? person.citizenship.join(", ") : person.nationality || "Established by passport/state gazette"}</b>
+              <b>{person.citizenship && person.citizenship.length > 0 ? person.citizenship.join(", ") : person.nationality || "Not documented"}</b>
             </div>
 
             <div className="identity-item">
               <small>NATIONAL IDENTITY</small>
-              <b>{person.nationalIdentity || "Publicly self-identified"}</b>
+              <b>{person.nationalIdentity || "Not documented"}</b>
             </div>
 
             <div className="identity-item">
@@ -247,16 +247,16 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
               <b>
                 {person.religion
                   ? `${person.religion}${person.religiousDenomination ? ` (${person.religiousDenomination})` : ""}`
-                  : "Verified through self-identification or official biography"}
+                  : "Not documented"}
               </b>
               <small className="identity-status">
-                Basis: {person.religionStatus || "self-identified"}
+                Basis: {person.religionStatus || "Not documented"}
               </small>
             </div>
 
             <div className="identity-item">
               <small>LANGUAGES</small>
-              <b>{person.languages && person.languages.length > 0 ? person.languages.join(", ") : "Recorded in public speeches"}</b>
+              <b>{person.languages && person.languages.length > 0 ? person.languages.join(", ") : "Not documented"}</b>
             </div>
           </div>
 

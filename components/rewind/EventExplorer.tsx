@@ -57,7 +57,7 @@ export function EventExplorer({
         }
         if (query.trim()) {
           const target = `${e.eventName} ${e.city} ${e.country} ${allTypes.join(" ")}`.toLowerCase();
-          if (!target.includes(query.toLowerCase())) return false;
+          if (!target.includes(query.trim().toLowerCase())) return false;
         }
         return true;
       })

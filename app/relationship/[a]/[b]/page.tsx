@@ -2,10 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import {
-  getPersonBySlug,
-  getPeople,
-  getAllEvents,
-  getSources,
+  getRelationshipBetween,
+  getSourcesByIds,
   getMonogram,
 } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
@@ -17,19 +15,22 @@ export default async function RelationshipPage({
 }) {
   const { a, b } = await params;
   if (!a || !b || a === b) notFound();
+  const slugPattern = /^[a-zA-Z0-9_-]+$/;
+  if (
+    a.length > 120 ||
+    b.length > 120 ||
+    !slugPattern.test(a) ||
+    !slugPattern.test(b)
+  ) {
+    notFound();
+  }
 
-  const [pa, pb] = await Promise.all([
-    getPersonBySlug(a),
-    getPersonBySlug(b),
-  ]);
-
+  const data = await getRelationshipBetween(a, b);
+  if (!data) notFound();
+  const { personA: pa, personB: pb, sharedEvents } = data;
   if (!pa || !pb || pa.id === pb.id) notFound();
-
-  const [people, allEvents, sources] = await Promise.all([
-    getPeople(),
-    getAllEvents(),
-    getSources(),
-  ]);
+  const neededSourceIds = Array.from(new Set(sharedEvents.flatMap((e) => e.sourceIds || [])));
+  const sources = neededSourceIds.length > 0 ? await getSourcesByIds(neededSourceIds) : [];
 
   return (
     <div className="page-shell relationship-page">
@@ -63,8 +64,8 @@ export default async function RelationshipPage({
       <TimelineComparison
         initialPersonA={pa.slug}
         initialPersonB={pb.slug}
-        people={people}
-        events={allEvents}
+        people={[pa, pb]}
+        events={sharedEvents}
         sources={sources}
       />
     </div>

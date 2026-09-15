@@ -690,5 +690,7 @@ test("verifies findDuplicateEventAsync and collision-resistant event slug disamb
 
   // findDuplicateEventAsync with store fallback
   const dupMatch = await findDuplicateEventAsync(candidateA);
-  assert.ok(dupMatch);
+  assert.equal(dupMatch.isDuplicate, true);
+  assert.equal(dupMatch.matchedEventId, resA.publishedEventId);
+  assert.ok(dupMatch.similarity >= 0.85);
 });

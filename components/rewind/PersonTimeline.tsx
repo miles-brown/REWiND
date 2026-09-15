@@ -296,7 +296,7 @@ export function PersonTimeline({
             <MapPin />
             {event.venueName || event.city}
             <small>
-              {event.city}, {event.country} · {event.locationPrecision || "venue"} precision
+              {event.city}, {event.country} · {event.locationPrecision || "unestablished"} precision
             </small>
           </p>
           <div className="detail-tags">
@@ -307,41 +307,45 @@ export function PersonTimeline({
           <div className="person-event-participants">
             <small>DOCUMENTED WITH</small>
             <div>
-              {event.participants.map((participant) => (
-                <Link
-                  key={participant.personId}
-                  href={`/person/${
-                    participant.slug ||
-                    participant.personId.replace(/^p-/, "") ||
-                    person.slug
-                  }`}
-                >
-                  {participant.name}
-                  <span>{participant.role}</span>
-                </Link>
-              ))}
+              {event.participants.map((participant) =>
+                participant.slug ? (
+                  <Link
+                    key={participant.personId}
+                    href={`/person/${participant.slug}`}
+                  >
+                    {participant.name}
+                    <span>{participant.role}</span>
+                  </Link>
+                ) : (
+                  <span
+                    key={participant.personId}
+                    className="participant-unlinked"
+                  >
+                    {participant.name}
+                    <span>{participant.role}</span>
+                  </span>
+                )
+              )}
             </div>
           </div>
           <div className="evidence-summary">
             <div>
               <small>EVIDENCE</small>
-              <b>{source?.title}</b>
+              <b>{source?.title || "Archival Record"}</b>
               <span>
-                {source?.publisher}
+                {source?.publisher || "Primary documentation"}
                 {event.medium?.length ? ` · ${event.medium.join(", ")}` : ""}
               </span>
             </div>
             <div className="evidence-actions">
-              {source && (
-                <button
-                  className="cite-btn"
-                  onClick={() => setCiteOpen(true)}
-                  aria-label="Cite this historical record"
-                >
-                  <Quote size={14} />
-                  <span>Cite</span>
-                </button>
-              )}
+              <button
+                className="cite-btn"
+                onClick={() => setCiteOpen(true)}
+                aria-label="Cite this historical record"
+              >
+                <Quote size={14} />
+                <span>Cite</span>
+              </button>
               {event.quotes && event.quotes.length > 0 && (
                 <button
                   className="cite-btn highlight"

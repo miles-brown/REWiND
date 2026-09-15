@@ -336,7 +336,7 @@ export function MapGraphic({
 
   // Toggle between Dark Basemap and Satellite 3D View
   const toggleMapTheme = () => {
-    if (!mapInstanceRef.current || !MAPBOX_TOKEN) return;
+    if (!mapInstanceRef.current || !MAPBOX_SATELLITE_STYLE) return;
     const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
     setMapTheme(nextTheme);
 
@@ -489,8 +489,8 @@ export function MapGraphic({
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
             onClick={toggleMapTheme}
             aria-pressed={mapTheme === "satellite"}
-            title={mapTheme === "satellite" ? "Switch to Dark Forensic Basemap" : "Switch to Mapbox Satellite 3D View"}
-            aria-label="Mapbox Satellite 3D layer"
+            title={mapTheme === "satellite" ? "Switch to Dark Forensic Basemap" : "Switch to Satellite View"}
+            aria-label="Satellite layer"
           >
             {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
             <span>{mapTheme === "satellite" ? "Dark Map" : "Satellite"}</span>
@@ -504,7 +504,7 @@ export function MapGraphic({
             className={`map-tool-btn ${mapMode === "svg" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             aria-pressed={mapMode === "svg"}
-            title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Mapbox View"}
+            title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Map View"}
             aria-label="Schematic vector map mode"
           >
             <MapPin size={13} />

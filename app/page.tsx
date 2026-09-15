@@ -5,7 +5,8 @@ import { getAtlasStatistics, getPeople } from "@/lib/rewind";
 export default async function Home() {
   const stats = await getAtlasStatistics();
   const people = await getPeople({ limit: 6 });
-  const provisional = Math.max(0, stats.eventCount - stats.verifiedCount);
+  const provisional = stats.provisionalCount;
+  const disputed = stats.disputedCount;
 
   return (
     <>
@@ -34,7 +35,7 @@ export default async function Home() {
             <div><dt>Places</dt><dd>{stats.placeCount}</dd></div>
           </dl>
           <p>
-            <CheckCircle2 />{stats.verifiedCount} verified records <span>·</span> <CircleDashed />{provisional} provisional
+            <CheckCircle2 />{stats.verifiedCount} verified records <span>·</span> <CircleDashed />{provisional} provisional{disputed > 0 ? ` · ${disputed} disputed` : ""}
           </p>
         </aside>
       </section>

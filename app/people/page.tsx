@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, UserRound, Users } from "lucide-react";
-import { getPeople } from "@/lib/rewind";
+import { getPeopleWithStatus } from "@/lib/rewind";
 
 export const metadata: Metadata = {
   title: "Documented People — REWIND Evidence Atlas",
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PeoplePage() {
-  const people = await getPeople();
+  const { data: people, error } = await getPeopleWithStatus();
 
   return (
     <div className="page-shell">
@@ -19,7 +19,25 @@ export default async function PeoplePage() {
         <p>People are connected through dated evidence, not static biographical prose.</p>
       </header>
 
-      {people.length === 0 ? (
+      {error ? (
+        <div
+          className="zero-state"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <Users size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+          <h2>Database unavailable</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The people catalog could not be loaded at this time. Please try again later.
+          </p>
+        </div>
+      ) : people.length === 0 ? (
         <div
           className="zero-state"
           style={{

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
-import { getPlaces } from "@/lib/rewind";
+import { getPlacesWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Documented Places — REWIND Evidence Atlas",
@@ -8,7 +8,7 @@ export const metadata = {
 };
 
 export default async function PlacesPage() {
-  const places = await getPlaces();
+  const { data: places, error } = await getPlacesWithStatus();
 
   return (
     <div className="page-shell">
@@ -20,7 +20,25 @@ export default async function PlacesPage() {
         </p>
       </header>
 
-      {places.length === 0 ? (
+      {error ? (
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Geography register temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            We are unable to load the place index right now. Please try again later.
+          </p>
+        </div>
+      ) : places.length === 0 ? (
         <div
           className="zero-state"
           style={{
@@ -35,8 +53,7 @@ export default async function PlacesPage() {
           <MapPin size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
           <h2>No places registered yet</h2>
           <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
-            The canonical Supabase database is connected. Venues and places will appear here as research
-            records are entered in Milestone B.
+            Venues and places will appear here as research records are documented.
           </p>
         </div>
       ) : (

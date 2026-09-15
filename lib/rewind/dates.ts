@@ -164,7 +164,25 @@ export function formatIsoDate(
   locale = "en-GB"
 ): string {
   if (!dateStr) return "";
-  const d = parseIsoDate(dateStr);
+  const trimmed = dateStr.trim();
+  if (!isStandardIsoDate(trimmed)) return dateStr;
+
+  const datePart = trimmed.split("T")[0];
+  const parts = datePart.split("-");
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const d = new Date(year, month, day, 12, 0, 0);
+    d.setFullYear(year);
+    try {
+      return d.toLocaleDateString(locale, options);
+    } catch {
+      return dateStr;
+    }
+  }
+
+  const d = parseIsoDate(trimmed);
   if (!d) return dateStr;
   try {
     return d.toLocaleDateString(locale, options);
@@ -192,22 +210,37 @@ export function formatTimelineDate(
     return trimmed;
   }
 
-  const d = parseIsoDate(trimmed);
-  if (!d) {
-    return trimmed;
-  }
+  const prec = (precision || "").toLowerCase();
+  const datePart = trimmed.split("T")[0];
+  const parts = datePart.split("-");
 
   try {
-    const prec = (precision || "").toLowerCase();
     // If explicit year precision or only 4-digit year string
-    if (prec === "year" || /^\d{4}$/.test(trimmed)) {
+    if (prec === "year" || /^\d{4}$/.test(trimmed) || parts.length === 1) {
+      const year = parseInt(parts[0], 10);
+      const d = new Date(year, 0, 1, 12, 0, 0);
+      d.setFullYear(year);
       return d.toLocaleDateString("en-GB", { year: "numeric" });
     }
     // If explicit month precision or YYYY-MM string
-    if (prec === "month" || /^\d{4}-\d{2}$/.test(trimmed)) {
+    if (prec === "month" || /^\d{4}-\d{2}$/.test(trimmed) || parts.length === 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const d = new Date(year, month, 1, 12, 0, 0);
+      d.setFullYear(year);
       return d.toLocaleDateString("en-GB", { month: options.month === "long" ? "long" : "short", year: "numeric" });
     }
-    // Default to provided options (day, month, year)
+    // Default to provided options (day, month, year) using calendar date part
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day, 12, 0, 0);
+      d.setFullYear(year);
+      return d.toLocaleDateString("en-GB", options);
+    }
+    const d = parseIsoDate(trimmed);
+    if (!d) return trimmed;
     return d.toLocaleDateString("en-GB", options);
   } catch {
     return trimmed;

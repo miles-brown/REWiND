@@ -20,6 +20,10 @@ export default async function PersonPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    notFound();
+  }
+
   const timelineData = await getPersonTimeline(slug);
   if (!timelineData) notFound();
 

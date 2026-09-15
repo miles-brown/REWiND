@@ -140,11 +140,26 @@ export async function getPlaces(supabaseClient?: unknown): Promise<PlaceRecord[]
 }
 
 /**
+ * Retrieves all gazetteer places with explicit query status.
+ */
+export async function getPlacesWithStatus(supabaseClient?: unknown): Promise<{ data: PlaceRecord[]; error: string | null }> {
+  try {
+    const data = await getPlacesStrict(supabaseClient);
+    return { data, error: null };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to load places";
+    return { data: [], error: msg };
+  }
+}
+
+/**
  * Retrieves a place by slug along with all events that took place there.
  */
 export async function getPlaceBySlug(
   slug: string
 ): Promise<{ place: PlaceRecord; events: EventRecord[] } | null> {
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) return null;
+
   try {
     const supabase = await createClient();
     if (!supabase) return null;

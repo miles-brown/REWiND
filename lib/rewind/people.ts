@@ -60,63 +60,72 @@ function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
 /**
  * Retrieves all monitored historical people from Supabase.
  */
-export async function getPeople(params: { limit?: number } = {}): Promise<PersonRecord[]> {
+export async function getPeopleWithStatus(params: { limit?: number } = {}): Promise<{ data: PersonRecord[]; error: string | null }> {
   try {
     const supabase = await createClient();
-    if (supabase) {
-      if (params.limit) {
-        const { data, error } = await supabase
-          .from("people")
-          .select("*")
-          .eq("publication_status", "published")
-          .order("canonical_name", { ascending: true })
-          .order("id", { ascending: true })
-          .limit(params.limit);
-
-        if (!error && data) {
-          return data.map((p) => mapDatabasePerson(p as Record<string, unknown>));
-        }
-      } else {
-        const allPeople: Record<string, unknown>[] = [];
-        const pageSize = 1000;
-        let from = 0;
-        let paginationFailed = false;
-        while (true) {
-          const { data, error } = await supabase
-            .from("people")
-            .select("*")
-            .eq("publication_status", "published")
-            .order("canonical_name", { ascending: true })
-            .order("id", { ascending: true })
-            .range(from, from + pageSize - 1);
-          if (error) {
-            console.error("Error paginating people catalog:", error);
-            paginationFailed = true;
-            break;
-          }
-          if (!data || data.length === 0) break;
-          allPeople.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
-        if (!paginationFailed) {
-          return allPeople.map((p) => mapDatabasePerson(p));
-        }
+    if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return { data: [], error: "Supabase client unavailable in production" };
       }
+      const fallbackList = fallbackPeople.map(mapFallbackPerson);
+      return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
     }
 
+    if (params.limit) {
+      const { data, error } = await supabase
+        .from("people")
+        .select("*")
+        .eq("publication_status", "published")
+        .order("canonical_name", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(params.limit);
+
+      if (error) {
+        if (process.env.NODE_ENV === "production") {
+          return { data: [], error: error.message };
+        }
+        const fallbackList = fallbackPeople.map(mapFallbackPerson);
+        return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
+      }
+      return { data: (data || []).map((p) => mapDatabasePerson(p as Record<string, unknown>)), error: null };
+    }
+
+    const allPeople: Record<string, unknown>[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("people")
+        .select("*")
+        .eq("publication_status", "published")
+        .order("canonical_name", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) {
+        if (process.env.NODE_ENV === "production") {
+          return { data: [], error: error.message };
+        }
+        const fallbackList = fallbackPeople.map(mapFallbackPerson);
+        return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
+      }
+      if (!data || data.length === 0) break;
+      allPeople.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return { data: allPeople.map((p) => mapDatabasePerson(p)), error: null };
+  } catch (err) {
     if (process.env.NODE_ENV === "production") {
-      return [];
+      return { data: [], error: err instanceof Error ? err.message : "Database error" };
     }
     const fallbackList = fallbackPeople.map(mapFallbackPerson);
-    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
-  } catch {
-    if (process.env.NODE_ENV === "production") {
-      return [];
-    }
-    const fallbackList = fallbackPeople.map(mapFallbackPerson);
-    return params.limit ? fallbackList.slice(0, params.limit) : fallbackList;
+    return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
   }
+}
+
+export async function getPeople(params: { limit?: number } = {}): Promise<PersonRecord[]> {
+  const res = await getPeopleWithStatus(params);
+  return res.data;
 }
 
 /**
@@ -262,6 +271,10 @@ export async function getPersonTimeline(
   events: EventRecord[];
   years: number[];
 } | null> {
+  if (options.year !== undefined && !/^\d{4}$/.test(options.year)) {
+    return null;
+  }
+
   const person = await getPersonBySlug(slug);
   if (!person) return null;
 

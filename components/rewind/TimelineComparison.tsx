@@ -317,21 +317,14 @@ export function TimelineComparison({
     <div className="comparison-workspace">
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {personA && personB
-          ? `Comparing ${personA.name} and ${personB.name}: ${filteredIntersections.length} documented shared encounters.`
+          ? `Comparing ${personA.name} and ${personB.name}: ${filteredIntersections.length} documented shared encounter${filteredIntersections.length === 1 ? "" : "s"}.`
+          : personA
+          ? `Selected figure ${personA.name}. Select a second figure to compare chronologies.`
           : "Select two historical figures to compare chronologies."}
       </div>
 
       {/* Dynamic Comparison Control Console */}
       <section className="comparison-console" aria-label="Comparison controls">
-        {/* ARIA Live Region: Announces dynamic figure selection and automatic co-attendee changes */}
-        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {personA && personB
-            ? `Comparing ${personA.name} with ${personB.name}: ${intersections.length} shared encounter${intersections.length === 1 ? "" : "s"}.`
-            : personA
-            ? `Selected figure ${personA.name}. No co-attendees available for comparison.`
-            : "No figure selected for comparison."}
-        </div>
-
         <div className="comparison-selectors">
           {/* Selector 1: Primary Figure */}
           <div className="selector-card">
@@ -602,7 +595,7 @@ export function TimelineComparison({
                                   title={`Temporal precision: ${temporalPrecision}`}
                                 >
                                   <Calendar size={13} />
-                                  <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>{formatDate(event.startDate)}</time>
+                                  <time dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}>{formatDate(event.startDate, temporalPrecision)}</time>
                                 </span>
 
                                 <span

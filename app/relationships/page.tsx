@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, GitBranch } from "lucide-react";
-import { getRelationships } from "@/lib/rewind";
+import { getRelationshipsWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Diplomatic Relationships — REWIND Evidence Atlas",
@@ -8,7 +8,7 @@ export const metadata = {
 };
 
 export default async function RelationshipsPage() {
-  const relationships = await getRelationships();
+  const { data: relationships, error } = await getRelationshipsWithStatus();
 
   return (
     <div className="page-shell">
@@ -20,7 +20,25 @@ export default async function RelationshipsPage() {
         </p>
       </header>
 
-      {relationships.length === 0 ? (
+      {error ? (
+        <div
+          className="zero-state"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <GitBranch size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+          <h2>Database unavailable</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The relationship graph could not be loaded at this time. Please try again later.
+          </p>
+        </div>
+      ) : relationships.length === 0 ? (
         <div
           className="zero-state"
           style={{

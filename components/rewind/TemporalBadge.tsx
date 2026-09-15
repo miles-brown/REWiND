@@ -6,6 +6,21 @@ export function TemporalBadge({ event }: { event: EventRecord }) {
   const civilDisplay = formatCivilTime(event.localStartTime, event.timezoneAbbreviation);
   const durationDisplay = formatDuration(event.durationSeconds);
 
+  const formatOffset = (seconds: number): string => {
+    const sign = seconds >= 0 ? "+" : "-";
+    const absSeconds = Math.abs(seconds);
+    const hours = Math.floor(absSeconds / 3600);
+    const minutes = Math.floor((absSeconds % 3600) / 60);
+    return `UTC${sign}${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  };
+
+  const dstSuffix =
+    event.dstObserved === true
+      ? " (Daylight Saving)"
+      : event.dstObserved === false
+      ? " (Standard Time)"
+      : "";
+
   return (
     <aside className="temporal-context-box" aria-label="Temporal Context and Standards">
       <div className="temporal-grid">
@@ -34,9 +49,9 @@ export function TemporalBadge({ event }: { event: EventRecord }) {
             <b>{event.timezoneId || "Local Jurisdiction"}</b>
             <span>
               {event.utcOffsetSeconds != null
-                ? `UTC${event.utcOffsetSeconds >= 0 ? "+" : ""}${(event.utcOffsetSeconds / 3600).toFixed(1).replace(".0", "")}:00`
+                ? formatOffset(event.utcOffsetSeconds)
                 : "Standard offset"}
-              {event.dstObserved ? " (Daylight Saving)" : " (Standard Time)"}
+              {dstSuffix}
             </span>
           </div>
         </div>

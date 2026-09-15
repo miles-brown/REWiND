@@ -18,10 +18,19 @@ export function deriveDayOfWeek(isoDate: string): string | null {
   }
   const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
   if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
   // JavaScript months are 0-indexed (0 = January)
   const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   if (isNaN(d.getTime())) return null;
+
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day
+  ) {
+    return null;
+  }
 
   return DAYS_OF_WEEK[d.getUTCDay()] || null;
 }
@@ -69,9 +78,16 @@ export function formatCivilTime(
 ): string | null {
   if (!localTime) return null;
   const match = localTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (!match) return localTime;
+  if (!match) return null;
 
   let hour = parseInt(match[1], 10);
+  const minNum = parseInt(match[2], 10);
+  const secNum = match[3] ? parseInt(match[3], 10) : 0;
+
+  if (hour < 0 || hour > 23 || minNum < 0 || minNum > 59 || secNum < 0 || secNum > 59) {
+    return null;
+  }
+
   const min = match[2];
   const ampm = hour >= 12 ? "PM" : "AM";
   hour = hour % 12;

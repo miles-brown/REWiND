@@ -3,9 +3,12 @@ import { events as fallbackEvents, people as fallbackPeople, sources as fallback
 import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
-import type { Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
+import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
+
+const VALID_CONFIDENCES = new Set<string>(["confirmed", "strong", "moderate", "limited", "disputed"]);
+const VALID_ATTENDANCE_MODES = new Set<string>(["physical", "virtual", "represented", "telephonic", "unspecified", "unknown"]);
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
   (fallbackSources || []).map((s) => [
@@ -193,9 +196,9 @@ export function mapDatabaseEvent(
     longitude: typeof place.longitude === "number" ? place.longitude : (typeof row.longitude === "number" ? row.longitude : null),
     summary: String(row.summary || ""),
     description: row.description ? String(row.description) : undefined,
-    verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "verified",
-    confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" && row.confidence_score < 0.7 ? "moderate" : "confirmed"),
-    confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 1.0,
+    verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "provisional",
+    confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" ? (row.confidence_score < 0.7 ? "moderate" : "confirmed") : "limited"),
+    confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 0.0,
     sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
     sources: Array.isArray(sources) ? sources : [],
     participants: Array.isArray(participants) ? participants : [],
@@ -382,9 +385,9 @@ async function hydrateEventRows(
       slug: personSlugs.get(p.person_id),
       name: personNames.get(p.person_id) || p.person_id,
       role: p.role_label,
-      presenceConfidence: p.presence_confidence,
+      presenceConfidence: (p.presence_confidence && VALID_CONFIDENCES.has(p.presence_confidence) ? p.presence_confidence : undefined) as Confidence | undefined,
       capacityTitle: p.capacity_title || undefined,
-      attendanceMode: p.attendance_mode || "physical",
+      attendanceMode: (p.attendance_mode && VALID_ATTENDANCE_MODES.has(p.attendance_mode) ? p.attendance_mode : "physical") as AttendanceMode,
     });
     participantsMap.set(p.event_id, list);
   });
@@ -965,9 +968,9 @@ export async function getEventBySlug(
           slug: personSlugs.get(p.person_id),
           name: personNames.get(p.person_id) || p.person_id,
           role: p.role_label || undefined,
-          presenceConfidence: p.presence_confidence || undefined,
+          presenceConfidence: (p.presence_confidence && VALID_CONFIDENCES.has(p.presence_confidence) ? p.presence_confidence : undefined) as Confidence | undefined,
           capacityTitle: p.capacity_title || undefined,
-          attendanceMode: p.attendance_mode || "physical",
+          attendanceMode: (p.attendance_mode && VALID_ATTENDANCE_MODES.has(p.attendance_mode) ? p.attendance_mode : "physical") as AttendanceMode,
           latitude: loc?.latitude ?? null,
           longitude: loc?.longitude ?? null,
           coordinatePrecision: loc?.coordinate_precision,
@@ -1100,7 +1103,7 @@ export async function getEventBySlug(
 
       const eventRecord = mapDatabaseEvent(eventRow, placesMap, participantsMap, sourcesMap, sourceEntitiesMap, quotesMap);
       try {
-        const claims = await getClaimsByEvent(eventId);
+        const claims = await getClaimsByEvent(eventId, supabase);
         eventRecord.claims = claims;
       } catch (err) {
         console.warn("Failed to load claims for event:", err);

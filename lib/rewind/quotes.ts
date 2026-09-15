@@ -28,7 +28,9 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
     while (hasMore) {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*")
+        .select("*, people!inner(publication_status), events!inner(publication_status)")
+        .eq("people.publication_status", "published")
+        .eq("events.publication_status", "published")
         .order("created_at", { ascending: false })
         .order("id", { ascending: true })
         .range(from, from + pageSize - 1);

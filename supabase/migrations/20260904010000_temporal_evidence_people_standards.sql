@@ -33,6 +33,7 @@ ALTER TABLE public.sources
 
 -- 3. Extend Claims to General Purpose Epistemic Architecture
 ALTER TABLE public.claims
+  ALTER COLUMN event_id DROP NOT NULL,
   ADD COLUMN IF NOT EXISTS subject_entity_type text DEFAULT 'event',
   ADD COLUMN IF NOT EXISTS subject_entity_id text,
   ADD COLUMN IF NOT EXISTS claim_status text DEFAULT 'PROVISIONAL',

@@ -9,9 +9,24 @@ export const metadata: Metadata = {
 
 export default async function EventsPage() {
   const [stats, eventsResult] = await Promise.all([
-    getAtlasStatistics(),
+    getAtlasStatistics().catch((err) => {
+      console.warn("Atlas statistics unavailable:", err);
+      return {
+        eventCount: 0,
+        verifiedCount: 0,
+        provisionalCount: 0,
+        disputedCount: 0,
+        peopleCount: 0,
+        placesCount: 0,
+        sourcesCount: 0,
+      };
+    }),
     getAllEventsWithStatus(),
   ]);
+
+  if (eventsResult.error) {
+    console.error("Events register load error:", eventsResult.error);
+  }
 
   return (
     <div className="page-shell">
@@ -38,7 +53,7 @@ export default async function EventsPage() {
         >
           <h2>Events register temporarily unavailable</h2>
           <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
-            {eventsResult.error}
+            We are unable to load the events register right now. Please try again later.
           </p>
         </div>
       ) : (

@@ -124,29 +124,29 @@ export function processCandidateEvent(
     store.sources.push(existingSource);
   }
 
-  // 7. Action Based on Policy Lane (In-Memory Store)
-  if (policy.lane === "auto-publish" || policy.lane === "provisional") {
-    if (deduplication.isDuplicate && deduplication.matchedEventId) {
-      // MERGE PATH: Attach additional evidence and claims to existing event
-      publishedEventId = deduplication.matchedEventId;
+  // 7. Action Based on Policy Lane (In-Memory Store only when db is absent)
+  if (!db) {
+    if (policy.lane === "auto-publish" || policy.lane === "provisional") {
+      if (deduplication.isDuplicate && deduplication.matchedEventId) {
+        // MERGE PATH: Attach additional evidence and claims to existing event
+        publishedEventId = deduplication.matchedEventId;
 
-      candidate.claims.forEach((clm, idx) => {
-        const subId = resolveParticipantOrMentionSync(clm.subjectMention);
-        store.claims.push({
-          id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
-          eventId: publishedEventId!,
-          subjectId: subId,
-          claimType: clm.claimType,
-          statement: clm.statement,
-          claimedTime: clm.claimedTime || null,
-          claimedVenue: clm.claimedVenue || null,
-          sourceId: source.sourceId,
-          confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
-          supportingExcerpt: clm.supportingExcerpt || null,
+        candidate.claims.forEach((clm, idx) => {
+          const subId = resolveParticipantOrMentionSync(clm.subjectMention);
+          store.claims.push({
+            id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
+            eventId: publishedEventId!,
+            subjectId: subId,
+            claimType: clm.claimType,
+            statement: clm.statement,
+            claimedTime: clm.claimedTime || null,
+            claimedVenue: clm.claimedVenue || null,
+            sourceId: source.sourceId,
+            confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
+            supportingExcerpt: clm.supportingExcerpt || null,
+          });
         });
-      });
 
-      if (!db) {
         auditPromise = recordAuditEvent(
           "merged",
           policy.ruleId,
@@ -160,92 +160,90 @@ export function processCandidateEvent(
           candidateId
         );
         auditPromise.catch(() => {});
-      }
-    } else {
-      // NEW EVENT PATH: Create new verified/provisional record
-      let existingPlace = store.places.find((p) => p.id === placeResolution.placeId);
-      if (!existingPlace) {
-        existingPlace = {
-          id: placeResolution.placeId,
-          slug: placeResolution.placeId.replace(/^plc-/, ""),
-          venue: placeResolution.venue,
-          city: placeResolution.city,
-          country: placeResolution.country,
-          latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-          longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
-          placeType: "venue",
-        };
-        store.places.push(existingPlace);
-      }
+      } else {
+        // NEW EVENT PATH: Create new verified/provisional record
+        let existingPlace = store.places.find((p) => p.id === placeResolution.placeId);
+        if (!existingPlace) {
+          existingPlace = {
+            id: placeResolution.placeId,
+            slug: placeResolution.placeId.replace(/^plc-/, ""),
+            venue: placeResolution.venue,
+            city: placeResolution.city,
+            country: placeResolution.country,
+            latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+            longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+            placeType: "venue",
+          };
+          store.places.push(existingPlace);
+        }
 
-      const eventSlug = deriveEventSlug(
-        candidate.startDate,
-        resolvedParticipantIds,
-        candidate.eventType,
-        candidate.city,
-        candidate.title
-      );
-      publishedEventId = eventSlug;
+        const eventSlug = deriveEventSlug(
+          candidate.startDate,
+          resolvedParticipantIds,
+          candidate.eventType,
+          candidate.city,
+          candidate.title
+        );
+        publishedEventId = eventSlug;
 
-      store.events.push({
-        id: eventSlug,
-        slug: eventSlug,
-        parentId: null,
-        eventType: candidate.eventType,
-        title: candidate.title,
-        summary: candidate.summary,
-        description: candidate.description || null,
-        startDate: candidate.startDate,
-        endDate: candidate.endDate || null,
-        temporalPrecision: candidate.temporalPrecision,
-        placeId: placeResolution.placeId,
-        seriesId: null,
-        venueId: null,
-        addressId: null,
-        verificationStatus: policy.lane === "auto-publish" ? "verified" : "provisional",
-        confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.85,
-        publicationStatus: "published",
-        publicationLane: policy.lane,
-        significanceScore: 85,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      // Add claims
-      candidate.claims.forEach((clm, idx) => {
-        const subId = resolveParticipantOrMentionSync(clm.subjectMention);
-        store.claims.push({
-          id: `clm-${eventSlug}-${idx}`,
-          eventId: eventSlug,
-          subjectId: subId,
-          claimType: clm.claimType,
-          statement: clm.statement,
-          claimedTime: clm.claimedTime || null,
-          claimedVenue: clm.claimedVenue || null,
-          sourceId: source.sourceId,
-          confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
-          supportingExcerpt: clm.supportingExcerpt || null,
+        store.events.push({
+          id: eventSlug,
+          slug: eventSlug,
+          parentId: null,
+          eventType: candidate.eventType,
+          title: candidate.title,
+          summary: candidate.summary,
+          description: candidate.description || null,
+          startDate: candidate.startDate,
+          endDate: candidate.endDate || null,
+          temporalPrecision: candidate.temporalPrecision,
+          placeId: placeResolution.placeId,
+          seriesId: null,
+          venueId: null,
+          addressId: null,
+          verificationStatus: policy.lane === "auto-publish" ? "verified" : "provisional",
+          confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.85,
+          publicationStatus: "published",
+          publicationLane: policy.lane,
+          significanceScore: 85,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
-      });
 
-      // Add quotes
-      if (candidate.quotes && candidate.quotes.length > 0) {
-        candidate.quotes.forEach((q, idx) => {
-          const spkId = resolveParticipantOrMentionSync(q.speaker);
-          store.quotes.push({
-            id: `quo-${eventSlug}-${idx}`,
+        // Add claims
+        candidate.claims.forEach((clm, idx) => {
+          const subId = resolveParticipantOrMentionSync(clm.subjectMention);
+          store.claims.push({
+            id: `clm-${eventSlug}-${idx}`,
             eventId: eventSlug,
-            speakerId: spkId || createParticipantStubId(q.speaker),
-            quote: q.quote,
-            context: q.context || null,
-            language: "en",
+            subjectId: subId,
+            claimType: clm.claimType,
+            statement: clm.statement,
+            claimedTime: clm.claimedTime || null,
+            claimedVenue: clm.claimedVenue || null,
             sourceId: source.sourceId,
-            timestampInMedia: null,
+            confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
+            supportingExcerpt: clm.supportingExcerpt || null,
           });
         });
-      }
 
-      if (!db) {
+        // Add quotes
+        if (candidate.quotes && candidate.quotes.length > 0) {
+          candidate.quotes.forEach((q, idx) => {
+            const spkId = resolveParticipantOrMentionSync(q.speaker);
+            store.quotes.push({
+              id: `quo-${eventSlug}-${idx}`,
+              eventId: eventSlug,
+              speakerId: spkId || createParticipantStubId(q.speaker),
+              quote: q.quote,
+              context: q.context || null,
+              language: "en",
+              sourceId: source.sourceId,
+              timestampInMedia: null,
+            });
+          });
+        }
+
         auditPromise = recordAuditEvent(
           "auto-published",
           policy.ruleId,
@@ -260,16 +258,13 @@ export function processCandidateEvent(
         );
         auditPromise.catch(() => {});
       }
-    }
-  } else {
-    const existingPending = store.candidateEvents.find(
-      (c) => c.fingerprint === fingerprint && c.status === "pending"
-    );
+    } else {
+      const existingPending = store.candidateEvents.find(
+        (c) => c.fingerprint === fingerprint && c.status === "pending"
+      );
 
-    if (existingPending) {
-      candidateId = existingPending.id;
-      if (!db) {
-        // In-memory only: reuse existing pending candidate without duplicating queue
+      if (existingPending) {
+        candidateId = existingPending.id;
         const auditEntry = store.auditLog[0];
         const syncResult: IngestionResult = {
           candidateId: existingPending.id,
@@ -281,29 +276,27 @@ export function processCandidateEvent(
           auditId: auditEntry ? auditEntry.id : 0,
         };
         return Object.assign(Promise.resolve(syncResult), syncResult);
-      }
-    } else {
-      // Embed sourceId with rawExtraction payload so approval preserves citation
-      const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
+      } else {
+        // Embed sourceId with rawExtraction payload so approval preserves citation
+        const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
 
-      store.candidateEvents.unshift({
-        id: candidateId,
-        fingerprint,
-        rawExtraction: rawPayload,
-        suggestedTitle: candidate.title,
-        suggestedDate: candidate.startDate,
-        suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
-        suggestedParticipants: JSON.stringify(candidate.participants),
-        primarySourceTier: source.sourceTier,
-        assignedLane: policy.lane,
-        duplicateMatchId: deduplication.matchedEventId || null,
-        duplicateSimilarity: deduplication.similarity,
-        status: "pending",
-        rejectionReason: null,
-        createdAt: new Date(),
-      });
+        store.candidateEvents.unshift({
+          id: candidateId,
+          fingerprint,
+          rawExtraction: rawPayload,
+          suggestedTitle: candidate.title,
+          suggestedDate: candidate.startDate,
+          suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
+          suggestedParticipants: JSON.stringify(candidate.participants),
+          primarySourceTier: source.sourceTier,
+          assignedLane: policy.lane,
+          duplicateMatchId: deduplication.matchedEventId || null,
+          duplicateSimilarity: deduplication.similarity,
+          status: "pending",
+          rejectionReason: null,
+          createdAt: new Date(),
+        });
 
-      if (!db) {
         auditPromise = recordAuditEvent(
           "queued-for-review",
           policy.ruleId,
@@ -412,28 +405,30 @@ export function processCandidateEvent(
         });
       }
 
-      // 2. Hash and preserve fetched source payload in schema.sourceFetches (SOURCE_POLICY.md)
-      const rawText = source.rawText || "";
-      const sha256 = createHash("sha256").update(rawText).digest("hex");
-      const [existingFetch] = await tx
-        .select({ id: schema.sourceFetches.id })
-        .from(schema.sourceFetches)
-        .where(
-          and(
-            eq(schema.sourceFetches.sourceId, source.sourceId),
-            eq(schema.sourceFetches.sha256, sha256)
-          )
-        );
-      if (!existingFetch) {
-        await tx.insert(schema.sourceFetches).values({
-          sourceId: source.sourceId,
-          url: source.url || `urn:source:${source.sourceId}`,
-          sha256,
-          httpStatus: 200,
-          rawContent: rawText || null,
-          contentType: "text/plain",
-          fetchedAt: source.fetchedAt ? new Date(source.fetchedAt) : new Date(),
-        });
+      // 2. Hash and preserve fetched source payload in schema.sourceFetches only when fetch evidence exists (SOURCE_POLICY.md)
+      if (source.rawText) {
+        const rawText = source.rawText;
+        const sha256 = createHash("sha256").update(rawText).digest("hex");
+        const [existingFetch] = await tx
+          .select({ id: schema.sourceFetches.id })
+          .from(schema.sourceFetches)
+          .where(
+            and(
+              eq(schema.sourceFetches.sourceId, source.sourceId),
+              eq(schema.sourceFetches.sha256, sha256)
+            )
+          );
+        if (!existingFetch) {
+          await tx.insert(schema.sourceFetches).values({
+            sourceId: source.sourceId,
+            url: source.url || `urn:source:${source.sourceId}`,
+            sha256,
+            httpStatus: 200,
+            rawContent: rawText,
+            contentType: "text/plain",
+            fetchedAt: source.fetchedAt ? new Date(source.fetchedAt) : new Date(),
+          });
+        }
       }
 
       if (livePolicy.lane === "auto-publish" || livePolicy.lane === "provisional") {
@@ -555,6 +550,7 @@ export function processCandidateEvent(
               .from(schema.quotes)
               .where(eq(schema.quotes.eventId, targetEventId));
 
+            const seenBatchQuoteKeys = new Set<string>();
             for (const q of candidate.quotes) {
               const matchingSpeakerId = await resolveParticipantOrMentionLive(q.speaker);
               const speakerStubId = createParticipantStubId(q.speaker, matchingSpeakerId);
@@ -564,6 +560,12 @@ export function processCandidateEvent(
               });
 
               const normQuoteText = q.quote.trim().toLowerCase();
+              const quoteBatchKey = `${speakerId}::${normQuoteText}`;
+              if (seenBatchQuoteKeys.has(quoteBatchKey)) {
+                continue;
+              }
+              seenBatchQuoteKeys.add(quoteBatchKey);
+
               const isDupQuote = existingQuotes.some(
                 (eqRow) =>
                   eqRow.speakerId === speakerId &&
@@ -790,6 +792,7 @@ export function processCandidateEvent(
               .from(schema.quotes)
               .where(eq(schema.quotes.eventId, eventSlug));
 
+            const seenBatchQuoteKeys = new Set<string>();
             for (const q of candidate.quotes) {
               const matchingSpeakerId = await resolveParticipantOrMentionLive(q.speaker);
               const speakerStubId = createParticipantStubId(q.speaker, matchingSpeakerId);
@@ -799,6 +802,12 @@ export function processCandidateEvent(
               });
 
               const normQuoteText = q.quote.trim().toLowerCase();
+              const quoteBatchKey = `${speakerId}::${normQuoteText}`;
+              if (seenBatchQuoteKeys.has(quoteBatchKey)) {
+                continue;
+              }
+              seenBatchQuoteKeys.add(quoteBatchKey);
+
               const isDupQuote = existingQuotes.some(
                 (eqRow) =>
                   eqRow.speakerId === speakerId &&

@@ -14,7 +14,7 @@ export function CitationModal({
   onClose,
 }: {
   event: EventRecord;
-  source?: SourceRecord;
+  source?: SourceRecord | null;
   isOpen: boolean;
   onClose: () => void;
 }) {
@@ -33,22 +33,20 @@ export function CitationModal({
   const source: SourceRecord | undefined = explicitSource || event.sources?.[0];
 
   let text = "";
-  if (source) {
-    if (format === "bibtex") text = formatBibTeX(event, source);
-    else if (format === "apa") text = formatAPA(event, source);
-    else if (format === "chicago") text = formatChicago(event, source);
-    else if (format === "json") text = formatJSON(event, source);
-  }
+  if (format === "bibtex") text = formatBibTeX(event, source);
+  else if (format === "apa") text = formatAPA(event, source);
+  else if (format === "chicago") text = formatChicago(event, source);
+  else if (format === "json") text = formatJSON(event, source);
 
   const handleCopy = async () => {
-    if (!source || !text) return;
+    if (!text) return;
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    if (!source || !text) return;
+    if (!text) return;
     const ext = format === "json" ? "json" : format === "bibtex" ? "bib" : "txt";
     const mime = format === "json" ? "application/json" : "text/plain";
     const blob = new Blob([text], { type: mime });
@@ -85,7 +83,7 @@ export function CitationModal({
           ))}
         </div>
         <div className="citation-preview-wrapper">
-          {source ? (
+          {text ? (
             <pre className="citation-preview"><code>{text}</code></pre>
           ) : (
             <div className="citation-unavailable" role="alert" aria-live="assertive" style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#94a3b8" }}>
@@ -97,11 +95,11 @@ export function CitationModal({
           )}
         </div>
         <footer className="citation-modal-footer">
-          <button className="citation-action-btn" onClick={handleDownload} disabled={!source || !text}>
+          <button className="citation-action-btn" onClick={handleDownload} disabled={!text}>
             <Download size={15} />
             <span>Download</span>
           </button>
-          <button className="citation-action-btn primary" onClick={handleCopy} disabled={!source || !text}>
+          <button className="citation-action-btn primary" onClick={handleCopy} disabled={!text}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
             <span>{copied ? "Copied!" : "Copy to Clipboard"}</span>
           </button>

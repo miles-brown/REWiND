@@ -232,7 +232,7 @@ export function SourcesCatalog({
             <dd className="kpi-num">{publishers.length}</dd>
           </div>
           <div className="source-kpi">
-            <dt className="kpi-label">Total Corroborated Claims</dt>
+            <dt className="kpi-label">Total Event-Source Links</dt>
             <dd className="kpi-num">{eventMetricsError ? "Unavailable" : totalEvidencedLinks}</dd>
           </div>
         </dl>

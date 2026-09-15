@@ -99,7 +99,7 @@ function parseConfidence(c?: string | null, fallback: Confidence = "limited"): C
   return fallback;
 }
 
-function parsePrecision(p?: string | null): Precision {
+function parsePrecision(p?: string | null, dateStr?: string | null): Precision {
   if (
     p === "exact" ||
     p === "exact-day" ||
@@ -113,7 +113,13 @@ function parsePrecision(p?: string | null): Precision {
   ) {
     return p;
   }
-  return "exact-day";
+  if (dateStr && typeof dateStr === "string") {
+    const trimmed = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return "exact-day";
+    if (/^\d{4}-\d{2}$/.test(trimmed)) return "month";
+    if (/^\d{4}$/.test(trimmed)) return "year";
+  }
+  return "unknown";
 }
 
 function parseVerification(v?: string | null): "verified" | "provisional" | "disputed" {
@@ -129,9 +135,11 @@ function parseVerification(v?: string | null): "verified" | "provisional" | "dis
 export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
   const canonicalTitle = deriveCanonicalTitle(legacy.eventName, legacy.venueName);
 
-  const isCoarseLocation =
-    legacy.locationPrecision === "city" || legacy.locationPrecision === "country";
-  const locationPublicVis: VisibilityLevel = isCoarseLocation ? "public-city" : "public-exact";
+  const mappedLocPrec = mapLegacyLocationPrecision(legacy.locationPrecision);
+  const locationPublicVis: VisibilityLevel =
+    mappedLocPrec === "building" || mappedLocPrec === "room" || mappedLocPrec === "stage" || mappedLocPrec === "exact-position"
+      ? "public-exact"
+      : "public-city";
 
   // Derive initial person participation records
   const people: EventPerson[] = (legacy.participants || []).map((p, idx) => {
@@ -223,7 +231,7 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     possibleDateConflict: false,
     possibleLocationConflict: false,
     sensitiveLocation: false,
-    exactLocationPublic: !isCoarseLocation && legacy.locationPrecision !== "unknown",
+    exactLocationPublic: mappedLocPrec === "building" || mappedLocPrec === "venue" || mappedLocPrec === "exact-position",
     readyForPublication: legacy.verificationStatus === "verified",
     featuredEvent: legacy.confidence === "confirmed",
     dataCompletenessScore: 85,
@@ -242,8 +250,8 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
     localStartTime: legacy.localStartTime ?? null,
     localEndTime: legacy.localEndTime ?? null,
     timezone: legacy.timezone ?? null,
-    datePrecision: parsePrecision(legacy.datePrecision),
-    timePrecision: parsePrecision(legacy.timePrecision),
+    datePrecision: parsePrecision(legacy.datePrecision, legacy.startDate),
+    timePrecision: parsePrecision(legacy.timePrecision || legacy.datePrecision, legacy.startDate),
     locationType,
     venueName: legacy.venueName ?? null,
     city: legacy.city,
@@ -325,8 +333,8 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     localStartTime: v2.localStartTime || null,
     localEndTime: v2.localEndTime || null,
     timezone: v2.timezone || null,
-    datePrecision: parsePrecision(v2.datePrecision),
-    timePrecision: parsePrecision(v2.timePrecision || v2.datePrecision),
+    datePrecision: parsePrecision(v2.datePrecision, v2.startDate),
+    timePrecision: parsePrecision(v2.timePrecision || v2.datePrecision, v2.startDate),
     platform: compat ? compat.platform : (v2.eventSeriesId || null),
     venueName: v2.venueName || null,
     address: compat ? compat.address : null,
@@ -341,7 +349,10 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
           personId: p.personId,
           name: p.personName || p.personId || p.roleLabel,
           role: p.capacityTitle || p.roleLabel,
-          presenceConfidence: p.presenceConfidence,
+          presenceConfidence: parseConfidence(p.presenceConfidence),
+          roleConfidence: parseConfidence(p.roleConfidence),
+          capacityTitle: p.capacityTitle || undefined,
+          attendanceMode: p.attendanceMode,
         }))
       : [],
     organisations: Array.isArray(v2.organisations)
@@ -351,7 +362,7 @@ export function projectV2ToLegacy(v2: EventV2): EventRecord {
     scope: compat?.scope || (v2.factualFlags?.publicEvent === "yes" ? "public" : "diplomatic"),
     medium: Array.isArray(compat?.medium)
       ? [...compat.medium]
-      : (v2.factualFlags?.televised === "yes" ? ["broadcast"] : ["official-record"]),
+      : (v2.factualFlags?.televised === "yes" ? ["broadcast"] : []),
     confidence: parseConfidence(v2.confidence),
     verificationStatus: parseVerification(v2.verificationStatus),
     sourceIds: Array.isArray(v2.sourceIds) ? [...v2.sourceIds] : [],

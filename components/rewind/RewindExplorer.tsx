@@ -244,20 +244,18 @@ export function RewindExplorer({
             <div className="evidence-summary">
               <div>
                 <small>PRIMARY EVIDENCE</small>
-                <b>{source?.title}</b>
-                <span>{source?.publisher}</span>
+                <b>{source?.title || "Archival Record"}</b>
+                <span>{source?.publisher || "Primary documentation"}</span>
               </div>
               <div className="evidence-actions">
-                {source && (
-                  <button
-                    className="cite-btn"
-                    onClick={() => setCiteOpen(true)}
-                    aria-label="Cite this record"
-                  >
-                    <Quote size={13} />
-                    <span>Cite</span>
-                  </button>
-                )}
+                <button
+                  className="cite-btn"
+                  onClick={() => setCiteOpen(true)}
+                  aria-label="Cite this record"
+                >
+                  <Quote size={13} />
+                  <span>Cite</span>
+                </button>
                 {source?.url && (
                   <a
                     href={source.url}
@@ -428,7 +426,7 @@ export function RewindExplorer({
         })()}
       </div>
 
-      {citeOpen && event && source && (
+      {citeOpen && event && (
         <CitationModal
           event={event}
           source={source}

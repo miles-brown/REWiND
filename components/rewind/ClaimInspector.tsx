@@ -74,7 +74,9 @@ export function ClaimInspector({
                 <span className={`claim-status-pill ${getStatusBadgeClass(claim.claimStatus)}`}>
                   {claim.claimStatus === "ESTABLISHED" ? (
                     <CheckCircle2 size={13} />
-                  ) : claim.claimStatus === "DISPUTED" || claim.claimStatus === "CONTRADICTED" ? (
+                  ) : claim.claimStatus === "DISPUTED" ||
+                    claim.claimStatus === "CONTRADICTED" ||
+                    claim.claimStatus === "DEMONSTRABLY FALSE" ? (
                     <AlertTriangle size={13} />
                   ) : (
                     <HelpCircle size={13} />
@@ -144,7 +146,12 @@ export function ClaimInspector({
                           </span>
                         )}
                         {ev.sourceUrl && (
-                          <a href={ev.sourceUrl} target="_blank" rel="noreferrer" aria-label="Open source">
+                          <a
+                            href={ev.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Open source${ev.sourceTitle ? `: ${ev.sourceTitle}` : ev.sourceId ? `: ${ev.sourceId}` : ""}`}
+                          >
                             <ExternalLink size={12} />
                           </a>
                         )}

@@ -10,6 +10,7 @@ export default async function PersonYearPage({
   params: Promise<{ slug: string; year: string }>;
 }) {
   const { slug, year } = await params;
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) notFound();
   if (!/^\d{4}$/.test(year)) notFound();
 
   const timelineData = await getPersonTimeline(slug, { year });

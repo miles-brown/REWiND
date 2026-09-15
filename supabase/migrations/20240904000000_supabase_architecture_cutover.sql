@@ -342,7 +342,7 @@ CREATE TABLE IF NOT EXISTS public.claims (
   claimed_time text,
   claimed_venue text,
   source_id text REFERENCES public.sources(id),
-  confidence text DEFAULT 'confirmed' NOT NULL,
+  confidence text DEFAULT 'limited' NOT NULL,
   supporting_excerpt text,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );

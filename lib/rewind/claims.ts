@@ -1,12 +1,52 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ClaimRecord, ClaimEvidenceRecord, ClaimStatus, EpistemicClass } from "./types";
 
+const ALLOWED_CLAIM_STATUSES = new Set<ClaimStatus>([
+  "ESTABLISHED",
+  "STRONGLY SUPPORTED",
+  "SUPPORTED",
+  "PROVISIONAL",
+  "UNVERIFIED",
+  "DISPUTED",
+  "CONTRADICTED",
+  "DEMONSTRABLY FALSE",
+  "UNKNOWN",
+]);
+
+const ALLOWED_EPISTEMIC_CLASSES = new Set<EpistemicClass>([
+  "observed fact",
+  "documented fact",
+  "derived/computed fact",
+  "attributed assertion",
+  "expert interpretation",
+  "editorial inference",
+  "opinion",
+  "allegation",
+  "disputed proposition",
+  "unknown",
+]);
+
+function parseClaimStatus(status?: string | null): ClaimStatus {
+  if (status && ALLOWED_CLAIM_STATUSES.has(status as ClaimStatus)) {
+    return status as ClaimStatus;
+  }
+  return "UNKNOWN";
+}
+
+function parseEpistemicClass(epistemic?: string | null): EpistemicClass {
+  if (epistemic && ALLOWED_EPISTEMIC_CLASSES.has(epistemic as EpistemicClass)) {
+    return epistemic as EpistemicClass;
+  }
+  return "unknown";
+}
+
 /**
  * Retrieves all factual claims associated with a specific event, including their evidential attachments.
  */
-export async function getClaimsByEvent(eventId: string): Promise<ClaimRecord[]> {
+export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown): Promise<ClaimRecord[]> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (!supabase) return [];
 
     const { data: claimsData, error: claimsError } = await supabase
@@ -18,51 +58,56 @@ export async function getClaimsByEvent(eventId: string): Promise<ClaimRecord[]> 
       return [];
     }
 
-    const claimIds = claimsData.map((c) => c.id);
-    const { data: evidenceData } = await supabase
+    const claimIds = claimsData.map((c: { id: string }) => c.id);
+    const { data: evidenceData, error: evidenceError } = await supabase
       .from("claim_evidence")
       .select("*, sources(id, title, publisher, url)")
       .in("claim_id", claimIds);
 
+    if (evidenceError) {
+      console.error("Error retrieving claim evidence:", evidenceError);
+      return [];
+    }
+
     const evidenceMap = new Map<string, ClaimEvidenceRecord[]>();
-    (evidenceData || []).forEach((ev) => {
-      const list = evidenceMap.get(ev.claim_id) || [];
-      const src = Array.isArray(ev.sources) ? ev.sources[0] : ev.sources;
+    (evidenceData || []).forEach((ev: Record<string, unknown>) => {
+      const list = evidenceMap.get(String(ev.claim_id)) || [];
+      const src = (Array.isArray(ev.sources) ? ev.sources[0] : ev.sources) as Record<string, unknown> | undefined;
       list.push({
-        id: ev.id,
-        claimId: ev.claim_id,
-        sourceId: ev.source_id,
-        sourceTitle: src?.title,
-        sourcePublisher: src?.publisher,
-        sourceUrl: src?.url,
-        evidenceForm: ev.evidence_form,
-        evidenceStrength: ev.evidence_strength,
+        id: String(ev.id),
+        claimId: String(ev.claim_id),
+        sourceId: String(ev.source_id || ""),
+        sourceTitle: src?.title ? String(src.title) : undefined,
+        sourcePublisher: src?.publisher ? String(src.publisher) : undefined,
+        sourceUrl: src?.url ? String(src.url) : undefined,
+        evidenceForm: String(ev.evidence_form || "direct-citation"),
+        evidenceStrength: String(ev.evidence_strength || "conclusive"),
         directness: (ev.directness as "direct" | "inferential") || "direct",
-        citationLocator: ev.citation_locator || undefined,
-        supportingExcerpt: ev.supporting_excerpt || undefined,
+        citationLocator: ev.citation_locator ? String(ev.citation_locator) : undefined,
+        supportingExcerpt: ev.supporting_excerpt ? String(ev.supporting_excerpt) : undefined,
         contradictsClaim: Boolean(ev.contradicts_claim),
       });
-      evidenceMap.set(ev.claim_id, list);
+      evidenceMap.set(String(ev.claim_id), list);
     });
 
-    return claimsData.map((c) => ({
-      id: c.id,
-      eventId: c.event_id,
-      subjectEntityType: c.subject_entity_type || "event",
-      subjectEntityId: c.subject_entity_id || undefined,
-      claimType: c.claim_type,
-      statement: c.statement,
-      claimedTime: c.claimed_time || undefined,
-      claimedVenue: c.claimed_venue || undefined,
-      sourceId: c.source_id || undefined,
-      confidence: c.confidence,
-      claimStatus: (c.claim_status as ClaimStatus) || "ESTABLISHED",
-      epistemicClass: (c.epistemic_class as EpistemicClass) || "documented fact",
-      legalStatus: c.legal_status || undefined,
+    return claimsData.map((c: Record<string, unknown>) => ({
+      id: String(c.id),
+      eventId: c.event_id ? String(c.event_id) : undefined,
+      subjectEntityType: (c.subject_entity_type as "event" | "person" | "organisation") || "event",
+      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : undefined,
+      claimType: String(c.claim_type),
+      statement: String(c.statement),
+      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
+      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
+      sourceId: c.source_id ? String(c.source_id) : undefined,
+      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
+      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
+      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
+      legalStatus: c.legal_status ? String(c.legal_status) : undefined,
       isAttributedOnly: Boolean(c.is_attributed_only),
-      attributionSpeakerId: c.attribution_speaker_id || undefined,
-      supportingExcerpt: c.supporting_excerpt || undefined,
-      evidence: evidenceMap.get(c.id) || [],
+      attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
+      supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
+      evidence: evidenceMap.get(String(c.id)) || [],
     }));
   } catch {
     return [];
@@ -72,9 +117,10 @@ export async function getClaimsByEvent(eventId: string): Promise<ClaimRecord[]> 
 /**
  * Retrieves biographical or event claims concerning a specific person.
  */
-export async function getClaimsByPerson(personId: string): Promise<ClaimRecord[]> {
+export async function getClaimsByPerson(personId: string, supabaseClient?: unknown): Promise<ClaimRecord[]> {
   try {
-    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
     if (!supabase) return [];
 
     const { data: claimsData, error } = await supabase
@@ -84,23 +130,24 @@ export async function getClaimsByPerson(personId: string): Promise<ClaimRecord[]
 
     if (error || !claimsData) return [];
 
-    return claimsData.map((c) => ({
-      id: c.id,
-      eventId: c.event_id || undefined,
-      subjectEntityType: c.subject_entity_type || "person",
-      subjectEntityId: c.subject_entity_id || c.subject_id,
-      claimType: c.claim_type,
-      statement: c.statement,
-      claimedTime: c.claimed_time || undefined,
-      claimedVenue: c.claimed_venue || undefined,
-      sourceId: c.source_id || undefined,
-      confidence: c.confidence,
-      claimStatus: (c.claim_status as ClaimStatus) || "ESTABLISHED",
-      epistemicClass: (c.epistemic_class as EpistemicClass) || "documented fact",
+    return claimsData.map((c: Record<string, unknown>) => ({
+      id: String(c.id),
+      eventId: c.event_id ? String(c.event_id) : undefined,
+      subjectEntityType: (c.subject_entity_type as "event" | "person" | "organisation") || "person",
+      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
+      claimType: String(c.claim_type),
+      statement: String(c.statement),
+      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
+      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
+      sourceId: c.source_id ? String(c.source_id) : undefined,
+      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
+      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
+      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
       legalStatus: c.legal_status || undefined,
       isAttributedOnly: Boolean(c.is_attributed_only),
       attributionSpeakerId: c.attribution_speaker_id || undefined,
       supportingExcerpt: c.supporting_excerpt || undefined,
+      evidence: [],
     }));
   } catch {
     return [];

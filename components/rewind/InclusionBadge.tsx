@@ -16,13 +16,7 @@ const CRITERIA_LABELS: Record<string, string> = {
 export function InclusionBadge({ person }: { person: PersonRecord }) {
   const criteria = person.inclusionBasis && person.inclusionBasis.length > 0
     ? person.inclusionBasis
-    : [
-        person.classification === "head-of-state" || person.classification === "prime-minister"
-          ? "head-of-state-or-government"
-          : "central-nexus-to-historical-events",
-        "substantial-independent-coverage",
-        "scholarly-historiographical-subject",
-      ];
+    : [];
 
   return (
     <section className="inclusion-panel" aria-label="REWiND Indexing Basis">
@@ -33,18 +27,24 @@ export function InclusionBadge({ person }: { person: PersonRecord }) {
         <h3>Why this figure is indexed in the Evidence Atlas</h3>
         <p>
           {person.inclusionRationale ||
-            `${person.name} qualifies for chronological evidentiary coverage under REWiND's historical notability standards due to documented sovereign public mandates, extensive diplomatic records, and enduring archival relevance.`}
+            "Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile."}
         </p>
       </div>
 
-      <div className="inclusion-criteria-list">
-        {criteria.map((key) => (
-          <div key={key} className="criterion-item">
-            <CheckCircle2 size={16} className="text-emerald-500" />
-            <span>{CRITERIA_LABELS[key] || key.replace(/-/g, " ")}</span>
-          </div>
-        ))}
-      </div>
+      {criteria.length > 0 ? (
+        <div className="inclusion-criteria-list">
+          {criteria.map((key) => (
+            <div key={key} className="criterion-item">
+              <CheckCircle2 size={16} className="text-emerald-500" />
+              <span>{CRITERIA_LABELS[key] || key.replace(/-/g, " ")}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-copy" style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "10px 0" }}>
+          Specific inclusion criteria have not yet been recorded.
+        </p>
+      )}
 
       <div className="inclusion-footer">
         <small>

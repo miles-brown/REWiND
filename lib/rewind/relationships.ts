@@ -66,124 +66,147 @@ function getFallbackRelationships(): RelationshipItem[] {
  * Retrieves the diplomatic co-appearance network across all monitored individuals,
  * restricted strictly to verified and published events.
  */
+export async function getRelationshipsWithStatus(): Promise<{ data: RelationshipItem[]; error: string | null }> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return { data: [], error: "Supabase connection is not configured." };
+      }
+      return { data: getFallbackRelationships(), error: null };
+    }
+
+    // Filter participations by verified and published events with robust pagination
+    const participations: { event_id: string; person_id: string; role_label: string | null }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("event_people")
+        .select("event_id, person_id, role_label, attendance_mode, involvement_type, presence_confidence, events!inner(id, verification_status, publication_status)")
+        .eq("events.verification_status", "verified")
+        .eq("events.publication_status", "published")
+        .eq("attendance_mode", "physical")
+        .neq("presence_confidence", "disputed")
+        .order("event_id", { ascending: true })
+        .order("person_id", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        if (process.env.NODE_ENV === "production") {
+          return { data: [], error: error.message };
+        }
+        return { data: getFallbackRelationships(), error: null };
+      }
+
+      if (data) {
+        participations.push(...(data as typeof participations));
+      }
+
+      if (!data || data.length < pageSize) {
+        hasMore = false;
+      } else {
+        from += pageSize;
+      }
+    }
+
+    if (participations.length > 0) {
+      // Group persons by event
+      const eventPersons = new Map<string, string[]>();
+      participations.forEach((p) => {
+        const list = eventPersons.get(p.event_id) || [];
+        if (!list.includes(p.person_id)) list.push(p.person_id);
+        eventPersons.set(p.event_id, list);
+      });
+
+      // Pairwise counts
+      const pairCounts = new Map<string, number>();
+      for (const persons of eventPersons.values()) {
+        if (persons.length < 2) continue;
+        for (let i = 0; i < persons.length; i++) {
+          for (let j = i + 1; j < persons.length; j++) {
+            const [a, b] = [persons[i], persons[j]].sort();
+            const key = `${a}::${b}`;
+            pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+          }
+        }
+      }
+
+      if (pairCounts.size === 0) {
+        return { data: [], error: null };
+      }
+
+      // Fetch person names in 500-ID chunks
+      const allPersonIds = Array.from(
+        new Set(
+          Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
+        )
+      );
+      const CHUNK_SIZE = 500;
+      const people: Array<{ id: string; slug: string; display_name: string | null; canonical_name: string }> = [];
+      for (let i = 0; i < allPersonIds.length; i += CHUNK_SIZE) {
+        const chunk = allPersonIds.slice(i, i + CHUNK_SIZE);
+        const { data: chunkPeople, error: peopleError } = await supabase
+          .from("people")
+          .select("id, slug, display_name, canonical_name")
+          .in("id", chunk);
+        if (peopleError) {
+          if (process.env.NODE_ENV === "production") {
+            return { data: [], error: peopleError.message };
+          }
+          return { data: getFallbackRelationships(), error: null };
+        }
+        if (chunkPeople) {
+          people.push(...chunkPeople);
+        }
+      }
+
+      const personMap = new Map<string, { slug: string; name: string }>();
+      (people || []).forEach((p) => {
+        personMap.set(p.id, {
+          slug: p.slug,
+          name: p.display_name || p.canonical_name,
+        });
+      });
+
+      const relationships: RelationshipItem[] = [];
+      for (const [key, count] of pairCounts.entries()) {
+        const [idA, idB] = key.split("::");
+        const personA = personMap.get(idA);
+        const personB = personMap.get(idB);
+        if (!personA || !personB) continue;
+
+        relationships.push({
+          id: `${personA.slug}-${personB.slug}`,
+          source: personA.slug,
+          target: personB.slug,
+          sourceName: personA.name,
+          targetName: personB.name,
+          sharedEventsCount: count,
+          types: ["diplomatic-meeting"],
+        });
+      }
+
+      return { data: relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount), error: null };
+    }
+
+    return { data: [], error: null };
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      return { data: [], error: err instanceof Error ? err.message : "Database error" };
+    }
+    return { data: getFallbackRelationships(), error: null };
+  }
+}
+
 export async function getRelationships(): Promise<RelationshipItem[]> {
   try {
     const supabase = await createClient();
     if (supabase) {
-      // Filter participations by verified and published events with robust pagination
-      const participations: { event_id: string; person_id: string; role_label: string | null }[] = [];
-      const pageSize = 1000;
-      let from = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("event_people")
-          .select("event_id, person_id, role_label, events!inner(id, verification_status, publication_status)")
-          .eq("events.verification_status", "verified")
-          .eq("events.publication_status", "published")
-          .order("event_id", { ascending: true })
-          .order("person_id", { ascending: true })
-          .range(from, from + pageSize - 1);
-
-        if (error) {
-          if (process.env.NODE_ENV === "production") {
-            return [];
-          }
-          return getFallbackRelationships();
-        }
-
-        if (data) {
-          participations.push(...(data as typeof participations));
-        }
-
-        if (!data || data.length < pageSize) {
-          hasMore = false;
-        } else {
-          from += pageSize;
-        }
-      }
-
-      if (participations.length > 0) {
-        // Group persons by event
-        const eventPersons = new Map<string, string[]>();
-        participations.forEach((p) => {
-          const list = eventPersons.get(p.event_id) || [];
-          if (!list.includes(p.person_id)) list.push(p.person_id);
-          eventPersons.set(p.event_id, list);
-        });
-
-        // Pairwise counts
-        const pairCounts = new Map<string, number>();
-        for (const persons of eventPersons.values()) {
-          if (persons.length < 2) continue;
-          for (let i = 0; i < persons.length; i++) {
-            for (let j = i + 1; j < persons.length; j++) {
-              const [a, b] = [persons[i], persons[j]].sort();
-              const key = `${a}::${b}`;
-              pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
-            }
-          }
-        }
-
-        if (pairCounts.size === 0) {
-          return [];
-        }
-
-        // Fetch person names in 500-ID chunks
-        const allPersonIds = Array.from(
-          new Set(
-            Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
-          )
-        );
-        const CHUNK_SIZE = 500;
-        const people: Array<{ id: string; slug: string; display_name: string | null; canonical_name: string }> = [];
-        for (let i = 0; i < allPersonIds.length; i += CHUNK_SIZE) {
-          const chunk = allPersonIds.slice(i, i + CHUNK_SIZE);
-          const { data: chunkPeople, error: peopleError } = await supabase
-            .from("people")
-            .select("id, slug, display_name, canonical_name")
-            .in("id", chunk);
-          if (peopleError) {
-            if (process.env.NODE_ENV === "production") {
-              return [];
-            }
-            return getFallbackRelationships();
-          }
-          if (chunkPeople) {
-            people.push(...chunkPeople);
-          }
-        }
-
-        const personMap = new Map<string, { slug: string; name: string }>();
-        (people || []).forEach((p) => {
-          personMap.set(p.id, {
-            slug: p.slug,
-            name: p.display_name || p.canonical_name,
-          });
-        });
-
-        const relationships: RelationshipItem[] = [];
-        for (const [key, count] of pairCounts.entries()) {
-          const [idA, idB] = key.split("::");
-          const personA = personMap.get(idA);
-          const personB = personMap.get(idB);
-          if (!personA || !personB) continue;
-
-          relationships.push({
-            id: `${personA.slug}-${personB.slug}`,
-            source: personA.slug,
-            target: personB.slug,
-            sourceName: personA.name,
-            targetName: personB.name,
-            sharedEventsCount: count,
-            types: ["diplomatic-meeting"],
-          });
-        }
-
-        return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
-      }
-
+      const res = await getRelationshipsWithStatus();
+      return res.data;
       return [];
     }
 
@@ -226,19 +249,31 @@ export async function getRelationshipBetween(
         let hasMore = true;
 
         while (hasMore) {
-          const { data, error } = await supabase
+          let query = supabase
             .from("event_people")
-            .select("event_id")
-            .eq("person_id", personId)
-            .order("event_id", { ascending: true })
-            .range(from, from + pageSize - 1);
+            .select("event_id, attendance_mode, involvement_type, presence_confidence")
+            .eq("person_id", personId);
+
+          if (typeof query.neq === "function") {
+            query = query.neq("presence_confidence", "disputed");
+          }
+          if (typeof query.order === "function") {
+            query = query.order("event_id", { ascending: true });
+          }
+
+          const { data, error } = await query.range(from, from + pageSize - 1);
 
           if (error) {
             return { data: null, error };
           }
 
           if (data) {
-            participations.push(...data);
+            const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
+              if (p.attendance_mode && p.attendance_mode !== "physical") return false;
+              if (p.presence_confidence && p.presence_confidence === "disputed") return false;
+              return true;
+            });
+            participations.push(...qualifying);
           }
 
           if (!data || data.length < pageSize) {

@@ -1,7 +1,7 @@
 import { ArrowLeftRight } from "lucide-react";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { getPeople, getAllEvents, getSources } from "@/lib/rewind";
+import { getPeople, getAllEventsWithStatus, getSources } from "@/lib/rewind";
 
 export const metadata = {
   title: "Compare Historical Chronologies | REWIND Evidence Atlas",
@@ -9,12 +9,13 @@ export const metadata = {
 };
 
 export default async function ComparePage() {
-  const [people, allEvents, sources] = await Promise.all([
+  const [people, eventsRes, sources] = await Promise.all([
     getPeople(),
-    getAllEvents(),
+    getAllEventsWithStatus(),
     getSources(),
   ]);
 
+  const allEvents = eventsRes.data || [];
   const personA = people[0];
   let initialPersonB = people[1]?.slug;
 
@@ -61,15 +62,35 @@ export default async function ComparePage() {
         </p>
       </header>
 
-      <ErrorBoundary sectionName="Timeline Comparison">
-        <TimelineComparison
-          initialPersonA={personA?.slug}
-          initialPersonB={initialPersonB}
-          people={people}
-          events={allEvents}
-          sources={sources}
-        />
-      </ErrorBoundary>
+      {eventsRes.error && allEvents.length === 0 ? (
+        <div
+          className="zero-state error-state"
+          role="alert"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--line, #e2e8f0)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <h2>Comparison data temporarily unavailable</h2>
+          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            We are unable to load the comparison data right now. Please try again later.
+          </p>
+        </div>
+      ) : (
+        <ErrorBoundary sectionName="Timeline Comparison">
+          <TimelineComparison
+            initialPersonA={personA?.slug}
+            initialPersonB={initialPersonB}
+            people={people}
+            events={allEvents}
+            sources={sources}
+          />
+        </ErrorBoundary>
+      )}
     </div>
   );
 }

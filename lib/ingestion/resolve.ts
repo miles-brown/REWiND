@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, or, ilike, and, ne } from "drizzle-orm";
+import { eq, or, ilike, and } from "drizzle-orm";
 
 function escapeIlikePattern(str: string): string {
   return str.replace(/[%_\\]/g, "\\$&");
@@ -58,12 +58,6 @@ export async function resolvePersonEntityInTransaction(
     .where(eq(schema.people.id, effectivePersonId));
 
   if (existingPerson) {
-    if (existingPerson.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, existingPerson.id));
-    }
     return existingPerson.id;
   }
 
@@ -75,38 +69,27 @@ export async function resolvePersonEntityInTransaction(
     .where(eq(schema.people.slug, pSlug));
 
   if (bySlug) {
-    if (bySlug.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, bySlug.id));
-    }
     return bySlug.id;
   }
 
-  // 3. Name match via canonicalName or displayName
+  // 3. Name match via canonicalName or displayName (exact or normalized)
   const escapedName = escapeIlikePattern(rawName);
+  const escapedNormalizedName = escapeIlikePattern(normalizeName(rawName));
   const matchingByName = await tx
     .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
     .from(schema.people)
     .where(
       or(
         ilike(schema.people.canonicalName, escapedName),
-        ilike(schema.people.displayName, escapedName)
+        ilike(schema.people.displayName, escapedName),
+        ilike(schema.people.canonicalName, escapedNormalizedName),
+        ilike(schema.people.displayName, escapedNormalizedName)
       )
     );
 
   const distinctNameMatches: string[] = Array.from(new Set(matchingByName.map((p: { id: string }) => p.id)));
   if (distinctNameMatches.length === 1) {
-    const matchId = distinctNameMatches[0];
-    const matchObj = matchingByName.find((p: { id: string }) => p.id === matchId);
-    if (matchObj && matchObj.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, matchId));
-    }
-    return matchId;
+    return distinctNameMatches[0];
   }
 
   // 4. Alias match
@@ -117,26 +100,17 @@ export async function resolvePersonEntityInTransaction(
       .where(
         or(
           ilike(schema.personAliases.alias, escapedName),
+          ilike(schema.personAliases.alias, escapedNormalizedName),
           eq(schema.personAliases.alias, rawName)
         )
       );
     const distinctPersonIds: string[] = Array.from(new Set(aliasRows.map((r: { personId: string }) => r.personId)));
     if (distinctPersonIds.length === 1) {
-      const aliasPersonId = distinctPersonIds[0];
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(
-          and(
-            eq(schema.people.id, aliasPersonId),
-            ne(schema.people.publicationStatus, "published")
-          )
-        );
-      return aliasPersonId;
+      return distinctPersonIds[0];
     }
   }
 
-  // 5. Insert new published person record (idempotent for concurrent inserts)
+  // 5. Insert new person record as draft (idempotent for concurrent inserts)
   await tx
     .insert(schema.people)
     .values({
@@ -147,7 +121,7 @@ export async function resolvePersonEntityInTransaction(
       nationality: "International",
       classification: "historical-figure",
       notabilityBasis: "Documented participant in verified historical event",
-      publicationStatus: "published",
+      publicationStatus: "draft",
     })
     .onConflictDoNothing();
 

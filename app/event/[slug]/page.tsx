@@ -10,6 +10,10 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    notFound();
+  }
+
   const { data: event, error } = await getEventBySlug(slug);
   if (error && !event) {
     return (
@@ -238,7 +242,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         </aside>
       </section>
 
-      <nav className="event-pager">
+      <nav className="event-pager" aria-label="Event pagination">
         {prev ? (
           <Link href={`/event/${prev.slug}`}>
             <ArrowLeft />

@@ -12,6 +12,26 @@ export interface AuditRecord {
   recordedAt: Date;
 }
 
+type TransactionClient = Parameters<Parameters<NonNullable<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
+
+export async function recordAuditEventInTransaction(
+  tx: TransactionClient,
+  action: string,
+  ruleId: string | null,
+  details: Record<string, unknown>,
+  eventId?: string,
+  candidateId?: string
+): Promise<void> {
+  await tx.insert(schema.auditLog).values({
+    eventId: eventId || null,
+    candidateId: candidateId || null,
+    action,
+    ruleId: ruleId || null,
+    details: JSON.stringify(details),
+    recordedAt: new Date(),
+  });
+}
+
 export function recordAuditEvent(
   action: string,
   ruleId: string | null,

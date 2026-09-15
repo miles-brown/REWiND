@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { like } from "drizzle-orm";
+import { inArray, like } from "drizzle-orm";
 import type { ExtractedCandidateEvent, DeduplicationMatch } from "./types";
 
 // Generate deterministic fingerprint for strict matching
@@ -129,7 +129,10 @@ export async function findDuplicateEventAsync(
   // Load places for matching events to check city alignment
   const placeIds = Array.from(new Set(matchingDateEvents.map((e) => e.placeId).filter(Boolean))) as string[];
   const places = placeIds.length > 0
-    ? await db.select({ id: schema.places.id, city: schema.places.city }).from(schema.places)
+    ? await db
+        .select({ id: schema.places.id, city: schema.places.city })
+        .from(schema.places)
+        .where(inArray(schema.places.id, placeIds))
     : [];
   const placeMap = new Map(places.map((p) => [p.id, p.city]));
 

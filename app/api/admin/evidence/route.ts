@@ -56,7 +56,13 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
     if (!token) {
       const cookieHeader = req.headers.get("cookie") || "";
       const matchCookie = cookieHeader.match(/(?:^|;\s*)admin_session=([^;]+)/);
-      if (matchCookie) token = decodeURIComponent(matchCookie[1].trim());
+      if (matchCookie) {
+        try {
+          token = decodeURIComponent(matchCookie[1].trim());
+        } catch {
+          token = "";
+        }
+      }
     }
 
     if (!token || !timingSafeCompare(token, sessionSecret)) {

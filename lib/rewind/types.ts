@@ -27,15 +27,23 @@ export type EpistemicClass =
   | "disputed proposition"
   | "unknown";
 
+export type AttendanceMode =
+  | "physical"
+  | "remote-live"
+  | "remote-recorded"
+  | "telephone"
+  | "written"
+  | "proxy";
+
 export interface Participant {
   personId: string;
   slug?: string;
   name: string;
   role?: string;
-  presenceConfidence?: string;
-  roleConfidence?: string;
+  presenceConfidence?: Confidence;
+  roleConfidence?: Confidence;
   capacityTitle?: string;
-  attendanceMode?: string;
+  attendanceMode?: AttendanceMode;
   latitude?: number | null;
   longitude?: number | null;
   coordinatePrecision?: string;

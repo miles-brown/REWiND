@@ -88,7 +88,7 @@ export function DiscrepancyViewer({
                 </div>
                 <div className="breakdown-item">
                   <small>Geospatial Precision</small>
-                  <b>{(event.locationPrecision || "venue").toUpperCase()} ({event.city}, {event.country})</b>
+                  <b>{(event.locationPrecision || "unestablished").toUpperCase()} ({event.city}, {event.country})</b>
                 </div>
                 <div className="breakdown-item">
                   <small>Source Medium</small>
