@@ -196,13 +196,18 @@ export function processCandidateEvent(
           store.places.push(existingPlace);
         }
 
-        const eventSlug = deriveEventSlug(
+        const baseSlug = deriveEventSlug(
           candidate.startDate,
           resolvedParticipantIds,
           candidate.eventType,
           candidate.city,
           candidate.title
         );
+        let eventSlug = baseSlug;
+        let collisionIdx = 2;
+        while (store.events.some((event) => event.id === eventSlug)) {
+          eventSlug = `${baseSlug}-${collisionIdx++}`;
+        }
         publishedEventId = eventSlug;
 
         store.events.push({

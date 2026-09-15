@@ -382,4 +382,185 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   assert.ok(!pipelineContent.includes('"reported"'), "Pipeline must not use non-standard 'reported' confidence");
   assert.ok(pipelineContent.includes("claimsAdded: livePersistedClaimsAdded"), "Live pipeline merge audit must use persisted claims insert count");
   assert.ok(pipelineContent.includes("claimsAdded: claimsToInsert.length"), "In-memory pipeline merge audit must use deduplicated claims insert count");
+
+  // 10. Runtime coordinate validation (Codex P1 finding)
+  const { ExtractedCandidateEventSchema } = await vite.ssrLoadModule("/lib/ingestion/types.ts");
+  const baseCandidate = {
+    title: "Test Coordinate Accord",
+    eventType: "bilateral-meeting",
+    summary: "High-level bilateral negotiations",
+    startDate: "2024-05-10",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [{ name: "Bill Clinton", role: "principal" }],
+    claims: [],
+  };
+
+  const invalidLatResult = ExtractedCandidateEventSchema.safeParse({
+    ...baseCandidate,
+    latitude: 120,
+    longitude: 50,
+  });
+  assert.equal(invalidLatResult.success, false, "Latitude > 90 must be rejected");
+
+  const invalidLngResult = ExtractedCandidateEventSchema.safeParse({
+    ...baseCandidate,
+    latitude: 45,
+    longitude: 500,
+  });
+  assert.equal(invalidLngResult.success, false, "Longitude > 180 must be rejected");
+
+  const incompleteCoordResult = ExtractedCandidateEventSchema.safeParse({
+    ...baseCandidate,
+    latitude: 45,
+  });
+  assert.equal(incompleteCoordResult.success, false, "Partial coordinate without pair must be rejected");
+
+  const validCoordResult = ExtractedCandidateEventSchema.safeParse({
+    ...baseCandidate,
+    latitude: 46.2,
+    longitude: 6.14,
+  });
+  assert.equal(validCoordResult.success, true, "Valid coordinate pair must be accepted");
+
+  // 11. Runtime place resolver coordinate sanitization
+  const { resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+  const sanitizedPlace = resolvePlace("Invalid Venue", "Invalid City", "Country", 120, 500);
+  assert.equal(sanitizedPlace.latitude, undefined);
+  assert.equal(sanitizedPlace.longitude, undefined);
+
+  // 12. Runtime in-memory collision suffixing and pipeline merge deduplication audit tracking
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+  const store = getRelationalStore();
+
+  const candA = {
+    title: "Runtime Ingestion Merge Summit A",
+    eventType: "multilateral-summit",
+    summary: "Multilateral summit session alpha",
+    startDate: "2024-06-15",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [{ name: "Bill Clinton", role: "principal" }],
+    claims: [
+      {
+        subjectMention: "Bill Clinton",
+        claimType: "statement-quote",
+        statement: "Clinton addressed opening plenary on nuclear safeguards.",
+      },
+    ],
+  };
+
+  const srcA = {
+    sourceId: "src-vienna-2024-a",
+    sourceTitle: "Austrian Press Agency Report A",
+    publisher: "APA",
+    sourceType: "press-release",
+    sourceTier: "tier-a",
+    rawText: "Summit plenary coverage...",
+  };
+
+  const resA = processCandidateEvent(candA, srcA);
+  assert.ok(resA.publishedEventId, "First candidate must be auto-published");
+
+  // Candidate B: exact duplicate candidate with 1 existing claim and 1 new claim
+  const candB = {
+    title: "Runtime Ingestion Merge Summit A",
+    eventType: "multilateral-summit",
+    summary: "Multilateral summit session alpha",
+    startDate: "2024-06-15",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [{ name: "Bill Clinton", role: "principal" }],
+    claims: [
+      {
+        subjectMention: "Bill Clinton",
+        claimType: "statement-quote",
+        statement: "Clinton addressed opening plenary on nuclear safeguards.", // Duplicate
+      },
+      {
+        subjectMention: "Bill Clinton",
+        claimType: "statement-quote",
+        statement: "Clinton held side discussions on regional energy security.", // New
+      },
+    ],
+  };
+
+  const srcB = {
+    sourceId: "src-vienna-2024-b",
+    sourceTitle: "Austrian Press Agency Report B",
+    publisher: "APA",
+    sourceType: "press-release",
+    sourceTier: "tier-a",
+    rawText: "Summit side coverage...",
+  };
+
+  const resB = processCandidateEvent(candB, srcB);
+  assert.equal(resB.deduplication.isDuplicate, true, "Second candidate must be identified as duplicate");
+  assert.equal(resB.publishedEventId, resA.publishedEventId, "Second candidate must merge into first event");
+
+  // Verify the merge audit entry logged exact number of newly added claims (1, not 2)
+  const mergeAudit = store.auditLog.find(
+    (a) => a.action === "merged" && a.eventId === resA.publishedEventId
+  );
+  assert.ok(mergeAudit, "Merge audit log entry must exist");
+  const details = typeof mergeAudit.details === "string" ? JSON.parse(mergeAudit.details) : mergeAudit.details;
+  assert.equal(details.claimsAdded, 1, "claimsAdded must equal deduplicated inserted claims count (1)");
+
+  // Verify distinct candidate with same base slug receives collision suffix (-2)
+  const candC = {
+    title: "Runtime Collision Disambiguation Summit",
+    eventType: "multilateral-summit",
+    summary: "Distinct session on same date and location",
+    startDate: "2024-06-15",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [{ name: "Bill Clinton", role: "principal" }],
+    claims: [],
+  };
+  const resC = processCandidateEvent(candC, srcA);
+  assert.ok(resC.publishedEventId);
+
+  // Pre-seed an event with the expected slug to verify in-memory collision suffixing
+  const candColliding = {
+    title: "Colliding Ingestion Event",
+    eventType: "speech-plenary",
+    summary: "Summary for colliding test",
+    startDate: "2024-08-01",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [{ name: "Bill Clinton", role: "principal" }],
+    claims: [],
+  };
+
+  const expectedBaseSlug = "evt-2024-08-01-bill-clinton-speech-plenary-geneva-b00d99";
+  store.events.push({
+    id: expectedBaseSlug,
+    slug: expectedBaseSlug,
+    title: "Existing Prior Event",
+    startDate: "2024-08-02",
+    placeId: "plc-geneva-palais-des-nations",
+    eventType: "speech-plenary",
+    verificationStatus: "verified",
+    confidenceScore: 0.98,
+    publicationStatus: "published",
+    publicationLane: "auto-publish",
+    significanceScore: 80,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const resColliding = processCandidateEvent(candColliding, srcA);
+  assert.ok(resColliding.publishedEventId, "Colliding event must be published");
+  assert.equal(resColliding.publishedEventId, `${expectedBaseSlug}-2`, "Colliding event must receive -2 suffix");
 });

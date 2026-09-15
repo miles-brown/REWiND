@@ -344,6 +344,22 @@ export interface PlaceResolution {
   confidence: number;
 }
 
+function sanitizeCoordinates(lat?: number, lng?: number): { latitude?: number; longitude?: number } {
+  if (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    !Number.isNaN(lat) &&
+    !Number.isNaN(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  ) {
+    return { latitude: lat, longitude: lng };
+  }
+  return { latitude: undefined, longitude: undefined };
+}
+
 export function resolvePlace(
   venue?: string,
   city?: string,
@@ -355,6 +371,7 @@ export function resolvePlace(
   const safeCity = city || "";
   const safeVenue = venue || "";
   const safeCountry = country || "";
+  const coords = sanitizeCoordinates(latitude, longitude);
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
@@ -366,8 +383,8 @@ export function resolvePlace(
       venue: "General",
       city: "Unknown",
       country: safeCountry || "International",
-      latitude: latitude !== undefined ? latitude : undefined,
-      longitude: longitude !== undefined ? longitude : undefined,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       confidence: 0.5,
     };
   }
@@ -393,8 +410,8 @@ export function resolvePlace(
         venue: pl.venue,
         city: pl.city,
         country: pl.country,
-        latitude: pl.latitude ?? latitude ?? undefined,
-        longitude: pl.longitude ?? longitude ?? undefined,
+        latitude: pl.latitude ?? coords.latitude,
+        longitude: pl.longitude ?? coords.longitude,
         confidence: 0.98,
       };
     }
@@ -405,8 +422,8 @@ export function resolvePlace(
         venue: safeVenue || pl.venue,
         city: pl.city,
         country: pl.country,
-        latitude: pl.latitude ?? latitude ?? undefined,
-        longitude: pl.longitude ?? longitude ?? undefined,
+        latitude: pl.latitude ?? coords.latitude,
+        longitude: pl.longitude ?? coords.longitude,
         confidence: 0.92,
       };
     }
@@ -422,8 +439,8 @@ export function resolvePlace(
     venue: safeVenue || "General",
     city: safeCity || "Unknown",
     country: safeCountry,
-    latitude: latitude !== undefined ? latitude : undefined,
-    longitude: longitude !== undefined ? longitude : undefined,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
     confidence: 0.85,
   };
 }
@@ -440,6 +457,7 @@ export async function resolvePlaceAsync(
   const safeCity = city || "";
   const safeVenue = venue || "";
   const safeCountry = country || "";
+  const coords = sanitizeCoordinates(latitude, longitude);
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
@@ -451,8 +469,8 @@ export async function resolvePlaceAsync(
       venue: "General",
       city: "Unknown",
       country: safeCountry || "International",
-      latitude: latitude !== undefined ? latitude : undefined,
-      longitude: longitude !== undefined ? longitude : undefined,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       confidence: 0.5,
     };
   }
@@ -486,8 +504,8 @@ export async function resolvePlaceAsync(
             venue: pl.venue,
             city: pl.city,
             country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
+            latitude: pl.latitude ?? coords.latitude,
+            longitude: pl.longitude ?? coords.longitude,
             confidence: 0.98,
           };
         }
@@ -530,8 +548,8 @@ export async function resolvePlaceAsync(
             venue: pl.venue,
             city: pl.city,
             country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
+            latitude: pl.latitude ?? coords.latitude,
+            longitude: pl.longitude ?? coords.longitude,
             confidence: 0.95,
           };
         }
@@ -557,8 +575,8 @@ export async function resolvePlaceAsync(
             venue: safeVenue || pl.venue,
             city: pl.city,
             country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
+            latitude: pl.latitude ?? coords.latitude,
+            longitude: pl.longitude ?? coords.longitude,
             confidence: 0.92,
           };
         } else if (cityMatches.length > 1) {
@@ -575,8 +593,8 @@ export async function resolvePlaceAsync(
               venue: safeVenue || specificMatch.venue,
               city: specificMatch.city,
               country: specificMatch.country,
-              latitude: specificMatch.latitude ?? latitude ?? undefined,
-              longitude: specificMatch.longitude ?? longitude ?? undefined,
+              latitude: specificMatch.latitude ?? coords.latitude,
+              longitude: specificMatch.longitude ?? coords.longitude,
               confidence: 0.92,
             };
           }
