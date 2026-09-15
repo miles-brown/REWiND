@@ -1,23 +1,7 @@
-import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
-
-/** Determines whether a PostgreSQL connection targets a local loopback host. */
-export function isLocalDatabaseHost(connStr: string): boolean {
-  try {
-    const url = new URL(connStr);
-    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
-    return (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host === "::1"
-    );
-  } catch {
-    return false;
-  }
-}
+import { people, events, sources } from "@/data/rewind";
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -28,26 +12,10 @@ export const isLiveDbConnected = Boolean(
 // Global Drizzle ORM client connected to live PostgreSQL / Supabase
 let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
-/**
- * Returns the singleton Drizzle ORM client connected to live PostgreSQL.
- *
- * Security & Forensic Data Integrity Note:
- * - Production / Remote Environments (Supabase, AWS RDS, etc.): Strict TLS certificate
- *   verification (`ssl: "verify-full"`) is strictly enforced to prevent man-in-the-middle (MITM)
- *   eavesdropping and ensure evidentiary integrity of historical records in transit.
- * - Local Development: `ssl: false` is conditionally allowed ONLY for local loopback hosts
- *   (`localhost`, `127.0.0.1`, `::1`) where local PostgreSQL instances operate without TLS.
- *   Non-local environments MUST never disable SSL.
- */
 export function getDb() {
   if (liveDb) return liveDb;
   if (isLiveDbConnected && connectionString) {
-    const isLocal = isLocalDatabaseHost(connectionString);
-    const client = postgres(connectionString, {
-      max: 10,
-      prepare: false,
-      ssl: isLocal ? false : "verify-full",
-    });
+    const client = postgres(connectionString, { max: 10, prepare: false });
     liveDb = drizzle(client, { schema });
     return liveDb;
   }
@@ -64,11 +32,9 @@ export interface MemoryRelationalStore {
   claims: (typeof schema.claims.$inferSelect)[];
   candidateEvents: (typeof schema.candidateEvents.$inferSelect)[];
   auditLog: (typeof schema.auditLog.$inferSelect)[];
-  quotes: (typeof schema.quotes.$inferSelect)[];
 }
 
-/** Derives canonical classification metadata for a non-production person fixture. */
-function resolvePersonMetadata(p: TestPerson): {
+function resolvePersonMetadata(p: (typeof people)[0]): {
   nationality: string;
   classification: string;
   programmeId: string;
@@ -150,34 +116,7 @@ function mapToCanonicalEventType(categories: string[], types: string[]): "bilate
   return "historical-action";
 }
 
-/** Initializes the in-memory relational store, loading fixtures outside production only. */
 function initializeSeedStore(): MemoryRelationalStore {
-  // In production, fallback in-memory store is empty to ensure no prototype records enter the production path
-  if (process.env.NODE_ENV === "production") {
-    return {
-      people: [],
-      personAliases: [],
-      places: [],
-      events: [],
-      sources: [],
-      claims: [],
-      candidateEvents: [],
-      auditLog: [],
-      quotes: [],
-    };
-  }
-
-  // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
-  const nodeRequire = createRequire(import.meta.url);
-  const fixtures = nodeRequire("./test-fixtures.json") as {
-    testPeople: TestPerson[];
-    testEvents: TestEvent[];
-    testSources: TestSource[];
-  };
-  const people = fixtures.testPeople;
-  const events = fixtures.testEvents;
-  const sources = fixtures.testSources;
-
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 
   const seedPeople: (typeof schema.people.$inferSelect)[] = (people || []).map((p) => {
@@ -273,11 +212,8 @@ function initializeSeedStore(): MemoryRelationalStore {
       endDate: e.endDate || null,
       temporalPrecision: "exact-day",
       placeId: `plc-${placeSlug}`,
-      seriesId: null,
-      venueId: null,
-      addressId: null,
       verificationStatus: e.verificationStatus,
-      confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.4,
+      confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
       publicationStatus: "published",
       publicationLane: "auto-publish",
       significanceScore: 80,
@@ -296,7 +232,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       claimedTime: e.startDate,
       claimedVenue: e.venueName || e.city,
       sourceId: e.sourceIds[0] || null,
-      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
+      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "reported",
       supportingExcerpt: e.summary,
     }))
   );
@@ -310,7 +246,6 @@ function initializeSeedStore(): MemoryRelationalStore {
     claims: seedClaims,
     candidateEvents: [],
     auditLog: [],
-    quotes: [],
   };
 }
 

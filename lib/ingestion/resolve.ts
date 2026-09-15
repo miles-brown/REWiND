@@ -1,12 +1,5 @@
-import { createHash } from "node:crypto";
-import { getRelationalStore, getDb } from "@/lib/db/client";
-import * as schema from "@/db/schema";
-import { eq, or, ilike, and, ne } from "drizzle-orm";
+import { getRelationalStore } from "@/lib/db/client";
 
-/** Escapes PostgreSQL ILIKE wildcard characters for literal matching. */
-function escapeIlikePattern(str: string): string {
-  return str.replace(/[%_\\]/g, "\\$&");
-}
 // Normalize names by removing punctuation, titles, and extra whitespace
 function normalizeName(name: string): string {
   return name
@@ -17,283 +10,11 @@ function normalizeName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
-/**
- * Derives a collision-resistant participant ID for unresolved names.
- * Ensures non-ASCII names, long names with identical prefixes, and symbolic names
- * produce unique, stable IDs.
- */
-export function createParticipantStubId(name: string, resolvedPersonId?: string | null): string {
-  if (resolvedPersonId) return resolvedPersonId;
-  const nameKey = name.toLowerCase().trim();
-  const nameDigest = createHash("sha256").update(nameKey).digest("hex").slice(0, 8);
-  const normalizedBase =
-    nameKey.replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 16) || "unknown";
-  return `p-${normalizedBase}-${nameDigest}`;
-}
-
-type TransactionClient = Parameters<Parameters<NonNullable<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
-
-/**
- * Resolves or registers a person entity within a PostgreSQL transaction:
- * 1. Checks if a person row exists by canonical ID; promotes to published if draft.
- * 2. Checks if a person row exists by slug, returning its canonical ID.
- * 3. Checks exact canonical/display name and alias matches.
- * 4. Creates a new published person record if no match exists.
- */
-export async function resolvePersonEntityInTransaction(
-  tx: TransactionClient,
-  options: {
-    personId: string;
-    rawName: string;
-    roleLabel?: string;
-  }
-): Promise<string> {
-  const { personId, rawName } = options;
-  const effectivePersonId = personId;
-
-  // 1. Exact ID match
-  const [existingPerson] = await tx
-    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
-    .from(schema.people)
-    .where(eq(schema.people.id, effectivePersonId));
-
-  if (existingPerson) {
-    if (existingPerson.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, existingPerson.id));
-    }
-    return existingPerson.id;
-  }
-
-  // 2. Slug match (reusing existing canonical ID if different from generated ID)
-  const pSlug = effectivePersonId.replace(/^p-/, "");
-  const [bySlug] = await tx
-    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
-    .from(schema.people)
-    .where(eq(schema.people.slug, pSlug));
-
-  if (bySlug) {
-    if (bySlug.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, bySlug.id));
-    }
-    return bySlug.id;
-  }
-
-  // 3. Name match via canonicalName or displayName
-  const escapedName = escapeIlikePattern(rawName);
-  const matchingByName = await tx
-    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
-    .from(schema.people)
-    .where(
-      or(
-        ilike(schema.people.canonicalName, escapedName),
-        ilike(schema.people.displayName, escapedName)
-      )
-    );
-
-  const distinctNameMatches: string[] = Array.from(new Set(matchingByName.map((p: { id: string }) => p.id)));
-  if (distinctNameMatches.length === 1) {
-    const matchId = distinctNameMatches[0];
-    const matchObj = matchingByName.find((p: { id: string }) => p.id === matchId);
-    if (matchObj && matchObj.publicationStatus !== "published") {
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, matchId));
-    }
-    return matchId;
-  }
-
-  // 4. Alias match
-  if (distinctNameMatches.length === 0) {
-    const aliasRows = await tx
-      .select({ personId: schema.personAliases.personId })
-      .from(schema.personAliases)
-      .where(
-        or(
-          ilike(schema.personAliases.alias, escapedName),
-          eq(schema.personAliases.alias, rawName)
-        )
-      );
-    const distinctPersonIds: string[] = Array.from(new Set(aliasRows.map((r: { personId: string }) => r.personId)));
-    if (distinctPersonIds.length === 1) {
-      const aliasPersonId = distinctPersonIds[0];
-      await tx
-        .update(schema.people)
-        .set({ publicationStatus: "published" })
-        .where(
-          and(
-            eq(schema.people.id, aliasPersonId),
-            ne(schema.people.publicationStatus, "published")
-          )
-        );
-      return aliasPersonId;
-    }
-  }
-
-  // 5. Insert new published person record (idempotent for concurrent inserts)
-  await tx
-    .insert(schema.people)
-    .values({
-      id: effectivePersonId,
-      slug: pSlug,
-      displayName: rawName,
-      canonicalName: rawName,
-      nationality: "International",
-      classification: "historical-figure",
-      notabilityBasis: "Documented participant in verified historical event",
-      publicationStatus: "published",
-    })
-    .onConflictDoNothing();
-
-  const [canonicalPerson] = await tx
-    .select({ id: schema.people.id })
-    .from(schema.people)
-    .where(or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)));
-
-  return canonicalPerson ? canonicalPerson.id : effectivePersonId;
-}
-
 export interface EntityResolution {
   personId: string | null;
   canonicalName: string | null;
   confidence: number;
   isApprovedSubject: boolean;
-}
-
-/** Resolves a person against the live database before consulting local fallback data. */
-export async function resolveEntityAsync(
-  rawName: string,
-  dbInstance?: ReturnType<typeof getDb>
-): Promise<EntityResolution> {
-  const db = dbInstance ?? getDb();
-  const normalized = normalizeName(rawName);
-  if (!normalized) {
-    return { personId: null, canonicalName: null, confidence: 0.0, isApprovedSubject: false };
-  }
-
-  if (db) {
-    try {
-      const escapedRaw = escapeIlikePattern(rawName);
-      const escapedNorm = escapeIlikePattern(normalized);
-
-      // 1. Exact ID, slug, canonical name, or display name match in live DB
-      const peopleMatches = await db
-        .select({
-          id: schema.people.id,
-          slug: schema.people.slug,
-          canonicalName: schema.people.canonicalName,
-          displayName: schema.people.displayName,
-          publicationStatus: schema.people.publicationStatus,
-        })
-        .from(schema.people)
-        .where(
-          or(
-            eq(schema.people.id, normalized),
-            eq(schema.people.slug, normalized),
-            ilike(schema.people.canonicalName, escapedRaw),
-            ilike(schema.people.displayName, escapedRaw),
-            ilike(schema.people.canonicalName, escapedNorm),
-            ilike(schema.people.displayName, escapedNorm)
-          )
-        );
-
-      if (peopleMatches.length === 1) {
-        const p = peopleMatches[0];
-        return {
-          personId: p.id,
-          canonicalName: p.canonicalName,
-          confidence: 1.0,
-          isApprovedSubject: p.publicationStatus === "published",
-        };
-      }
-
-      if (peopleMatches.length > 1) {
-        const exactMatch = peopleMatches.find(
-          (p) =>
-            p.id.toLowerCase() === normalized ||
-            p.slug.toLowerCase() === normalized ||
-            p.canonicalName.toLowerCase() === rawName.toLowerCase() ||
-            normalizeName(p.canonicalName) === normalized
-        );
-        if (exactMatch) {
-          return {
-            personId: exactMatch.id,
-            canonicalName: exactMatch.canonicalName,
-            confidence: 1.0,
-            isApprovedSubject: exactMatch.publicationStatus === "published",
-          };
-        }
-      }
-
-      // 2. Alias match in live DB
-      const aliasMatches = await db
-        .select({
-          personId: schema.personAliases.personId,
-          alias: schema.personAliases.alias,
-          canonicalName: schema.people.canonicalName,
-          publicationStatus: schema.people.publicationStatus,
-        })
-        .from(schema.personAliases)
-        .innerJoin(schema.people, eq(schema.personAliases.personId, schema.people.id))
-        .where(
-          or(
-            eq(schema.personAliases.alias, rawName),
-            eq(schema.personAliases.alias, normalized),
-            ilike(schema.personAliases.alias, escapedRaw),
-            ilike(schema.personAliases.alias, escapedNorm)
-          )
-        );
-
-      const distinctAliasPersons = Array.from(
-        new Map(aliasMatches.map((a) => [a.personId, a])).values()
-      );
-
-      if (distinctAliasPersons.length === 1) {
-        const a = distinctAliasPersons[0];
-        return {
-          personId: a.personId,
-          canonicalName: a.canonicalName,
-          confidence: 0.95,
-          isApprovedSubject: a.publicationStatus === "published",
-        };
-      }
-
-      // 3. Surname match in live DB (single-token surname)
-      const parts = normalized.split(" ").filter(Boolean);
-      if (parts.length === 1 && parts[0].length > 3) {
-        const surname = parts[0];
-        const surnamePattern = `% ${escapeIlikePattern(surname)}`;
-        const surnameMatches = await db
-          .select({
-            id: schema.people.id,
-            canonicalName: schema.people.canonicalName,
-            publicationStatus: schema.people.publicationStatus,
-          })
-          .from(schema.people)
-          .where(ilike(schema.people.canonicalName, surnamePattern));
-
-        if (surnameMatches.length === 1) {
-          const p = surnameMatches[0];
-          return {
-            personId: p.id,
-            canonicalName: p.canonicalName,
-            confidence: 0.80,
-            isApprovedSubject: p.publicationStatus === "published",
-          };
-        }
-      }
-    } catch {
-      // Fallback to store on DB query error
-    }
-  }
-
-  return resolveEntity(rawName);
 }
 
 export function resolveEntity(rawName: string): EntityResolution {
@@ -371,14 +92,7 @@ export interface PlaceResolution {
   confidence: number;
 }
 
-/** Resolves a place against the local gazetteer while preserving supplied coordinates. */
-export function resolvePlace(
-  venue?: string,
-  city?: string,
-  country?: string,
-  latitude?: number,
-  longitude?: number
-): PlaceResolution {
+export function resolvePlace(venue?: string, city?: string, country?: string): PlaceResolution {
   const store = getRelationalStore();
   const safeCity = city || "";
   const safeVenue = venue || "";
@@ -394,8 +108,6 @@ export function resolvePlace(
       venue: "General",
       city: "Unknown",
       country: safeCountry || "International",
-      latitude: latitude !== undefined ? latitude : undefined,
-      longitude: longitude !== undefined ? longitude : undefined,
       confidence: 0.5,
     };
   }
@@ -421,22 +133,20 @@ export function resolvePlace(
         venue: pl.venue,
         city: pl.city,
         country: pl.country,
-        latitude: pl.latitude ?? latitude ?? undefined,
-        longitude: pl.longitude ?? longitude ?? undefined,
+        latitude: pl.latitude ?? undefined,
+        longitude: pl.longitude ?? undefined,
         confidence: 0.98,
       };
     }
 
-    const isGeneralVenueRequested = !safeVenue || normVenue === "general" || normVenue === normCity;
-    const isGeneralGazetteerPlace = plVenue === "general" || plVenue === normCity || pl.placeType === "city";
-    if (cityMatches && (isGeneralVenueRequested || isGeneralGazetteerPlace)) {
+    if (cityMatches) {
       return {
         placeId: pl.id,
         venue: safeVenue || pl.venue,
         city: pl.city,
         country: pl.country,
-        latitude: pl.latitude ?? latitude ?? undefined,
-        longitude: pl.longitude ?? longitude ?? undefined,
+        latitude: pl.latitude ?? undefined,
+        longitude: pl.longitude ?? undefined,
         confidence: 0.92,
       };
     }
@@ -452,191 +162,6 @@ export function resolvePlace(
     venue: safeVenue || "General",
     city: safeCity || "Unknown",
     country: safeCountry,
-    latitude: latitude !== undefined ? latitude : undefined,
-    longitude: longitude !== undefined ? longitude : undefined,
     confidence: 0.85,
   };
-}
-
-/** Resolves a place against PostgreSQL before falling back to the local gazetteer. */
-export async function resolvePlaceAsync(
-  venue?: string,
-  city?: string,
-  country?: string,
-  latitude?: number,
-  longitude?: number,
-  dbInstance?: ReturnType<typeof getDb>
-): Promise<PlaceResolution> {
-  const db = dbInstance !== undefined ? dbInstance : getDb();
-  const safeCity = city || "";
-  const safeVenue = venue || "";
-  const safeCountry = country || "";
-
-  const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
-  const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
-
-  // If both city and venue are empty, do not fabricate gazetteer matches
-  if (!normCity && !normVenue) {
-    return {
-      placeId: "plc-unknown-general",
-      venue: "General",
-      city: "Unknown",
-      country: safeCountry || "International",
-      latitude: latitude !== undefined ? latitude : undefined,
-      longitude: longitude !== undefined ? longitude : undefined,
-      confidence: 0.5,
-    };
-  }
-
-  if (db) {
-    try {
-      const escapedVenue = escapeIlikePattern(safeVenue);
-      const escapedCity = escapeIlikePattern(safeCity);
-      const escapedCountry = escapeIlikePattern(safeCountry);
-
-      // 1. Exact match on both venue and city
-      if (safeVenue && safeCity) {
-        const bothConditions = [
-          ilike(schema.places.venue, escapedVenue),
-          ilike(schema.places.city, escapedCity),
-        ];
-        if (safeCountry) {
-          bothConditions.push(ilike(schema.places.country, escapedCountry));
-        }
-
-        const bothMatches = await db
-          .select()
-          .from(schema.places)
-          .where(and(...bothConditions));
-
-        const distinctPlaceIds = Array.from(new Set(bothMatches.map((pl) => pl.id)));
-        if (distinctPlaceIds.length === 1) {
-          const pl = bothMatches.find((p) => p.id === distinctPlaceIds[0])!;
-          return {
-            placeId: pl.id,
-            venue: pl.venue,
-            city: pl.city,
-            country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
-            confidence: 0.98,
-          };
-        }
-      }
-
-      // 2. Place alias match (venue alias lookup)
-      if (safeVenue) {
-        const aliasConditions = [
-          or(
-            ilike(schema.placeAliases.alias, escapedVenue),
-            eq(schema.placeAliases.alias, safeVenue)
-          ),
-        ];
-        if (safeCity) {
-          aliasConditions.push(ilike(schema.places.city, escapedCity));
-        }
-        if (safeCountry) {
-          aliasConditions.push(ilike(schema.places.country, escapedCountry));
-        }
-
-        const aliasMatches = await db
-          .select({
-            placeId: schema.placeAliases.placeId,
-            alias: schema.placeAliases.alias,
-            venue: schema.places.venue,
-            city: schema.places.city,
-            country: schema.places.country,
-            latitude: schema.places.latitude,
-            longitude: schema.places.longitude,
-          })
-          .from(schema.placeAliases)
-          .innerJoin(schema.places, eq(schema.placeAliases.placeId, schema.places.id))
-          .where(and(...aliasConditions));
-
-        const distinctAliasPlaceIds = Array.from(new Set(aliasMatches.map((pl) => pl.placeId)));
-        if (distinctAliasPlaceIds.length === 1) {
-          const pl = aliasMatches.find((p) => p.placeId === distinctAliasPlaceIds[0])!;
-          return {
-            placeId: pl.placeId,
-            venue: pl.venue,
-            city: pl.city,
-            country: pl.country,
-            latitude: pl.latitude ?? latitude ?? undefined,
-            longitude: pl.longitude ?? longitude ?? undefined,
-            confidence: 0.95,
-          };
-        }
-      }
-
-      // 3. Match city only (when no specific venue was supplied or general city marker matches)
-      if (safeCity) {
-        const isGeneralVenueRequested = !safeVenue || normVenue === "general" || normVenue === normCity;
-        const cityConditions = [ilike(schema.places.city, escapedCity)];
-        if (safeCountry) {
-          cityConditions.push(ilike(schema.places.country, escapedCountry));
-        }
-
-        const cityMatches = await db
-          .select()
-          .from(schema.places)
-          .where(and(...cityConditions));
-
-        if (isGeneralVenueRequested) {
-          const generalMatch = cityMatches.find(
-            (pl) =>
-              pl.venue.toLowerCase() === "general" ||
-              pl.venue.toLowerCase() === normCity ||
-              pl.placeType === "city"
-          );
-          if (generalMatch) {
-            return {
-              placeId: generalMatch.id,
-              venue: safeVenue || generalMatch.venue,
-              city: generalMatch.city,
-              country: generalMatch.country,
-              latitude: generalMatch.latitude ?? latitude ?? undefined,
-              longitude: generalMatch.longitude ?? longitude ?? undefined,
-              confidence: 0.92,
-            };
-          }
-          if (cityMatches.length === 1) {
-            const pl = cityMatches[0];
-            return {
-              placeId: pl.id,
-              venue: safeVenue || pl.venue,
-              city: pl.city,
-              country: pl.country,
-              latitude: pl.latitude ?? latitude ?? undefined,
-              longitude: pl.longitude ?? longitude ?? undefined,
-              confidence: 0.92,
-            };
-          }
-        } else {
-          // Specific venue was requested: match only if the existing place venue explicitly matches
-          const specificMatch = cityMatches.find(
-            (pl) =>
-              pl.venue.toLowerCase() === normVenue ||
-              pl.venue.toLowerCase() === "general" ||
-              pl.venue.toLowerCase() === normCity ||
-              pl.placeType === "city"
-          );
-          if (specificMatch) {
-            return {
-              placeId: specificMatch.id,
-              venue: safeVenue || specificMatch.venue,
-              city: specificMatch.city,
-              country: specificMatch.country,
-              latitude: specificMatch.latitude ?? latitude ?? undefined,
-              longitude: specificMatch.longitude ?? longitude ?? undefined,
-              confidence: 0.92,
-            };
-          }
-        }
-      }
-    } catch {
-      // Fallback to in-memory store on DB query error
-    }
-  }
-
-  return resolvePlace(venue, city, country, latitude, longitude);
 }

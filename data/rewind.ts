@@ -1,20 +1,3 @@
-/**
- * ==============================================================================
- * REWIND EVIDENCE ATLAS — LEGACY PROTOTYPE DATASET (ARCHIVE ONLY)
- * ==============================================================================
- *
- * CRITICAL ARCHITECTURAL DIRECTIVE:
- * DO NOT import, transform, seed, copy, or automatically migrate any records from
- * this file into production Supabase.
- *
- * This dataset was compiled for an earlier prototype model. Canonical production
- * data resides exclusively in PostgreSQL / Supabase and must be researched and
- * entered afresh according to REWiND Event Model v2 standards.
- *
- * No production application code or components may import from this file.
- * ==============================================================================
- */
-
 export type Precision = "exact" | "day" | "month" | "year" | "range" | "unknown";
 export type Verification = "verified" | "provisional" | "disputed";
 export type Confidence = "confirmed" | "strong" | "moderate" | "limited";

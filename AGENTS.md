@@ -118,27 +118,3 @@ graph LR
 ├── scripts/                  # Build, environment & verification shell scripts
 └── tests/                    # Automated Node.js unit tests
 ```
-
----
-
-## 5. PostgreSQL Architecture Invariants & Forensic Ingestion Systematics
-
-All code interacting with the Supabase / PostgreSQL data layer, ingestion pipeline, or downstream event rendering MUST adhere to these 5 core invariants:
-
-1. **Default Evidentiary Confidence**:
-   - The default confidence level for claims, event presence, and uncorroborated records must strictly be `"limited"`. Never default unverified claims or fallback records to `"confirmed"` or `"strong"`.
-
-2. **Database-First Live Entity/Place Resolution & Ingestion Deduplication**:
-   - The ingestion pipeline (`lib/ingestion/pipeline.ts`) must perform asynchronous duplicate detection (`findDuplicateEventAsync`) against live Supabase PostgreSQL tables before insertion.
-   - For distinct historical events occurring on the same date with matching base slugs, generate deterministic collision suffixes (`evt-...-2`, `evt-...-3`) rather than overwriting or throwing errors.
-
-3. **Row-Level Security (RLS) & Coordinate Visibility**:
-   - Location coordinate records in `event_person_locations` must enforce `public_visibility IN ('public-exact', 'public-city')` in public RLS read policies (`'public-exact'` for exact venue/building coordinates and `'public-city'` for coarse city-level precision) to prevent unintentional leakage of sensitive coordinates or timestamps.
-
-4. **Fail-Closed Year & Query Validation**:
-   - All query parameters (such as `year` in `lib/rewind/events.ts`) must be strictly validated with regex (e.g. `/^\d{4}$/`) with immediate fail-closed return (empty array or 400 error) before passing into PostgREST `.like` or `.eq` filters to prevent malformed queries or unbounded scans.
-
-5. **Transactional Claim Synchronization & Relationship Integrity**:
-   - Synchronize claims using `persistedClaimIds` to prevent duplicate claim creation across adapters and services.
-   - Route figures in comparison views (`/relationship/[a]/[b]`) must guard against self-pairs (`slugA !== slugB`) and preserve authoritative references across navigation.
-

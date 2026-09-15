@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Globe, Layers, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
-import type { EventRecord } from "@/lib/rewind";
+import type { EventRecord } from "@/data/rewind";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
@@ -26,20 +26,16 @@ function isWebGLAvailable() {
   }
 }
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || process.env.MAPBOX_TOKEN || "";
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-// Mapbox Vector Styles (when token is provided or environment override set)
-const MAPBOX_DARK_STYLE =
-  process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
-  (MAPBOX_TOKEN
-    ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
-    : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
+// Mapbox Vector Styles (when token is provided)
+const MAPBOX_DARK_STYLE = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
+  : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-const MAPBOX_SATELLITE_STYLE =
-  process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE ||
-  (MAPBOX_TOKEN
-    ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
-    : "");
+const MAPBOX_SATELLITE_STYLE = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
+  : "";
 
 // Fallback raster tile style specification if vector GL JSON fails or is offline
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
@@ -118,7 +114,6 @@ function addTrajectoriesToMap(map: MapLibreMap, points: EventRecord[], isSatelli
   }
 }
 
-/** Renders an accessible geographic view of events and optional trajectories. */
 export function MapGraphic({
   events,
   selected,
@@ -337,7 +332,7 @@ export function MapGraphic({
 
   // Toggle between Dark Basemap and Satellite 3D View
   const toggleMapTheme = () => {
-    if (!mapInstanceRef.current || !MAPBOX_SATELLITE_STYLE) return;
+    if (!mapInstanceRef.current || !MAPBOX_TOKEN) return;
     const nextTheme = mapTheme === "dark" ? "satellite" : "dark";
     setMapTheme(nextTheme);
 
@@ -483,15 +478,25 @@ export function MapGraphic({
       {/* Map Control Actions Toolbar */}
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
-        {/* Only expose satellite toggle when a satellite style is actually configured */}
-        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_SATELLITE_STYLE) && (
+        {webGlSupported && mapMode === "webgl" && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
-            onClick={toggleMapTheme}
+            onClick={MAPBOX_TOKEN ? toggleMapTheme : undefined}
+            disabled={!MAPBOX_TOKEN}
             aria-pressed={mapTheme === "satellite"}
-            title={mapTheme === "satellite" ? "Switch to Dark Forensic Basemap" : "Switch to Mapbox Satellite 3D View"}
-            aria-label="Mapbox Satellite 3D layer"
+            title={
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : mapTheme === "satellite"
+                ? "Switch to Dark Forensic Basemap"
+                : "Switch to Mapbox Satellite 3D View"
+            }
+            aria-label={
+              !MAPBOX_TOKEN
+                ? "Satellite view requires Mapbox token"
+                : "Mapbox Satellite 3D layer"
+            }
           >
             {mapTheme === "satellite" ? <Layers size={13} /> : <Globe size={13} />}
             <span>{mapTheme === "satellite" ? "Dark Map" : "Satellite"}</span>
