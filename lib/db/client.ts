@@ -1,7 +1,23 @@
+import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import { people, events, sources } from "@/data/rewind";
+import { masterPeopleSeed } from "@/data/seeds";
+import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
+
+export function isLocalDatabaseHost(connStr: string): boolean {
+  try {
+    const url = new URL(connStr);
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -12,10 +28,26 @@ export const isLiveDbConnected = Boolean(
 // Global Drizzle ORM client connected to live PostgreSQL / Supabase
 let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
+/**
+ * Returns the singleton Drizzle ORM client connected to live PostgreSQL.
+ *
+ * Security & Forensic Data Integrity Note:
+ * - Production / Remote Environments (Supabase, AWS RDS, etc.): Strict TLS certificate
+ *   verification (`ssl: "verify-full"`) is strictly enforced to prevent man-in-the-middle (MITM)
+ *   eavesdropping and ensure evidentiary integrity of historical records in transit.
+ * - Local Development: `ssl: false` is conditionally allowed ONLY for local loopback hosts
+ *   (`localhost`, `127.0.0.1`, `::1`) where local PostgreSQL instances operate without TLS.
+ *   Non-local environments MUST never disable SSL.
+ */
 export function getDb() {
   if (liveDb) return liveDb;
   if (isLiveDbConnected && connectionString) {
-    const client = postgres(connectionString, { max: 10, prepare: false });
+    const isLocal = isLocalDatabaseHost(connectionString);
+    const client = postgres(connectionString, {
+      max: 10,
+      prepare: false,
+      ssl: isLocal ? false : "verify-full",
+    });
     liveDb = drizzle(client, { schema });
     return liveDb;
   }
@@ -32,9 +64,10 @@ export interface MemoryRelationalStore {
   claims: (typeof schema.claims.$inferSelect)[];
   candidateEvents: (typeof schema.candidateEvents.$inferSelect)[];
   auditLog: (typeof schema.auditLog.$inferSelect)[];
+  quotes: (typeof schema.quotes.$inferSelect)[];
 }
 
-function resolvePersonMetadata(p: (typeof people)[0]): {
+function resolvePersonMetadata(p: TestPerson): {
   nationality: string;
   classification: string;
   programmeId: string;
@@ -117,11 +150,39 @@ function mapToCanonicalEventType(categories: string[], types: string[]): "bilate
 }
 
 function initializeSeedStore(): MemoryRelationalStore {
+  // In production, fallback in-memory store is empty to ensure no prototype records enter the production path
+  if (process.env.NODE_ENV === "production") {
+    return {
+      people: [],
+      personAliases: [],
+      places: [],
+      events: [],
+      sources: [],
+      claims: [],
+      candidateEvents: [],
+      auditLog: [],
+      quotes: [],
+    };
+  }
+
+  const legacyPeopleMap = new Map<string, typeof schema.people.$inferSelect>();
+
+  // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
+  const nodeRequire = createRequire(import.meta.url);
+  const fixtures = nodeRequire("./test-fixtures.json") as {
+    testPeople: TestPerson[];
+    testEvents: TestEvent[];
+    testSources: TestSource[];
+  };
+  const people = fixtures.testPeople;
+  const events = fixtures.testEvents;
+  const sources = fixtures.testSources;
+
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 
-  const seedPeople: (typeof schema.people.$inferSelect)[] = (people || []).map((p) => {
+  (people || []).forEach((p) => {
     const meta = resolvePersonMetadata(p);
-    return {
+    legacyPeopleMap.set(p.slug, {
       id: p.slug,
       slug: p.slug,
       canonicalName: p.name,
@@ -144,22 +205,52 @@ function initializeSeedStore(): MemoryRelationalStore {
       summary: p.description,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    });
   });
 
+  // Overlay Master Canonical Expansion Figures
+  (masterPeopleSeed || []).forEach((p) => {
+    legacyPeopleMap.set(p.slug, {
+      id: p.id,
+      slug: p.slug,
+      canonicalName: p.canonicalName,
+      displayName: p.displayName,
+      nativeName: p.nativeName,
+      birthDate: p.birthDate,
+      deathDate: p.deathDate,
+      datePrecision: p.datePrecision,
+      nationality: p.nationality,
+      primaryRole: p.primaryRole,
+      classification: p.classification,
+      notabilityBasis: p.notabilityBasis,
+      programmeId: p.programmeId,
+      isLiving: p.isLiving,
+      monitoringPriority: p.monitoringPriority,
+      publicationStatus: p.publicationStatus,
+      wikidataId: p.wikidataId,
+      viafId: p.viafId,
+      avatarUrl: p.avatarUrl,
+      summary: p.summary,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  const seedPeople = Array.from(legacyPeopleMap.values());
+
   let aliasCounter = 1;
-  const seedAliases: (typeof schema.personAliases.$inferSelect)[] = (people || []).flatMap((p) => [
+  const seedAliases: (typeof schema.personAliases.$inferSelect)[] = seedPeople.flatMap((p) => [
     {
       id: aliasCounter++,
       personId: p.slug,
-      alias: p.name,
+      alias: p.canonicalName,
       aliasType: "name",
     },
     {
       id: aliasCounter++,
       personId: p.slug,
-      alias: p.id,
-      aliasType: "id",
+      alias: p.displayName,
+      aliasType: "display_name",
     },
   ]);
 
@@ -212,6 +303,9 @@ function initializeSeedStore(): MemoryRelationalStore {
       endDate: e.endDate || null,
       temporalPrecision: "exact-day",
       placeId: `plc-${placeSlug}`,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
       verificationStatus: e.verificationStatus,
       confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
       publicationStatus: "published",
@@ -246,6 +340,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     claims: seedClaims,
     candidateEvents: [],
     auditLog: [],
+    quotes: [],
   };
 }
 
