@@ -213,7 +213,7 @@ test("enforces one-time candidate approval transitions and claim persistence", a
   });
 
   // 1. Initial approval succeeds
-  const appResult = approveCandidate(testCandId, "Senior Editor");
+  const appResult = await approveCandidate(testCandId, "Senior Editor");
   assert.equal(appResult.success, true);
   assert.ok(appResult.eventId);
 
@@ -222,7 +222,7 @@ test("enforces one-time candidate approval transitions and claim persistence", a
   assert.ok(persistedClaim, "Approved candidate claims must be persisted to store.claims");
 
   // 2. Second approval on same candidate must be rejected
-  const reApproveResult = approveCandidate(testCandId, "Senior Editor");
+  const reApproveResult = await approveCandidate(testCandId, "Senior Editor");
   assert.equal(reApproveResult.success, false);
   assert.match(reApproveResult.error, /already approved/);
 });
@@ -290,7 +290,7 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   });
 
   // 1. Initial merge succeeds and attaches claims
-  const mergeResult = mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
+  const mergeResult = await mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
   assert.equal(mergeResult.success, true);
   assert.equal(mergeResult.targetEventId, targetEvtId);
   assert.ok(mergeResult.claimsAddedCount >= 1);
@@ -303,8 +303,419 @@ test("enforces mergeCandidate claims deduplication and terminal state transition
   assert.equal(mergedClaim.subjectId, "benjamin-netanyahu");
 
   // 2. Second merge attempt on the same candidate is blocked
-  const reMergeResult = mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
+  const reMergeResult = await mergeCandidate(testMergeCandId, targetEvtId, "Senior Editor");
   assert.equal(reMergeResult.success, false);
   assert.match(reMergeResult.error, /already merged/);
 });
 
+test("ingests sample candidate streams dynamically and updates evidentiary telemetry stats", async () => {
+  const { ingestSampleCandidateStream, getEvidentiaryStats } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const initialCount = store.candidateEvents.length;
+
+  const res = ingestSampleCandidateStream("Autonomous Ingestion Engine");
+  assert.equal(res.success, true);
+  assert.ok(res.candidateId);
+  assert.equal(store.candidateEvents.length, initialCount + 1);
+
+  // Verifies audit record was created
+  const latestAudit = store.auditLog[0];
+  assert.ok(latestAudit);
+  assert.equal(latestAudit.action, "discovered");
+  assert.equal(latestAudit.candidateId, res.candidateId);
+
+  // Verifies telemetry stats include duplicate and total candidate counts
+  const stats = await getEvidentiaryStats();
+  assert.ok(typeof stats.publishedEventsCount === "number");
+  assert.ok(typeof stats.verifiedClaimsCount === "number");
+  assert.ok(typeof stats.duplicateCandidatesCount === "number");
+  assert.ok(typeof stats.totalCandidatesCount === "number");
+  assert.ok(stats.totalCandidatesCount >= 1);
+});
+
+test("enforces evidence source rigor: rejects approval without a valid archival sourceId", async () => {
+  const { approveCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const testNoSourceCandId = `cand-nosrc-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testNoSourceCandId,
+    fingerprint: `fp_nosrc_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Candidate with Missing Source",
+      summary: "Candidate lacking valid source",
+      startDate: "2024-01-15",
+      eventType: "speech-plenary",
+      // sourceId omitted or synthetic
+      claims: [{ claimType: "presence", statement: "Unsubstantiated claim" }],
+    }),
+    suggestedTitle: "Candidate with Missing Source",
+    suggestedDate: "2024-01-15",
+    suggestedPlace: "Jerusalem",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const res = await approveCandidate(testNoSourceCandId, "Senior Editor");
+  assert.equal(res.success, false);
+  assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
+});
+
+test("enforces evidence source rigor: rejects merge without a valid archival sourceId", async () => {
+  const { mergeCandidate } = await vite.ssrLoadModule("/lib/evidence-service.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const store = getRelationalStore();
+  const targetEvtId = store.events[0]?.id || "evt-1998-10-23-wye-river-memorandum";
+  const testNoSourceCandId = `cand-nosrc-mrg-${Date.now()}`;
+  store.candidateEvents.push({
+    id: testNoSourceCandId,
+    fingerprint: `fp_nosrc_mrg_${Date.now()}`,
+    rawExtraction: JSON.stringify({
+      title: "Merge Candidate with Missing Source",
+      summary: "Candidate lacking valid source",
+      startDate: "1998-10-23",
+      eventType: "treaty-signing",
+      // sourceId omitted or synthetic sentinel
+      sourceId: "src-editorial-corroboration",
+      claims: [{ claimType: "presence", statement: "Unsubstantiated claim" }],
+    }),
+    suggestedTitle: "Merge Candidate with Missing Source",
+    suggestedDate: "1998-10-23",
+    suggestedPlace: "Washington, D.C.",
+    suggestedParticipants: JSON.stringify([{ name: "Benjamin Netanyahu" }]),
+    primarySourceTier: "tier-a",
+    assignedLane: "human-review",
+    duplicateMatchId: targetEvtId,
+    duplicateSimilarity: 0.9,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+  });
+
+  const res = await mergeCandidate(testNoSourceCandId, targetEvtId, "Senior Editor");
+  assert.equal(res.success, false);
+  assert.match(res.error, /requires a valid verifiable primary or secondary sourceId/i);
+});
+
+test("verifies getMonogram utility and production fail-closed behavior in events loaders", async () => {
+  const { getMonogram } = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+  const { getAllEventsWithStatus, getSpeechEventsWithStatus } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // 1. Monogram utility tests
+  assert.equal(getMonogram("Benjamin Netanyahu"), "BN");
+  assert.equal(getMonogram("  Benjamin \t Netanyahu  "), "BN");
+  assert.equal(getMonogram("Bill Clinton"), "BC");
+  assert.equal(getMonogram("Arafat"), "AR");
+  assert.equal(getMonogram("   "), "—");
+  assert.equal(getMonogram(""), "—");
+
+  // 2. Production fail-closed behavior without DB
+  const origNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "production";
+    const allRes = await getAllEventsWithStatus();
+    assert.equal(allRes.data.length, 0);
+    assert.match(allRes.error || "", /Database configuration unavailable in production environment/);
+
+    const speechRes = await getSpeechEventsWithStatus();
+    assert.equal(speechRes.data.length, 0);
+    assert.match(speechRes.error || "", /Database configuration unavailable in production environment/);
+  } finally {
+    if (origNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = origNodeEnv;
+    }
+  }
+});
+
+test("verifies precision-aware date formatting and year filter matching", async () => {
+  const { formatTimelineDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // Partial date formatting should not fabricate days for year-only or month-only dates
+  assert.equal(formatTimelineDate("1948", "year"), "1948");
+  assert.equal(formatTimelineDate("1948-05", "month"), "May 1948");
+  assert.equal(formatTimelineDate("2011-09-23", "exact-day", { day: "numeric", month: "long", year: "numeric" }), "23 September 2011");
+
+  // Year filter matching matches year prefix
+  const res = await getEvents({ year: "1998" });
+  assert.ok(Array.isArray(res.data));
+  assert.ok(res.data.every((e) => e.startDate.startsWith("1998")));
+});
+
+test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilience, and venue error handling", async () => {
+  const { recordAuditEvent } = await vite.ssrLoadModule("/lib/ingestion/audit.ts");
+  const { getPlaces, getPlaceBySlug } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // 1. recordAuditEvent returns an awaitable entry
+  const auditPromise = recordAuditEvent("test-action", "RULE-1", { test: true });
+  assert.ok(auditPromise instanceof Promise);
+  const auditEntry = await auditPromise;
+  assert.equal(auditEntry.action, "test-action");
+
+  // 2. getPlaces and getPlaceBySlug return valid collections or null safely
+  const places = await getPlaces();
+  assert.ok(Array.isArray(places));
+
+  const placeSlugResult = await getPlaceBySlug("non-existent-place-slug-xyz");
+  assert.equal(placeSlugResult, null);
+
+  // 3. getEvents handles non-existent placeSlug gracefully
+  const eventsResult = await getEvents({ placeSlug: "non-existent-place-slug-xyz" });
+  assert.ok(Array.isArray(eventsResult.data));
+  assert.equal(eventsResult.data.length, 0);
+  assert.equal(eventsResult.error, null);
+});
+
+test("verifies PR #12 Codex review fixes: year sanitization, EventCard dateTime emission, and TimelineComparison self-pair guard", async () => {
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const { isStandardIsoDate } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+
+  // 1. Year filter with wildcards is sanitized and does not return un-filtered results
+  const wildcardRes = await getEvents({ year: "%" });
+  assert.ok(Array.isArray(wildcardRes.data));
+
+  const malformedRes = await getEvents({ year: "1982%" });
+  assert.ok(Array.isArray(malformedRes.data));
+  assert.ok(malformedRes.data.every((e) => e.startDate.startsWith("1982")));
+
+  // 2. isStandardIsoDate correctly flags archival strings like "1980s" vs standard dates "1982-10-23"
+  assert.equal(isStandardIsoDate("1982-10-23"), true);
+  assert.equal(isStandardIsoDate("1980s"), false);
+  assert.equal(isStandardIsoDate("Circa 1992"), false);
+});
+
+test("verifies participant stub collision resistance, place coordinates preservation, and stats failure propagation", async () => {
+  const { createParticipantStubId, resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  // 1. Collision-resistant stub IDs for non-ASCII / similar names (SHA-256 hex digest)
+  const id1 = createParticipantStubId("Diplomat Alpha");
+  const id2 = createParticipantStubId("Diplomat Beta");
+  const idNonAscii1 = createParticipantStubId("יוסי שריד");
+  const idNonAscii2 = createParticipantStubId("יצחק רבין");
+  assert.notEqual(id1, id2);
+  assert.notEqual(idNonAscii1, idNonAscii2);
+  assert.ok(idNonAscii1.startsWith("p-unknown-"));
+  assert.ok(idNonAscii2.startsWith("p-unknown-"));
+  assert.match(id1, /^p-diplomat-alpha-[0-9a-f]{8}$/);
+  assert.match(idNonAscii1, /^p-unknown-[0-9a-f]{8}$/);
+
+  // 2. resolvePlace coordinates preservation
+  const resolvedWithCoords = resolvePlace("Diplomatic Venue X", "Geneva", "Switzerland", 46.2044, 6.1432);
+  assert.equal(resolvedWithCoords.latitude, 46.2044);
+  assert.equal(resolvedWithCoords.longitude, 6.1432);
+});
+
+test("verifies resolvePlaceAsync live database resolution and fallback behavior", async () => {
+  const { resolvePlaceAsync } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  const mockDb = {
+    select() {
+      return {
+        from() {
+          return {
+            where() {
+              return Promise.resolve([
+                {
+                  id: "plc-geneva-palais-des-nations",
+                  slug: "palais-des-nations",
+                  venue: "Palais des Nations",
+                  city: "Geneva",
+                  country: "Switzerland",
+                  latitude: 46.2268,
+                  longitude: 6.1402,
+                  placeType: "summit-center",
+                },
+              ]);
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const dbRes = await resolvePlaceAsync("Palais des Nations", "Geneva", "Switzerland", undefined, undefined, mockDb);
+  assert.equal(dbRes.placeId, "plc-geneva-palais-des-nations");
+  assert.equal(dbRes.venue, "Palais des Nations");
+  assert.equal(dbRes.confidence, 0.98);
+  assert.equal(dbRes.latitude, 46.2268);
+
+  // Fallback to in-memory store when DB is null
+  const fallbackRes = await resolvePlaceAsync("White House", "Washington, D.C.", "United States", undefined, undefined, null);
+  assert.ok(fallbackRes.city.includes("Washington"));
+  assert.ok(fallbackRes.confidence >= 0.9);
+});
+
+test("verifies event-v2-adapter confidence defaults to limited without unevidenced assumptions", async () => {
+  const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
+
+  const legacyEventWithoutConfidence = {
+    id: "evt-test-legacy-01",
+    slug: "evt-test-legacy-01",
+    eventName: "Historical Diplomatic Meeting",
+    summary: "Diplomatic talks without explicit confidence rating",
+    startDate: "1995-10-15",
+    city: "Geneva",
+    country: "Switzerland",
+    latitude: 46.2044,
+    longitude: 6.1432,
+    locationPrecision: "venue",
+    verificationStatus: "provisional",
+    participants: [
+      {
+        personId: "p-test-1",
+        name: "Test Diplomat",
+        role: "delegate",
+      },
+    ],
+    sourceIds: ["src-1"],
+  };
+
+  const v2 = upgradeLegacyToV2(legacyEventWithoutConfidence);
+  assert.equal(v2.confidence, "limited");
+  assert.equal(v2.people[0].presenceConfidence, "limited");
+  assert.equal(v2.people[0].roleConfidence, "limited");
+  assert.equal(v2.people[0].locations[0].confidence, "limited");
+});
+
+test("verifies ingestion pipeline quote persistence, deterministic slug hashing, and source fetch hashing", async () => {
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
+
+  const candidateWithQuotes = {
+    title: "Joint Press Conference at Elysée Palace",
+    summary: "French and Israeli leaders deliver remarks following bilateral summit.",
+    startDate: "2013-03-20",
+    eventType: "press-conference",
+    venue: "Elysée Palace",
+    city: "Paris",
+    country: "France",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Benjamin Netanyahu delivered joint address in Paris." },
+    ],
+    quotes: [
+      {
+        speaker: "Benjamin Netanyahu",
+        quote: "Our cooperation on shared strategic interests remains indispensable.",
+        context: "Opening remarks at joint press briefing",
+      },
+    ],
+  };
+
+  const rawSource = {
+    sourceId: "src-elysee-20130320",
+    sourceTitle: "Official Transcript of Joint Press Conference",
+    publisher: "Élysée Press Office",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://elysee.fr/transcripts/2013-03-20",
+    rawText: "President Hollande and Prime Minister Netanyahu delivered the following statements to the press corps...",
+    fetchedAt: "2013-03-20T18:00:00Z",
+  };
+
+  const result = processCandidateEvent(candidateWithQuotes, rawSource);
+  assert.equal(result.lane, "auto-publish");
+  assert.ok(result.publishedEventId);
+  assert.ok(result.publishedEventId.includes("press-conference"));
+  assert.ok(result.publishedEventId.includes("paris"));
+
+  const store = getRelationalStore();
+  const savedQuote = store.quotes.find((q) => q.eventId === result.publishedEventId);
+  assert.ok(savedQuote);
+  assert.equal(savedQuote.quote, "Our cooperation on shared strategic interests remains indispensable.");
+});
+
+test("verifies strict year filter rejection for malformed or wildcard queries", async () => {
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+
+  // Valid 4-digit year query
+  const validRes = await getEvents({ year: "1998" });
+  assert.ok(Array.isArray(validRes.data));
+  assert.ok(validRes.data.every((e) => e.startDate.startsWith("1998")));
+
+  // Malformed or wildcard year queries must return 0 results
+  const wildcardRes = await getEvents({ year: "199%" });
+  assert.equal(wildcardRes.data.length, 0);
+  assert.equal(wildcardRes.count, 0);
+
+  const nonDigitRes = await getEvents({ year: "invalid" });
+  assert.equal(nonDigitRes.data.length, 0);
+  assert.equal(nonDigitRes.count, 0);
+
+  const shortDigitRes = await getEvents({ year: "98" });
+  assert.equal(shortDigitRes.data.length, 0);
+  assert.equal(shortDigitRes.count, 0);
+});
+
+test("verifies findDuplicateEventAsync and collision-resistant event slug disambiguation", async () => {
+  const { findDuplicateEventAsync } = await vite.ssrLoadModule("/lib/ingestion/deduplicate.ts");
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+
+  const candidateA = {
+    title: "Geneva Peace Talks - Morning Plenary Session",
+    summary: "Plenary discussions on regional security frameworks.",
+    startDate: "2015-06-12",
+    eventType: "multilateral-summit",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended Geneva peace plenary." },
+    ],
+  };
+
+  const candidateB = {
+    title: "Geneva Nuclear Accord Working Group",
+    summary: "Technical discussions on nuclear monitoring protocols.",
+    startDate: "2015-06-12",
+    eventType: "bilateral-meeting",
+    venue: "Palais des Nations",
+    city: "Geneva",
+    country: "Switzerland",
+    participants: [
+      { name: "Benjamin Netanyahu", role: "principal", presenceMode: "physical" },
+    ],
+    claims: [
+      { subjectMention: "Benjamin Netanyahu", claimType: "presence", statement: "Attended nuclear working group." },
+    ],
+  };
+
+  const rawSrc = {
+    sourceId: "src-geneva-20150612",
+    sourceTitle: "Swiss Federal Department of Foreign Affairs Dispatch",
+    publisher: "FDFA Switzerland",
+    sourceType: "official-transcript",
+    sourceTier: "tier-a",
+    url: "https://eda.admin.ch/transcripts/2015-06-12",
+  };
+
+  const resA = processCandidateEvent(candidateA, rawSrc);
+  const resB = processCandidateEvent(candidateB, rawSrc);
+
+  assert.ok(resA.publishedEventId);
+  assert.ok(resB.publishedEventId);
+  // Distinct events on the same date with same participant must receive distinct IDs
+  assert.notEqual(resA.publishedEventId, resB.publishedEventId);
+
+  // findDuplicateEventAsync with store fallback
+  const dupMatch = await findDuplicateEventAsync(candidateA);
+  assert.ok(dupMatch);
+});

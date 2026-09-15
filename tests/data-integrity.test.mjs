@@ -17,7 +17,7 @@ after(async () => {
 });
 
 test("validates archival data integrity in rewind.ts dataset", async () => {
-  const { people, events, sources } = await vite.ssrLoadModule("/data/rewind.ts");
+  const { people, events, sources } = await vite.ssrLoadModule("/archive/legacy-data/rewind.ts");
 
   assert.ok(Array.isArray(people) && people.length >= 10, "Dataset must contain at least 10 historical figures");
   assert.ok(Array.isArray(events) && events.length >= 50, "Dataset must contain at least 50 documented events");

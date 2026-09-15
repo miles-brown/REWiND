@@ -1,4 +1,14 @@
-import { getRelationalStore } from "@/lib/db/client";
+import { getRelationalStore, getDb, markDbUnreachable } from "@/lib/db/client";
+import * as schema from "@/db/schema";
+import { desc } from "drizzle-orm";
+
+async function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 1500): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
 
 export interface AuditRecord {
   id: number;
@@ -16,7 +26,7 @@ export function recordAuditEvent(
   details: Record<string, unknown>,
   eventId?: string,
   candidateId?: string
-): AuditRecord {
+): Promise<AuditRecord> & AuditRecord {
   const store = getRelationalStore();
   const entry: AuditRecord = {
     id: store.auditLog.length + 1,
@@ -29,10 +39,60 @@ export function recordAuditEvent(
   };
 
   store.auditLog.unshift(entry);
-  return entry;
+
+  const db = getDb();
+  const persistPromise = (async () => {
+    if (db) {
+      try {
+        await db.insert(schema.auditLog).values({
+          eventId: entry.eventId,
+          candidateId: entry.candidateId,
+          action: entry.action,
+          ruleId: entry.ruleId,
+          details: entry.details,
+          recordedAt: entry.recordedAt,
+        });
+      } catch (err) {
+        // Audit persistence is best-effort observability; log the failure but
+        // never propagate so a transient DB error cannot crash an already-committed
+        // review decision or leave callers with a misleading rejected promise.
+        console.warn("[Audit] Failed to persist audit record to database:", err);
+      }
+    }
+    return entry;
+  })();
+
+  return Object.assign(persistPromise, entry);
 }
 
-export function getAuditTrail(): AuditRecord[] {
+export async function getAuditTrail(): Promise<AuditRecord[]> {
+  const db = getDb();
   const store = getRelationalStore();
+
+  if (db) {
+    try {
+      const rows = await withDbTimeout(
+        db
+          .select()
+          .from(schema.auditLog)
+          .orderBy(desc(schema.auditLog.recordedAt))
+          .limit(100),
+        1500
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        eventId: r.eventId,
+        candidateId: r.candidateId,
+        action: r.action,
+        ruleId: r.ruleId,
+        details: r.details,
+        recordedAt: r.recordedAt,
+      }));
+    } catch (err) {
+      console.warn("Failed to query live audit trail, falling back to store:", err);
+      markDbUnreachable();
+    }
+  }
+
   return store.auditLog;
 }

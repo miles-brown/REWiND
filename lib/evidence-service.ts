@@ -1,6 +1,16 @@
-import { getRelationalStore } from "@/lib/db/client";
+import { getRelationalStore, getDb, markDbUnreachable } from "@/lib/db/client";
+import * as schema from "@/db/schema";
+import { eq, desc, count, or, and, gte, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent } from "@/lib/ingestion/audit";
-import { resolveEntity } from "@/lib/ingestion/resolve";
+import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
+
+async function withDbTimeout<T>(promise: Promise<T>, timeoutMs = 1500): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Database query timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -8,14 +18,67 @@ export interface EvidenceStats {
   primarySourcesCount: number;
   pendingReviewCount: number;
   autoPublishedCount: number;
+  duplicateCandidatesCount?: number;
+  totalCandidatesCount?: number;
 }
 
-export function getEvidentiaryStats(): EvidenceStats {
+interface CandidateClaimInput {
+  subjectMention?: string;
+  claimType?: string;
+  statement?: string;
+  claimedTime?: string;
+  claimedVenue?: string;
+  supportingExcerpt?: string;
+}
+
+function escapeIlikePattern(str: string): string {
+  return str.replace(/[\\%_]/g, "\\$&");
+}
+
+export async function getEvidentiaryStats(): Promise<EvidenceStats> {
+  const db = getDb();
+  if (db) {
+    try {
+      const statsPromise = Promise.all([
+        db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published")),
+        db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish")),
+        db.select({ val: count() }).from(schema.claims),
+        db.select({ val: count() }).from(schema.sources).where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b"))),
+        db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending")),
+        db.select({ val: count() }).from(schema.candidateEvents).where(and(eq(schema.candidateEvents.status, "pending"), gte(schema.candidateEvents.duplicateSimilarity, 0.75))),
+        db.select({ val: count() }).from(schema.candidateEvents),
+      ]);
+      const [
+        [published],
+        [autoPublished],
+        [claims],
+        [sources],
+        [pending],
+        [duplicates],
+        [totalCandidates],
+      ] = await withDbTimeout(statsPromise, 1500);
+
+      return {
+        publishedEventsCount: Number(published?.val ?? 0),
+        verifiedClaimsCount: Number(claims?.val ?? 0),
+        primarySourcesCount: Number(sources?.val ?? 0),
+        pendingReviewCount: Number(pending?.val ?? 0),
+        autoPublishedCount: Number(autoPublished?.val ?? 0),
+        duplicateCandidatesCount: Number(duplicates?.val ?? 0),
+        totalCandidatesCount: Number(totalCandidates?.val ?? 0),
+      };
+    } catch (err) {
+      console.warn("Failed to query live evidentiary stats, falling back to store:", err);
+      markDbUnreachable();
+    }
+  }
+
   const store = getRelationalStore();
   const published = store.events.filter((e) => e.publicationStatus === "published");
   const autoPublished = store.events.filter((e) => e.publicationLane === "auto-publish");
   const primarySources = store.sources.filter((s) => s.tier === "tier-a" || s.tier === "tier-b");
   const pending = store.candidateEvents.filter((c) => c.status === "pending");
+  const duplicates = store.candidateEvents.filter((c) => c.status === "pending" && (c.duplicateSimilarity ?? 0) >= 0.75);
 
   return {
     publishedEventsCount: published.length,
@@ -23,171 +86,563 @@ export function getEvidentiaryStats(): EvidenceStats {
     primarySourcesCount: primarySources.length,
     pendingReviewCount: pending.length,
     autoPublishedCount: autoPublished.length,
+    duplicateCandidatesCount: duplicates.length,
+    totalCandidatesCount: store.candidateEvents.length,
   };
 }
 
-export function getCandidateQueue() {
+export async function getCandidateQueue() {
+  const db = getDb();
   const store = getRelationalStore();
+
+  if (db) {
+    try {
+      const rows = await withDbTimeout(
+        db
+          .select()
+          .from(schema.candidateEvents)
+          .orderBy(desc(schema.candidateEvents.createdAt)),
+        1500
+      );
+      return rows;
+    } catch (err) {
+      console.warn("Failed to query live candidate queue, falling back to store:", err);
+      markDbUnreachable();
+    }
+  }
+
   return store.candidateEvents;
+}
+
+async function resolveCandidateRecord(
+  candidateId: string,
+  store: ReturnType<typeof getRelationalStore>,
+  db: ReturnType<typeof getDb>
+) {
+  if (db) {
+    try {
+      const [dbCandidate] = await db
+        .select()
+        .from(schema.candidateEvents)
+        .where(eq(schema.candidateEvents.id, candidateId));
+      if (dbCandidate) return dbCandidate;
+    } catch (e) {
+      console.warn("Error querying candidate from live db:", e);
+    }
+  }
+  return store.candidateEvents.find((c) => c.id === candidateId);
+}
+
+/**
+ * Wraps an async database execution promise with initial synchronous fallback properties.
+ *
+ * CAUTION / ARCHITECTURAL CONTRACT:
+ * The immediate synchronous properties (e.g. `result.success`) reflect initial memory store
+ * fallback state. Callers awaiting the returned Promise receive the authoritative database result once the
+ * async database transaction completes. Synchronous property inspection should be treated as transient
+ * state while background persistence completes.
+ */
+function asAsyncResult<T extends Record<string, unknown>>(promise: Promise<T>, syncFallback: T): Promise<T> & T {
+  return Object.assign(promise, syncFallback);
 }
 
 export function approveCandidate(candidateId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  if (!candidate) return { success: false, error: "Candidate not found" };
+  const db = getDb();
 
-  // Ensure one-time pending-to-terminal transition
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be approved again`,
-    };
-  }
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
 
-  candidate.status = "approved";
-
-  // Parse candidate extraction
-  const data = JSON.parse(candidate.rawExtraction);
-  const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
-
-  // Find or create place
-  const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
-
-  store.events.unshift({
-    id: eventSlug,
-    slug: eventSlug,
-    parentId: null,
-    eventType: data.eventType || "historical-action",
-    title: candidate.suggestedTitle,
-    summary: data.summary || candidate.suggestedTitle,
-    description: data.description || null,
-    startDate: candidate.suggestedDate,
-    endDate: data.endDate || null,
-    temporalPrecision: data.temporalPrecision || "exact-day",
-    placeId,
-    verificationStatus: "verified",
-    confidenceScore: 0.98,
-    publicationStatus: "published",
-    publicationLane: "human-review",
-    significanceScore: 80,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  // Persist reviewed claims and source attribution during approval
-  const sourceId = data.sourceId || "src-editorial-approval";
-  if (Array.isArray(data.claims)) {
-    data.claims.forEach(
-      (
-        clm: {
-          subjectMention?: string;
-          claimType?: string;
-          statement?: string;
-          claimedTime?: string;
-          claimedVenue?: string;
-          supportingExcerpt?: string;
-        },
-        idx: number
-      ) => {
-        const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
-        store.claims.push({
-          id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
-          eventId: eventSlug,
-          subjectId: resolvedSubject?.personId || null,
-          claimType: clm.claimType || "presence",
-          statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
-          claimedTime: clm.claimedTime || candidate.suggestedDate,
-          claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
-          sourceId,
-          confidence: "confirmed",
-          supportingExcerpt: clm.supportingExcerpt || data.summary || null,
-        });
+  const syncFallback: { success: boolean; eventId?: string; error?: string } = !syncCandidate
+    ? { success: false, error: "Candidate not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be approved again` }
+    : !syncSourceId || syncSourceId === "src-editorial-approval"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
       }
+    : { success: true, eventId: `evt-${syncCandidate.suggestedDate.slice(0, 10)}-cand-sync` };
+
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
+
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be approved again`,
+      };
+    }
+
+    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-approval") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Candidate approval requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
+
+    const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
+    const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+
+    const newClaims: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach(
+        (
+          clm: {
+            subjectMention?: string;
+            claimType?: string;
+            statement?: string;
+            claimedTime?: string;
+            claimedVenue?: string;
+            supportingExcerpt?: string;
+          },
+          idx: number
+        ) => {
+          const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
+          newClaims.push({
+            id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
+            eventId: eventSlug,
+            subjectId: resolvedSubject?.personId || null,
+            claimType: clm.claimType || "presence",
+            statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
+            claimedTime: clm.claimedTime || candidate.suggestedDate,
+            claimedVenue: clm.claimedVenue || candidate.suggestedPlace || null,
+            sourceId,
+            confidence: "confirmed",
+            supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+            subjectMention: clm.subjectMention,
+          });
+        }
+      );
+    }
+
+    const eventPeopleRows: Array<typeof schema.eventPeople.$inferInsert & { rawName?: string }> = [];
+    if (Array.isArray(data.participants)) {
+      data.participants.forEach((p: { name: string; role?: string; involvementType?: string; presenceMode?: string }, idx: number) => {
+        const resolved = resolveEntity(p.name);
+        const personId = createParticipantStubId(p.name, resolved.personId);
+        eventPeopleRows.push({
+          id: `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
+          eventId: eventSlug,
+          personId,
+          involvementType: p.involvementType || "attendee",
+          roleLabel: p.role || "participant",
+          presenceConfidence: "confirmed",
+          roleConfidence: "confirmed",
+          attendanceMode: p.presenceMode || "physical",
+          rawName: p.name,
+        });
+      });
+    }
+
+    let resolvedPlaceId = placeId;
+
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          // 1. Claim pending candidate atomically (Codex Issue 5)
+          const updateResult = await tx
+            .update(schema.candidateEvents)
+            .set({ status: "approved" })
+            .where(
+              and(
+                eq(schema.candidateEvents.id, candidateId),
+                eq(schema.candidateEvents.status, "pending")
+              )
+            )
+            .returning({ id: schema.candidateEvents.id });
+
+          if (updateResult.length === 0) {
+            throw new Error("Candidate was already reviewed or claimed by another editor");
+          }
+
+          // 2. Ensure source exists in schema.sources before linking
+          if (sourceId) {
+            const [existingSrc] = await tx
+              .select({ id: schema.sources.id })
+              .from(schema.sources)
+              .where(eq(schema.sources.id, sourceId));
+            if (!existingSrc) {
+              await tx.insert(schema.sources).values({
+                id: sourceId,
+                title: data.sourceTitle || `Source for ${candidate.suggestedTitle}`,
+                publisher: data.publisher || "Archival Source",
+                sourceType: data.sourceType || "official-transcript",
+                tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+                url: data.url || null,
+              });
+            }
+          }
+
+          // 3. Resolve or insert canonical place
+          const targetSlug = placeId.replace(/^plc-/, "");
+          const [existingDbPlace] = await tx
+            .select()
+            .from(schema.places)
+            .where(or(eq(schema.places.id, placeId), eq(schema.places.slug, targetSlug)));
+          if (existingDbPlace) {
+            resolvedPlaceId = existingDbPlace.id;
+          } else {
+            await tx.insert(schema.places).values({
+              id: placeId,
+              slug: targetSlug,
+              venue: candidate.suggestedPlace || "Unspecified Location",
+              city: candidate.suggestedPlace || "Unknown City",
+              country: "International",
+              latitude: null,
+              longitude: null,
+              placeType: "venue",
+            });
+          }
+
+          // 4. Insert published event
+          await tx.insert(schema.events).values({
+            id: eventSlug,
+            slug: eventSlug,
+            parentId: null,
+            eventType: data.eventType || "historical-action",
+            title: candidate.suggestedTitle,
+            summary: data.summary || candidate.suggestedTitle,
+            description: data.description || null,
+            startDate: candidate.suggestedDate,
+            endDate: data.endDate || null,
+            temporalPrecision: data.temporalPrecision || "exact-day",
+            placeId: resolvedPlaceId,
+            seriesId: null,
+            venueId: null,
+            addressId: null,
+            verificationStatus: "verified",
+            confidenceScore: 0.98,
+            publicationStatus: "published",
+            publicationLane: "human-review",
+            significanceScore: 80,
+          });
+
+          // 5. Insert evidence link before commit (Codex Issue 1)
+          await tx.insert(schema.eventSources).values({
+            eventId: eventSlug,
+            sourceId,
+            isPrimary: true,
+          });
+
+          // 6. Persist approved candidate participants (Codex & Gemini: resolve person canonically and promote to published)
+          if (eventPeopleRows.length > 0) {
+            for (const ep of eventPeopleRows) {
+              const canonicalPersonId = await resolvePersonEntityInTransaction(tx, {
+                personId: ep.personId,
+                rawName: ep.rawName || ep.personId.replace(/^p-/, ""),
+                roleLabel: ep.roleLabel,
+              });
+              ep.personId = canonicalPersonId;
+              const epRow = { ...ep };
+              delete epRow.rawName;
+              await tx.insert(schema.eventPeople).values(epRow);
+            }
+          }
+
+          // 7. Insert claims with live database subject resolution (batched mention resolution)
+          if (newClaims.length > 0) {
+            const distinctMentions = Array.from(
+              new Set(
+                newClaims
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
+            );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
+                .from(schema.people)
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
+                    )
+                  );
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
+                }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
+              }
+            }
+
+            const dbClaims = newClaims.map((clm) => {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
+              }
+              clm.subjectId = resolvedDbSubjectId;
+              const dbRow = { ...clm };
+              delete dbRow.subjectMention;
+              return {
+                ...dbRow,
+                subjectId: resolvedDbSubjectId,
+              };
+            });
+            await tx.insert(schema.claims).values(dbClaims);
+          }
+
+          // 8. Insert review decision
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "approved",
+            decidedBy: editorName,
+            notes: "Editorial review sign-off",
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on approveCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
+      }
+    }
+
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "approved";
+    }
+    candidate.status = "approved";
+
+    store.events.unshift({
+      id: eventSlug,
+      slug: eventSlug,
+      parentId: null,
+      eventType: data.eventType || "historical-action",
+      title: candidate.suggestedTitle,
+      summary: data.summary || candidate.suggestedTitle,
+      description: data.description || null,
+      startDate: candidate.suggestedDate,
+      endDate: data.endDate || null,
+      temporalPrecision: data.temporalPrecision || "exact-day",
+      placeId: resolvedPlaceId,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
+      verificationStatus: "verified",
+      confidenceScore: 0.98,
+      publicationStatus: "published",
+      publicationLane: "human-review",
+      significanceScore: 80,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const existingPlace = store.places.find((p) => p.id === resolvedPlaceId);
+    if (!existingPlace) {
+      store.places.push({
+        id: resolvedPlaceId,
+        slug: resolvedPlaceId.replace(/^plc-/, ""),
+        venue: candidate.suggestedPlace || "Unspecified Location",
+        city: candidate.suggestedPlace || "Unknown City",
+        country: "International",
+        latitude: 31.7683,
+        longitude: 35.2137,
+        placeType: "venue",
+      });
+    }
+
+    newClaims.forEach((clm) => {
+      const inMem = { ...clm };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
+    });
+
+    await recordAuditEvent(
+      "reviewed-approved",
+      "REW-REV-MANUAL-SIGN-OFF",
+      {
+        candidateId,
+        publishedEventId: eventSlug,
+        approvedBy: editorName,
+        sourceId,
+        claimsAddedCount: newClaims.length,
+      },
+      eventSlug,
+      candidateId
     );
-  }
 
-  recordAuditEvent(
-    "reviewed-approved",
-    "REW-REV-MANUAL-SIGN-OFF",
-    {
-      candidateId,
-      publishedEventId: eventSlug,
-      approvedBy: editorName,
-      sourceId,
-    },
-    eventSlug,
-    candidateId
-  );
+    syncFallback.eventId = eventSlug;
+    return { success: true, eventId: eventSlug };
+  })();
 
-  return { success: true, eventId: eventSlug };
+  return asAsyncResult(executionPromise, syncFallback);
 }
 
 export function mergeCandidate(candidateId: string, targetEventId: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  const targetEvent = store.events.find((e) => e.id === targetEventId);
+  const db = getDb();
 
-  if (!candidate || !targetEvent) return { success: false, error: "Candidate or target event not found" };
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncTarget = store.events.find((e) => e.id === targetEventId || e.slug === targetEventId);
+  const resolvedTargetId = syncTarget?.id || targetEventId;
+  const syncData = syncCandidate
+    ? typeof syncCandidate.rawExtraction === "string"
+      ? JSON.parse(syncCandidate.rawExtraction)
+      : syncCandidate.rawExtraction
+    : null;
+  const syncSourceId = syncData?.sourceId;
 
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be merged`,
-    };
-  }
+  const syncFallback:
+    | { success: false; error: string }
+    | { success: true; targetEventId: string; claimsAddedCount: number } = !syncCandidate || !syncTarget
+    ? { success: false, error: "Candidate or target event not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be merged` }
+    : !syncSourceId || syncSourceId === "src-editorial-corroboration"
+    ? {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      }
+    : { success: true, targetEventId: resolvedTargetId, claimsAddedCount: 0 };
 
-  candidate.status = "merged";
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
 
-  const data = JSON.parse(candidate.rawExtraction);
-  const sourceId = data.sourceId || "src-editorial-corroboration";
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be merged`,
+      };
+    }
 
-  // Ensure source is registered in the sources catalog
-  let existingSource = store.sources.find((s) => s.id === sourceId);
-  if (!existingSource && sourceId !== "src-editorial-corroboration") {
-    existingSource = {
-      id: sourceId,
-      title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
-      publisher: data.publisher || "Archival Source",
-      sourceType: data.sourceType || "official-transcript",
-      tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
-      url: data.url || null,
-      archiveUrl: null,
-      author: null,
-      publicationDate: candidate.suggestedDate,
-      trustScore: 0.95,
-    };
-    store.sources.push(existingSource);
-  }
+    let targetEvent: typeof schema.events.$inferSelect | undefined;
+    if (db) {
+      try {
+        const [dbEvt] = await db
+          .select()
+          .from(schema.events)
+          .where(or(eq(schema.events.id, targetEventId), eq(schema.events.slug, targetEventId)));
+        if (dbEvt) targetEvent = dbEvt;
+      } catch (e) {
+        console.warn("Error querying target event from live db:", e);
+      }
+    }
+    if (!targetEvent) {
+      targetEvent = store.events.find((e) => e.id === targetEventId || e.slug === targetEventId);
+    }
+    if (!targetEvent) return { success: false, error: "Candidate or target event not found" };
 
-  // 1. Merge Claims with entity resolution and deduplication
-  let claimsAddedCount = 0;
-  if (Array.isArray(data.claims)) {
-    data.claims.forEach(
-      (
-        clm: {
-          subjectMention?: string;
-          claimType?: string;
-          statement?: string;
-          claimedTime?: string;
-          claimedVenue?: string;
-          supportingExcerpt?: string;
-        },
-        idx: number
-      ) => {
+    const data = typeof candidate.rawExtraction === "string" ? JSON.parse(candidate.rawExtraction) : candidate.rawExtraction;
+    const sourceId = data?.sourceId;
+    if (!sourceId || sourceId === "src-editorial-corroboration") {
+      return {
+        success: false,
+        error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
+      };
+    }
+
+    const claimsToInsert: Array<
+      ReturnType<typeof getRelationalStore>["claims"][0] & { subjectMention?: string }
+    > = [];
+    const seenInMemory = new Set<string>();
+    if (Array.isArray(data.claims)) {
+      data.claims.forEach((clm: CandidateClaimInput, idx: number) => {
         const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
         const subjectId = resolvedSubject?.personId || null;
         const statement = clm.statement || "Corroborating claim";
+        const stmtNorm = statement.trim().toLowerCase();
+        const dedupeKey = `${subjectId || "none"}::${stmtNorm}`;
 
-        // Avoid exact duplicate claims on the target event
         const isDuplicateClaim = store.claims.some(
           (existing) =>
             existing.eventId === targetEventId &&
-            existing.statement.toLowerCase().trim() === statement.toLowerCase().trim() &&
+            existing.statement.toLowerCase().trim() === stmtNorm &&
             existing.subjectId === subjectId
         );
 
-        if (!isDuplicateClaim) {
-          store.claims.push({
+        if (!isDuplicateClaim && !seenInMemory.has(dedupeKey)) {
+          seenInMemory.add(dedupeKey);
+          claimsToInsert.push({
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
             subjectId,
@@ -198,69 +653,471 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             sourceId,
             confidence: "confirmed",
             supportingExcerpt: clm.supportingExcerpt || null,
+            subjectMention: clm.subjectMention,
           });
-          claimsAddedCount++;
         }
-      }
-    );
-  }
+      });
+    }
 
-  // 2. Resolve participants for comprehensive audit attribution
-  const mergedParticipants: string[] = [];
-  if (Array.isArray(data.participants)) {
-    data.participants.forEach((p: { name: string; role?: string }) => {
-      const res = resolveEntity(p.name);
-      if (res.canonicalName) {
-        mergedParticipants.push(res.canonicalName);
+    const dbResult: { persistedClaimIds: string[] | null } = { persistedClaimIds: null };
+
+    if (db) {
+      try {
+        // targetEvent already resolved above (lines 617-623); no second lookup needed.
+
+        await db.transaction(async (tx) => {
+          // Atomically update candidate status inside database transaction (Codex Issue)
+          const updateResult = await tx
+            .update(schema.candidateEvents)
+            .set({ status: "merged" })
+            .where(
+              and(
+                eq(schema.candidateEvents.id, candidateId),
+                eq(schema.candidateEvents.status, "pending")
+              )
+            )
+            .returning({ id: schema.candidateEvents.id });
+
+          if (updateResult.length === 0) {
+            throw new Error("Candidate was already reviewed or claimed by another editor");
+          }
+
+          // 1. Ensure Source exists in DB
+          const [existingSrc] = await tx
+            .select({ id: schema.sources.id })
+            .from(schema.sources)
+            .where(eq(schema.sources.id, sourceId));
+          if (!existingSrc) {
+            await tx.insert(schema.sources).values({
+              id: sourceId,
+              title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+              publisher: data.publisher || "Archival Source",
+              sourceType: data.sourceType || "official-transcript",
+              tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+              url: data.url || null,
+              archiveUrl: null,
+              author: null,
+              publicationDate: candidate.suggestedDate,
+              trustScore: candidate.primarySourceTier === "tier-a" ? 1.0 : 0.9,
+            });
+          }
+
+          // 2. Link Source to Event if not already linked
+          const [existingLink] = await tx
+            .select({ eventId: schema.eventSources.eventId })
+            .from(schema.eventSources)
+            .where(
+              and(
+                eq(schema.eventSources.eventId, targetEventId),
+                eq(schema.eventSources.sourceId, sourceId)
+              )
+            );
+          if (!existingLink) {
+            await tx.insert(schema.eventSources).values({
+              eventId: targetEventId,
+              sourceId,
+              isPrimary: false,
+            });
+          }
+
+          if (claimsToInsert.length > 0) {
+            const distinctMentions = Array.from(
+              new Set(
+                claimsToInsert
+                  .filter((c) => !c.subjectId && c.subjectMention)
+                  .map((c) => c.subjectMention!.trim())
+              )
+            );
+
+            const mentionToSubjectMap = new Map<string, string | null>();
+
+            if (distinctMentions.length > 0) {
+              // ── 1. Bulk exact-slug lookup (one round-trip for all mentions) ──────────────
+              const mentionToSlug = new Map<string, string>(
+                distinctMentions.map((m) => [m, m.toLowerCase().replace(/[^\w]/g, "-")])
+              );
+              const allSlugs = Array.from(mentionToSlug.values());
+              const slugMatchedPeople = await tx
+                .select({ id: schema.people.id, slug: schema.people.slug })
+                .from(schema.people)
+                .where(inArray(schema.people.slug, allSlugs));
+              const slugToPersonId = new Map(slugMatchedPeople.map((p) => [p.slug, p.id]));
+
+              const unmatchedAfterSlug = distinctMentions.filter(
+                (m) => !slugToPersonId.has(mentionToSlug.get(m)!)
+              );
+
+              // ── 2. Bulk ILIKE lookup for unmatched names (one round-trip) ─────────────────
+              let ilikeMatchedPeople: Array<{ id: string; canonicalName: string; displayName: string }> = [];
+              if (unmatchedAfterSlug.length > 0) {
+                ilikeMatchedPeople = await tx
+                  .select({ id: schema.people.id, canonicalName: schema.people.canonicalName, displayName: schema.people.displayName })
+                  .from(schema.people)
+                  .where(
+                    or(
+                      ...unmatchedAfterSlug.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.people.canonicalName, escaped), ilike(schema.people.displayName, escaped)];
+                      })
+                    )
+                  );
+              }
+
+              // Build mention → matched person IDs map (in-memory join)
+              const mentionToIlikeIds = new Map<string, string[]>();
+              for (const m of unmatchedAfterSlug) {
+                const mLower = m.toLowerCase();
+                const ids = Array.from(
+                  new Set(
+                    ilikeMatchedPeople
+                      .filter((p) => p.canonicalName.toLowerCase() === mLower || p.displayName.toLowerCase() === mLower)
+                      .map((p) => p.id)
+                  )
+                );
+                mentionToIlikeIds.set(m, ids);
+              }
+
+              // Mentions still unresolved after ILIKE (zero matches; skip ambiguous multi-matches)
+              const unmatchedForAlias = unmatchedAfterSlug.filter((m) => (mentionToIlikeIds.get(m) || []).length === 0);
+
+              // ── 3. Bulk alias lookup for still-unmatched mentions (one round-trip) ─────────
+              let aliasRows: Array<{ personId: string; alias: string }> = [];
+              if (unmatchedForAlias.length > 0) {
+                aliasRows = await tx
+                  .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+                  .from(schema.personAliases)
+                  .where(
+                    or(
+                      ...unmatchedForAlias.flatMap((m) => {
+                        const escaped = escapeIlikePattern(m);
+                        return [ilike(schema.personAliases.alias, escaped), eq(schema.personAliases.alias, m)];
+                      })
+                    )
+                  );
+              }
+
+              // ── Resolve each mention from the collected results ───────────────────────────
+              for (const m of distinctMentions) {
+                const normalizedSlug = mentionToSlug.get(m)!;
+
+                // Priority 1: exact slug match
+                if (slugToPersonId.has(normalizedSlug)) {
+                  mentionToSubjectMap.set(m, slugToPersonId.get(normalizedSlug)!);
+                  continue;
+                }
+
+                // Priority 2: ILIKE name match (only when exactly one result)
+                const ilikeIds = mentionToIlikeIds.get(m) || [];
+                if (ilikeIds.length === 1) {
+                  mentionToSubjectMap.set(m, ilikeIds[0]);
+                  continue;
+                }
+                if (ilikeIds.length > 1) {
+                  mentionToSubjectMap.set(m, null); // ambiguous
+                  continue;
+                }
+
+                // Priority 3: alias match (only when exactly one person has this alias)
+                const mLower = m.toLowerCase();
+                const matchingAliases = aliasRows.filter((a) => a.alias.toLowerCase() === mLower || a.alias === m);
+                const distinctAliasPersonIds = Array.from(new Set(matchingAliases.map((a) => a.personId)));
+                mentionToSubjectMap.set(m, distinctAliasPersonIds.length === 1 ? distinctAliasPersonIds[0] : null);
+              }
+            }
+
+            const existingDbClaims = await tx
+              .select({
+                subjectId: schema.claims.subjectId,
+                statement: schema.claims.statement,
+              })
+              .from(schema.claims)
+              .where(eq(schema.claims.eventId, targetEventId));
+
+            const resolvedDbClaims: Array<typeof schema.claims.$inferInsert> = [];
+            const seenInBatch = new Set<string>();
+
+            for (const clm of claimsToInsert) {
+              let resolvedDbSubjectId = clm.subjectId;
+              if (!resolvedDbSubjectId && clm.subjectMention) {
+                resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
+              }
+
+              clm.subjectId = resolvedDbSubjectId;
+              const stmtNorm = clm.statement.trim().toLowerCase();
+              const dedupeKey = `${resolvedDbSubjectId || "none"}::${stmtNorm}`;
+
+              const isDbDuplicate = existingDbClaims.some(
+                (ec) =>
+                  ec.statement.trim().toLowerCase() === stmtNorm &&
+                  ec.subjectId === resolvedDbSubjectId
+              );
+
+              if (!isDbDuplicate && !seenInBatch.has(dedupeKey)) {
+                seenInBatch.add(dedupeKey);
+                resolvedDbClaims.push({
+                  id: clm.id,
+                  eventId: clm.eventId,
+                  subjectId: resolvedDbSubjectId,
+                  claimType: clm.claimType,
+                  statement: clm.statement,
+                  claimedTime: clm.claimedTime,
+                  claimedVenue: clm.claimedVenue,
+                  sourceId: clm.sourceId,
+                  confidence: clm.confidence,
+                  supportingExcerpt: clm.supportingExcerpt,
+                });
+              }
+            }
+
+            if (resolvedDbClaims.length > 0) {
+              await tx.insert(schema.claims).values(resolvedDbClaims);
+              dbResult.persistedClaimIds = resolvedDbClaims.map((c) => c.id!).filter(Boolean);
+            } else {
+              dbResult.persistedClaimIds = [];
+            }
+          }
+
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "merged",
+            decidedBy: editorName,
+            notes: `Merged into ${targetEventId}`,
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on mergeCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
       }
+    }
+
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "merged";
+    }
+    candidate.status = "merged";
+
+    const memTargetEvent = store.events.find((e) => e.id === targetEventId);
+    if (memTargetEvent && "sourceIds" in memTargetEvent && Array.isArray((memTargetEvent as { sourceIds?: string[] }).sourceIds)) {
+      const sIds = (memTargetEvent as { sourceIds: string[] }).sourceIds;
+      if (!sIds.includes(sourceId)) {
+        sIds.push(sourceId);
+      }
+    }
+
+    let existingSource = store.sources.find((s) => s.id === sourceId);
+    if (!existingSource && sourceId !== "src-editorial-corroboration") {
+      existingSource = {
+        id: sourceId,
+        title: data.sourceTitle || `Corroborating Source: ${candidate.suggestedTitle}`,
+        publisher: data.publisher || "Archival Source",
+        sourceType: data.sourceType || "official-transcript",
+        tier: candidate.primarySourceTier === "tier-a" ? "tier-a" : "tier-b",
+        url: data.url || null,
+        archiveUrl: null,
+        author: null,
+        publicationDate: candidate.suggestedDate,
+        trustScore: 0.95,
+      };
+      store.sources.push(existingSource);
+    }
+
+    const persistedIds = dbResult.persistedClaimIds;
+    const claimsToSync = persistedIds !== null
+      ? claimsToInsert.filter((c) => persistedIds.includes(c.id))
+      : claimsToInsert;
+
+    claimsToSync.forEach((c) => {
+      const inMem = { ...c };
+      delete inMem.subjectMention;
+      store.claims.push(inMem);
     });
-  }
 
-  recordAuditEvent(
-    "reviewed-merged",
-    "REW-REV-MANUAL-MERGE",
-    {
-      candidateId,
+    const actualAddedCount = persistedIds !== null ? persistedIds.length : claimsToInsert.length;
+
+    const mergedParticipants: string[] = [];
+    if (Array.isArray(data.participants)) {
+      data.participants.forEach((p: { name: string; role?: string }) => {
+        const res = resolveEntity(p.name);
+        if (res.canonicalName) {
+          mergedParticipants.push(res.canonicalName);
+        }
+      });
+    }
+
+    await recordAuditEvent(
+      "reviewed-merged",
+      "REW-REV-MANUAL-MERGE",
+      {
+        candidateId,
+        targetEventId,
+        mergedBy: editorName,
+        sourceId,
+        claimsAddedCount: actualAddedCount,
+        mergedParticipants,
+        similarityScore: candidate.duplicateSimilarity,
+      },
       targetEventId,
-      mergedBy: editorName,
-      sourceId,
-      claimsAddedCount,
-      mergedParticipants,
-      similarityScore: candidate.duplicateSimilarity,
-    },
-    targetEventId,
-    candidateId
-  );
+      candidateId
+    );
 
-  return { success: true, targetEventId, claimsAddedCount };
+    if (syncFallback.success) {
+      syncFallback.claimsAddedCount = actualAddedCount;
+    }
+    return { success: true, targetEventId, claimsAddedCount: actualAddedCount };
+  })();
+
+  return asAsyncResult(executionPromise, syncFallback);
 }
 
 export function rejectCandidate(candidateId: string, reason: string, editorName = "Senior Historical Editor") {
   const store = getRelationalStore();
-  const candidate = store.candidateEvents.find((c) => c.id === candidateId);
-  if (!candidate) return { success: false, error: "Candidate not found" };
+  const db = getDb();
 
-  if (candidate.status !== "pending") {
-    return {
-      success: false,
-      error: `Candidate is already ${candidate.status} and cannot be rejected again`,
-    };
-  }
+  const syncCandidate = store.candidateEvents.find((c) => c.id === candidateId);
+  const syncFallback: { success: boolean; error?: string } = !syncCandidate
+    ? { success: false, error: "Candidate not found" }
+    : syncCandidate.status !== "pending"
+    ? { success: false, error: `Candidate is already ${syncCandidate.status} and cannot be rejected again` }
+    : { success: true };
 
-  candidate.status = "rejected";
-  candidate.rejectionReason = reason;
+  const executionPromise = (async () => {
+    const candidate = await resolveCandidateRecord(candidateId, store, db);
+    if (!candidate) return { success: false, error: "Candidate not found" };
+
+    if (candidate.status !== "pending") {
+      return {
+        success: false,
+        error: `Candidate is already ${candidate.status} and cannot be rejected again`,
+      };
+    }
+
+    if (db) {
+      try {
+        await db.transaction(async (tx) => {
+          // Claim pending candidate atomically (Codex Issue 5)
+          const updateResult = await tx
+            .update(schema.candidateEvents)
+            .set({ status: "rejected", rejectionReason: reason })
+            .where(
+              and(
+                eq(schema.candidateEvents.id, candidateId),
+                eq(schema.candidateEvents.status, "pending")
+              )
+            )
+            .returning({ id: schema.candidateEvents.id });
+
+          if (updateResult.length === 0) {
+            throw new Error("Candidate was already reviewed or claimed by another editor");
+          }
+
+          await tx.insert(schema.reviewDecisions).values({
+            candidateId,
+            decision: "rejected",
+            decidedBy: editorName,
+            notes: reason,
+          });
+        });
+      } catch (err) {
+        console.error("Live DB transaction failed on rejectCandidate:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
+      }
+    }
+
+    const memCand = store.candidateEvents.find((c) => c.id === candidateId);
+    if (memCand) {
+      memCand.status = "rejected";
+      memCand.rejectionReason = reason;
+    }
+    candidate.status = "rejected";
+    candidate.rejectionReason = reason;
+
+    await recordAuditEvent(
+      "reviewed-rejected",
+      "REW-REV-MANUAL-REJECT",
+      {
+        candidateId,
+        reason,
+        rejectedBy: editorName,
+      },
+      undefined,
+      candidateId
+    );
+
+    return { success: true };
+  })();
+
+  return asAsyncResult(executionPromise, syncFallback);
+}
+
+export function ingestSampleCandidateStream(editorActor = "Autonomous Ingestion Adapter") {
+  const store = getRelationalStore();
+  const timestamp = Date.now();
+  const candidateId = `cand-stream-${timestamp.toString(36)}`;
+  
+  const sampleCandidate = {
+    id: candidateId,
+    fingerprint: `fp_geneva_arms_control_${timestamp}`,
+    suggestedTitle: "Trilateral Diplomatic Consultations on Regional Security Framework",
+    suggestedDate: "2013-11-14",
+    suggestedPlace: "Palais des Nations, Geneva",
+    suggestedParticipants: JSON.stringify([
+      { name: "Benjamin Netanyahu", role: "Prime Minister" },
+      { name: "John Kerry", role: "U.S. Secretary of State" },
+    ]),
+    primarySourceTier: "tier-a",
+    assignedLane: "auto-publish",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0.11,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+    rawExtraction: JSON.stringify({
+      summary: "High-level bilateral diplomatic consultation convened at the UN European Headquarters to review compliance parameters, regional security guarantees, and telemetry verification.",
+      eventType: "bilateral-meeting",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-geneva-press-2013",
+      sourceTitle: "United Nations Information Service Geneva Press Record",
+      sourcePublisher: "United Nations Secretariat",
+      sourceTier: "tier-a",
+      claims: [
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "presence",
+          statement: "Convened with international delegation members at the Palais des Nations diplomatic hall.",
+          claimedTime: "2013-11-14T14:00:00Z",
+          claimedVenue: "Palais des Nations",
+          supportingExcerpt: "Official protocol communique issued by the UN Information Service in Geneva.",
+        },
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "statement",
+          statement: "Emphasized strict verification benchmarks for regional non-proliferation enforcement.",
+          supportingExcerpt: "'Any credible agreement must require complete dismantlement of enrichment centrifuges.'",
+        },
+      ],
+      participants: [
+        { name: "Benjamin Netanyahu", role: "Prime Minister of Israel" },
+        { name: "John Kerry", role: "U.S. Secretary of State" },
+      ],
+    }),
+  };
+
+  store.candidateEvents.unshift(sampleCandidate);
 
   recordAuditEvent(
-    "reviewed-rejected",
-    "REW-REV-MANUAL-REJECT",
+    "discovered",
+    "INGEST-STREAM-SAMPLE",
     {
       candidateId,
-      reason,
-      rejectedBy: editorName,
+      streamSource: "UN Information Service Geneva Ingestion Feed",
+      title: sampleCandidate.suggestedTitle,
+      ingestedBy: editorActor,
     },
     undefined,
     candidateId
   );
 
-  return { success: true };
+  return { success: true, candidateId, candidate: sampleCandidate };
 }
