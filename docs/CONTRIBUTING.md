@@ -48,13 +48,26 @@ npm test
 
 ---
 
-## 3. Pull Request Guidelines
+## 3. Pull Request Guidelines & Branch Isolation Rules
 
-1. **Atomic Commits**: Use clear, conventional commit messages:
+1. **Rule 1: Single Canonical Base (`--base main`)**:
+   - Every PR must have its own dedicated feature branch (`feature/<name>` or `fix/<name>`) cut directly from `origin/main`.
+   - Always open PRs with `--base main`. Never target another unmerged feature branch.
+2. **Rule 2: Foundation-First Modular Delivery (Trunk-Based Micro-PRs)**:
+   - Land database schemas, core clients, and shared types into `main` first via independent, reviewable micro-PRs.
+   - Consumer UI components and downstream features branch from updated `main`.
+3. **Rule 3: Rebase Instead of Stack for Concurrent Features**:
+   - Keep feature branches synchronized with latest `main` via `git fetch origin && git rebase origin/main`.
+   - Avoid unmerged branch dependencies.
+4. **Rule 4: Safe Deletion & Cascade Prevention**:
+   - `--delete-branch` is strictly permitted only for merged PRs targeting `main`.
+   - Never delete an intermediate parent branch while child PRs are open. Rebase each child branch onto `origin/main` (`git fetch origin && git rebase origin/main`) and retarget child PRs to `main` via `gh pr edit <PR> --base main` before deleting the parent branch.
+   - Recommended merge command: `npm run pr:safe-merge <PR_NUMBER>`.
+5. **Atomic Commits**: Use clear, conventional commit messages:
    - `feat(timeline): add bidirectional rewind playback`
    - `fix(slider): forward aria-valuetext to thumb`
    - `docs: add forensic evidence methodology`
-2. **Accessibility Verification**: Ensure all new interactive controls include proper `aria-label`, keyboard handlers, and visible focus rings.
-3. **Source Rigor**: Any new event records added to `data/rewind.ts` must include valid `sourceIds` referencing authenticated archival materials.
-4. **Technical Backlog**: Review unresolved review items and architectural tasks in [TECHNICAL_BACKLOG.md](./TECHNICAL_BACKLOG.md).
+6. **Accessibility Verification**: Ensure all new interactive controls include proper `aria-label`, keyboard handlers, and visible focus rings.
+7. **Source Rigor**: Any new event records added to `data/rewind.ts` must include valid `sourceIds` referencing authenticated archival materials.
+8. **Technical Backlog**: Review unresolved review items and architectural tasks in [TECHNICAL_BACKLOG.md](./TECHNICAL_BACKLOG.md).
 
