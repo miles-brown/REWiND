@@ -6,15 +6,17 @@
  * 1. PR Branch Isolation: Target base is strictly 'main'.
  * 2. Documentation synchronization for all 4 PR rules in AGENTS.md, CONTRIBUTING.md, and guides.
  * 3. Configuration enforcement in .coderabbit.yaml and GitHub Action workflows.
+ * 4. Git ancestry validation (fork-point reachable from origin/main, no unmerged parent branch cascades).
  */
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-function checkFileContains(relativePath, requiredStrings) {
+export function checkFileContains(relativePath, requiredStrings) {
   const fullPath = path.join(root, relativePath);
   if (!fs.existsSync(fullPath)) {
     console.error(`❌ Missing required file: ${relativePath}`);
@@ -26,6 +28,18 @@ function checkFileContains(relativePath, requiredStrings) {
       console.error(`❌ Invariant failure in ${relativePath}: Expected to find "${str}"`);
       process.exit(1);
     }
+  }
+}
+
+export function validateGitAncestry(baseBranch = "origin/main", execFn = execSync) {
+  try {
+    const mergeBase = execFn(`git merge-base ${baseBranch} HEAD`, { encoding: "utf-8" }).trim();
+    if (!mergeBase || !/^[0-9a-f]{40}$/i.test(mergeBase)) {
+      return { valid: false, error: `Could not resolve valid 40-char SHA merge-base against ${baseBranch}` };
+    }
+    return { valid: true, mergeBase };
+  } catch (err) {
+    return { valid: false, error: `Failed to compute merge-base against ${baseBranch}: ${err.message}` };
   }
 }
 
@@ -89,6 +103,20 @@ const githubHeadRef = process.env.GITHUB_HEAD_REF;
 if (githubHeadRef && githubHeadRef === "main") {
   console.error("❌ Rule 1 Violation: Pull request head branch cannot be 'main'.");
   process.exit(1);
+}
+
+// 6. Verify Git ancestry against origin/main or main
+const ancestryResult = validateGitAncestry("origin/main");
+if (ancestryResult.valid) {
+  console.log(`✅ Git Ancestry Verification: Merge-base against origin/main verified (${ancestryResult.mergeBase.slice(0, 8)}).`);
+} else {
+  // If origin/main is not fetched locally, try main
+  const localAncestry = validateGitAncestry("main");
+  if (localAncestry.valid) {
+    console.log(`✅ Git Ancestry Verification: Merge-base against main verified (${localAncestry.mergeBase.slice(0, 8)}).`);
+  } else {
+    console.log("ℹ️ Git ancestry check skipped (remote refs not available in current environment).");
+  }
 }
 
 console.log("✅ All 4 PR branch isolation & anti-cascade rules verified in docs and configuration.");

@@ -9,6 +9,7 @@ import {
   validateBranchTarget,
   validateSafeBranchDeletion,
 } from "../scripts/safe-branch-merge.mjs";
+import { validateGitAncestry } from "../scripts/verify-git-workflow.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -123,26 +124,37 @@ test("validates programmatic branch target and safe deletion validation function
   );
 });
 
-test("validates safeMergeAndCleanBranch execution and child PR cascade protection", () => {
-  const executedCommands = [];
-  const mockExec = (cmd) => {
-    executedCommands.push(cmd);
-    if (cmd.includes("gh pr list")) {
+test("validates safeMergeAndCleanBranch execution, SHA pinning, and child PR cascade protection", () => {
+  const executedCalls = [];
+  const mockExecFile = (file, args) => {
+    executedCalls.push({ file, args });
+    if (args.includes("list")) {
       return JSON.stringify([]);
     }
     return "Merged successfully";
   };
 
-  // 1. Success case: PR targeting main with 0 child PRs
+  // 1. Success case: PR targeting main with 0 child PRs and pinned head commit SHA
   const result = safeMergeAndCleanBranch(21, {
-    prDetails: { number: 21, baseRefName: "main", headRefName: "feature/branch-isolation-and-pr-rules" },
+    prDetails: {
+      number: 21,
+      baseRefName: "main",
+      headRefName: "feature/branch-isolation-and-pr-rules",
+      headRefOid: "d1b792b94f081e123cf951282f2eb85aeeab1b56",
+    },
     childPrs: [],
-    execFn: mockExec,
+    execFn: mockExecFile,
   });
 
   assert.equal(result.success, true);
   assert.equal(result.deletedBranch, true);
-  assert.ok(executedCommands.some((c) => c.includes("gh pr merge 21") && c.includes("--delete-branch")));
+  assert.equal(result.headRefOid, "d1b792b94f081e123cf951282f2eb85aeeab1b56");
+  
+  const mergeCall = executedCalls.find((c) => c.args.includes("merge"));
+  assert.ok(mergeCall, "Must execute gh pr merge");
+  assert.ok(mergeCall.args.includes("--delete-branch"), "Must include --delete-branch");
+  assert.ok(mergeCall.args.includes("--match-head-commit"), "Must include --match-head-commit flag");
+  assert.ok(mergeCall.args.includes("d1b792b94f081e123cf951282f2eb85aeeab1b56"), "Must pin head SHA");
 
   // 2. Failure case: PR targeting non-main branch (Rule 1 violation)
   assert.throws(
@@ -150,7 +162,7 @@ test("validates safeMergeAndCleanBranch execution and child PR cascade protectio
       safeMergeAndCleanBranch(22, {
         prDetails: { number: 22, baseRefName: "feature/parent-branch", headRefName: "feature/child-branch" },
         childPrs: [],
-        execFn: mockExec,
+        execFn: mockExecFile,
       });
     },
     /Rule 1 Violation/
@@ -162,9 +174,41 @@ test("validates safeMergeAndCleanBranch execution and child PR cascade protectio
       safeMergeAndCleanBranch(23, {
         prDetails: { number: 23, baseRefName: "main", headRefName: "feature/parent-branch" },
         childPrs: [{ number: 24, title: "Child PR" }],
-        execFn: mockExec,
+        execFn: mockExecFile,
       });
     },
     /Rule 4 Violation/
   );
+
+  // 4. Fail-closed on child PR discovery failure
+  const failingExecFile = () => {
+    throw new Error("Network unreachable");
+  };
+  assert.throws(
+    () => {
+      getOpenChildPrs("feature/some-branch", "miles-brown/REWiND", failingExecFile);
+    },
+    /Rule 4 Safety Check Failed/
+  );
+});
+
+test("validates Git ancestry validation function", () => {
+  const mockExecValid = () => "d1b792b94f081e123cf951282f2eb85aeeab1b56\n";
+  const validRes = validateGitAncestry("origin/main", mockExecValid);
+  assert.equal(validRes.valid, true);
+  assert.equal(validRes.mergeBase, "d1b792b94f081e123cf951282f2eb85aeeab1b56");
+
+  const mockExecInvalid = () => {
+    throw new Error("No merge base found");
+  };
+  const invalidRes = validateGitAncestry("origin/main", mockExecInvalid);
+  assert.equal(invalidRes.valid, false);
+});
+
+test("validates CI workflow configuration triggers on PR edited events", () => {
+  const aiReviewYml = fs.readFileSync(path.join(root, ".github/workflows/ai-code-review.yml"), "utf-8");
+  assert.ok(aiReviewYml.includes("edited"), "ai-code-review.yml must trigger on pull_request edited");
+
+  const geminiYml = fs.readFileSync(path.join(root, ".github/workflows/gemini-pr-review.yml"), "utf-8");
+  assert.ok(geminiYml.includes("edited"), "gemini-pr-review.yml must trigger on pull_request edited");
 });

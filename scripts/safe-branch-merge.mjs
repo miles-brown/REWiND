@@ -6,7 +6,7 @@
  * before merging pull requests and deleting remote feature branches.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 export function validateBranchTarget(baseRefName, headRefName) {
   if (!baseRefName || typeof baseRefName !== "string") {
@@ -34,32 +34,61 @@ export function validateSafeBranchDeletion(branchName, openChildPrCount = 0) {
   if (openChildPrCount > 0) {
     return {
       canDelete: false,
-      error: `Rule 4 Violation: Cannot delete branch '${branchName}' because ${openChildPrCount} open PR(s) target it. Rebase child branches onto 'origin/main' and retarget child PRs to 'main' first via 'gh pr edit <PR> --base main'.`,
+      error: `Rule 4 Violation: Cannot delete branch '${branchName}' because ${openChildPrCount} open PR(s) target it. Rebase child branches onto 'origin/main' (git fetch origin && git rebase origin/main) and retarget child PRs to 'main' first via 'gh pr edit <PR> --base main'.`,
     };
   }
   return { canDelete: true };
 }
 
-export function getOpenChildPrs(branchName, repo = "miles-brown/REWiND", execFn = execSync) {
+export function getOpenChildPrs(branchName, repo = "miles-brown/REWiND", execFn = execFileSync) {
   if (!branchName || branchName === "main") return [];
+  
+  // Safe argument array without shell execution to prevent shell metacharacter injection
+  const args = [
+    "pr",
+    "list",
+    "--repo",
+    repo,
+    "--base",
+    branchName,
+    "--state",
+    "open",
+    "--json",
+    "number,title,headRefName",
+  ];
+
   try {
-    const raw = execFn(
-      `gh pr list --repo ${repo} --base "${branchName}" --state open --json number,title,headRefName`,
-      { encoding: "utf-8" }
-    );
-    return JSON.parse(raw.toString().trim() || "[]");
+    const raw = execFn("gh", args, { encoding: "utf-8" });
+    const parsed = JSON.parse(raw ? raw.toString().trim() : "[]");
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Expected array of child PRs, received: ${typeof parsed}`);
+    }
+    return parsed;
   } catch (err) {
-    console.warn(`Warning: Could not query child PRs for branch '${branchName}':`, err.message);
-    return [];
+    // Fail-closed: Never return empty array if child PR discovery fails
+    throw new Error(
+      `Rule 4 Safety Check Failed: Could not securely query child PRs for branch '${branchName}': ${err.message}`
+    );
   }
 }
 
-export function getPrDetails(prNumber, repo = "miles-brown/REWiND", execFn = execSync) {
-  const raw = execFn(
-    `gh pr view ${prNumber} --repo ${repo} --json number,title,headRefName,baseRefName,state`,
-    { encoding: "utf-8" }
-  );
-  return JSON.parse(raw.toString().trim());
+export function getPrDetails(prNumber, repo = "miles-brown/REWiND", execFn = execFileSync) {
+  const args = [
+    "pr",
+    "view",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--json",
+    "number,title,headRefName,baseRefName,headRefOid,state",
+  ];
+
+  try {
+    const raw = execFn("gh", args, { encoding: "utf-8" });
+    return JSON.parse(raw ? raw.toString().trim() : "{}");
+  } catch (err) {
+    throw new Error(`Could not retrieve details for PR #${prNumber}: ${err.message}`);
+  }
 }
 
 export function safeMergeAndCleanBranch(
@@ -67,14 +96,14 @@ export function safeMergeAndCleanBranch(
   {
     repo = "miles-brown/REWiND",
     autoDelete = true,
-    execFn = execSync,
+    execFn = execFileSync,
     prDetails = null,
     childPrs = null,
   } = {}
 ) {
   const pr = prDetails || getPrDetails(prNumber, repo, execFn);
-  if (!pr) {
-    throw new Error(`Could not retrieve details for PR #${prNumber}`);
+  if (!pr || !pr.headRefName) {
+    throw new Error(`Could not retrieve valid details for PR #${prNumber}`);
   }
 
   // 1. Validate Base Branch (Rule 1)
@@ -93,15 +122,30 @@ export function safeMergeAndCleanBranch(
     );
   }
 
-  // 3. Execute squash merge and conditional branch deletion
-  const deleteFlag = autoDelete && deletionCheck.canDelete ? "--delete-branch" : "";
-  const mergeCmd = `gh pr merge ${prNumber} --repo ${repo} --squash ${deleteFlag}`.trim();
-  
-  const mergeResult = execFn(mergeCmd, { encoding: "utf-8" });
+  // 3. Pin the approved head SHA during merge to prevent race conditions with unreviewed pushes
+  const mergeArgs = [
+    "pr",
+    "merge",
+    String(prNumber),
+    "--repo",
+    repo,
+    "--squash",
+  ];
+
+  if (pr.headRefOid) {
+    mergeArgs.push("--match-head-commit", pr.headRefOid);
+  }
+
+  if (autoDelete && deletionCheck.canDelete) {
+    mergeArgs.push("--delete-branch");
+  }
+
+  const mergeResult = execFn("gh", mergeArgs, { encoding: "utf-8" });
   return {
     success: true,
     prNumber,
     headRefName: pr.headRefName,
+    headRefOid: pr.headRefOid || null,
     deletedBranch: autoDelete && deletionCheck.canDelete,
     output: mergeResult ? mergeResult.toString() : "",
   };
