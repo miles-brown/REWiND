@@ -181,3 +181,35 @@ test("verifies WAI-ARIA tab semantics and live regions in comparison and biograp
   assert.ok(adminContent.includes('aria-controls="tabpanel-queue"'), "admin evidence tabs must specify aria-controls");
 });
 
+test("verifies PR #13 review fixes: legacy participant migration, provisional claims, scoped RLS, self-pair rejection, and place slug validation", async () => {
+  // Fix 1: Legacy participant migration mapping
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(cutoverSql.includes("COALESCE(ep.role, 'attendee')"), "Migration must map ep.role to involvement_type");
+  assert.ok(cutoverSql.includes("COALESCE(ep.presence_mode, 'physical')"), "Migration must map ep.presence_mode to attendance_mode");
+
+  // Fix 2: Provisional claim defaults and backfill
+  const temporalSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  assert.ok(temporalSql.includes("claim_status text DEFAULT 'PROVISIONAL'"), "claims must default claim_status to PROVISIONAL");
+  assert.ok(temporalSql.includes("epistemic_class text DEFAULT 'allegation'"), "claims must default epistemic_class to allegation");
+  assert.ok(temporalSql.includes("WHEN confidence = 'confirmed' THEN 'ESTABLISHED'"), "claims must backfill confirmed claims to ESTABLISHED");
+
+  // Fix 3: Scoped RLS policies for child tables
+  assert.ok(temporalSql.includes("c.event_id IS NULL OR EXISTS (\n          SELECT 1 FROM public.events e WHERE e.id = c.event_id AND e.publication_status = 'published'\n        )"), "claim_evidence RLS must be scoped to published events");
+  assert.ok(temporalSql.includes("SELECT 1 FROM public.people p\n      WHERE p.id = person_education.person_id AND p.publication_status = 'published'"), "person_education RLS must be scoped to published people");
+
+  // Fix 4: Self-pair rejection in relationship page
+  const relPageContent = fs.readFileSync(path.join(root, "app/relationship/[a]/[b]/page.tsx"), "utf-8");
+  assert.ok(relPageContent.includes("if (!a || !b || a === b) notFound();"), "Relationship page must reject identical slugs a === b");
+  assert.ok(relPageContent.includes("if (!pa || !pb || pa.id === pb.id) notFound();"), "Relationship page must reject identical entity IDs pa.id === pb.id");
+
+  // Fix 5: Place slug validation in events.ts
+  const eventsContent = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(eventsContent.includes("if (!/^[a-zA-Z0-9_-]+$/.test(params.placeSlug))"), "lib/rewind/events.ts must validate placeSlug with safe regex");
+
+  const { getEvents } = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const result = await getEvents({ placeSlug: "malicious,slug)or(1=1" });
+  assert.equal(result.count, 0, "Invalid placeSlug must return empty data");
+  assert.equal(result.data.length, 0, "Invalid placeSlug must return empty data");
+});
+
+

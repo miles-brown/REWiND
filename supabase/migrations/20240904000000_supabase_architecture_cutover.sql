@@ -742,17 +742,19 @@ BEGIN
       person_id,
       involvement_type,
       role_label,
+      attendance_mode,
       presence_confidence,
       role_confidence
     )
     SELECT
-      COALESCE(ep.id, 'ep-' || ep.event_id || '-' || ep.person_id),
+      COALESCE('ep-' || ep.event_id || '-' || ep.person_id, gen_random_uuid()::text),
       ep.event_id,
       ep.person_id,
-      COALESCE(ep.involvement_type, 'attendee'),
-      COALESCE(ep.role_label, 'participant'),
-      COALESCE(ep.presence_confidence, 'confirmed'),
-      COALESCE(ep.role_confidence, 'confirmed')
+      COALESCE(ep.role, 'attendee'),
+      COALESCE(ep.role, 'participant'),
+      COALESCE(ep.presence_mode, 'physical'),
+      'confirmed',
+      'confirmed'
     FROM public.event_participants ep
     WHERE EXISTS (SELECT 1 FROM public.events e WHERE e.id = ep.event_id)
       AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = ep.person_id)

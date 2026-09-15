@@ -606,6 +606,17 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
     }
 
     if (params.placeSlug) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(params.placeSlug)) {
+        return {
+          data: [],
+          count: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+          error: null,
+        };
+      }
+
       const [{ data: placeData, error: placeError }, { data: venueData, error: venueError }] = await Promise.all([
         supabase
           .from("places")
