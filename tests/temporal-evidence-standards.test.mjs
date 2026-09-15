@@ -376,8 +376,10 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   const relPage = fs.readFileSync(path.join(root, "app/relationships/page.tsx"), "utf-8");
   assert.ok(relPage.includes('<span className="person-monogram" aria-hidden="true">'), "Monogram spans must be aria-hidden");
 
-  // 9. Pipeline provisional confidence score and claim confidence
+  // 9. Pipeline provisional confidence score, claim confidence, and merge claimsAdded tracking
   const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
   assert.ok(pipelineContent.includes('confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.5'), "Pipeline must use 0.5 score for provisional events");
   assert.ok(!pipelineContent.includes('"reported"'), "Pipeline must not use non-standard 'reported' confidence");
+  assert.ok(pipelineContent.includes("claimsAdded: livePersistedClaimsAdded"), "Live pipeline merge audit must use persisted claims insert count");
+  assert.ok(pipelineContent.includes("claimsAdded: claimsToInsert.length"), "In-memory pipeline merge audit must use deduplicated claims insert count");
 });

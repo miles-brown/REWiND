@@ -135,7 +135,22 @@ export function processCandidateEvent(
         // MERGE PATH: Attach additional evidence and claims to existing event
         publishedEventId = deduplication.matchedEventId;
 
-        candidate.claims.forEach((clm, idx) => {
+        const existingClaims = store.claims.filter((c) => c.eventId === publishedEventId);
+        const seenMemClaimKeys = new Set<string>();
+        const claimsToInsert = candidate.claims.filter((clm) => {
+          const normStatement = clm.statement.trim().toLowerCase();
+          const subId = resolveParticipantOrMentionSync(clm.subjectMention);
+          const key = `${subId ?? ""}::${normStatement}`;
+          if (seenMemClaimKeys.has(key)) return false;
+          seenMemClaimKeys.add(key);
+          return !existingClaims.some(
+            (ec) =>
+              ec.statement.trim().toLowerCase() === normStatement &&
+              ec.subjectId === subId
+          );
+        });
+
+        claimsToInsert.forEach((clm, idx) => {
           const subId = resolveParticipantOrMentionSync(clm.subjectMention);
           store.claims.push({
             id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
@@ -158,7 +173,7 @@ export function processCandidateEvent(
             matchedEventId: publishedEventId,
             sourceId: source.sourceId,
             similarity: deduplication.similarity,
-            claimsAdded: candidate.claims.length,
+            claimsAdded: claimsToInsert.length,
           },
           publishedEventId,
           candidateId
@@ -387,6 +402,8 @@ export function processCandidateEvent(
       const direct = await resolveEntityAsync(mention, db);
       return direct?.personId || null;
     };
+
+    let livePersistedClaimsAdded = candidate.claims.length;
 
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
@@ -763,6 +780,10 @@ export function processCandidateEvent(
             );
           });
 
+          if (liveDeduplication.isDuplicate && liveDeduplication.matchedEventId) {
+            livePersistedClaimsAdded = claimsToInsert.length;
+          }
+
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
               claimsToInsert.map(({ clm, subjectId }) => {
@@ -845,7 +866,7 @@ export function processCandidateEvent(
                 matchedEventId: liveDeduplication.matchedEventId,
                 sourceId: source.sourceId,
                 similarity: liveDeduplication.similarity,
-                claimsAdded: candidate.claims.length,
+                claimsAdded: livePersistedClaimsAdded,
               },
               liveDeduplication.matchedEventId,
               candidateId
@@ -925,7 +946,7 @@ export function processCandidateEvent(
             matchedEventId: liveDeduplication.matchedEventId,
             sourceId: source.sourceId,
             similarity: liveDeduplication.similarity,
-            claimsAdded: candidate.claims.length,
+            claimsAdded: livePersistedClaimsAdded,
           },
           liveDeduplication.matchedEventId,
           candidateId
