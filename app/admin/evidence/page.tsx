@@ -112,7 +112,6 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
   }
 }
 
-/** Renders the administrative console for reviewing evidence candidates and audit activity. */
 export default function EvidenceControlConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [queue, setQueue] = useState<CandidateItem[]>([]);
@@ -225,7 +224,7 @@ export default function EvidenceControlConsole() {
 
 
   return (
-    <main className="evidence-console-main">
+    <div className="evidence-console-main">
       {/* Header */}
 
 
@@ -581,6 +580,7 @@ export default function EvidenceControlConsole() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     );
   }
+

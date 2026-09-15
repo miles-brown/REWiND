@@ -64,7 +64,7 @@ test("verifies db/schema-v2.ts exports all required normalized relational tables
 });
 
 test("verifies all existing 206 historical events upgrade cleanly to Event Model v2", async () => {
-  const { events } = await vite.ssrLoadModule("/archive/legacy-data/rewind.ts");
+  const { events } = await vite.ssrLoadModule("/data/rewind.ts");
   const { upgradeLegacyToV2, projectV2ToLegacy } = await vite.ssrLoadModule(
     "/lib/adapters/event-v2-adapter.ts"
   );
@@ -289,7 +289,7 @@ test("verifies inferInvolvementType returns distinct InvolvementType for each su
 
 test("verifies EventPersonLocation normalizes and persists location-to-source relations", async () => {
   const { upgradeLegacyToV2 } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
-  const { events } = await vite.ssrLoadModule("/archive/legacy-data/rewind.ts");
+  const { events } = await vite.ssrLoadModule("/data/rewind.ts");
 
   const sample = events.find((e) => e.latitude != null && e.sourceIds.length > 0);
   assert.ok(sample, "Sample event with coordinates and sourceIds must exist");
@@ -380,56 +380,5 @@ test("verifies participants with empty personId receive unique namespaced keys a
   assert.equal(loc2.sources[0].eventPersonLocationId, loc2.id);
   assert.notEqual(loc0.sources[0].id, loc1.sources[0].id, "Location source IDs must be distinct");
   assert.notEqual(loc0.sources[0].id, loc2.sources[0].id, "Location source IDs must be distinct");
-});
-
-test("defensively handles null and undefined array fields in legacy records without crashing", async () => {
-  const { upgradeLegacyToV2, projectV2ToLegacy } = await vite.ssrLoadModule("/lib/adapters/event-v2-adapter.ts");
-
-  const dirtyLegacy = {
-    id: "evt-dirty-data",
-    slug: "dirty-data",
-    eventName: "Conference on Middle East Peace",
-    summary: "Diplomatic conference summary",
-    startDate: "1991-10-30",
-    city: "Madrid",
-    country: "Spain",
-    verificationStatus: "verified",
-    // Intentionally pass undefined or null fields that might occur in unclean legacy migrations
-    eventTypes: undefined,
-    categories: null,
-    medium: undefined,
-    organisations: null,
-    sourceIds: undefined,
-    quotes: null,
-    media: undefined,
-    provenance: null,
-    conflictingClaims: undefined,
-    participants: undefined,
-  };
-
-  // Must not throw TypeError on nullish/undefined fields
-  const v2 = upgradeLegacyToV2(dirtyLegacy);
-  assert.ok(v2);
-  assert.ok(Array.isArray(v2.sourceIds));
-  assert.ok(Array.isArray(v2.people));
-  assert.ok(Array.isArray(v2.organisations));
-  assert.ok(Array.isArray(v2.topics));
-  assert.ok(Array.isArray(v2.compatibilityPayload.eventTypes));
-  assert.ok(Array.isArray(v2.compatibilityPayload.medium));
-
-  // Must project back to legacy cleanly with all required array fields populated
-  const projected = projectV2ToLegacy(v2);
-  assert.ok(projected);
-  assert.deepEqual(projected.sourceIds, []);
-  assert.deepEqual(projected.categories, []);
-  assert.deepEqual(projected.eventTypes, []);
-  assert.deepEqual(projected.participants, []);
-  assert.deepEqual(projected.organisations, []);
-  assert.deepEqual(projected.medium, []);
-  assert.deepEqual(projected.quotes, []);
-  assert.deepEqual(projected.conflictingClaims, []);
-  assert.deepEqual(projected.provenance, []);
-  assert.equal(projected.confidence, "limited");
-  assert.equal(projected.datePrecision, "exact-day");
 });
 

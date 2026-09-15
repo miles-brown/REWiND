@@ -21,22 +21,19 @@ import {
   SkipForward,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate, formatTimelineDate } from "@/lib/rewind/dates";
+import type { EventRecord, Person } from "@/data/rewind";
+import { people, sourceById } from "@/data/rewind";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
 
-/** Renders an interactive chronological timeline for one person's events. */
 export function PersonTimeline({
   person,
   records,
-  sources = [],
 }: {
   person: Person;
   records: EventRecord[];
-  sources?: SourceRecord[];
 }) {
   const ordered = useMemo(
     () => [...records].sort((a, b) => a.startDate.localeCompare(b.startDate)),
@@ -177,31 +174,8 @@ export function PersonTimeline({
   }
 
   const event = ordered[safeIndex];
-  const source =
-    event.sources?.[0] ||
-    (event.sourceIds?.[0]
-      ? sources.find((s) => s.id === event.sourceIds[0])
-      : undefined);
-
-  const stageFormattedDate = formatTimelineDate(
-    event.startDate,
-    event.timePrecision || event.datePrecision,
-    {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }
-  );
-  const consoleFormattedDate = formatTimelineDate(
-    event.startDate,
-    event.timePrecision || event.datePrecision,
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  const source = sourceById(event.sourceIds[0]);
+  const date = new Date(event.startDate + "T12:00:00");
 
   const choose = (id: string) => {
     const next = ordered.findIndex((record) => record.id === id);
@@ -263,45 +237,29 @@ export function PersonTimeline({
         <article className="person-event-stage" key={event.id} aria-live="polite">
           <div className="person-event-kicker">
             <span>{event.startDate.slice(0, 4)}</span>
-            <span
-              className={`status ${event.verificationStatus || "verified"}`}
-              title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "Not established"}`}
-            >
-              {event.verificationStatus || "verified"}
-            </span>
-            <span
-              className="kicker-confidence-badge"
-              title={`Confidence level: ${event.confidence || "Not established"}`}
-            >
-              {event.confidence || "Not established"}
+            <span className={`status ${event.verificationStatus}`}>
+              {event.verificationStatus}
             </span>
           </div>
-          <time
-            dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
-            title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
-          >
-            {stageFormattedDate}
+          <time dateTime={event.startDate}>
+            {date.toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
             {event.localStartTime ? ` · ${event.localStartTime}` : ""}
-            {!isStandardIsoDate(event.startDate) && (
-              <span className="sr-only"> (Non-standard archival date)</span>
-            )}
-            <span
-              className="time-precision-tag"
-              title={`${event.timePrecision || event.datePrecision || "exact-day"} precision`}
-            >
-              ({event.timePrecision || event.datePrecision || "exact-day"})
-            </span>
           </time>
           <h2>{event.eventName}</h2>
           <p className="event-place">
             <MapPin />
             {event.venueName || event.city}
             <small>
-              {event.city}, {event.country} · {event.locationPrecision || "venue"} precision
+              {event.city}, {event.country} · {event.locationPrecision} precision
             </small>
           </p>
           <div className="detail-tags">
-            {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
+            {event.eventTypes.map((type) => (
               <span key={type}>{type}</span>
             ))}
           </div>
@@ -312,8 +270,7 @@ export function PersonTimeline({
                 <Link
                   key={participant.personId}
                   href={`/person/${
-                    participant.slug ||
-                    participant.personId.replace(/^p-/, "") ||
+                    people.find((item) => item.id === participant.personId)?.slug ||
                     person.slug
                   }`}
                 >
@@ -328,21 +285,18 @@ export function PersonTimeline({
               <small>EVIDENCE</small>
               <b>{source?.title}</b>
               <span>
-                {source?.publisher}
-                {event.medium?.length ? ` · ${event.medium.join(", ")}` : ""}
+                {source?.publisher} · {event.medium.join(", ")}
               </span>
             </div>
             <div className="evidence-actions">
-              {source && (
-                <button
-                  className="cite-btn"
-                  onClick={() => setCiteOpen(true)}
-                  aria-label="Cite this historical record"
-                >
-                  <Quote size={14} />
-                  <span>Cite</span>
-                </button>
-              )}
+              <button
+                className="cite-btn"
+                onClick={() => setCiteOpen(true)}
+                aria-label="Cite this historical record"
+              >
+                <Quote size={14} />
+                <span>Cite</span>
+              </button>
               {event.quotes && event.quotes.length > 0 && (
                 <button
                   className="cite-btn highlight"
@@ -361,12 +315,12 @@ export function PersonTimeline({
                 <ShieldAlert size={14} />
                 <span>Audit</span>
               </button>
-              {source?.url && (
+              {source && (
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label={`Open source from ${source.publisher || "archive"}`}
+                  aria-label={`Open source from ${source.publisher}`}
                 >
                   <ExternalLink />
                 </a>
@@ -395,7 +349,11 @@ export function PersonTimeline({
         <div className="console-date">
           <small>CURRENT EVENT</small>
           <b>
-            {consoleFormattedDate}
+            {date.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </b>
         </div>
 
@@ -531,14 +489,11 @@ export function PersonTimeline({
         </label>
       </div>
 
-      {source && (
-        <CitationModal
-          event={event}
-          source={source}
-          isOpen={citeOpen}
-          onClose={() => setCiteOpen(false)}
-        />
-      )}
+      <CitationModal
+        event={event}
+        isOpen={citeOpen}
+        onClose={() => setCiteOpen(false)}
+      />
 
       <MediaDrawer
         event={event}

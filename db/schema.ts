@@ -7,7 +7,6 @@ import {
   serial,
   text,
   timestamp,
-  unique,
 } from "drizzle-orm/pg-core";
 
 
@@ -41,7 +40,7 @@ export const people = pgTable("people", {
   programmeId: text("programme_id").references(() => coverageProgrammes.id),
   isLiving: boolean("is_living").default(true).notNull(),
   monitoringPriority: text("monitoring_priority").default("normal").notNull(), // intensive, normal, historical-only
-  publicationStatus: text("publication_status").default("draft").notNull(), // draft, published, staging, private
+  publicationStatus: text("publication_status").default("published").notNull(), // published, staging, private
   wikidataId: text("wikidata_id"),
   viafId: text("viaf_id"),
   avatarUrl: text("avatar_url"),
@@ -102,49 +101,6 @@ export const placeAliases = pgTable("place_aliases", {
   alias: text("alias").notNull(),
 });
 
-export const addresses = pgTable("addresses", {
-  id: text("id").primaryKey(),
-  countryCode: text("country_code").notNull(),
-  buildingName: text("building_name"),
-  subBuilding: text("sub_building"),
-  streetNumber: text("street_number"),
-  streetName: text("street_name"),
-  district: text("district"),
-  neighbourhood: text("neighbourhood"),
-  locality: text("locality"),
-  dependentLocality: text("dependent_locality"),
-  city: text("city"),
-  administrativeArea: text("administrative_area"),
-  postalCode: text("postal_code"),
-  formattedLocal: text("formatted_local").notNull(),
-  formattedEnglish: text("formatted_english"),
-  descriptiveLocation: text("descriptive_location"),
-  latitude: doublePrecision("latitude"),
-  longitude: doublePrecision("longitude"),
-});
-
-export const venues = pgTable("venues", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  parentVenueId: text("parent_venue_id").references((): AnyPgColumn => venues.id),
-  organisationId: text("organisation_id").references(() => organisations.id),
-  addressId: text("address_id").references(() => addresses.id),
-  latitude: doublePrecision("latitude"),
-  longitude: doublePrecision("longitude"),
-});
-
-export const eventSeries = pgTable("event_series", {
-  id: text("id").primaryKey(),
-  canonicalName: text("canonical_name").notNull(),
-  officialName: text("official_name"),
-  organiserOrganisationId: text("organiser_organisation_id").references(() => organisations.id),
-  description: text("description"),
-  startedDate: text("started_date"),
-  endedDate: text("ended_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
 // ==========================================
 // 3. Events Hierarchy (Parent & Child)
 // ==========================================
@@ -166,14 +122,11 @@ export const events = pgTable("events", {
   endDate: text("end_date"), // Optional upper bound for multi-day summits / treaties
   temporalPrecision: text("temporal_precision").default("exact-day").notNull(), // exact-minute, exact-day, month, year, decade
   placeId: text("place_id").references(() => places.id),
-  seriesId: text("series_id").references(() => eventSeries.id),
-  venueId: text("venue_id").references(() => venues.id),
-  addressId: text("address_id").references(() => addresses.id),
-  verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
+  verificationStatus: text("verification_status").default("verified").notNull(), // verified, provisional, disputed
 
-  confidenceScore: doublePrecision("confidence_score").default(0.4).notNull(),
-  publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
-  publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
+  confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
+  publicationStatus: text("publication_status").default("published").notNull(), // published, provisional, queued, rejected
+  publicationLane: text("publication_lane").default("auto-publish").notNull(), // auto-publish, provisional, human-review
   significanceScore: integer("significance_score").default(80).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -190,32 +143,6 @@ export const eventParticipants = pgTable("event_participants", {
   role: text("role").default("principal").notNull(), // principal, co-principal, secondary, attendee
   presenceMode: text("presence_mode").default("physical").notNull(), // physical, remote-live, remote-recorded, telephone, written
 });
-
-export const eventPeople = pgTable(
-  "event_people",
-  {
-    id: text("id").primaryKey(),
-    eventId: text("event_id")
-      .references(() => events.id, { onDelete: "cascade" })
-      .notNull(),
-    personId: text("person_id")
-      .references(() => people.id, { onDelete: "cascade" })
-      .notNull(),
-    involvementType: text("involvement_type").notNull(),
-    roleLabel: text("role_label").notNull(),
-    capacityTitle: text("capacity_title"),
-    attendanceMode: text("attendance_mode").default("physical").notNull(),
-    presenceExtent: text("presence_extent").default("entire-event").notNull(),
-    arrivalTime: text("arrival_time"),
-    departureTime: text("departure_time"),
-    presenceConfidence: text("presence_confidence").default("limited").notNull(),
-    roleConfidence: text("role_confidence").default("limited").notNull(),
-    notes: text("notes"),
-  },
-  (table) => [
-    unique("uq_event_people_event_person").on(table.eventId, table.personId),
-  ]
-);
 
 export const eventOrganisations = pgTable("event_organisations", {
   id: serial("id").primaryKey(),
@@ -280,7 +207,7 @@ export const claims = pgTable("claims", {
   claimedTime: text("claimed_time"),
   claimedVenue: text("claimed_venue"),
   sourceId: text("source_id").references(() => sources.id),
-  confidence: text("confidence").default("limited").notNull(), // confirmed, reported, disputed, contradicted
+  confidence: text("confidence").default("confirmed").notNull(), // confirmed, reported, disputed, contradicted
   supportingExcerpt: text("supporting_excerpt"),
 });
 

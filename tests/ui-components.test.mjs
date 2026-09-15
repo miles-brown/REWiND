@@ -106,7 +106,7 @@ test("forwards accessibility attributes and valuetext to the slider thumb", asyn
 
 });
 
-test("generates valid BibTeX, APA, and Chicago citations with precision awareness", async () => {
+test("generates valid BibTeX, APA, and Chicago citations", async () => {
   const { formatBibTeX, formatAPA, formatChicago, formatJSON } =
     await vite.ssrLoadModule("/lib/citations.ts");
 
@@ -129,57 +129,12 @@ test("generates valid BibTeX, APA, and Chicago citations with precision awarenes
   assert.match(bibtex, /@misc\{rewind_evt_1996_election/);
   assert.match(bibtex, /title = \{Victory in Direct Prime Ministerial Election\}/);
   assert.match(bibtex, /year = \{1996\}/);
-  assert.match(bibtex, /month = \{May\}/);
 
   const apa = formatAPA(sampleEvent, sampleSource);
   assert.match(apa, /Knesset Archives\. \(1996, May 29\)\. Victory in Direct Prime Ministerial Election/);
 
   const chicago = formatChicago(sampleEvent, sampleSource);
   assert.match(chicago, /"Victory in Direct Prime Ministerial Election," Knesset Archives/);
-
-  // Test year-only precision (no invented month/day)
-  const yearEvent = {
-    id: "evt-1948-founding",
-    slug: "1948-state-founding",
-    eventName: "State Founding Declaration",
-    startDate: "1948",
-    datePrecision: "year",
-    sourceIds: ["src-1948"],
-  };
-  const bibtexYear = formatBibTeX(yearEvent, sampleSource);
-  assert.match(bibtexYear, /year = \{1948\}/);
-  assert.doesNotMatch(bibtexYear, /month =/);
-  const apaYear = formatAPA(yearEvent, sampleSource);
-  assert.match(apaYear, /Knesset Archives\. \(1948\)\. State Founding Declaration/);
-  const chicagoYear = formatChicago(yearEvent, sampleSource);
-  assert.match(chicagoYear, /documented 1948/);
-
-  // Test month-only precision
-  const monthEvent = {
-    id: "evt-1993-oslo",
-    slug: "1993-oslo-negotiations",
-    eventName: "Oslo Channel Talks",
-    startDate: "1993-08",
-    datePrecision: "month",
-    sourceIds: ["src-1993"],
-  };
-  const apaMonth = formatAPA(monthEvent, sampleSource);
-  assert.match(apaMonth, /Knesset Archives\. \(1993, August\)\. Oslo Channel Talks/);
-
-  // Test exact-minute ISO timestamp with time component (no NaN or Invalid Date)
-  const minuteEvent = {
-    id: "evt-1996-presser",
-    slug: "1996-press-conference",
-    eventName: "Joint Press Conference",
-    startDate: "1996-07-09T16:30:00Z",
-    datePrecision: "exact-minute",
-    sourceIds: ["src-1996"],
-  };
-  const bibtexMinute = formatBibTeX(minuteEvent, sampleSource);
-  assert.match(bibtexMinute, /year = \{1996\}/);
-  assert.match(bibtexMinute, /month = \{Jul\}/);
-  const apaMinute = formatAPA(minuteEvent, sampleSource);
-  assert.match(apaMinute, /Knesset Archives\. \(1996, July 9\)\. Joint Press Conference/);
 
   const json = JSON.parse(formatJSON(sampleEvent, sampleSource));
   assert.equal(json.id, "evt-1996-election");

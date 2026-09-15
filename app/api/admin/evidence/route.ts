@@ -37,28 +37,18 @@ function timingSafeCompare(a: string, b: string): boolean {
   }
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
-/** Authenticates an evidence-console request and resolves its editor identity. */
+
 function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editorActor: string } {
   const authHeader = req.headers.get("authorization");
   const sessionSecret = process.env.SESSION_SECRET;
 
-  // In production, enforce constant-time bearer token or cookie verification against SESSION_SECRET (strictly fail-closed)
-  if (process.env.NODE_ENV === "production") {
-    if (!sessionSecret) {
-      return { isAuthorized: false, editorActor: "Unauthorized: Admin access not configured" };
+  // In production, enforce constant-time bearer token verification against SESSION_SECRET
+  if (process.env.NODE_ENV === "production" && sessionSecret) {
+    if (!authHeader) {
+      return { isAuthorized: false, editorActor: "Unauthorized" };
     }
-
-    let token = "";
-    if (authHeader) {
-      const match = authHeader.match(/^Bearer\s+(.+)$/i);
-      if (match) token = match[1].trim();
-    }
-    if (!token) {
-      const cookieHeader = req.headers.get("cookie") || "";
-      const matchCookie = cookieHeader.match(/(?:^|;\s*)admin_session=([^;]+)/);
-      if (matchCookie) token = decodeURIComponent(matchCookie[1].trim());
-    }
-
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match ? match[1].trim() : "";
     if (!token || !timingSafeCompare(token, sessionSecret)) {
       return { isAuthorized: false, editorActor: "Unauthorized" };
     }
@@ -74,19 +64,10 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 }
 
 
-/** Returns evidence statistics, review candidates, and audit records for authorized editors. */
-export async function GET(req: Request) {
-  const auth = authenticateAdminRequest(req);
-  if (!auth.isAuthorized) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized: Valid admin credentials required for evidence data" },
-      { status: 401 }
-    );
-  }
-
-  const stats = await getEvidentiaryStats();
-  const queue = await getCandidateQueue();
-  const audit = await getAuditTrail();
+export async function GET() {
+  const stats = getEvidentiaryStats();
+  const queue = getCandidateQueue();
+  const audit = getAuditTrail();
 
   return NextResponse.json({
     stats,
@@ -95,7 +76,6 @@ export async function GET(req: Request) {
   });
 }
 
-/** Applies an authorized approve, merge, or reject action to an evidence candidate. */
 export async function POST(req: Request) {
   try {
     const auth = authenticateAdminRequest(req);
@@ -123,7 +103,7 @@ export async function POST(req: Request) {
     const editorActor = auth.editorActor;
 
     if (data.action === "approve") {
-      const res = await approveCandidate(data.candidateId, editorActor);
+      const res = approveCandidate(data.candidateId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -131,7 +111,7 @@ export async function POST(req: Request) {
     }
 
     if (data.action === "merge") {
-      const res = await mergeCandidate(data.candidateId, data.targetEventId, editorActor);
+      const res = mergeCandidate(data.candidateId, data.targetEventId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -139,7 +119,7 @@ export async function POST(req: Request) {
     }
 
     if (data.action === "reject") {
-      const res = await rejectCandidate(data.candidateId, data.reason || "Editorial rejection", editorActor);
+      const res = rejectCandidate(data.candidateId, data.reason || "Editorial rejection", editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -152,3 +132,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
+

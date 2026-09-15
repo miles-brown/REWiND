@@ -21,19 +21,6 @@ reviews:
     drafts: false
     base_branches:
       - "main"
-  path_instructions:
-    - path: "lib/ingestion/**"
-      instructions: "Ensure database-first duplicate checks (findDuplicateEventAsync) are used before insertion. Enforce deterministic slug collision suffixing (e.g. evt-...-2) and default confidence as 'limited'."
-    - path: "supabase/migrations/**"
-      instructions: "Enforce strict Row-Level Security (RLS) policies (such as public_visibility = 'public-exact' on event_person_locations), explicit column definitions, and index optimizations."
-    - path: "lib/rewind/**"
-      instructions: "Validate query parameters strictly (e.g. regex /^\\d{4}$/ for year) with fail-closed return on invalid input before executing PostgREST queries."
-    - path: "lib/evidence-service.ts"
-      instructions: "Ensure claim tracking (persistedClaimIds) prevents duplicate insertions and defaults fallback confidence to 'limited'."
-    - path: "components/**"
-      instructions: "Enforce WCAG 2.1 AA accessibility (Radix slider ARIA attributes, semantic buttons, focus-visible styling, live announcements) and prevent duplicate element wrappers or invalid entity relationships."
-    - path: "app/**"
-      instructions: "Ensure route parameters are properly validated, avoid self-pair relationships (slugA !== slugB), and maintain strong typing across server components."
   tools:
     ast-grep:
       enabled: true
@@ -42,4 +29,3 @@ reviews:
 
 chat:
   auto_reply: true
-

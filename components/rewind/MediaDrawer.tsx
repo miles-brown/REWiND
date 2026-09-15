@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { Check, Copy, MessageSquareQuote, Play, Radio, Volume2, X } from "lucide-react";
-import type { EventRecord } from "@/lib/rewind";
+import type { EventRecord } from "@/data/rewind";
 
-/** Displays the media and quotation details associated with an event. */
 export function MediaDrawer({
   event,
   isOpen,
@@ -58,9 +57,7 @@ export function MediaDrawer({
             </div>
             <div className="player-meta">
               <b>{event.eventName} — Historical Recording</b>
-              <small>
-                {[...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
-              </small>
+              <small>{event.medium.join(" · ")} · {event.startDate}</small>
             </div>
             <button
               className={`player-toggle-btn ${isPlayingAudio ? "playing" : ""}`}

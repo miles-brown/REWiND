@@ -1,40 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
-import {
-  getPersonBySlug,
-  getPeople,
-  getAllEvents,
-  getSources,
-  getMonogram,
-} from "@/lib/rewind";
+import { personBySlug } from "@/data/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
-/** Renders a comparison for two distinct figures identified by route slugs. */
 export default async function RelationshipPage({
   params,
 }: {
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  if (!a || !b || a.toLowerCase() === b.toLowerCase()) {
-    notFound();
-  }
-
-  const [pa, pb] = await Promise.all([
-    getPersonBySlug(a),
-    getPersonBySlug(b),
-  ]);
-
-  if (!pa || !pb || pa.id === pb.id || pa.slug.toLowerCase() === pb.slug.toLowerCase()) {
-    notFound();
-  }
-
-  const [people, allEvents, sources] = await Promise.all([
-    getPeople(),
-    getAllEvents(),
-    getSources(),
-  ]);
+  const pa = personBySlug(a);
+  const pb = personBySlug(b);
+  if (!pa || !pb) notFound();
 
   return (
     <div className="page-shell relationship-page">
@@ -48,8 +26,12 @@ export default async function RelationshipPage({
       </div>
 
       <header className="relationship-hero">
-        <span className="person-monogram large" aria-hidden="true">
-          {getMonogram(pa.name)}
+        <span className="person-monogram large">
+          {pa.name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
         </span>
         <div>
           <span className="eyebrow">DOCUMENTED INTERSECTIONS</span>
@@ -60,18 +42,16 @@ export default async function RelationshipPage({
             Verifiable spacetime intersections and bilateral diplomatic records.
           </p>
         </div>
-        <span className="person-monogram large" aria-hidden="true">
-          {getMonogram(pb.name)}
+        <span className="person-monogram large">
+          {pb.name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
         </span>
       </header>
 
-      <TimelineComparison
-        initialPersonA={pa.slug}
-        initialPersonB={pb.slug}
-        people={people}
-        events={allEvents}
-        sources={sources}
-      />
+      <TimelineComparison initialPersonA={pa.slug} initialPersonB={pb.slug} />
     </div>
   );
 }

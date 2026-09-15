@@ -1,54 +1,12 @@
 import { ArrowLeftRight } from "lucide-react";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
-import { getPeople, getAllEvents, getSources } from "@/lib/rewind";
 
 export const metadata = {
   title: "Compare Historical Chronologies | REWIND Evidence Atlas",
   description: "Cross-timeline intersection analysis and side-by-side chronological comparisons of historical figures.",
 };
 
-/** Loads atlas entities and renders the figure-comparison workspace. */
-export default async function ComparePage() {
-  const [people, allEvents, sources] = await Promise.all([
-    getPeople(),
-    getAllEvents(),
-    getSources(),
-  ]);
-
-  const personA = people[0];
-  let initialPersonB = people[1]?.slug;
-
-  if (personA && allEvents.length > 0) {
-    const coCounts = new Map<string, number>();
-    for (const e of allEvents) {
-      const participants = e.participants || [];
-      const hasPersonA = participants.some(
-        (p) => p.personId === personA.id || p.personId === personA.slug || p.slug === personA.slug
-      );
-      if (hasPersonA) {
-        for (const p of participants) {
-          const pId = p.personId;
-          const pSlug = p.slug;
-          if (
-            (pId && pId !== personA.id && pId !== personA.slug) ||
-            (pSlug && pSlug !== personA.slug && pSlug !== personA.id)
-          ) {
-            const key = pSlug || pId;
-            coCounts.set(key, (coCounts.get(key) || 0) + 1);
-          }
-        }
-      }
-    }
-    if (coCounts.size > 0) {
-      const sortedCoAttendees = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
-      const topTarget = sortedCoAttendees[0][0];
-      const matched = people.find((p) => p.slug === topTarget || p.id === topTarget);
-      if (matched) {
-        initialPersonB = matched.slug;
-      }
-    }
-  }
-
+export default function ComparePage() {
   return (
     <div className="page-shell compare-page">
       <header className="page-hero">
@@ -62,11 +20,8 @@ export default async function ComparePage() {
       </header>
 
       <TimelineComparison
-        initialPersonA={personA?.slug}
-        initialPersonB={initialPersonB}
-        people={people}
-        events={allEvents}
-        sources={sources}
+        initialPersonA="benjamin-netanyahu"
+        initialPersonB="bill-clinton"
       />
     </div>
   );
