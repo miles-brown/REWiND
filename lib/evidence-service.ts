@@ -160,8 +160,14 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       };
     }
 
+    const extractedVenue = (data?.venue || "").trim() || (candidate.suggestedPlace ? candidate.suggestedPlace.split(",")[0]?.trim() : "") || "Unspecified Location";
+    const extractedCity = (data?.city || "").trim() || (candidate.suggestedPlace ? (candidate.suggestedPlace.split(",")[1]?.trim() || candidate.suggestedPlace) : "") || "Unknown City";
+    const extractedCountry = (data?.country || "").trim() || (candidate.suggestedPlace ? (candidate.suggestedPlace.split(",")[2]?.trim() || "International") : "") || "International";
+    const extractedLat = typeof data?.latitude === "number" && !isNaN(data.latitude) ? data.latitude : null;
+    const extractedLng = typeof data?.longitude === "number" && !isNaN(data.longitude) ? data.longitude : null;
+
     const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
-    const placeId = `plc-${candidate.suggestedPlace ? candidate.suggestedPlace.toLowerCase().replace(/[^\w]/g, "-").slice(0, 24) : "unspecified"}`;
+    const placeId = `plc-${(data?.city || data?.venue || candidate.suggestedPlace || "unspecified").toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
 
     const newClaims: Array<
       typeof schema.claims.$inferInsert & { subjectMention?: string }
@@ -263,11 +269,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             await tx.insert(schema.places).values({
               id: placeId,
               slug: targetSlug,
-              venue: candidate.suggestedPlace || "Unspecified Location",
-              city: candidate.suggestedPlace || "Unknown City",
-              country: "International",
-              latitude: null,
-              longitude: null,
+              venue: extractedVenue,
+              city: extractedCity,
+              country: extractedCountry,
+              latitude: extractedLat,
+              longitude: extractedLng,
               placeType: "venue",
             });
           }
@@ -542,11 +548,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       store.places.push({
         id: resolvedPlaceId,
         slug: resolvedPlaceId.replace(/^plc-/, ""),
-        venue: candidate.suggestedPlace || "Unspecified Location",
-        city: candidate.suggestedPlace || "Unknown City",
-        country: "International",
-        latitude: 31.7683,
-        longitude: 35.2137,
+        venue: extractedVenue,
+        city: extractedCity,
+        country: extractedCountry,
+        latitude: extractedLat,
+        longitude: extractedLng,
         placeType: "venue",
       });
     }
@@ -558,7 +564,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     claimsToSync.forEach((clm) => {
       const inMem = {
         id: clm.id,
-        eventId: clm.eventId,
+        eventId: clm.eventId || null,
         sourceId: clm.sourceId || null,
         subjectId: clm.subjectId || null,
         claimType: clm.claimType,

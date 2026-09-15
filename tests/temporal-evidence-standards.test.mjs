@@ -272,5 +272,49 @@ test("verifies PR #13 follow-up review fixes: event_sources constraint, biograph
   assert.ok(syncResult.candidateId || syncResult.publishedEventId, "Ingestion must process candidate");
 });
 
+test("verifies PR #13 round-3 Codex review fixes: participant deduplication, candidate place preservation, confidence default, and polymorphic claims", async () => {
+  // 1. Participant-aware deduplication (rejects disjoint participant sets)
+  const { findDuplicateEvent } = await vite.ssrLoadModule("/lib/ingestion/deduplicate.ts");
+  const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
 
+  const store = getRelationalStore();
+  const baseEvent = store.events[0];
+  assert.ok(baseEvent);
 
+  // Candidate with matching date, city, type, and title, but completely disjoint participant
+  const disjointCandidate = {
+    title: baseEvent.title,
+    summary: baseEvent.summary || "Summary text",
+    startDate: baseEvent.startDate,
+    eventType: baseEvent.eventType,
+    city: store.places.find((p) => p.id === baseEvent.placeId)?.city || "Jerusalem",
+    venue: "Test Venue",
+    country: "Israel",
+    participants: [{ name: "Completely Disjoint Person Name", role: "principal", presenceMode: "physical" }],
+  };
+
+  // Base event with attached participant
+  baseEvent.participants = [{ name: "Benjamin Netanyahu" }];
+
+  const disjointMatch = findDuplicateEvent(disjointCandidate);
+  assert.equal(disjointMatch.isDuplicate, false, "Events with disjoint participants on the same date/city must not be merged as duplicates");
+
+  // 2. Migration confidence default and polymorphic claim event_id nullable
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(cutoverSql.includes("confidence_score double precision DEFAULT 0.5 NOT NULL"), "Cutover migration must default confidence_score to limited 0.5");
+  assert.ok(cutoverSql.includes("event_id text REFERENCES public.events(id) ON DELETE CASCADE"), "Cutover migration must allow event_id to be nullable in claims");
+
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  assert.ok(standardsSql.includes("ALTER COLUMN event_id DROP NOT NULL"), "Standards migration must drop NOT NULL on claims.event_id");
+
+  // 3. Schema defaults
+  const schemaContent = fs.readFileSync(path.join(root, "db/schema.ts"), "utf-8");
+  assert.ok(schemaContent.includes('.default(0.5).notNull()'), "schema.ts events.confidenceScore must default to 0.5");
+
+  // 4. Candidate place preservation and non-fabricated coordinates in evidence-service.ts
+  const evidenceServiceContent = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  assert.ok(evidenceServiceContent.includes("extractedVenue"), "evidence-service.ts must use extractedVenue");
+  assert.ok(evidenceServiceContent.includes("extractedCity"), "evidence-service.ts must use extractedCity");
+  assert.ok(evidenceServiceContent.includes("extractedCountry"), "evidence-service.ts must use extractedCountry");
+  assert.ok(!evidenceServiceContent.includes("latitude: 31.7683"), "evidence-service.ts must not fabricate hardcoded Jerusalem coordinates");
+});

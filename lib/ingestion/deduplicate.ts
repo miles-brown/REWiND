@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { inArray, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import type { ExtractedCandidateEvent, DeduplicationMatch } from "./types";
 
 // Generate deterministic fingerprint for strict matching
@@ -38,6 +38,9 @@ export function findDuplicateEvent(
   const store = getRelationalStore();
   const candidateDate = candidate.startDate.slice(0, 10);
   const candCity = candidate.city.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const candParticipants = (candidate.participants || [])
+    .map((p) => p.name.toLowerCase().replace(/[^\w\s]/g, "").trim())
+    .filter(Boolean);
 
   let highestMatch: DeduplicationMatch = { isDuplicate: false, similarity: 0.0 };
 
@@ -68,6 +71,23 @@ export function findDuplicateEvent(
     const summarySim = tokenSimilarity(candidate.summary, existing.summary || "");
     const textSim = Math.max(titleSim, summarySim);
     const textScore = textSim * 0.35;
+
+    // 5. Participants check & similarity
+    const existingParticipants: string[] = (
+      (existing as { participants?: Array<{ name?: string }> }).participants || []
+    )
+      .map((p) => (p.name || "").toLowerCase().replace(/[^\w\s]/g, "").trim())
+      .filter(Boolean);
+
+    if (candParticipants.length > 0 && existingParticipants.length > 0) {
+      const hasOverlap = candParticipants.some((cp) =>
+        existingParticipants.some((ep) => ep === cp || ep.includes(cp) || cp.includes(ep))
+      );
+      if (!hasOverlap) {
+        // Disjoint participant sets on same date/city -> distinct events (e.g. separate press conferences)
+        continue;
+      }
+    }
 
     const combinedScore = dateScore + cityScore + typeScore + textScore;
 
@@ -108,6 +128,9 @@ export async function findDuplicateEventAsync(
 
   const candidateDate = candidate.startDate.slice(0, 10);
   const candCity = candidate.city.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const candParticipants = (candidate.participants || [])
+    .map((p) => p.name.toLowerCase().replace(/[^\w\s]/g, "").trim())
+    .filter(Boolean);
 
   // Query events on candidate date from DB
   const matchingDateEvents = await db
@@ -126,6 +149,8 @@ export async function findDuplicateEventAsync(
     return { isDuplicate: false, similarity: 0.0 };
   }
 
+  const matchingEventIds = matchingDateEvents.map((e) => e.id);
+
   // Load places for matching events to check city alignment
   const placeIds = Array.from(new Set(matchingDateEvents.map((e) => e.placeId).filter(Boolean))) as string[];
   const places = placeIds.length > 0
@@ -135,6 +160,28 @@ export async function findDuplicateEventAsync(
         .where(inArray(schema.places.id, placeIds))
     : [];
   const placeMap = new Map(places.map((p) => [p.id, p.city]));
+
+  // Load participants for matching events to check participant alignment
+  const participantsRows = matchingEventIds.length > 0
+    ? await db
+        .select({
+          eventId: schema.eventPeople.eventId,
+          canonicalName: schema.people.canonicalName,
+          displayName: schema.people.displayName,
+        })
+        .from(schema.eventPeople)
+        .leftJoin(schema.people, eq(schema.eventPeople.personId, schema.people.id))
+        .where(inArray(schema.eventPeople.eventId, matchingEventIds))
+    : [];
+
+  const participantsByEvent = new Map<string, string[]>();
+  for (const row of participantsRows) {
+    if (!row.eventId) continue;
+    const names = participantsByEvent.get(row.eventId) || [];
+    if (row.displayName) names.push(row.displayName.toLowerCase().replace(/[^\w\s]/g, "").trim());
+    if (row.canonicalName) names.push(row.canonicalName.toLowerCase().replace(/[^\w\s]/g, "").trim());
+    participantsByEvent.set(row.eventId, names);
+  }
 
   let highestMatch: DeduplicationMatch = { isDuplicate: false, similarity: 0.0 };
 
@@ -160,6 +207,18 @@ export async function findDuplicateEventAsync(
     const summarySim = tokenSimilarity(candidate.summary, existing.summary || "");
     const textSim = Math.max(titleSim, summarySim);
     const textScore = textSim * 0.35;
+
+    // Participant identity check: prevent false merge when candidate and existing event have disjoint participant sets
+    const existingParticipants = participantsByEvent.get(existing.id) || [];
+    if (candParticipants.length > 0 && existingParticipants.length > 0) {
+      const hasOverlap = candParticipants.some((cp) =>
+        existingParticipants.some((ep) => ep === cp || ep.includes(cp) || cp.includes(ep))
+      );
+      if (!hasOverlap) {
+        // Disjoint participants -> distinct historical events
+        continue;
+      }
+    }
 
     const combinedScore = dateScore + cityScore + typeScore + textScore;
     const hasSufficientLexicalAgreement = textSim >= 0.20 || candidate.title.toLowerCase() === existing.title.toLowerCase();

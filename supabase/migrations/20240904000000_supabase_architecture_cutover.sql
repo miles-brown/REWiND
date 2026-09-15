@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   venue_id text REFERENCES public.venues(id),
   address_id text REFERENCES public.addresses(id),
   verification_status text DEFAULT 'provisional' NOT NULL CHECK (verification_status IN ('unverified', 'provisional', 'verified', 'disputed', 'retracted')),
-  confidence_score double precision DEFAULT 1.0 NOT NULL,
+  confidence_score double precision DEFAULT 0.5 NOT NULL,
   publication_status text DEFAULT 'draft' NOT NULL CHECK (publication_status IN ('draft', 'provisional', 'published', 'archived', 'withdrawn')),
   publication_lane text DEFAULT 'human-review' NOT NULL CHECK (publication_lane IN ('auto-publish', 'provisional', 'human-review', 'quarantine', 'withheld', 'editorial-override', 'rejected')),
   significance_score integer DEFAULT 80 NOT NULL,
@@ -335,7 +335,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS public.claims (
   id text PRIMARY KEY,
-  event_id text NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  event_id text REFERENCES public.events(id) ON DELETE CASCADE,
   subject_id text REFERENCES public.people(id),
   claim_type text NOT NULL,
   statement text NOT NULL,

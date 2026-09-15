@@ -170,7 +170,7 @@ export const events = pgTable("events", {
   addressId: text("address_id").references(() => addresses.id),
   verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
 
-  confidenceScore: doublePrecision("confidence_score").default(1.0).notNull(),
+  confidenceScore: doublePrecision("confidence_score").default(0.5).notNull(),
   publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
   publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
   significanceScore: integer("significance_score").default(80).notNull(),
@@ -265,8 +265,7 @@ export const eventSources = pgTable("event_sources", {
 export const claims = pgTable("claims", {
   id: text("id").primaryKey(),
   eventId: text("event_id")
-    .references(() => events.id, { onDelete: "cascade" })
-    .notNull(),
+    .references(() => events.id, { onDelete: "cascade" }),
   subjectId: text("subject_id").references(() => people.id),
   claimType: text("claim_type").notNull(), // presence, start-time, statement-quote, agreement, action
   statement: text("statement").notNull(),
