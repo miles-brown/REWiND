@@ -80,6 +80,25 @@ graph LR
    - Provide the PR URL and a clear walkthrough summary to the user.
    - Do **NOT** merge the PR until the user has reviewed and approved it.
 
+### Mandatory PR Branch Isolation & Anti-Cascade Invariants
+
+To prevent work duplication, PR closing cascades, and merge regressions, all AI coding assistants and contributors must strictly enforce these 4 invariants:
+
+1. **Rule 1: Single Canonical Base (`--base main`)**:
+   - Every pull request MUST have its own isolated feature branch cut freshly from `origin/main` and MUST target `--base main`.
+   - **NEVER** open PRs targeting another unmerged or ephemeral feature branch.
+
+2. **Rule 2: Foundation-First Modular Delivery (Trunk-Based Micro-PRs)**:
+   - Land foundational layers (PostgreSQL schemas, DB clients, core utilities, shared types) in self-contained micro-PRs into `main` first.
+   - Subsequent consumer features or UI components branch off the updated `main`.
+
+3. **Rule 3: Rebase Instead of Stack for Concurrent Features**:
+   - If feature branches are developed concurrently, synchronize with newly merged `main` via `git fetch origin && git rebase origin/main`.
+   - Never stack unmerged PR branches onto one another.
+
+4. **Rule 4: Safe Deletion & Cascade Prevention**:
+   - `--delete-branch` is strictly permitted only for merged branches targeting `main`.
+   - If stacked or child branches are ever encountered, retarget all child PRs to `main` via `gh pr edit <PR> --base main` *before* deleting any parent branch.
 
 ---
 

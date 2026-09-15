@@ -43,6 +43,7 @@ Audit the following pull request diff for:
 2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, live announcements).
 3. Forensic Evidence Rigor & Archival Integrity (verified citations, primary sources, coordinates, ISO-8601 dates).
 4. Security & Error Recovery (no token leaks, graceful fallback styles, network resilience).
+5. PR Branch Isolation & Base Invariants (isolated feature branches, canonical base main, no unmerged branch stacking).
 
 Changed Files (${changedFiles.length}):
 ${changedFiles.join("\n")}
@@ -54,7 +55,7 @@ ${diff.slice(0, 300000)}
 
 Provide your review in clean GitHub-Flavored Markdown with:
 - **Executive Summary** (1-2 sentences on what this PR accomplishes)
-- **Forensic Audit Checklist** (TypeScript, React 19, Accessibility, Data Integrity, Security)
+- **Forensic Audit Checklist** (TypeScript, React 19, Accessibility, Data Integrity, Security, PR Branch Isolation)
 - **Actionable Feedback / Commendations** (concise, high-signal points)
 - **Review Verdict**: (✅ **APPROVED** / ⚠️ **APPROVED WITH NITS** / ❌ **CHANGES REQUESTED**)`;
 
