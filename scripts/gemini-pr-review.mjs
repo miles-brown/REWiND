@@ -36,8 +36,19 @@ function getChangedFiles() {
 }
 
 async function callGeminiReview(diff, changedFiles) {
-  const prompt = `You are the Lead Forensic Software Engineer & Accessibility Auditor for the REWiND Evidence Atlas.
+  let prMetadataContext = "";
+  if (GITHUB_EVENT_PATH && fs.existsSync(GITHUB_EVENT_PATH)) {
+    try {
+      const eventData = JSON.parse(fs.readFileSync(GITHUB_EVENT_PATH, "utf-8"));
+      const pr = eventData.pull_request;
+      if (pr) {
+        prMetadataContext = `\nPR Metadata:\n- Base Branch: ${pr.base?.ref}\n- Head Branch: ${pr.head?.ref}\n- PR Title: ${pr.title}\n`;
+      }
+    } catch {}
+  }
 
+  const prompt = `You are the Lead Forensic Software Engineer & Accessibility Auditor for the REWiND Evidence Atlas.
+${prMetadataContext}
 Audit the following pull request diff for:
 1. TypeScript Strict Typing & React 19 Performance (memoization, effect lifecycles, no unnecessary remounts).
 2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, live announcements).
@@ -134,6 +145,7 @@ ${changedFiles.map((f) => `- \`${f}\``).join("\n")}
 - [x] **WCAG 2.1 AA Accessibility**: Semantic button markers, focus visible outlines, and Radix slider semantics.
 - [x] **Map Resilience & Error Recovery**: Scoped MapLibre initialization, unmount cleanup, and fallback raster tiles.
 - [x] **CI Verification Pipeline**: Mandatory \`npm run build:vercel\` gate and \`persist-credentials: false\` security.
+- [x] **PR Branch Isolation**: Feature branch cut from \`origin/main\` targeting canonical \`--base main\`.
 
 > [!NOTE]
 > To enable dynamic Gemini 2.5 Flash LLM reviews directly on GitHub PRs, set the \`GEMINI_API_KEY\` secret in repository Settings → Secrets and variables → Actions.`;

@@ -68,9 +68,16 @@ test("validates Rule 1: Single Canonical Base (main) in documentation and config
   const yamlPath = path.join(root, ".coderabbit.yaml");
   assert.ok(fs.existsSync(yamlPath), ".coderabbit.yaml must exist");
   const yamlContent = fs.readFileSync(yamlPath, "utf-8");
-  assert.ok(
-    yamlContent.includes('base_branches:\n      - "main"') || yamlContent.includes("base_branches:\n      - 'main'") || yamlContent.includes('base_branches:\n      - main'),
-    ".coderabbit.yaml must restrict base branches to main"
+  const baseBranchesMatch = yamlContent.match(/base_branches:\s*\n((\s+-\s+["']?[^"'\n]+["']?\s*\n?)+)/);
+  assert.ok(baseBranchesMatch, ".coderabbit.yaml must declare base_branches");
+  const baseBranches = baseBranchesMatch[1]
+    .split("\n")
+    .map((line) => line.replace(/^\s*-\s*["']?|["']?\s*$/g, "").trim())
+    .filter(Boolean);
+  assert.deepEqual(
+    baseBranches,
+    ["main"],
+    `.coderabbit.yaml must strictly target ['main'], found ${JSON.stringify(baseBranches)}`
   );
 });
 

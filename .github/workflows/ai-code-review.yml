@@ -28,6 +28,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: PR Branch Isolation & Workflow Invariants
+        run: node scripts/verify-git-workflow.mjs
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+
       - name: TypeScript Strict Typecheck
         run: npx tsc --noEmit
 

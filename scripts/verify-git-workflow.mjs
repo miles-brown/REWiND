@@ -47,11 +47,15 @@ checkFileContains("docs/CONTRIBUTING.md", [
   "Rule 4: Safe Deletion & Cascade Prevention",
 ]);
 
-// 3. Verify .coderabbit.yaml
-checkFileContains(".coderabbit.yaml", [
-  "base_branches:",
-  "- \"main\"",
-]);
+// 4. In CI environment, verify that PR base branch is strictly 'main'
+const githubBaseRef = process.env.GITHUB_BASE_REF;
+if (githubBaseRef) {
+  if (githubBaseRef !== "main") {
+    console.error(`❌ Rule 1 Violation: Pull request must target 'main'. Found base branch '${githubBaseRef}'.`);
+    process.exit(1);
+  }
+  console.log(`✅ CI PR Target Verification: PR base ref is correctly '${githubBaseRef}'.`);
+}
 
 console.log("✅ All 4 PR branch isolation & anti-cascade rules verified in docs and configuration.");
 process.exit(0);
