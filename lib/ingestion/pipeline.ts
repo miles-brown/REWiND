@@ -23,7 +23,11 @@ import {
   tokenSimilarity,
 } from "./deduplicate";
 import { evaluatePublicationPolicy } from "./policy-evaluator";
-import { recordAuditEvent } from "./audit";
+import {
+  recordAuditEvent,
+  recordAuditEventInTransaction,
+  recordAuditEventStoreOnly,
+} from "./audit";
 
 /**
  * Generates a collision-resistant deterministic slug for an event.
@@ -830,6 +834,37 @@ export function processCandidateEvent(
               }
             }
           }
+
+          // Transactional audit log for auto-published or merged event
+          if (liveDeduplication.isDuplicate && liveDeduplication.matchedEventId) {
+            await recordAuditEventInTransaction(
+              tx,
+              "merged",
+              livePolicy.ruleId,
+              {
+                matchedEventId: liveDeduplication.matchedEventId,
+                sourceId: source.sourceId,
+                similarity: liveDeduplication.similarity,
+                claimsAdded: candidate.claims.length,
+              },
+              liveDeduplication.matchedEventId,
+              candidateId
+            );
+          } else {
+            await recordAuditEventInTransaction(
+              tx,
+              "auto-published",
+              livePolicy.ruleId,
+              {
+                eventId: eventSlug,
+                sourceId: source.sourceId,
+                sourceTier: source.sourceTier,
+                lane: livePolicy.lane,
+              },
+              eventSlug,
+              candidateId
+            );
+          }
         }
       } else {
         const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });
@@ -863,13 +898,27 @@ export function processCandidateEvent(
             rejectionReason: null,
           });
         }
+
+        // Transactional audit log for queued candidate
+        await recordAuditEventInTransaction(
+          tx,
+          "queued-for-review",
+          livePolicy.ruleId,
+          {
+            candidateId,
+            sourceId: source.sourceId,
+            reason: livePolicy.reason,
+          },
+          undefined,
+          candidateId
+        );
       }
     });
 
-    // Authoritative Audit Logging based on live policy
+    // Authoritative In-Memory Audit Logging for store synchronization
     if (livePolicy.lane === "auto-publish" || livePolicy.lane === "provisional") {
       if (liveDeduplication.isDuplicate && liveDeduplication.matchedEventId) {
-        await recordAuditEvent(
+        recordAuditEventStoreOnly(
           "merged",
           livePolicy.ruleId,
           {
@@ -883,7 +932,7 @@ export function processCandidateEvent(
         );
       } else {
         const publishedId = syncResult.publishedEventId!;
-        await recordAuditEvent(
+        recordAuditEventStoreOnly(
           "auto-published",
           livePolicy.ruleId,
           {
@@ -897,7 +946,7 @@ export function processCandidateEvent(
         );
       }
     } else {
-      await recordAuditEvent(
+      recordAuditEventStoreOnly(
         "queued-for-review",
         livePolicy.ruleId,
         {

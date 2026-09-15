@@ -668,6 +668,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         const resolved = resolveEntity(p.name);
         if (resolved.canonicalName) {
           mergedParticipants.push(resolved.canonicalName);
+        } else if (p.name) {
+          mergedParticipants.push(p.name);
         }
       });
     }

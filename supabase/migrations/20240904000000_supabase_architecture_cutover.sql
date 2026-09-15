@@ -666,8 +666,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'claims' AND policyname = 'Allow public read on claims') THEN
     CREATE POLICY "Allow public read on claims" ON public.claims FOR SELECT TO anon, authenticated
       USING (
-        (event_id IS NULL AND (subject_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published')))
-        OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published')
+        (event_id IS NULL AND subject_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'))
+        OR (event_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published'))
       );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Allow public read on quotes') THEN

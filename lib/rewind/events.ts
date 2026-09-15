@@ -402,7 +402,7 @@ async function hydrateEventRows(
       role: p.role_label,
       presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
       capacityTitle: p.capacity_title || undefined,
-      attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : "physical",
+      attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
     });
     participantsMap.set(p.event_id, list);
   });
@@ -985,7 +985,7 @@ export async function getEventBySlug(
           role: p.role_label || undefined,
           presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
           capacityTitle: p.capacity_title || undefined,
-          attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : "physical",
+          attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
           latitude: loc?.latitude ?? null,
           longitude: loc?.longitude ?? null,
           coordinatePrecision: loc?.coordinate_precision,

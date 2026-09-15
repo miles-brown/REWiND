@@ -24,12 +24,7 @@ function participantsOverlap(
       }
 
       return candidate.names.some((candidateName) =>
-        existing.names.some(
-          (existingName) =>
-            existingName === candidateName ||
-            existingName.includes(candidateName) ||
-            candidateName.includes(existingName)
-        )
+        existing.names.some((existingName) => existingName === candidateName)
       );
     })
   );

@@ -144,7 +144,7 @@ export async function resolveEntityAsync(
   rawName: string,
   dbInstance?: NonNullable<ReturnType<typeof getDb>> | TransactionClient | null
 ): Promise<EntityResolution> {
-  const db = dbInstance ?? getDb();
+  const db = dbInstance === undefined ? getDb() : dbInstance;
   const normalized = normalizeName(rawName);
   if (!normalized) {
     return { personId: null, canonicalName: null, confidence: 0.0, isApprovedSubject: false };
