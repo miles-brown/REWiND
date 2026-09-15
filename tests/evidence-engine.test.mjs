@@ -438,12 +438,13 @@ test("verifies Codex & CodeRabbit safeguards: audit propagation, places resilien
   const auditEntry = await auditPromise;
   assert.equal(auditEntry.action, "test-action");
 
-  // 2. getPlaces and getPlaceBySlug return valid collections or null safely
+  // 2. getPlaces and getPlaceBySlug return explicit status contracts
   const places = await getPlaces();
   assert.ok(Array.isArray(places));
 
   const placeSlugResult = await getPlaceBySlug("non-existent-place-slug-xyz");
-  assert.equal(placeSlugResult, null);
+  assert.equal(placeSlugResult.data, null);
+  assert.equal(typeof placeSlugResult.error, "string");
 
   // 3. getEvents handles non-existent placeSlug gracefully
   const eventsResult = await getEvents({ placeSlug: "non-existent-place-slug-xyz" });

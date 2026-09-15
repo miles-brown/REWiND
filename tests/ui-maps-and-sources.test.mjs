@@ -775,9 +775,10 @@ test("verifies parseIsoDate timestamp rollover safeguard and relational query ro
   const relContent = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
   assert.ok(
     relContent.includes("if (participations.length > 0) {") &&
-    relContent.includes("return [];\n    }") &&
-    relContent.includes("return getFallbackRelationships();"),
-    "lib/rewind/relationships.ts must return empty array when Supabase has zero participations"
+    relContent.includes("return { data: [], error: null };") &&
+    relContent.includes("const res = await getRelationshipsWithStatus();") &&
+    relContent.includes("return res.data;"),
+    "lib/rewind/relationships.ts must preserve the explicit zero-state and delegate through the status loader"
   );
 
   // 8. lib/rewind/sources.ts event_sources pagination and error handling

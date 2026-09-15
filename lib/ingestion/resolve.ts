@@ -142,7 +142,7 @@ export interface EntityResolution {
 
 export async function resolveEntityAsync(
   rawName: string,
-  dbInstance?: ReturnType<typeof getDb>
+  dbInstance?: NonNullable<ReturnType<typeof getDb>> | TransactionClient | null
 ): Promise<EntityResolution> {
   const db = dbInstance ?? getDb();
   const normalized = normalizeName(rawName);
@@ -589,4 +589,3 @@ export async function resolvePlaceAsync(
 
   return resolvePlace(venue, city, country, latitude, longitude);
 }
-

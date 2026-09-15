@@ -34,7 +34,7 @@ async function main() {
   try {
     const parsedUrl = new URL(connectionString);
     const host = parsedUrl.hostname.toLowerCase();
-    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".internal");
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
     const isExplicitlyAllowedHost = process.env.ALLOW_SEED_DATABASE_HOST === host;
     if (!isLocal && !isExplicitlyAllowedHost) {
       console.error(`❌ SEEDING BLOCKED: Target database host "${host}" is not local and not in ALLOW_SEED_DATABASE_HOST.`);

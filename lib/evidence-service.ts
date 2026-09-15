@@ -1,7 +1,7 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
-import { recordAuditEvent, recordAuditEventInTransaction } from "@/lib/ingestion/audit";
+import { recordAuditEvent, recordAuditEventInTransaction, recordAuditEventStoreOnly } from "@/lib/ingestion/audit";
 import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
 
 export interface EvidenceStats {
@@ -579,7 +579,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       }
     });
 
-    await recordAuditEvent(
+    const recordApprovalAudit = db ? recordAuditEventStoreOnly : recordAuditEvent;
+    await recordApprovalAudit(
       "reviewed-approved",
       "REW-REV-MANUAL-SIGN-OFF",
       {
@@ -658,6 +659,16 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         success: false,
         error: "Forensic Rigor Contract: Merging candidate requires a valid verifiable primary or secondary sourceId referencing an archival record (AGENTS.md contract)",
       };
+    }
+
+    const mergedParticipants: string[] = [];
+    if (Array.isArray(data.participants)) {
+      data.participants.forEach((p: { name: string }) => {
+        const resolved = resolveEntity(p.name);
+        if (resolved.canonicalName) {
+          mergedParticipants.push(resolved.canonicalName);
+        }
+      });
     }
 
     const claimsToInsert: Array<
@@ -981,17 +992,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
 
     const actualAddedCount = persistedIds !== null ? persistedIds.length : claimsToInsert.length;
 
-    const mergedParticipants: string[] = [];
-    if (Array.isArray(data.participants)) {
-      data.participants.forEach((p: { name: string; role?: string }) => {
-        const res = resolveEntity(p.name);
-        if (res.canonicalName) {
-          mergedParticipants.push(res.canonicalName);
-        }
-      });
-    }
-
-    await recordAuditEvent(
+    const recordMergeAudit = db ? recordAuditEventStoreOnly : recordAuditEvent;
+    await recordMergeAudit(
       "reviewed-merged",
       "REW-REV-MANUAL-MERGE",
       {
@@ -1091,7 +1093,8 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
     candidate.status = "rejected";
     candidate.rejectionReason = reason;
 
-    await recordAuditEvent(
+    const recordRejectionAudit = db ? recordAuditEventStoreOnly : recordAuditEvent;
+    await recordRejectionAudit(
       "reviewed-rejected",
       "REW-REV-MANUAL-REJECT",
       {

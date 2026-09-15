@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
-import { getAtlasStatistics, getAllEventsWithStatus } from "@/lib/rewind";
+import { getAtlasStatistics, getAllEventsWithStatus, type AtlasStatistics } from "@/lib/rewind";
 
 export const metadata: Metadata = {
   title: "Documented Events — REWIND Evidence Atlas",
@@ -16,10 +16,11 @@ export default async function EventsPage() {
         verifiedCount: 0,
         provisionalCount: 0,
         disputedCount: 0,
-        peopleCount: 0,
-        placesCount: 0,
-        sourcesCount: 0,
-      };
+        personCount: 0,
+        placeCount: 0,
+        sourceCount: 0,
+        yearsCovered: 0,
+      } satisfies AtlasStatistics;
     }),
     getAllEventsWithStatus(),
   ]);

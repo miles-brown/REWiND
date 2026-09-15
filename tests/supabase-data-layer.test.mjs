@@ -126,7 +126,8 @@ test("handles empty Supabase database state intentionally and gracefully", async
   assert.ok(Array.isArray(places));
 
   const place = await getPlaceBySlug("non-existent-place-slug");
-  assert.equal(place, null);
+  assert.equal(place.data, null);
+  assert.equal(typeof place.error, "string");
 
   // Sources
   const sources = await getSources();
@@ -147,8 +148,10 @@ test("handles empty Supabase database state intentionally and gracefully", async
   assert.equal(pairRel, null);
 
   // Search
-  const searchResults = await searchRewind("Netanyahu");
-  assert.ok(Array.isArray(searchResults));
+  await assert.rejects(
+    searchRewind("Netanyahu"),
+    /Supabase search client is unavailable/
+  );
 
   // Statistics
   const stats = await getAtlasStatistics();
@@ -585,5 +588,4 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
   assert.equal(sourcesErrRes.data, null);
   assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
 });
-
 

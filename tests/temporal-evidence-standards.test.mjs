@@ -226,9 +226,14 @@ test("verifies PR #13 follow-up review fixes: event_sources constraint, biograph
   assert.ok(peopleContent.includes("e.field_of_study"), "person_education mapper must handle field_of_study");
   assert.ok(peopleContent.includes("c.role_title"), "person_career mapper must handle role_title");
 
-  // Fix 3: Audit DB error propagation in lib/ingestion/audit.ts
+  // Fix 3: Audit DB persistence resilience in lib/ingestion/audit.ts
   const auditContent = fs.readFileSync(path.join(root, "lib/ingestion/audit.ts"), "utf-8");
-  assert.ok(!auditContent.includes("console.warn(\"[Audit] Failed to persist audit record"), "recordAuditEvent must not swallow database insertion errors");
+  assert.ok(
+    auditContent.includes("catch (err)") &&
+      auditContent.includes('console.error("Failed to persist audit event:", err);') &&
+      auditContent.includes("return entry;"),
+    "recordAuditEvent must log persistence errors and preserve its committed in-memory entry"
+  );
 
   // Fix 4 & 5: Pipeline provisional confidence & alias-aware subject resolution
   const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
@@ -298,6 +303,14 @@ test("verifies PR #13 round-3 Codex review fixes: participant deduplication, can
 
   const disjointMatch = findDuplicateEvent(disjointCandidate);
   assert.equal(disjointMatch.isDuplicate, false, "Events with disjoint participants on the same date/city must not be merged as duplicates");
+
+  const deduplicateContent = fs.readFileSync(path.join(root, "lib/ingestion/deduplicate.ts"), "utf-8");
+  assert.ok(
+    deduplicateContent.includes("personId: schema.eventPeople.personId") &&
+      deduplicateContent.includes("resolveEntityAsync(participant.name, db)") &&
+      deduplicateContent.includes("candidate.personId && existing.personId"),
+    "Live participant deduplication must resolve and compare canonical person IDs before falling back to names"
+  );
 
   // 2. Migration confidence default and polymorphic claim event_id nullable
   const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");

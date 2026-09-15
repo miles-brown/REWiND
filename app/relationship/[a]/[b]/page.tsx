@@ -5,6 +5,8 @@ import {
   getRelationshipBetween,
   getSourcesByIds,
   getMonogram,
+  getPeopleWithStatus,
+  getAllEventsWithStatus,
 } from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
@@ -25,8 +27,18 @@ export default async function RelationshipPage({
     notFound();
   }
 
-  const data = await getRelationshipBetween(a, b);
+  const [data, peopleResult, eventsResult] = await Promise.all([
+    getRelationshipBetween(a, b),
+    getPeopleWithStatus(),
+    getAllEventsWithStatus(),
+  ]);
   if (!data) notFound();
+  if (peopleResult.error) {
+    throw new Error(`Relationship people catalog unavailable: ${peopleResult.error}`);
+  }
+  if (eventsResult.error) {
+    throw new Error(`Relationship event catalog unavailable: ${eventsResult.error}`);
+  }
   const { personA: pa, personB: pb, sharedEvents } = data;
   if (!pa || !pb || pa.id === pb.id) notFound();
   const neededSourceIds = Array.from(new Set(sharedEvents.flatMap((e) => e.sourceIds || [])));
@@ -64,8 +76,8 @@ export default async function RelationshipPage({
       <TimelineComparison
         initialPersonA={pa.slug}
         initialPersonB={pb.slug}
-        people={[pa, pb]}
-        events={sharedEvents}
+        people={peopleResult.data}
+        events={eventsResult.data}
         sources={sources}
       />
     </div>

@@ -18,9 +18,10 @@ export async function searchRewind(
   const term = query.trim();
   if (!term) return [];
 
-  try {
-    const supabase = await createClient();
-    if (!supabase) return [];
+  const supabase = await createClient();
+  if (!supabase) {
+    throw new Error("Supabase search client is unavailable");
+  }
 
     const escaped = escapePostgrestValue(term);
 
@@ -105,11 +106,16 @@ export async function searchRewind(
       const [extraEventsRes, extraPeopleRes] = await Promise.all([
         neededEventIds.length > 0
           ? supabase.from("events").select("id, slug, title").in("id", neededEventIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         neededSpeakerIds.length > 0
           ? supabase.from("people").select("id, slug, display_name, canonical_name").in("id", neededSpeakerIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
       ]);
+
+      const relatedLookupError = extraEventsRes.error || extraPeopleRes.error;
+      if (relatedLookupError) {
+        throw new Error(`Supabase related search query failed: ${relatedLookupError.message}`);
+      }
 
       const eventSlugMap = new Map<string, { slug: string; title: string }>();
       (eventsRes.data || []).forEach((e) => eventSlugMap.set(e.id, { slug: e.slug, title: e.title }));
@@ -159,7 +165,4 @@ export async function searchRewind(
     });
 
     return results.slice(0, limit);
-  } catch {
-    return [];
-  }
 }

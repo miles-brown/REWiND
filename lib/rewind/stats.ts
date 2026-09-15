@@ -43,8 +43,8 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
 
   // Any failed count query returns { count: null, error } — do not convert failures
   // into zero counts which would make a DB outage look like an empty-but-healthy atlas.
-  if (eventsRes.error || peopleRes.error || sourcesRes.error || verifiedRes.error || provisionalRes.error || disputedRes.error || placesRes.error) {
-    const firstError = eventsRes.error ?? peopleRes.error ?? sourcesRes.error ?? verifiedRes.error ?? provisionalRes.error ?? disputedRes.error ?? placesRes.error;
+  if (eventsRes.error || peopleRes.error || sourcesRes.error || verifiedRes.error || provisionalRes.error || disputedRes.error || placesRes.error || minYearRes.error || maxYearRes.error) {
+    const firstError = eventsRes.error ?? peopleRes.error ?? sourcesRes.error ?? verifiedRes.error ?? provisionalRes.error ?? disputedRes.error ?? placesRes.error ?? minYearRes.error ?? maxYearRes.error;
     throw new Error(`Atlas statistics query failed: ${firstError?.message ?? "unknown error"}`);
   }
 
@@ -70,4 +70,3 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     yearsCovered,
   };
 }
-

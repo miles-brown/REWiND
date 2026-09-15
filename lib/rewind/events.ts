@@ -7,8 +7,23 @@ import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPre
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
 
-const VALID_CONFIDENCES = new Set<string>(["confirmed", "strong", "moderate", "limited", "disputed"]);
-const VALID_ATTENDANCE_MODES = new Set<string>(["physical", "virtual", "represented", "telephonic", "unspecified", "unknown"]);
+const VALID_CONFIDENCES = new Set<Confidence>(["confirmed", "strong", "moderate", "limited"]);
+const VALID_ATTENDANCE_MODES = new Set<AttendanceMode>([
+  "physical",
+  "remote-live",
+  "remote-recorded",
+  "telephone",
+  "written",
+  "proxy",
+]);
+
+function isConfidence(value: unknown): value is Confidence {
+  return typeof value === "string" && [...VALID_CONFIDENCES].some((confidence) => confidence === value);
+}
+
+function isAttendanceMode(value: unknown): value is AttendanceMode {
+  return typeof value === "string" && [...VALID_ATTENDANCE_MODES].some((mode) => mode === value);
+}
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
   (fallbackSources || []).map((s) => [
@@ -385,9 +400,9 @@ async function hydrateEventRows(
       slug: personSlugs.get(p.person_id),
       name: personNames.get(p.person_id) || p.person_id,
       role: p.role_label,
-      presenceConfidence: (p.presence_confidence && VALID_CONFIDENCES.has(p.presence_confidence) ? p.presence_confidence : undefined) as Confidence | undefined,
+      presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
       capacityTitle: p.capacity_title || undefined,
-      attendanceMode: (p.attendance_mode && VALID_ATTENDANCE_MODES.has(p.attendance_mode) ? p.attendance_mode : "physical") as AttendanceMode,
+      attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : "physical",
     });
     participantsMap.set(p.event_id, list);
   });
@@ -968,9 +983,9 @@ export async function getEventBySlug(
           slug: personSlugs.get(p.person_id),
           name: personNames.get(p.person_id) || p.person_id,
           role: p.role_label || undefined,
-          presenceConfidence: (p.presence_confidence && VALID_CONFIDENCES.has(p.presence_confidence) ? p.presence_confidence : undefined) as Confidence | undefined,
+          presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
           capacityTitle: p.capacity_title || undefined,
-          attendanceMode: (p.attendance_mode && VALID_ATTENDANCE_MODES.has(p.attendance_mode) ? p.attendance_mode : "physical") as AttendanceMode,
+          attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : "physical",
           latitude: loc?.latitude ?? null,
           longitude: loc?.longitude ?? null,
           coordinatePrecision: loc?.coordinate_precision,

@@ -13,10 +13,13 @@ export default async function PlacePage({
     notFound();
   }
 
-  const placeData = await getPlaceBySlug(slug);
-  if (!placeData) notFound();
+  const placeResult = await getPlaceBySlug(slug);
+  if (placeResult.error) {
+    throw new Error(`Place lookup failed: ${placeResult.error}`);
+  }
+  if (!placeResult.data) notFound();
 
-  const { place, events: linked } = placeData;
+  const { place, events: linked } = placeResult.data;
 
   return (
     <div className="page-shell">

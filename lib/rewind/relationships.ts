@@ -202,24 +202,8 @@ export async function getRelationshipsWithStatus(): Promise<{ data: Relationship
 }
 
 export async function getRelationships(): Promise<RelationshipItem[]> {
-  try {
-    const supabase = await createClient();
-    if (supabase) {
-      const res = await getRelationshipsWithStatus();
-      return res.data;
-      return [];
-    }
-
-    if (process.env.NODE_ENV === "production") {
-      return [];
-    }
-    return getFallbackRelationships();
-  } catch {
-    if (process.env.NODE_ENV === "production") {
-      return [];
-    }
-    return getFallbackRelationships();
-  }
+  const res = await getRelationshipsWithStatus();
+  return res.data;
 }
 
 /**

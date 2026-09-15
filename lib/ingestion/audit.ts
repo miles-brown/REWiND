@@ -39,6 +39,37 @@ export function recordAuditEvent(
   eventId?: string,
   candidateId?: string
 ): Promise<AuditRecord> & AuditRecord {
+  const entry = recordAuditEventStoreOnly(action, ruleId, details, eventId, candidateId);
+
+  const db = getDb();
+  const persistPromise = (async () => {
+    if (db) {
+      try {
+        await db.insert(schema.auditLog).values({
+          eventId: entry.eventId,
+          candidateId: entry.candidateId,
+          action: entry.action,
+          ruleId: entry.ruleId,
+          details: entry.details,
+          recordedAt: entry.recordedAt,
+        });
+      } catch (err) {
+        console.error("Failed to persist audit event:", err);
+      }
+    }
+    return entry;
+  })();
+
+  return Object.assign(persistPromise, entry);
+}
+
+export function recordAuditEventStoreOnly(
+  action: string,
+  ruleId: string | null,
+  details: Record<string, unknown>,
+  eventId?: string,
+  candidateId?: string
+): AuditRecord {
   const store = getRelationalStore();
   const entry: AuditRecord = {
     id: store.auditLog.length + 1,
@@ -51,23 +82,7 @@ export function recordAuditEvent(
   };
 
   store.auditLog.unshift(entry);
-
-  const db = getDb();
-  const persistPromise = (async () => {
-    if (db) {
-      await db.insert(schema.auditLog).values({
-        eventId: entry.eventId,
-        candidateId: entry.candidateId,
-        action: entry.action,
-        ruleId: entry.ruleId,
-        details: entry.details,
-        recordedAt: entry.recordedAt,
-      });
-    }
-    return entry;
-  })();
-
-  return Object.assign(persistPromise, entry);
+  return entry;
 }
 
 export async function getAuditTrail(): Promise<AuditRecord[]> {

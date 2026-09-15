@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     console.error("Search API error:", error);
     return NextResponse.json(
       { results: [], error: "Search service unavailable" },
-      { status: 500 }
+      { status: 503 }
     );
   }
 }

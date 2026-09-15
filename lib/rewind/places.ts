@@ -157,12 +157,16 @@ export async function getPlacesWithStatus(supabaseClient?: unknown): Promise<{ d
  */
 export async function getPlaceBySlug(
   slug: string
-): Promise<{ place: PlaceRecord; events: EventRecord[] } | null> {
-  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) return null;
+): Promise<{ data: { place: PlaceRecord; events: EventRecord[] } | null; error: string | null }> {
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return { data: null, error: "Invalid place slug" };
+  }
 
   try {
     const supabase = await createClient();
-    if (!supabase) return null;
+    if (!supabase) {
+      return { data: null, error: "Database configuration unavailable" };
+    }
 
     let place: PlaceRecord | null = null;
 
@@ -212,7 +216,7 @@ export async function getPlaceBySlug(
       };
     }
 
-    if (!place) return null;
+    if (!place) return { data: null, error: null };
 
     const allEvents: EventRecord[] = [];
     let page = 1;
@@ -228,10 +232,16 @@ export async function getPlaceBySlug(
     }
 
     return {
-      place,
-      events: allEvents,
+      data: {
+        place,
+        events: allEvents,
+      },
+      error: null,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "Failed to load place",
+    };
   }
 }

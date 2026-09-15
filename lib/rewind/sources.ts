@@ -209,7 +209,7 @@ export async function getSourceEventCounts(): Promise<Record<string, number>> {
 }
 
 /**
- * Retrieves multiple sources by their IDs in a single batch query.
+ * Retrieves multiple sources by their IDs in bounded batch queries.
  */
 export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
   if (!ids || ids.length === 0) return [];
@@ -217,13 +217,20 @@ export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
     const supabase = await createClient();
     if (!supabase) return [];
 
-    const { data, error } = await supabase
-      .from("sources")
-      .select("*")
-      .in("id", ids);
+    const rows: Record<string, unknown>[] = [];
+    const uniqueIds = Array.from(new Set(ids));
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+      const chunk = uniqueIds.slice(i, i + CHUNK_SIZE);
+      const { data, error } = await supabase
+        .from("sources")
+        .select("*")
+        .in("id", chunk);
 
-    if (error || !data) return [];
-    return data.map(mapDatabaseSource);
+      if (error) return [];
+      if (data) rows.push(...data);
+    }
+    return rows.map(mapDatabaseSource);
   } catch {
     return [];
   }
