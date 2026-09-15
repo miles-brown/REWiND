@@ -425,11 +425,31 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   });
   assert.equal(validCoordResult.success, true, "Valid coordinate pair must be accepted");
 
-  // 11. Runtime place resolver coordinate sanitization
+  // 11. Runtime place resolver coordinate sanitization and paired fallback
   const { resolvePlace } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
   const sanitizedPlace = resolvePlace("Invalid Venue", "Invalid City", "Country", 120, 500);
   assert.equal(sanitizedPlace.latitude, undefined);
   assert.equal(sanitizedPlace.longitude, undefined);
+
+  // Test gazetteer match with paired coordinate fallback
+  const storeForCoords = (await vite.ssrLoadModule("/lib/db/client.ts")).getRelationalStore();
+  storeForCoords.places.push({
+    id: "plc-partial-coords-test",
+    venue: "Partial Coords Hall",
+    city: "Testville",
+    country: "Testland",
+    latitude: 52.52,
+    longitude: null,
+    confidenceScore: 0.9,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Since stored place has only latitude (longitude is null), it must NOT mix coordinates;
+  // candidate valid pair must be used together
+  const pairedFallbackPlace = resolvePlace("Partial Coords Hall", "Testville", "Testland", 48.8566, 2.3522);
+  assert.equal(pairedFallbackPlace.latitude, 48.8566);
+  assert.equal(pairedFallbackPlace.longitude, 2.3522);
 
   // 12. Runtime in-memory collision suffixing and pipeline merge deduplication audit tracking
   const { getRelationalStore } = await vite.ssrLoadModule("/lib/db/client.ts");
