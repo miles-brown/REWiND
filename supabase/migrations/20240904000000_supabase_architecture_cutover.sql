@@ -300,7 +300,8 @@ CREATE TABLE IF NOT EXISTS public.event_sources (
   id serial PRIMARY KEY,
   event_id text NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
   source_id text NOT NULL REFERENCES public.sources(id) ON DELETE CASCADE,
-  is_primary boolean DEFAULT true NOT NULL
+  is_primary boolean DEFAULT true NOT NULL,
+  CONSTRAINT uq_event_sources UNIQUE (event_id, source_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.event_person_location_sources (
@@ -325,6 +326,10 @@ BEGIN
       ADD CONSTRAINT fk_event_broadcasts_source
       FOREIGN KEY (source_id) REFERENCES public.sources(id)
       ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_event_sources') THEN
+    ALTER TABLE public.event_sources
+      ADD CONSTRAINT uq_event_sources UNIQUE (event_id, source_id);
   END IF;
 END $$;
 

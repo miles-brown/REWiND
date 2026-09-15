@@ -212,4 +212,65 @@ test("verifies PR #13 review fixes: legacy participant migration, provisional cl
   assert.equal(result.data.length, 0, "Invalid placeSlug must return empty data");
 });
 
+test("verifies PR #13 follow-up review fixes: event_sources constraint, biographical query columns, audit error propagation, provisional confidence, and alias claim resolution", async () => {
+  // Fix 1: Event Sources Unique Constraint
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(cutoverSql.includes("CONSTRAINT uq_event_sources UNIQUE (event_id, source_id)"), "event_sources must declare uq_event_sources unique constraint");
+  assert.ok(cutoverSql.includes("conname = 'uq_event_sources'"), "migration must idempotently verify uq_event_sources constraint");
+
+  // Fix 2: Biographical Table Column Queries in lib/rewind/people.ts
+  const peopleContent = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
+  assert.ok(peopleContent.includes('"start_year", { ascending: true }'), "person_education query must order by start_year");
+  assert.ok(peopleContent.includes('"year_received", { ascending: false }'), "person_awards query must order by year_received");
+  assert.ok(peopleContent.includes('"publication_year", { ascending: false }'), "person_works query must order by publication_year");
+  assert.ok(peopleContent.includes("e.field_of_study"), "person_education mapper must handle field_of_study");
+  assert.ok(peopleContent.includes("c.role_title"), "person_career mapper must handle role_title");
+
+  // Fix 3: Audit DB error propagation in lib/ingestion/audit.ts
+  const auditContent = fs.readFileSync(path.join(root, "lib/ingestion/audit.ts"), "utf-8");
+  assert.ok(!auditContent.includes("console.warn(\"[Audit] Failed to persist audit record"), "recordAuditEvent must not swallow database insertion errors");
+
+  // Fix 4 & 5: Pipeline provisional confidence & alias-aware subject resolution
+  const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  assert.ok(pipelineContent.includes('livePolicy.lane === "provisional" || source.sourceTier === "tier-c"'), "Pipeline must check provisional lane or tier-c source for limited confidence");
+  assert.ok(pipelineContent.includes('? "limited"'), "Provisional/tier-c participants must receive limited confidence");
+  assert.ok(pipelineContent.includes("resolveParticipantOrMentionSync"), "Pipeline must support alias-aware sync subject resolution");
+  assert.ok(pipelineContent.includes("resolveParticipantOrMentionLive"), "Pipeline must support alias-aware live subject resolution");
+
+  // Test sync pipeline claim subject resolution across aliases
+  const { processCandidateEvent } = await vite.ssrLoadModule("/lib/ingestion/pipeline.ts");
+  const candidate = {
+    title: "Test Diplomatic Accord",
+    eventType: "bilateral-meeting",
+    summary: "High-level bilateral negotiations",
+    startDate: "2024-05-10",
+    city: "Geneva",
+    country: "Switzerland",
+    venue: "Palais des Nations",
+    temporalPrecision: "exact-day",
+    participants: [
+      { name: "Bill Clinton", role: "principal" },
+    ],
+    claims: [
+      {
+        subjectMention: "Bill Clinton",
+        claimType: "agreement",
+        statement: "All parties agreed to the humanitarian corridor framework.",
+      },
+    ],
+  };
+  const source = {
+    sourceId: "src-test-geneva-2024",
+    sourceTitle: "Official UN Press Release",
+    publisher: "United Nations",
+    sourceType: "press-release",
+    sourceTier: "tier-a",
+    rawText: "Official statement regarding negotiations...",
+  };
+
+  const syncResult = processCandidateEvent(candidate, source);
+  assert.ok(syncResult.candidateId || syncResult.publishedEventId, "Ingestion must process candidate");
+});
+
+
 

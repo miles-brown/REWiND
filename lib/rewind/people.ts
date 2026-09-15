@@ -155,10 +155,10 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
 
         try {
           const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
-            Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_year", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_career")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
-            Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("award_year", { ascending: false }) ?? { data: [] }),
-            Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("release_date", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("year_received", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("publication_year", { ascending: false }) ?? { data: [] }),
           ]);
           eduData = (eduRes?.data || []) as Record<string, unknown>[];
           careerData = (careerRes?.data || []) as Record<string, unknown>[];
@@ -173,10 +173,10 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
           personId: String(e.person_id || ""),
           institution: String(e.institution || ""),
           location: e.location ? String(e.location) : undefined,
-          startDate: e.start_date ? String(e.start_date) : undefined,
-          endDate: e.end_date ? String(e.end_date) : undefined,
+          startDate: e.start_year ? String(e.start_year) : (e.start_date ? String(e.start_date) : undefined),
+          endDate: e.end_year ? String(e.end_year) : (e.end_date ? String(e.end_date) : undefined),
           qualification: e.qualification ? String(e.qualification) : undefined,
-          subject: e.subject ? String(e.subject) : undefined,
+          subject: e.field_of_study ? String(e.field_of_study) : (e.subject ? String(e.subject) : undefined),
           degree: e.degree ? String(e.degree) : undefined,
           honours: e.honours ? String(e.honours) : undefined,
           completedStatus: (e.completed_status as "completed" | "not completed" | "honorary" | "in progress") || "completed",
@@ -187,7 +187,7 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
           id: String(c.id || ""),
           personId: String(c.person_id || ""),
           organisationName: String(c.organisation_name || ""),
-          positionTitle: String(c.position_title || ""),
+          positionTitle: String(c.role_title || c.position_title || ""),
           occupationCategory: c.occupation_category ? String(c.occupation_category) : undefined,
           startDate: c.start_date ? String(c.start_date) : undefined,
           endDate: c.end_date ? String(c.end_date) : undefined,
@@ -205,20 +205,22 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
           awardName: String(a.award_name || ""),
           awardingBody: String(a.awarding_body || ""),
           category: a.category ? String(a.category) : undefined,
-          awardYear: typeof a.award_year === "number" ? a.award_year : undefined,
+          awardYear: typeof a.year_received === "number"
+            ? a.year_received
+            : (a.year_received ? parseInt(String(a.year_received), 10) || undefined : (typeof a.award_year === "number" ? a.award_year : undefined)),
           result: (a.result as "winner" | "honouree" | "nominee" | "finalist") || "winner",
-          citationReason: a.citation_reason ? String(a.citation_reason) : undefined,
+          citationReason: a.citation ? String(a.citation) : (a.citation_reason ? String(a.citation_reason) : undefined),
           sourceId: a.source_id ? String(a.source_id) : undefined,
         }));
 
         const works = worksData.map((w: Record<string, unknown>) => ({
           id: String(w.id || ""),
           personId: String(w.person_id || ""),
-          workTitle: String(w.work_title || ""),
+          workTitle: String(w.title || w.work_title || ""),
           workType: String(w.work_type || ""),
-          releaseDate: w.release_date ? String(w.release_date) : undefined,
-          publisherOrVenue: w.publisher_or_venue ? String(w.publisher_or_venue) : undefined,
-          significanceNote: w.significance_note ? String(w.significance_note) : undefined,
+          releaseDate: w.publication_year ? String(w.publication_year) : (w.release_date ? String(w.release_date) : undefined),
+          publisherOrVenue: w.publisher ? String(w.publisher) : (w.publisher_or_venue ? String(w.publisher_or_venue) : undefined),
+          significanceNote: w.notes ? String(w.notes) : (w.significance_note ? String(w.significance_note) : undefined),
           sourceId: w.source_id ? String(w.source_id) : undefined,
         }));
 

@@ -62,6 +62,22 @@ export function processCandidateEvent(
     .map((e) => e.personId)
     .filter((id): id is string => id !== null);
 
+  const resolveParticipantOrMentionSync = (mention: string): string | null => {
+    const norm = mention.toLowerCase().trim();
+    for (let i = 0; i < candidate.participants.length; i++) {
+      const p = candidate.participants[i];
+      const res = entityResolutions[i];
+      if (
+        p.name.toLowerCase().trim() === norm ||
+        (res?.canonicalName && res.canonicalName.toLowerCase().trim() === norm) ||
+        (res?.personId && res.personId.toLowerCase().trim() === norm)
+      ) {
+        return res?.personId || null;
+      }
+    }
+    return resolveEntity(mention)?.personId || null;
+  };
+
   // 2. Resolve Place Synchronously
   const placeResolution = resolvePlace(
     candidate.venue,
@@ -115,13 +131,11 @@ export function processCandidateEvent(
       publishedEventId = deduplication.matchedEventId;
 
       candidate.claims.forEach((clm, idx) => {
-        const matchingSubject = entityResolutions.find(
-          (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-        );
+        const subId = resolveParticipantOrMentionSync(clm.subjectMention);
         store.claims.push({
           id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
           eventId: publishedEventId!,
-          subjectId: matchingSubject?.personId || null,
+          subjectId: subId,
           claimType: clm.claimType,
           statement: clm.statement,
           claimedTime: clm.claimedTime || null,
@@ -199,13 +213,11 @@ export function processCandidateEvent(
 
       // Add claims
       candidate.claims.forEach((clm, idx) => {
-        const matchingSubject = entityResolutions.find(
-          (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-        );
+        const subId = resolveParticipantOrMentionSync(clm.subjectMention);
         store.claims.push({
           id: `clm-${eventSlug}-${idx}`,
           eventId: eventSlug,
-          subjectId: matchingSubject?.personId || null,
+          subjectId: subId,
           claimType: clm.claimType,
           statement: clm.statement,
           claimedTime: clm.claimedTime || null,
@@ -219,13 +231,11 @@ export function processCandidateEvent(
       // Add quotes
       if (candidate.quotes && candidate.quotes.length > 0) {
         candidate.quotes.forEach((q, idx) => {
-          const matchingSpeaker = entityResolutions.find(
-            (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
-          );
+          const spkId = resolveParticipantOrMentionSync(q.speaker);
           store.quotes.push({
             id: `quo-${eventSlug}-${idx}`,
             eventId: eventSlug,
-            speakerId: matchingSpeaker?.personId || createParticipantStubId(q.speaker),
+            speakerId: spkId || createParticipantStubId(q.speaker),
             quote: q.quote,
             context: q.context || null,
             language: "en",
@@ -364,6 +374,23 @@ export function processCandidateEvent(
     syncResult.policy = livePolicy;
     syncResult.fingerprint = liveFingerprint;
 
+    const resolveParticipantOrMentionLive = async (mention: string): Promise<string | null> => {
+      const norm = mention.toLowerCase().trim();
+      for (let i = 0; i < candidate.participants.length; i++) {
+        const p = candidate.participants[i];
+        const res = liveEntityResolutions[i];
+        if (
+          p.name.toLowerCase().trim() === norm ||
+          (res?.canonicalName && res.canonicalName.toLowerCase().trim() === norm) ||
+          (res?.personId && res.personId.toLowerCase().trim() === norm)
+        ) {
+          return res?.personId || null;
+        }
+      }
+      const direct = await resolveEntityAsync(mention, db);
+      return direct?.personId || null;
+    };
+
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
       const [existingSrc] = await tx
@@ -431,6 +458,11 @@ export function processCandidateEvent(
           }
 
           // Upsert participants into eventPeople
+          const participantConfidence =
+            livePolicy.lane === "provisional" || source.sourceTier === "tier-c"
+              ? "limited"
+              : "confirmed";
+
           for (let i = 0; i < candidate.participants.length; i++) {
             const p = candidate.participants[i];
             const res = liveEntityResolutions[i];
@@ -458,8 +490,8 @@ export function processCandidateEvent(
                 personId,
                 involvementType: "attendee",
                 roleLabel: p.role || "participant",
-                presenceConfidence: "confirmed",
-                roleConfidence: "confirmed",
+                presenceConfidence: participantConfidence,
+                roleConfidence: participantConfidence,
                 attendanceMode: p.presenceMode || "physical",
               });
             }
@@ -473,33 +505,33 @@ export function processCandidateEvent(
             .from(schema.claims)
             .where(eq(schema.claims.eventId, targetEventId));
 
+          const resolvedMergeClaims = await Promise.all(
+            candidate.claims.map(async (clm) => ({
+              clm,
+              subjectId: await resolveParticipantOrMentionLive(clm.subjectMention),
+            }))
+          );
+
           const seenMergeClaimKeys = new Set<string>();
-          const claimsToInsert = candidate.claims.filter((clm) => {
-            const matchingSubject = liveEntityResolutions.find(
-              (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-            );
-            const subId = matchingSubject?.personId || null;
+          const claimsToInsert = resolvedMergeClaims.filter(({ clm, subjectId }) => {
             const normStatement = clm.statement.trim().toLowerCase();
-            const key = `${subId ?? ""}::${normStatement}`;
+            const key = `${subjectId ?? ""}::${normStatement}`;
             if (seenMergeClaimKeys.has(key)) return false;
             seenMergeClaimKeys.add(key);
             return !existingClaims.some(
               (ec) =>
                 ec.statement.trim().toLowerCase() === normStatement &&
-                ec.subjectId === subId
+                ec.subjectId === subjectId
             );
           });
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map((clm, idx) => {
-                const matchingSubject = liveEntityResolutions.find(
-                  (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-                );
+              claimsToInsert.map(({ clm, subjectId }, idx) => {
                 return {
                   id: `clm-${targetEventId}-${Date.now()}-${idx}`,
                   eventId: targetEventId,
-                  subjectId: matchingSubject?.personId || null,
+                  subjectId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
@@ -524,10 +556,8 @@ export function processCandidateEvent(
               .where(eq(schema.quotes.eventId, targetEventId));
 
             for (const q of candidate.quotes) {
-              const matchingSpeaker = liveEntityResolutions.find(
-                (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
-              );
-              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeaker?.personId);
+              const matchingSpeakerId = await resolveParticipantOrMentionLive(q.speaker);
+              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeakerId);
               const speakerId = await resolvePersonEntityInTransaction(tx, {
                 personId: speakerStubId,
                 rawName: q.speaker,
@@ -660,6 +690,11 @@ export function processCandidateEvent(
             });
           }
 
+          const participantConfidence =
+            livePolicy.lane === "provisional" || source.sourceTier === "tier-c"
+              ? "limited"
+              : "confirmed";
+
           for (let i = 0; i < candidate.participants.length; i++) {
             const p = candidate.participants[i];
             const res = liveEntityResolutions[i];
@@ -687,8 +722,8 @@ export function processCandidateEvent(
                 personId,
                 involvementType: "attendee",
                 roleLabel: p.role || "participant",
-                presenceConfidence: "confirmed",
-                roleConfidence: "confirmed",
+                presenceConfidence: participantConfidence,
+                roleConfidence: participantConfidence,
                 attendanceMode: p.presenceMode || "physical",
               });
             }
@@ -702,36 +737,36 @@ export function processCandidateEvent(
             .from(schema.claims)
             .where(eq(schema.claims.eventId, eventSlug));
 
+          const resolvedPubClaims = await Promise.all(
+            candidate.claims.map(async (clm) => ({
+              clm,
+              subjectId: await resolveParticipantOrMentionLive(clm.subjectMention),
+            }))
+          );
+
           const seenPubClaimKeys = new Set<string>();
-          const claimsToInsert = candidate.claims.filter((clm) => {
-            const matchingSubject = liveEntityResolutions.find(
-              (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-            );
-            const subId = matchingSubject?.personId || null;
+          const claimsToInsert = resolvedPubClaims.filter(({ clm, subjectId }) => {
             const normStatement = clm.statement.trim().toLowerCase();
-            const key = `${subId ?? ""}::${normStatement}`;
+            const key = `${subjectId ?? ""}::${normStatement}`;
             if (seenPubClaimKeys.has(key)) return false;
             seenPubClaimKeys.add(key);
             return !existingClaims.some(
               (ec) =>
                 ec.statement.trim().toLowerCase() === normStatement &&
-                ec.subjectId === subId
+                ec.subjectId === subjectId
             );
           });
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map((clm) => {
-                const matchingSubject = liveEntityResolutions.find(
-                  (e) => e.canonicalName?.toLowerCase() === clm.subjectMention.toLowerCase()
-                );
+              claimsToInsert.map(({ clm, subjectId }) => {
                 const contentKey = `${clm.subjectMention ?? ""}::${clm.statement}`.toLowerCase().trim();
                 const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
                 const stableId = `clm-${eventSlug}-${hash.toString(36)}`;
                 return {
                   id: stableId,
                   eventId: eventSlug,
-                  subjectId: matchingSubject?.personId || null,
+                  subjectId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
@@ -756,10 +791,8 @@ export function processCandidateEvent(
               .where(eq(schema.quotes.eventId, eventSlug));
 
             for (const q of candidate.quotes) {
-              const matchingSpeaker = liveEntityResolutions.find(
-                (e) => e.canonicalName?.toLowerCase() === q.speaker.toLowerCase()
-              );
-              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeaker?.personId);
+              const matchingSpeakerId = await resolveParticipantOrMentionLive(q.speaker);
+              const speakerStubId = createParticipantStubId(q.speaker, matchingSpeakerId);
               const speakerId = await resolvePersonEntityInTransaction(tx, {
                 personId: speakerStubId,
                 rawName: q.speaker,
