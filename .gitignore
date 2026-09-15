@@ -44,6 +44,9 @@ next-env.d.ts
 /.wrangler/
 /.sites-runtime/
 /outputs/
+# runtime and build output
 /work/
 /scratch/
+# vite / vinext build & SSR cache artifacts
+/.vinext/
 
