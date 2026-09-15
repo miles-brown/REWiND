@@ -66,8 +66,8 @@ function Slider({
         const thumbValue = _values[index]
         const thumbValueText = getAriaValueText
           ? getAriaValueText(thumbValue, index)
-          : ariaValueText
-        const thumbLabel = getAriaLabel ? getAriaLabel(index) : ariaLabel
+          : (ariaValueText ?? String(thumbValue))
+        const thumbLabel = getAriaLabel ? getAriaLabel(index) : (ariaLabel ?? "Value")
 
         return (
           <SliderPrimitive.Thumb

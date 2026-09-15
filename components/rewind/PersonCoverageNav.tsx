@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Clock } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
 
 interface PeriodGroup {
   period: string; // e.g., "1990s"

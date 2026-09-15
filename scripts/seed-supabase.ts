@@ -1,14 +1,47 @@
+/**
+ * DEPRECATED / ARCHIVED SCRIPT
+ *
+ * CRITICAL ARCHITECTURAL DIRECTIVE:
+ * Do NOT seed legacy prototype records from data/rewind.ts into production Supabase.
+ * The production Supabase database must be populated afresh with Event Model v2
+ * research records. This script is preserved for historical reference only.
+ */
+
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../db/schema";
-import { people, events, sources } from "../data/rewind";
+import { people, events, sources } from "../archive/legacy-data/rewind";
 
 async function main() {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+    console.error("❌ SEEDING BLOCKED: Seeding legacy prototype records into production environments is strictly prohibited.");
+    process.exit(1);
+  }
+
+  if (process.env.ALLOW_LEGACY_PROTOTYPE_SEED !== "true") {
+    console.error("❌ SEEDING BLOCKED: ALLOW_LEGACY_PROTOTYPE_SEED must be explicitly set to 'true' to run seed-supabase.");
+    process.exit(1);
+  }
+
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
   if (!connectionString) {
     console.error("❌ ERROR: DATABASE_URL is not set in environment or .env.local.");
     console.error("Please add your Supabase connection string to .env.local: e.g. DATABASE_URL=\"postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres\"");
+    process.exit(1);
+  }
+
+  try {
+    const parsedUrl = new URL(connectionString);
+    const host = parsedUrl.hostname.toLowerCase();
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    const isExplicitlyAllowedHost = process.env.ALLOW_SEED_DATABASE_HOST === host;
+    if (!isLocal && !isExplicitlyAllowedHost) {
+      console.error(`❌ SEEDING BLOCKED: Target database host "${host}" is not local and not in ALLOW_SEED_DATABASE_HOST.`);
+      process.exit(1);
+    }
+  } catch {
+    console.error("❌ SEEDING BLOCKED: Invalid DATABASE_URL format.");
     process.exit(1);
   }
 

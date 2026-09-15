@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
-import { personBySlug } from "@/data/rewind";
+import {
+  getRelationshipBetween,
+  getSourcesByIds,
+  getMonogram,
+  getPeopleWithStatus,
+  getAllEventsWithStatus,
+} from "@/lib/rewind";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 
 export default async function RelationshipPage({
@@ -10,9 +16,33 @@ export default async function RelationshipPage({
   params: Promise<{ a: string; b: string }>;
 }) {
   const { a, b } = await params;
-  const pa = personBySlug(a);
-  const pb = personBySlug(b);
-  if (!pa || !pb) notFound();
+  if (!a || !b || a === b) notFound();
+  const slugPattern = /^[a-zA-Z0-9_-]+$/;
+  if (
+    a.length > 120 ||
+    b.length > 120 ||
+    !slugPattern.test(a) ||
+    !slugPattern.test(b)
+  ) {
+    notFound();
+  }
+
+  const [data, peopleResult, eventsResult] = await Promise.all([
+    getRelationshipBetween(a, b),
+    getPeopleWithStatus(),
+    getAllEventsWithStatus(),
+  ]);
+  if (!data) notFound();
+  if (peopleResult.error) {
+    throw new Error(`Relationship people catalog unavailable: ${peopleResult.error}`);
+  }
+  if (eventsResult.error) {
+    throw new Error(`Relationship event catalog unavailable: ${eventsResult.error}`);
+  }
+  const { personA: pa, personB: pb, sharedEvents } = data;
+  if (!pa || !pb || pa.id === pb.id) notFound();
+  const neededSourceIds = Array.from(new Set(sharedEvents.flatMap((e) => e.sourceIds || [])));
+  const sources = neededSourceIds.length > 0 ? await getSourcesByIds(neededSourceIds) : [];
 
   return (
     <div className="page-shell relationship-page">
@@ -26,12 +56,8 @@ export default async function RelationshipPage({
       </div>
 
       <header className="relationship-hero">
-        <span className="person-monogram large">
-          {pa.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+        <span className="person-monogram large" aria-hidden="true">
+          {getMonogram(pa.name)}
         </span>
         <div>
           <span className="eyebrow">DOCUMENTED INTERSECTIONS</span>
@@ -42,16 +68,18 @@ export default async function RelationshipPage({
             Verifiable spacetime intersections and bilateral diplomatic records.
           </p>
         </div>
-        <span className="person-monogram large">
-          {pb.name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")}
+        <span className="person-monogram large" aria-hidden="true">
+          {getMonogram(pb.name)}
         </span>
       </header>
 
-      <TimelineComparison initialPersonA={pa.slug} initialPersonB={pb.slug} />
+      <TimelineComparison
+        initialPersonA={pa.slug}
+        initialPersonB={pb.slug}
+        people={peopleResult.data}
+        events={eventsResult.data}
+        sources={sources}
+      />
     </div>
   );
 }

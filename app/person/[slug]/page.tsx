@@ -7,9 +7,12 @@ import {
   CircleDashed,
   MapPin,
 } from "lucide-react";
-import { events, personBySlug } from "@/data/rewind";
+import { getPersonTimeline } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
+import { InclusionBadge } from "@/components/rewind/InclusionBadge";
+import { BiographicalSection } from "@/components/rewind/BiographicalSection";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function PersonPage({
   params,
@@ -17,13 +20,14 @@ export default async function PersonPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const person = personBySlug(slug);
-  if (!person) notFound();
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    notFound();
+  }
 
-  const linked = events.filter((e) =>
-    e.participants.some((p) => p.personId === person.id)
-  );
-  const years = Array.from(new Set(linked.map((e) => e.startDate.slice(0, 4)))).sort();
+  const timelineData = await getPersonTimeline(slug);
+  if (!timelineData) notFound();
+
+  const { person, events: linked, years } = timelineData;
   const cities = new Set(linked.map((e) => e.city));
 
   return (
@@ -62,7 +66,15 @@ export default async function PersonPage({
         <PersonCoverageNav slug={person.slug} records={linked} />
       </header>
 
-      <PersonTimeline person={person} records={linked} />
+      <InclusionBadge person={person} />
+
+      <ErrorBoundary sectionName="Person Timeline">
+        <PersonTimeline person={person} records={linked} />
+      </ErrorBoundary>
+
+      <ErrorBoundary sectionName="Biographical Section">
+        <BiographicalSection person={person} />
+      </ErrorBoundary>
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">
@@ -74,7 +86,7 @@ export default async function PersonPage({
         </div>
         <div className="year-grid">
           {years.map((y) => {
-            const n = linked.filter((e) => e.startDate.startsWith(y)).length;
+            const n = linked.filter((e) => e.startDate.startsWith(String(y))).length;
             return (
               <Link href={`/person/${slug}/${y}`} key={y}>
                 <b>{y}</b>

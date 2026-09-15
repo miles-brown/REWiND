@@ -49,4 +49,3 @@ next-env.d.ts
 /scratch/
 # vite / vinext build & SSR cache artifacts
 /.vinext/
-

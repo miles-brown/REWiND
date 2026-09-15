@@ -42,13 +42,29 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
   const authHeader = req.headers.get("authorization");
   const sessionSecret = process.env.SESSION_SECRET;
 
-  // In production, enforce constant-time bearer token verification against SESSION_SECRET
-  if (process.env.NODE_ENV === "production" && sessionSecret) {
-    if (!authHeader) {
-      return { isAuthorized: false, editorActor: "Unauthorized" };
+  // In production, enforce constant-time bearer token or cookie verification against SESSION_SECRET (strictly fail-closed)
+  if (process.env.NODE_ENV === "production") {
+    if (!sessionSecret) {
+      return { isAuthorized: false, editorActor: "Unauthorized: Admin access not configured" };
     }
-    const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    const token = match ? match[1].trim() : "";
+
+    let token = "";
+    if (authHeader) {
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (match) token = match[1].trim();
+    }
+    if (!token) {
+      const cookieHeader = req.headers.get("cookie") || "";
+      const matchCookie = cookieHeader.match(/(?:^|;\s*)admin_session=([^;]+)/);
+      if (matchCookie) {
+        try {
+          token = decodeURIComponent(matchCookie[1].trim());
+        } catch {
+          token = "";
+        }
+      }
+    }
+
     if (!token || !timingSafeCompare(token, sessionSecret)) {
       return { isAuthorized: false, editorActor: "Unauthorized" };
     }
@@ -64,10 +80,18 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 }
 
 
-export async function GET() {
-  const stats = getEvidentiaryStats();
-  const queue = getCandidateQueue();
-  const audit = getAuditTrail();
+export async function GET(req: Request) {
+  const auth = authenticateAdminRequest(req);
+  if (!auth.isAuthorized) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized: Valid admin credentials required for evidence data" },
+      { status: 401 }
+    );
+  }
+
+  const stats = await getEvidentiaryStats();
+  const queue = await getCandidateQueue();
+  const audit = await getAuditTrail();
 
   return NextResponse.json({
     stats,
@@ -103,7 +127,7 @@ export async function POST(req: Request) {
     const editorActor = auth.editorActor;
 
     if (data.action === "approve") {
-      const res = approveCandidate(data.candidateId, editorActor);
+      const res = await approveCandidate(data.candidateId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -111,7 +135,7 @@ export async function POST(req: Request) {
     }
 
     if (data.action === "merge") {
-      const res = mergeCandidate(data.candidateId, data.targetEventId, editorActor);
+      const res = await mergeCandidate(data.candidateId, data.targetEventId, editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
@@ -119,7 +143,7 @@ export async function POST(req: Request) {
     }
 
     if (data.action === "reject") {
-      const res = rejectCandidate(data.candidateId, data.reason || "Editorial rejection", editorActor);
+      const res = await rejectCandidate(data.candidateId, data.reason || "Editorial rejection", editorActor);
       if (!res.success) {
         return NextResponse.json(res, { status: 400 });
       }
