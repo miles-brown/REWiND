@@ -7,6 +7,8 @@
  */
 
 import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export function validateBranchTarget(baseRefName, headRefName) {
   if (!baseRefName || typeof baseRefName !== "string") {
@@ -113,7 +115,11 @@ export function safeMergeAndCleanBranch(
   }
 
   // 2. Validate Safe Branch Deletion & Cascade Invariants (Rule 4)
-  const children = childPrs !== null ? childPrs : getOpenChildPrs(pr.headRefName, repo, execFn);
+  // Skip child PR discovery when branch deletion is disabled (autoDelete=false)
+  const children = autoDelete
+    ? (childPrs !== null ? childPrs : getOpenChildPrs(pr.headRefName, repo, execFn))
+    : (childPrs !== null ? childPrs : []);
+  
   const deletionCheck = validateSafeBranchDeletion(pr.headRefName, children.length);
 
   if (!deletionCheck.canDelete && autoDelete) {
@@ -151,18 +157,14 @@ export function safeMergeAndCleanBranch(
   };
 }
 
-// Direct CLI Execution
-if (process.argv[1] && process.argv[1].endsWith("safe-branch-merge.mjs")) {
+// Direct CLI Execution Guard
+if (process.argv[1] && (process.argv[1].endsWith("safe-branch-merge.mjs") || fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))) {
   const prArg = process.argv[2];
-  if (!prArg) {
-    console.error("Usage: node scripts/safe-branch-merge.mjs <PR_NUMBER>");
+  if (!prArg || !/^\d+$/.test(prArg)) {
+    console.error(`Invalid PR number specified: '${prArg || ""}'. Must be a positive integer.`);
     process.exit(1);
   }
   const prNumber = parseInt(prArg, 10);
-  if (isNaN(prNumber)) {
-    console.error("Invalid PR number specified:", prArg);
-    process.exit(1);
-  }
 
   try {
     console.log(`🔍 Inspecting PR #${prNumber} for Rule 1 & Rule 4 invariants...`);
