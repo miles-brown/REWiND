@@ -44,6 +44,9 @@ function parseEpistemicClass(epistemic?: string | null): EpistemicClass {
  * Retrieves all factual claims associated with a specific event, including their evidential attachments.
  */
 export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown): Promise<ClaimRecord[]> {
+  if (!eventId || typeof eventId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(eventId)) {
+    return [];
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
@@ -118,6 +121,9 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
  * Retrieves biographical or event claims concerning a specific person.
  */
 export async function getClaimsByPerson(personId: string, supabaseClient?: unknown): Promise<ClaimRecord[]> {
+  if (!personId || typeof personId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(personId)) {
+    return [];
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;

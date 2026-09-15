@@ -61,7 +61,7 @@ export default async function RelationshipsPage() {
         <div className="relationship-list">
           {relationships.map((rel) => (
             <Link href={`/relationship/${rel.source}/${rel.target}`} key={rel.id}>
-              <span className="person-monogram">
+              <span className="person-monogram" aria-hidden="true">
                 {rel.sourceName
                   .split(" ")
                   .map((n) => n[0])
@@ -72,7 +72,7 @@ export default async function RelationshipsPage() {
                 <i />
                 <b>{rel.sharedEventsCount}</b>
               </div>
-              <span className="person-monogram">
+              <span className="person-monogram" aria-hidden="true">
                 {rel.targetName
                   .split(" ")
                   .map((n) => n[0])

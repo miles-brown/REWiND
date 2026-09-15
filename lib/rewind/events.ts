@@ -18,11 +18,11 @@ const VALID_ATTENDANCE_MODES = new Set<AttendanceMode>([
 ]);
 
 function isConfidence(value: unknown): value is Confidence {
-  return typeof value === "string" && [...VALID_CONFIDENCES].some((confidence) => confidence === value);
+  return typeof value === "string" && VALID_CONFIDENCES.has(value as Confidence);
 }
 
 function isAttendanceMode(value: unknown): value is AttendanceMode {
-  return typeof value === "string" && [...VALID_ATTENDANCE_MODES].some((mode) => mode === value);
+  return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(

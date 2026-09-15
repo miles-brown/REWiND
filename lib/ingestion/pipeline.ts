@@ -142,7 +142,7 @@ export function processCandidateEvent(
             claimedTime: clm.claimedTime || null,
             claimedVenue: clm.claimedVenue || null,
             sourceId: source.sourceId,
-            confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
+            confidence: policy.lane === "auto-publish" ? "confirmed" : "limited",
             supportingExcerpt: clm.supportingExcerpt || null,
           });
         });
@@ -202,7 +202,7 @@ export function processCandidateEvent(
           venueId: null,
           addressId: null,
           verificationStatus: policy.lane === "auto-publish" ? "verified" : "provisional",
-          confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.85,
+          confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.5,
           publicationStatus: "published",
           publicationLane: policy.lane,
           significanceScore: 85,
@@ -222,7 +222,7 @@ export function processCandidateEvent(
             claimedTime: clm.claimedTime || null,
             claimedVenue: clm.claimedVenue || null,
             sourceId: source.sourceId,
-            confidence: policy.lane === "auto-publish" ? "confirmed" : "reported",
+            confidence: policy.lane === "auto-publish" ? "confirmed" : "limited",
             supportingExcerpt: clm.supportingExcerpt || null,
           });
         });
@@ -532,7 +532,7 @@ export function processCandidateEvent(
                   claimedTime: clm.claimedTime || null,
                   claimedVenue: clm.claimedVenue || null,
                   sourceId: source.sourceId,
-                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "reported",
+                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })
@@ -665,7 +665,7 @@ export function processCandidateEvent(
               venueId: null,
               addressId: null,
               verificationStatus: livePolicy.lane === "auto-publish" ? "verified" : "provisional",
-              confidenceScore: livePolicy.lane === "auto-publish" ? 0.98 : 0.85,
+              confidenceScore: livePolicy.lane === "auto-publish" ? 0.98 : 0.5,
               publicationStatus: "published",
               publicationLane: livePolicy.lane,
               significanceScore: 85,
@@ -774,7 +774,7 @@ export function processCandidateEvent(
                   claimedTime: clm.claimedTime || null,
                   claimedVenue: clm.claimedVenue || null,
                   sourceId: source.sourceId,
-                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "reported",
+                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })

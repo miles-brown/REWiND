@@ -338,14 +338,16 @@ export function PersonTimeline({
               </span>
             </div>
             <div className="evidence-actions">
-              <button
-                className="cite-btn"
-                onClick={() => setCiteOpen(true)}
-                aria-label="Cite this historical record"
-              >
-                <Quote size={14} />
-                <span>Cite</span>
-              </button>
+              {source && (
+                <button
+                  className="cite-btn"
+                  onClick={() => setCiteOpen(true)}
+                  aria-label="Cite this historical record"
+                >
+                  <Quote size={14} />
+                  <span>Cite</span>
+                </button>
+              )}
               {event.quotes && event.quotes.length > 0 && (
                 <button
                   className="cite-btn highlight"

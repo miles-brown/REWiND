@@ -331,3 +331,53 @@ test("verifies PR #13 round-3 Codex review fixes: participant deduplication, can
   assert.ok(evidenceServiceContent.includes("extractedCountry"), "evidence-service.ts must use extractedCountry");
   assert.ok(!evidenceServiceContent.includes("latitude: 31.7683"), "evidence-service.ts must not fabricate hardcoded Jerusalem coordinates");
 });
+
+test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering, date fallbacks, cite gating, anchored regex, claim param validation, and RLS tightening", async () => {
+  // 1. Evidentiary stats filter confirmed claims
+  const evidenceServiceContent = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  assert.ok(
+    evidenceServiceContent.includes('eq(schema.claims.confidence, "confirmed")') &&
+      evidenceServiceContent.includes('store.claims.filter((c) => c.confidence === "confirmed")'),
+    "getEvidentiaryStats must filter confirmed claims in both DB and in-memory store"
+  );
+
+  // 2. BiographicalSection fallback strings
+  const bioContent = fs.readFileSync(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf-8");
+  assert.ok(bioContent.includes('"End date unrecorded"'), "BiographicalSection must render 'End date unrecorded'");
+  assert.ok(!bioContent.includes('— {c.endDate || "Present"}'), "BiographicalSection must not assume 'Present'");
+  assert.ok(!bioContent.includes('— {e.endDate || "Completed"}'), "BiographicalSection must not assume 'Completed'");
+
+  // 3. PersonTimeline cite button source gating
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(timelineContent.includes("{source && (\n                <button\n                  className=\"cite-btn\""), "PersonTimeline must gate Cite button behind source");
+
+  // 4. Anchored deriveDayOfWeek regex
+  const temporal = await vite.ssrLoadModule("/lib/rewind/temporal.ts");
+  assert.equal(temporal.deriveDayOfWeek("2024-05-10T14:30:00Z"), "Friday");
+  assert.equal(temporal.deriveDayOfWeek("2024-05-10INVALID"), null);
+
+  // 5. Claims parameter validation
+  const claims = await vite.ssrLoadModule("/lib/rewind/claims.ts");
+  const malformedEventClaims = await claims.getClaimsByEvent("invalid;drop table;");
+  assert.equal(malformedEventClaims.length, 0);
+  const malformedPersonClaims = await claims.getClaimsByPerson("invalid;drop table;");
+  assert.equal(malformedPersonClaims.length, 0);
+
+  // 6. RLS tightening for standalone claims in cutover migration
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(cutoverSql.includes("p.publication_status = 'published'"), "Claims RLS must check publication_status of subject for standalone claims");
+  assert.ok(cutoverSql.includes("e.verification_status = 'verified' AND e.publication_status = 'published' THEN 'confirmed' ELSE 'limited'"), "event_people migration bridge must map confidence conditionally");
+
+  // 7. Epistemic class backfill in standards migration
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  assert.ok(standardsSql.includes("WHEN confidence = 'disputed' THEN 'disputed proposition'"), "Standards migration must map disputed claims to 'disputed proposition'");
+
+  // 8. Monogram aria-hidden
+  const relPage = fs.readFileSync(path.join(root, "app/relationships/page.tsx"), "utf-8");
+  assert.ok(relPage.includes('<span className="person-monogram" aria-hidden="true">'), "Monogram spans must be aria-hidden");
+
+  // 9. Pipeline provisional confidence score and claim confidence
+  const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  assert.ok(pipelineContent.includes('confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.5'), "Pipeline must use 0.5 score for provisional events");
+  assert.ok(!pipelineContent.includes('"reported"'), "Pipeline must not use non-standard 'reported' confidence");
+});

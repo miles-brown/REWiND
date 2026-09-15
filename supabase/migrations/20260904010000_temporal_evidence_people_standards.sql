@@ -53,8 +53,8 @@ SET
   END,
   epistemic_class = CASE
     WHEN confidence = 'confirmed' THEN 'documented fact'
-    WHEN confidence = 'disputed' THEN 'disputed claim'
-    WHEN confidence = 'refuted' THEN 'disproven allegation'
+    WHEN confidence = 'disputed' THEN 'disputed proposition'
+    WHEN confidence = 'refuted' THEN 'disputed proposition'
     ELSE 'allegation'
   END
 WHERE claim_status IS NULL OR claim_status = 'PROVISIONAL';

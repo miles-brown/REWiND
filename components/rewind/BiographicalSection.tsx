@@ -110,7 +110,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                   <div className="bio-card-header">
                     <h4>{c.positionTitle}</h4>
                     <span className="bio-dates">
-                      {c.startDate || "Date unrecorded"} — {c.endDate || "Present"}
+                      {c.startDate || "Date unrecorded"} — {c.endDate || "End date unrecorded"}
                     </span>
                   </div>
                   <p className="bio-org">
@@ -145,7 +145,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                   <div className="bio-card-header">
                     <h4>{e.institution}</h4>
                     <span className="bio-dates">
-                      {e.startDate} — {e.endDate || "Completed"}
+                      {e.startDate} — {e.endDate || "End date unrecorded"}
                     </span>
                   </div>
                   <p className="bio-org">

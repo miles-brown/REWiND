@@ -13,10 +13,14 @@ const DAYS_OF_WEEK = [
  * Never relies on manual entry to prevent human error.
  */
 export function deriveDayOfWeek(isoDate: string): string | null {
-  if (!isoDate || !/^\d{4}-\d{2}-\d{2}/.test(isoDate)) {
+  if (!isoDate || !/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.test(isoDate)) {
     return null;
   }
-  const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
   if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
