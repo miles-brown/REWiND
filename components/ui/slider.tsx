@@ -11,6 +11,7 @@ interface SliderProps
   getAriaLabel?: (index: number) => string
 }
 
+/** Wraps the Radix slider primitive with shared styling and accessible thumbs. */
 function Slider({
   className,
   defaultValue,
@@ -66,8 +67,8 @@ function Slider({
         const thumbValue = _values[index]
         const thumbValueText = getAriaValueText
           ? getAriaValueText(thumbValue, index)
-          : ariaValueText
-        const thumbLabel = getAriaLabel ? getAriaLabel(index) : ariaLabel
+          : (ariaValueText ?? String(thumbValue))
+        const thumbLabel = getAriaLabel ? getAriaLabel(index) : (ariaLabel ?? "Value")
 
         return (
           <SliderPrimitive.Thumb

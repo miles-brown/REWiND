@@ -9,6 +9,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { events, organisations, people, places, sources } from "./schema";
 
@@ -94,25 +95,31 @@ export const venueAreas = pgTable("venue_areas", {
 // 3. Person Participation & Specific Presence
 // ==========================================
 
-export const eventPeople = pgTable("event_people", {
-  id: text("id").primaryKey(),
-  eventId: text("event_id")
-    .references(() => events.id, { onDelete: "cascade" })
-    .notNull(),
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  involvementType: text("involvement_type").notNull(), // speaker, attendee, chair, delegate, etc.
-  roleLabel: text("role_label").notNull(),
-  capacityTitle: text("capacity_title"),
-  attendanceMode: text("attendance_mode").default("physical").notNull(),
-  presenceExtent: text("presence_extent").default("entire-event").notNull(),
-  arrivalTime: text("arrival_time"),
-  departureTime: text("departure_time"),
-  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
-  roleConfidence: text("role_confidence").default("confirmed").notNull(),
-  notes: text("notes"),
-});
+export const eventPeople = pgTable(
+  "event_people",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id")
+      .references(() => events.id, { onDelete: "cascade" })
+      .notNull(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    involvementType: text("involvement_type").notNull(), // speaker, attendee, chair, delegate, etc.
+    roleLabel: text("role_label").notNull(),
+    capacityTitle: text("capacity_title"),
+    attendanceMode: text("attendance_mode").default("physical").notNull(),
+    presenceExtent: text("presence_extent").default("entire-event").notNull(),
+    arrivalTime: text("arrival_time"),
+    departureTime: text("departure_time"),
+    presenceConfidence: text("presence_confidence").default("limited").notNull(),
+    roleConfidence: text("role_confidence").default("limited").notNull(),
+    notes: text("notes"),
+  },
+  (table) => [
+    unique("uq_event_people_event_person").on(table.eventId, table.personId),
+  ]
+);
 
 // Individual Person's Documented Coordinates within Event
 export const eventPersonLocations = pgTable(
@@ -133,7 +140,7 @@ export const eventPersonLocations = pgTable(
     localEndTime: text("local_end_time"),
     isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
     locationBasis: text("location_basis").default("archival-record").notNull(),
-    confidence: text("confidence").default("confirmed").notNull(),
+    confidence: text("confidence").default("limited").notNull(),
     publicVisibility: text("public_visibility").default("public-exact").notNull(),
   },
   (table) => [
@@ -157,7 +164,7 @@ export const eventPersonLocationSources = pgTable("event_person_location_sources
   sourceId: text("source_id")
     .references(() => sources.id, { onDelete: "cascade" })
     .notNull(),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // Person Representation within Specific Event
@@ -171,7 +178,7 @@ export const eventPersonOrganisations = pgTable("event_person_organisations", {
     .notNull(),
   relationshipType: text("relationship_type").notNull(), // represents, delegation-of, employed-by
   roleLabel: text("role_label"),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // ==========================================

@@ -35,14 +35,16 @@ function getChangedFiles() {
   }
 }
 
+/** Submits the pull-request diff to Gemini for a structured forensic review. */
 async function callGeminiReview(diff, changedFiles) {
   const prompt = `You are the Lead Forensic Software Engineer & Accessibility Auditor for the REWiND Evidence Atlas.
 
-Audit the following pull request diff for:
-1. TypeScript Strict Typing & React 19 Performance (memoization, effect lifecycles, no unnecessary remounts).
-2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, live announcements).
-3. Forensic Evidence Rigor & Archival Integrity (verified citations, primary sources, coordinates, ISO-8601 dates).
-4. Security & Error Recovery (no token leaks, graceful fallback styles, network resilience).
+Audit the following pull request diff against the core architectural invariants and quality standards:
+1. TypeScript Strict Typing & React 19 Performance (memoization, effect lifecycles, no unnecessary remounts, no 'any' escape hatches).
+2. WCAG 2.1 AA Accessibility (semantic buttons, Radix slider thumb ARIA attributes, focus-visible styling, aria-live announcements).
+3. Forensic Evidence Rigor & Archival Integrity (verified citations, primary sources, coordinates, ISO-8601 dates, default confidence strictly 'limited').
+4. Database & Ingestion Invariants (PostgreSQL Drizzle schema alignment, live database-first deduplication with findDuplicateEventAsync, deterministic slug collision suffixing, RLS public_visibility IN ('public-exact', 'public-city'), fail-closed year regex validation /^\\d{4}$/, persistedClaimIds synchronization).
+5. Security & Error Recovery (no token leaks, graceful fallback styles, network resilience).
 
 Changed Files (${changedFiles.length}):
 ${changedFiles.join("\n")}
@@ -54,7 +56,7 @@ ${diff.slice(0, 300000)}
 
 Provide your review in clean GitHub-Flavored Markdown with:
 - **Executive Summary** (1-2 sentences on what this PR accomplishes)
-- **Forensic Audit Checklist** (TypeScript, React 19, Accessibility, Data Integrity, Security)
+- **Forensic Audit Checklist** (TypeScript, React 19, Accessibility, Data Integrity & Ingestion, Security)
 - **Actionable Feedback / Commendations** (concise, high-signal points)
 - **Review Verdict**: (✅ **APPROVED** / ⚠️ **APPROVED WITH NITS** / ❌ **CHANGES REQUESTED**)`;
 
