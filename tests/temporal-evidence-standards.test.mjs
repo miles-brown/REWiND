@@ -194,7 +194,7 @@ test("verifies PR #13 review fixes: legacy participant migration, provisional cl
   assert.ok(temporalSql.includes("WHEN confidence = 'confirmed' THEN 'ESTABLISHED'"), "claims must backfill confirmed claims to ESTABLISHED");
 
   // Fix 3: Scoped RLS policies for child tables
-  assert.ok(temporalSql.includes("c.event_id IS NULL OR EXISTS (\n          SELECT 1 FROM public.events e WHERE e.id = c.event_id AND e.publication_status = 'published'\n        )"), "claim_evidence RLS must be scoped to published events");
+  assert.ok(temporalSql.includes("c.id = claim_evidence.claim_id") && temporalSql.includes("p.publication_status = 'published'") && temporalSql.includes("e.publication_status = 'published'"), "claim_evidence RLS must be scoped to published events and subjects");
   assert.ok(temporalSql.includes("SELECT 1 FROM public.people p\n      WHERE p.id = person_education.person_id AND p.publication_status = 'published'"), "person_education RLS must be scoped to published people");
 
   // Fix 4: Self-pair rejection in relationship page

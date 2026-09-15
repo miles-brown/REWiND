@@ -172,9 +172,12 @@ CREATE POLICY "Public read claim evidence"
     EXISTS (
       SELECT 1 FROM public.claims c
       WHERE c.id = claim_evidence.claim_id
-        AND (c.event_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.events e WHERE e.id = c.event_id AND e.publication_status = 'published'
-        ))
+        AND (
+          (c.event_id IS NULL AND (c.subject_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = c.subject_id AND p.publication_status = 'published')))
+          OR EXISTS (
+            SELECT 1 FROM public.events e WHERE e.id = c.event_id AND e.publication_status = 'published'
+          )
+        )
     )
   );
 

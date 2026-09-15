@@ -212,7 +212,7 @@ export function mapDatabaseEvent(
     summary: String(row.summary || ""),
     description: row.description ? String(row.description) : undefined,
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "provisional",
-    confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" ? (row.confidence_score < 0.7 ? "moderate" : "confirmed") : "limited"),
+    confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" ? (row.confidence_score < 0.6 ? "limited" : row.confidence_score < 0.7 ? "moderate" : "confirmed") : "limited"),
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 0.0,
     sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
     sources: Array.isArray(sources) ? sources : [],
