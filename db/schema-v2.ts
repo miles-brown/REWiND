@@ -109,8 +109,8 @@ export const eventPeople = pgTable("event_people", {
   presenceExtent: text("presence_extent").default("entire-event").notNull(),
   arrivalTime: text("arrival_time"),
   departureTime: text("departure_time"),
-  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
-  roleConfidence: text("role_confidence").default("confirmed").notNull(),
+  presenceConfidence: text("presence_confidence").default("limited").notNull(),
+  roleConfidence: text("role_confidence").default("limited").notNull(),
   notes: text("notes"),
 });
 
@@ -133,7 +133,7 @@ export const eventPersonLocations = pgTable(
     localEndTime: text("local_end_time"),
     isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
     locationBasis: text("location_basis").default("archival-record").notNull(),
-    confidence: text("confidence").default("confirmed").notNull(),
+    confidence: text("confidence").default("limited").notNull(),
     publicVisibility: text("public_visibility").default("public-exact").notNull(),
   },
   (table) => [
@@ -157,7 +157,7 @@ export const eventPersonLocationSources = pgTable("event_person_location_sources
   sourceId: text("source_id")
     .references(() => sources.id, { onDelete: "cascade" })
     .notNull(),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // Person Representation within Specific Event
@@ -171,7 +171,7 @@ export const eventPersonOrganisations = pgTable("event_person_organisations", {
     .notNull(),
   relationshipType: text("relationship_type").notNull(), // represents, delegation-of, employed-by
   roleLabel: text("role_label"),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // ==========================================

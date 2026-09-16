@@ -30,7 +30,7 @@ function parseClaimStatus(status?: string | null): ClaimStatus {
   if (status && ALLOWED_CLAIM_STATUSES.has(status as ClaimStatus)) {
     return status as ClaimStatus;
   }
-  return "UNKNOWN";
+  return "PROVISIONAL";
 }
 
 function parseEpistemicClass(epistemic?: string | null): EpistemicClass {

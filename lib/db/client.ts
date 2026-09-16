@@ -293,7 +293,9 @@ function initializeSeedStore(): MemoryRelationalStore {
       claimedTime: e.startDate,
       claimedVenue: e.venueName || e.city,
       sourceId: e.sourceIds[0] || null,
-      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "reported",
+      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
+      claimStatus: p.presenceConfidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL",
+      epistemicClass: p.presenceConfidence === "confirmed" ? "documented fact" : "attributed assertion",
       supportingExcerpt: e.summary,
     }))
   );

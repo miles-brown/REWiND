@@ -20,6 +20,8 @@ interface CandidateClaimInput {
   claimedVenue?: string;
   supportingExcerpt?: string;
   confidence?: string;
+  claimStatus?: string;
+  epistemicClass?: string;
 }
 
 function escapeIlikePattern(str: string): string {
@@ -573,6 +575,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         claimedTime: clm.claimedTime || null,
         claimedVenue: clm.claimedVenue || null,
         confidence: clm.confidence || "limited",
+        claimStatus: clm.claimStatus || (clm.confidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL"),
+        epistemicClass: clm.epistemicClass || (clm.confidence === "confirmed" ? "documented fact" : "unknown"),
         supportingExcerpt: clm.supportingExcerpt || null,
       };
       if (!store.claims.some((c) => c.id === inMem.id)) {
@@ -705,6 +709,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             claimedVenue: clm.claimedVenue || null,
             sourceId,
             confidence: clm.confidence && ["confirmed", "strong", "moderate", "limited"].includes(clm.confidence) ? clm.confidence : "limited",
+            claimStatus: clm.claimStatus || "PROVISIONAL",
+            epistemicClass: clm.epistemicClass || "unknown",
             supportingExcerpt: clm.supportingExcerpt || null,
             subjectMention: clm.subjectMention,
           });

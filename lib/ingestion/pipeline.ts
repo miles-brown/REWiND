@@ -162,6 +162,8 @@ export function processCandidateEvent(
             claimedVenue: clm.claimedVenue || null,
             sourceId: source.sourceId,
             confidence: policy.lane === "auto-publish" ? "confirmed" : "limited",
+            claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
+            epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
           });
         });
@@ -247,6 +249,8 @@ export function processCandidateEvent(
             claimedVenue: clm.claimedVenue || null,
             sourceId: source.sourceId,
             confidence: policy.lane === "auto-publish" ? "confirmed" : "limited",
+            claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
+            epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
           });
         });

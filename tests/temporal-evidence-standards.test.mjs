@@ -608,3 +608,51 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
     "app/admin/evidence/page.tsx must filter duplicateItems by pending status"
   );
 });
+
+test("verifies PR #13 round-5 review fixes: claim confidence defaults to limited and PROVISIONAL, mapbox satellite gating, explicit comparison pairing, and eventTypes priority", async () => {
+  // 1. Schema confidence & claim status defaults
+  const schemaContent = fs.readFileSync(path.join(root, "db/schema.ts"), "utf-8");
+  assert.ok(schemaContent.includes('confidence: text("confidence").default("limited").notNull()'), "schema.ts claims confidence must default to limited");
+  assert.ok(schemaContent.includes('claimStatus: text("claim_status").default("PROVISIONAL").notNull()'), "schema.ts claims claimStatus must default to PROVISIONAL");
+
+  const schemaV2Content = fs.readFileSync(path.join(root, "db/schema-v2.ts"), "utf-8");
+  assert.ok(schemaV2Content.includes('presenceConfidence: text("presence_confidence").default("limited").notNull()'), "schema-v2.ts presenceConfidence must default to limited");
+  assert.ok(schemaV2Content.includes('roleConfidence: text("role_confidence").default("limited").notNull()'), "schema-v2.ts roleConfidence must default to limited");
+  assert.ok(schemaV2Content.includes('confidence: text("confidence").default("limited").notNull()'), "schema-v2.ts confidence must default to limited");
+
+  // 2. Claims mapper status parsing default
+  const claimsModule = await vite.ssrLoadModule("/lib/rewind/claims.ts");
+  assert.equal(typeof claimsModule.getClaimsByEvent, "function");
+  const claimsContent = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  assert.ok(claimsContent.includes('return "PROVISIONAL";'), "lib/rewind/claims.ts parseClaimStatus must default to PROVISIONAL");
+
+  // 3. MapGraphic satellite gating
+  const mapContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  assert.ok(
+    mapContent.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "MapGraphic must conditionally render satellite toggle only when token and style are configured"
+  );
+  assert.ok(
+    !mapContent.includes('title="Requires Mapbox token"'),
+    "MapGraphic must not display misleading token error when satellite style is configured"
+  );
+
+  // 4. Canonical eventTypes prioritization in event details page
+  const eventPageContent = fs.readFileSync(path.join(root, "app/event/[slug]/page.tsx"), "utf-8");
+  assert.ok(
+    eventPageContent.includes("event.eventTypes?.[0] || event.categories?.[0]"),
+    "app/event/[slug]/page.tsx must prioritize canonical eventTypes over legacy categories"
+  );
+
+  // 5. TimelineComparison initialPersonB prioritization and self-pair safeguard
+  const timelineComparisonContent = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    timelineComparisonContent.includes("if (initialPersonB) return initialPersonB;"),
+    "TimelineComparison must prioritize explicit initialPersonB even with 0 co-attendances"
+  );
+  assert.ok(
+    timelineComparisonContent.includes("if (resolvedSlug !== effectiveSlugA)"),
+    "TimelineComparison must reject self-pairs before resolving slugB"
+  );
+});
+

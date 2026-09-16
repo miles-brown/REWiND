@@ -205,8 +205,8 @@ export const eventPeople = pgTable("event_people", {
   presenceExtent: text("presence_extent").default("entire-event").notNull(),
   arrivalTime: text("arrival_time"),
   departureTime: text("departure_time"),
-  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
-  roleConfidence: text("role_confidence").default("confirmed").notNull(),
+  presenceConfidence: text("presence_confidence").default("limited").notNull(),
+  roleConfidence: text("role_confidence").default("limited").notNull(),
   notes: text("notes"),
 });
 
@@ -272,7 +272,9 @@ export const claims = pgTable("claims", {
   claimedTime: text("claimed_time"),
   claimedVenue: text("claimed_venue"),
   sourceId: text("source_id").references(() => sources.id),
-  confidence: text("confidence").default("confirmed").notNull(), // confirmed, reported, disputed, contradicted
+  confidence: text("confidence").default("limited").notNull(), // limited, confirmed, reported, disputed, contradicted
+  claimStatus: text("claim_status").default("PROVISIONAL").notNull(),
+  epistemicClass: text("epistemic_class").default("unknown").notNull(),
   supportingExcerpt: text("supporting_excerpt"),
 });
 

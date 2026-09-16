@@ -101,7 +101,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       <header className="page-hero">
         <div className="hero-top-meta">
           <div className="hero-badges">
-            <span className="category-pill">{event.categories?.[0] || event.eventTypes?.[0] || "historical-action"}</span>
+            <span className="category-pill">{event.eventTypes?.[0] || event.categories?.[0] || "historical-action"}</span>
             <span className={`status-pill ${event.verificationStatus}`}>
               {event.verificationStatus === "verified" ? <CheckCircle2 size={13} /> : <CircleDashed size={13} />}
               {event.verificationStatus}
