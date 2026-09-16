@@ -1,7 +1,7 @@
 import { ArrowLeftRight } from "lucide-react";
 import { TimelineComparison } from "@/components/rewind/TimelineComparison";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { getPeople, getAllEventsWithStatus, getSources } from "@/lib/rewind";
+import { getPeopleWithStatus, getAllEventsWithStatus, getSources } from "@/lib/rewind";
 
 import type { EventRecord, PersonRecord } from "@/lib/rewind";
 
@@ -84,12 +84,13 @@ function findTopCoAttendee(
 }
 
 export default async function ComparePage() {
-  const [people, eventsRes, sources] = await Promise.all([
-    getPeople(),
+  const [peopleRes, eventsRes, sources] = await Promise.all([
+    getPeopleWithStatus(),
     getAllEventsWithStatus(),
     getSources(),
   ]);
 
+  const people = peopleRes.data || [];
   const allEvents = eventsRes.data || [];
   const personA = people[0];
   const initialPersonB = findTopCoAttendee(personA, people, allEvents);
@@ -106,7 +107,7 @@ export default async function ComparePage() {
         </p>
       </header>
 
-      {eventsRes.error && allEvents.length === 0 ? (
+      {(eventsRes.error || peopleRes.error) && (allEvents.length === 0 || people.length === 0) ? (
         <div
           className="zero-state error-state"
           role="alert"

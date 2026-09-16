@@ -39,9 +39,10 @@ export default async function RelationshipPage({
   if (eventsResult.error) {
     throw new Error(`Relationship event catalog unavailable: ${eventsResult.error}`);
   }
-  const { personA: pa, personB: pb, sharedEvents } = data;
+  const { personA: pa, personB: pb } = data;
   if (!pa || !pb || pa.id === pb.id) notFound();
-  const neededSourceIds = Array.from(new Set(sharedEvents.flatMap((e) => e.sourceIds || [])));
+  const verifiedEvents = (eventsResult.data || []).filter((e) => e.verificationStatus === "verified");
+  const neededSourceIds = Array.from(new Set(verifiedEvents.flatMap((e) => e.sourceIds || [])));
   const sources = neededSourceIds.length > 0 ? await getSourcesByIds(neededSourceIds) : [];
 
   return (
@@ -77,7 +78,7 @@ export default async function RelationshipPage({
         initialPersonA={pa.slug}
         initialPersonB={pb.slug}
         people={peopleResult.data}
-        events={eventsResult.data}
+        events={verifiedEvents}
         sources={sources}
       />
     </div>

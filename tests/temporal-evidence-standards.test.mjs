@@ -808,4 +808,57 @@ test("verifies round-7 Codex and Gemini forensic review items", async () => {
   );
 });
 
+test("verifies round-8 Codex review fixes: participant confidence, merge serialization, verified relationships, public participants, and bio error propagation", async () => {
+  const root = process.cwd();
+
+  // 1. Cutover migration default confidence is limited
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(
+    cutoverSql.includes("presence_confidence text DEFAULT 'limited' NOT NULL") &&
+    cutoverSql.includes("role_confidence text DEFAULT 'limited' NOT NULL") &&
+    !cutoverSql.includes("presence_confidence text DEFAULT 'confirmed' NOT NULL"),
+    "cutover migration must default presence_confidence and role_confidence to limited"
+  );
+
+  // 2. Duplicate merge claims serialized and deterministic
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  assert.ok(
+    pipelineTs.includes("pg_advisory_xact_lock(hashtext(${targetEventId}))") &&
+    pipelineTs.includes("onConflictDoNothing()"),
+    "pipeline.ts must serialize duplicate-merge claim insertion with advisory lock and idempotent key"
+  );
+
+  // 3. Relationship page passes verified events only
+  const relationshipPageTs = fs.readFileSync(path.join(root, "app/relationship/[a]/[b]/page.tsx"), "utf-8");
+  assert.ok(
+    relationshipPageTs.includes('const verifiedEvents = (eventsResult.data || []).filter((e) => e.verificationStatus === "verified");') &&
+    relationshipPageTs.includes("events={verifiedEvents}"),
+    "app/relationship/[a]/[b]/page.tsx must pass verified events only to TimelineComparison"
+  );
+
+  // 4. Ingestion resolve promotes participants to published
+  const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
+  assert.ok(
+    resolveTs.includes('publicationStatus: "published"') &&
+    !resolveTs.includes('publicationStatus: "draft"'),
+    "resolve.ts must register participants as published so names resolve under public RLS"
+  );
+
+  // 5. Biographical relation error propagation in people.ts
+  const peopleTs = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
+  assert.ok(
+    peopleTs.includes("bioError && process.env.NODE_ENV === \"production\"") &&
+    peopleTs.includes("throw new Error(`Failed to load biographical relation data"),
+    "people.ts must propagate biographical relation query errors in production"
+  );
+
+  // 6. Compare page error handling on people catalog
+  const comparePageTs = fs.readFileSync(path.join(root, "app/compare/page.tsx"), "utf-8");
+  assert.ok(
+    comparePageTs.includes("getPeopleWithStatus()") &&
+    comparePageTs.includes("eventsRes.error || peopleRes.error"),
+    "app/compare/page.tsx must load getPeopleWithStatus and render unavailable state on people error"
+  );
+});
+
 

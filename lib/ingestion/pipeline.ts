@@ -526,6 +526,11 @@ export function processCandidateEvent(
             }
           }
 
+          // Serialize concurrent duplicate-merge transactions on target event
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`
+          );
+
           const existingClaims = await tx
             .select({
               subjectId: schema.claims.subjectId,
@@ -557,9 +562,12 @@ export function processCandidateEvent(
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
-              claimsToInsert.map(({ clm, subjectId }, idx) => {
+              claimsToInsert.map(({ clm, subjectId }) => {
+                const normStatement = clm.statement.trim().toLowerCase();
+                const claimKey = `${targetEventId}::${subjectId ?? ""}::${normStatement}`;
+                const claimHash = createHash("sha256").update(claimKey).digest("hex").slice(0, 12);
                 return {
-                  id: `clm-${targetEventId}-${Date.now()}-${idx}`,
+                  id: `clm-${targetEventId.replace(/^evt-/, "")}-${claimHash}`,
                   eventId: targetEventId,
                   subjectId,
                   subjectEntityType: subjectId ? "person" : "event",
@@ -575,7 +583,7 @@ export function processCandidateEvent(
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })
-            );
+            ).onConflictDoNothing();
           }
 
           // Insert quotes into schema.quotes on merge

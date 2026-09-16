@@ -188,8 +188,8 @@ CREATE TABLE IF NOT EXISTS public.event_people (
   presence_extent text DEFAULT 'entire-event' NOT NULL,
   arrival_time text,
   departure_time text,
-  presence_confidence text DEFAULT 'confirmed' NOT NULL,
-  role_confidence text DEFAULT 'confirmed' NOT NULL,
+  presence_confidence text DEFAULT 'limited' NOT NULL,
+  role_confidence text DEFAULT 'limited' NOT NULL,
   notes text
 );
 
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS public.event_person_locations (
   local_end_time text,
   is_principal_location boolean DEFAULT true NOT NULL,
   location_basis text DEFAULT 'archival-record' NOT NULL,
-  confidence text DEFAULT 'confirmed' NOT NULL,
+  confidence text DEFAULT 'limited' NOT NULL,
   public_visibility text DEFAULT 'public-exact' NOT NULL
 );
 
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS public.event_person_organisations (
   organisation_id text NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
   relationship_type text NOT NULL,
   role_label text,
-  confidence text DEFAULT 'confirmed' NOT NULL
+  confidence text DEFAULT 'limited' NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.event_organisations (

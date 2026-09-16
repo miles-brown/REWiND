@@ -144,16 +144,11 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
         .maybeSingle();
 
       if (error) {
-        console.log("DEBUG getPersonBySlug error:", { slug, error });
         if (process.env.NODE_ENV === "production") {
-          return null;
+          throw error;
         }
         const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
         return fb ? mapFallbackPerson(fb) : null;
-      }
-
-      if (!p) {
-        console.log("DEBUG getPersonBySlug no p:", { slug });
       }
 
       if (p) {
@@ -169,12 +164,20 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
             Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("year_received", { ascending: false }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("publication_year", { ascending: false }) ?? { data: [] }),
           ]);
+
+          const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error;
+          if (bioError && process.env.NODE_ENV === "production") {
+            throw new Error(`Failed to load biographical relation data: ${bioError.message}`);
+          }
+
           eduData = (eduRes?.data || []) as Record<string, unknown>[];
           careerData = (careerRes?.data || []) as Record<string, unknown>[];
           awardsData = (awardsRes?.data || []) as Record<string, unknown>[];
           worksData = (worksRes?.data || []) as Record<string, unknown>[];
-        } catch {
-          // Biographical relations optional or not present in client stub
+        } catch (err) {
+          if (process.env.NODE_ENV === "production") {
+            throw err;
+          }
         }
 
         const education = eduData.map((e: Record<string, unknown>) => ({
