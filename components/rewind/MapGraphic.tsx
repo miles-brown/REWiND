@@ -489,6 +489,7 @@ export function MapGraphic({
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}
             onClick={toggleMapTheme}
             aria-pressed={mapTheme === "satellite"}
+            disabled={!MAPBOX_SATELLITE_STYLE}
             title={mapTheme === "satellite" ? "Switch to Dark Forensic Basemap" : "Switch to Satellite View"}
             aria-label="Satellite layer"
           >

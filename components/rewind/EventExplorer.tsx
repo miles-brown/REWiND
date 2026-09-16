@@ -129,8 +129,8 @@ export function EventExplorer({
           <h2>No events found in evidence register</h2>
           <p style={{ color: "var(--text-muted, #888)", maxWidth: "480px", margin: "0.5rem auto 0" }}>
             {initialEvents.length === 0
-              ? "The database is ready and connected to Supabase. Records entered afresh during Milestone B research will appear here."
-              : "Try clearing one or more active filters to widen your query."}
+              ? "The evidentiary register currently contains no records matching this scope. Verified historical records will appear here as they are published."
+              : "Try clearing one or more active filters or broadening your search query to widen results."}
           </p>
         </div>
       )}
