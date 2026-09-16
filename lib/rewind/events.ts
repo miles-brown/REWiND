@@ -7,7 +7,7 @@ import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPre
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
 
-const VALID_CONFIDENCES = new Set<Confidence>(["confirmed", "strong", "moderate", "limited"]);
+const VALID_CONFIDENCES = new Set<Confidence>(["confirmed", "strong", "moderate", "limited", "disputed"]);
 const VALID_ATTENDANCE_MODES = new Set<AttendanceMode>([
   "physical",
   "remote-live",

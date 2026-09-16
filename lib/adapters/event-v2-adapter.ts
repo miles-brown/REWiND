@@ -93,7 +93,7 @@ export function inferInvolvementType(role: string): InvolvementType {
  * Validation helpers to safely parse domain enum values without loose 'as' assertions.
  */
 function parseConfidence(c?: string | null, fallback: Confidence = "limited"): Confidence {
-  if (c === "confirmed" || c === "strong" || c === "moderate" || c === "limited") {
+  if (c === "confirmed" || c === "strong" || c === "moderate" || c === "limited" || c === "disputed") {
     return c;
   }
   return fallback;

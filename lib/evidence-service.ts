@@ -184,7 +184,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           idx: number
         ) => {
           const resolvedSubject = clm.subjectMention ? resolveEntity(clm.subjectMention) : null;
-          const conf = clm.confidence && ["confirmed", "strong", "moderate", "limited"].includes(clm.confidence)
+          const conf = clm.confidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(clm.confidence)
             ? clm.confidence
             : "limited";
           newClaims.push({
@@ -209,10 +209,10 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       data.participants.forEach((p: { name: string; role?: string; involvementType?: string; presenceMode?: string; presenceConfidence?: string; roleConfidence?: string }, idx: number) => {
         const resolved = resolveEntity(p.name);
         const personId = createParticipantStubId(p.name, resolved.personId);
-        const presenceConf = p.presenceConfidence && ["confirmed", "strong", "moderate", "limited"].includes(p.presenceConfidence)
+        const presenceConf = p.presenceConfidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(p.presenceConfidence)
           ? p.presenceConfidence
           : "limited";
-        const roleConf = p.roleConfidence && ["confirmed", "strong", "moderate", "limited"].includes(p.roleConfidence)
+        const roleConf = p.roleConfidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(p.roleConfidence)
           ? p.roleConfidence
           : "limited";
         eventPeopleRows.push({
@@ -726,7 +726,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             claimedTime: clm.claimedTime || null,
             claimedVenue: clm.claimedVenue || null,
             sourceId,
-            confidence: clm.confidence && ["confirmed", "strong", "moderate", "limited"].includes(clm.confidence) ? clm.confidence : "limited",
+            confidence: clm.confidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(clm.confidence) ? clm.confidence : "limited",
             claimStatus: clm.claimStatus || "PROVISIONAL",
             epistemicClass: clm.epistemicClass || "unknown",
             supportingExcerpt: clm.supportingExcerpt || null,

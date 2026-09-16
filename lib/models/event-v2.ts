@@ -525,7 +525,7 @@ export const EventPersonLocationSourceSchema = z.object({
   id: z.string(),
   eventPersonLocationId: z.string(),
   sourceId: z.string(),
-  confidence: z.enum(["confirmed", "strong", "moderate", "limited"]).optional(),
+  confidence: z.enum(["confirmed", "strong", "moderate", "limited", "disputed"]).optional(),
 });
 
 export const EventPersonLocationSchema = z.object({
@@ -542,7 +542,7 @@ export const EventPersonLocationSchema = z.object({
   localEndTime: z.string().optional(),
   isPrincipalLocation: z.boolean(),
   locationBasis: EpistemicBasisSchema,
-  confidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
+  confidence: z.enum(["confirmed", "strong", "moderate", "limited", "disputed"]),
   sourceIds: z.array(z.string()),
   sources: z.array(EventPersonLocationSourceSchema).optional(),
   publicVisibility: z.enum(["public-exact", "public-venue", "public-city", "restricted", "internal-only"]),
@@ -566,7 +566,7 @@ export const EventPersonOrganisationSchema = z.object({
     "other",
   ]),
   roleLabel: z.string().optional(),
-  confidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
+  confidence: z.enum(["confirmed", "strong", "moderate", "limited", "disputed"]),
 });
 
 export const EventPersonSchema = z.object({
@@ -581,8 +581,8 @@ export const EventPersonSchema = z.object({
   presenceExtent: z.enum(["entire-event", "partial", "keynote-only", "opening-ceremony", "arrival-only"]).optional(),
   arrivalTime: z.string().optional(),
   departureTime: z.string().optional(),
-  presenceConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
-  roleConfidence: z.enum(["confirmed", "strong", "moderate", "limited"]),
+  presenceConfidence: z.enum(["confirmed", "strong", "moderate", "limited", "disputed"]),
+  roleConfidence: z.enum(["confirmed", "strong", "moderate", "limited", "disputed"]),
   notes: z.string().optional(),
   locations: z.array(EventPersonLocationSchema).optional(),
   representations: z.array(EventPersonOrganisationSchema).optional(),

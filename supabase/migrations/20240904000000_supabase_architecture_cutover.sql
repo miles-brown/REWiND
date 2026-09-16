@@ -424,7 +424,13 @@ ALTER TABLE IF EXISTS public.quotes ADD COLUMN IF NOT EXISTS created_at timestam
 ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_status SET DEFAULT 'draft';
 ALTER TABLE IF EXISTS public.events ALTER COLUMN verification_status SET DEFAULT 'provisional';
 ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_lane SET DEFAULT 'human-review';
+ALTER TABLE IF EXISTS public.events ALTER COLUMN confidence_score SET DEFAULT 0.5;
 ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 'draft';
+ALTER TABLE IF EXISTS public.event_people ALTER COLUMN presence_confidence SET DEFAULT 'limited';
+ALTER TABLE IF EXISTS public.event_people ALTER COLUMN role_confidence SET DEFAULT 'limited';
+ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN confidence SET DEFAULT 'limited';
+ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'public-exact';
+ALTER TABLE IF EXISTS public.event_person_organisations ALTER COLUMN confidence SET DEFAULT 'limited';
 ALTER TABLE IF EXISTS public.claims ALTER COLUMN confidence SET DEFAULT 'limited';
 
 -- Ensure updated_at on sources is automatically refreshed on update

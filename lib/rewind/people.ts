@@ -129,9 +129,12 @@ export async function getPeople(params: { limit?: number } = {}): Promise<Person
 }
 
 /**
- * Retrieves a single person by slug, including structured biographical relations.
+ * Retrieves a single person by slug, including structured biographical relations, returning status.
  */
-export async function getPersonBySlug(slug: string, supabaseClient?: unknown): Promise<PersonRecord | null> {
+export async function getPersonBySlugWithStatus(
+  slug: string,
+  supabaseClient?: unknown
+): Promise<{ data: PersonRecord | null; error: string | null }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
@@ -145,10 +148,10 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
 
       if (error) {
         if (process.env.NODE_ENV === "production") {
-          throw error;
+          return { data: null, error: error.message };
         }
         const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
-        return fb ? mapFallbackPerson(fb) : null;
+        return { data: fb ? mapFallbackPerson(fb) : null, error: null };
       }
 
       if (p) {
@@ -167,7 +170,7 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
 
           const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error;
           if (bioError && process.env.NODE_ENV === "production") {
-            throw new Error(`Failed to load biographical relation data: ${bioError.message}`);
+            return { data: null, error: `Failed to load biographical relation data: ${bioError.message}` };
           }
 
           eduData = (eduRes?.data || []) as Record<string, unknown>[];
@@ -176,7 +179,7 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
           worksData = (worksRes?.data || []) as Record<string, unknown>[];
         } catch (err) {
           if (process.env.NODE_ENV === "production") {
-            throw err;
+            return { data: null, error: err instanceof Error ? err.message : "Biographical query error" };
           }
         }
 
@@ -237,30 +240,44 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
         }));
 
         return {
-          ...mapDatabasePerson(p),
-          education,
-          career,
-          awards,
-          works,
+          data: {
+            ...mapDatabasePerson(p),
+            education,
+            career,
+            awards,
+            works,
+          },
+          error: null,
         };
       }
 
       // Successful Supabase query with no matching record: return null canonical miss
-      return null;
+      return { data: null, error: null };
     }
 
     if (process.env.NODE_ENV === "production") {
-      return null;
+      return { data: null, error: "Database client unavailable" };
     }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
-    return fb ? mapFallbackPerson(fb) : null;
-  } catch {
+    return { data: fb ? mapFallbackPerson(fb) : null, error: null };
+  } catch (err) {
     if (process.env.NODE_ENV === "production") {
-      return null;
+      return { data: null, error: err instanceof Error ? err.message : "Database error" };
     }
     const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
-    return fb ? mapFallbackPerson(fb) : null;
+    return { data: fb ? mapFallbackPerson(fb) : null, error: null };
   }
+}
+
+/**
+ * Retrieves a single person by slug, including structured biographical relations.
+ */
+export async function getPersonBySlug(slug: string, supabaseClient?: unknown): Promise<PersonRecord | null> {
+  const res = await getPersonBySlugWithStatus(slug, supabaseClient);
+  if (res.error && process.env.NODE_ENV === "production") {
+    throw new Error(res.error);
+  }
+  return res.data;
 }
 
 /**
@@ -281,7 +298,10 @@ export async function getPersonTimelineWithStatus(
     return { data: null, error: "Invalid year parameter" };
   }
 
-  const person = await getPersonBySlug(slug);
+  const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
+  if (personError) {
+    return { data: null, error: personError };
+  }
   if (!person) return { data: null, error: null };
 
   const { data: events, error: eventsError } = await getEventsByPersonWithStatus(slug);

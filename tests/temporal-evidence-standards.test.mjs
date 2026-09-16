@@ -848,7 +848,7 @@ test("verifies round-8 Codex review fixes: participant confidence, merge seriali
   const peopleTs = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
   assert.ok(
     peopleTs.includes("bioError && process.env.NODE_ENV === \"production\"") &&
-    peopleTs.includes("throw new Error(`Failed to load biographical relation data"),
+    peopleTs.includes("Failed to load biographical relation data"),
     "people.ts must propagate biographical relation query errors in production"
   );
 
@@ -858,6 +858,67 @@ test("verifies round-8 Codex review fixes: participant confidence, merge seriali
     comparePageTs.includes("getPeopleWithStatus()") &&
     comparePageTs.includes("eventsRes.error || peopleRes.error"),
     "app/compare/page.tsx must load getPeopleWithStatus and render unavailable state on people error"
+  );
+});
+
+test("verifies round-9 Codex review fixes: cutover defaults restoration, duplicate merge lock ordering, disputed presence confidence preservation, and person status error propagation", async () => {
+  const root = process.cwd();
+
+  // 1. Cutover migration explicitly sets safe defaults for upgraded databases
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.events ALTER COLUMN confidence_score SET DEFAULT 0.5;"),
+    "cutover migration must set events.confidence_score default to 0.5 in upgrade block"
+  );
+  assert.ok(
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_people ALTER COLUMN presence_confidence SET DEFAULT 'limited';") &&
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_people ALTER COLUMN role_confidence SET DEFAULT 'limited';"),
+    "cutover migration must set event_people presence/role confidence defaults to limited in upgrade block"
+  );
+  assert.ok(
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN confidence SET DEFAULT 'limited';") &&
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'public-exact';"),
+    "cutover migration must set event_person_locations confidence and visibility defaults in upgrade block"
+  );
+
+  // 2. Ingestion pipeline executes advisory lock at the start of duplicate merge block
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const lockPos = pipelineTs.indexOf("sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`");
+  const eventSourcesPos = pipelineTs.indexOf("eq(schema.eventSources.eventId, targetEventId)");
+  const eventPeoplePos = pipelineTs.indexOf("eq(schema.eventPeople.eventId, targetEventId)");
+  assert.ok(lockPos !== -1 && eventSourcesPos !== -1 && eventPeoplePos !== -1, "Advisory lock, eventSources, and eventPeople must exist in pipeline");
+  assert.ok(lockPos < eventSourcesPos, "Advisory lock must execute before eventSources duplicate lookup");
+  assert.ok(lockPos < eventPeoplePos, "Advisory lock must execute before eventPeople duplicate lookup");
+
+  // 3. Disputed presence confidence is preserved during event hydration
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsTs.includes('const VALID_CONFIDENCES = new Set<Confidence>(["confirmed", "strong", "moderate", "limited", "disputed"]);'),
+    "events.ts VALID_CONFIDENCES must include 'disputed'"
+  );
+
+  const typesTs = fs.readFileSync(path.join(root, "lib/rewind/types.ts"), "utf-8");
+  assert.ok(
+    typesTs.includes('export type Confidence = "confirmed" | "strong" | "moderate" | "limited" | "disputed";'),
+    "types.ts Confidence must include 'disputed'"
+  );
+
+  // 4. getPersonBySlugWithStatus and getPersonTimelineWithStatus propagate failures
+  const peopleModule = await vite.ssrLoadModule("/lib/rewind/people.ts");
+  assert.equal(typeof peopleModule.getPersonBySlugWithStatus, "function");
+  assert.equal(typeof peopleModule.getPersonTimelineWithStatus, "function");
+  assert.equal(typeof peopleModule.getPersonBySlug, "function");
+
+  const peopleTs = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
+  assert.ok(
+    peopleTs.includes("export async function getPersonBySlugWithStatus("),
+    "people.ts must export getPersonBySlugWithStatus"
+  );
+  assert.ok(
+    peopleTs.includes("const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);") &&
+    peopleTs.includes("if (personError) {") &&
+    peopleTs.includes("return { data: null, error: personError };"),
+    "getPersonTimelineWithStatus must propagate personError directly"
   );
 });
 

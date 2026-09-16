@@ -469,6 +469,12 @@ export function processCandidateEvent(
         const isLiveDuplicate = liveDeduplication.isDuplicate && Boolean(liveDeduplication.matchedEventId);
         if (isLiveDuplicate) {
           const targetEventId = liveDeduplication.matchedEventId!;
+
+          // Serialize concurrent duplicate-merge transactions on target event
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`
+          );
+
           const [existingLink] = await tx
             .select({ eventId: schema.eventSources.eventId })
             .from(schema.eventSources)
@@ -525,11 +531,6 @@ export function processCandidateEvent(
               });
             }
           }
-
-          // Serialize concurrent duplicate-merge transactions on target event
-          await tx.execute(
-            sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`
-          );
 
           const existingClaims = await tx
             .select({

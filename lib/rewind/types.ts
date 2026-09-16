@@ -1,6 +1,6 @@
 export type Precision = "exact" | "exact-day" | "exact-minute" | "day" | "month" | "year" | "decade" | "range" | "unknown";
 export type Verification = "verified" | "provisional" | "disputed";
-export type Confidence = "confirmed" | "strong" | "moderate" | "limited";
+export type Confidence = "confirmed" | "strong" | "moderate" | "limited" | "disputed";
 export type LocationPrecision = "venue" | "city" | "country" | "unknown";
 export type EventScope = "public" | "press" | "diplomatic" | "government" | "electoral" | "religious" | "media";
 
