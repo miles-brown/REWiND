@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
-import type { SearchResultItem } from "@/lib/rewind";
+import type { SearchResultItem } from "@/lib/rewind/types";
 
 const DEFAULT_ACTIONS: SearchResultItem[] = [
   {

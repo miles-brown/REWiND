@@ -425,6 +425,7 @@ ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_status SET DEFAULT 
 ALTER TABLE IF EXISTS public.events ALTER COLUMN verification_status SET DEFAULT 'provisional';
 ALTER TABLE IF EXISTS public.events ALTER COLUMN publication_lane SET DEFAULT 'human-review';
 ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 'draft';
+ALTER TABLE IF EXISTS public.claims ALTER COLUMN confidence SET DEFAULT 'limited';
 
 -- Ensure updated_at on sources is automatically refreshed on update
 CREATE OR REPLACE FUNCTION public.set_updated_at()

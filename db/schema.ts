@@ -267,6 +267,8 @@ export const claims = pgTable("claims", {
   eventId: text("event_id")
     .references(() => events.id, { onDelete: "cascade" }),
   subjectId: text("subject_id").references(() => people.id),
+  subjectEntityType: text("subject_entity_type").default("event"),
+  subjectEntityId: text("subject_entity_id"),
   claimType: text("claim_type").notNull(), // presence, start-time, statement-quote, agreement, action
   statement: text("statement").notNull(),
   claimedTime: text("claimed_time"),

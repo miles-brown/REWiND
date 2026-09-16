@@ -93,25 +93,30 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
       evidenceMap.set(String(ev.claim_id), list);
     });
 
-    return claimsData.map((c: Record<string, unknown>) => ({
-      id: String(c.id),
-      eventId: c.event_id ? String(c.event_id) : undefined,
-      subjectEntityType: (c.subject_entity_type as "event" | "person" | "organisation") || "event",
-      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : undefined,
-      claimType: String(c.claim_type),
-      statement: String(c.statement),
-      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
-      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
-      sourceId: c.source_id ? String(c.source_id) : undefined,
-      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
-      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
-      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
-      legalStatus: c.legal_status ? String(c.legal_status) : undefined,
-      isAttributedOnly: Boolean(c.is_attributed_only),
-      attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
-      supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
-      evidence: evidenceMap.get(String(c.id)) || [],
-    }));
+    return claimsData.map((c: Record<string, unknown>) => {
+      const entityType = c.subject_entity_id
+        ? c.subject_entity_type
+        : (c.subject_id ? "person" : (c.subject_entity_type || "event"));
+      return {
+        id: String(c.id),
+        eventId: c.event_id ? String(c.event_id) : undefined,
+        subjectEntityType: (entityType as "event" | "person" | "organisation") || "event",
+        subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
+        claimType: String(c.claim_type),
+        statement: String(c.statement),
+        claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
+        claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
+        sourceId: c.source_id ? String(c.source_id) : undefined,
+        confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
+        claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
+        epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
+        legalStatus: c.legal_status ? String(c.legal_status) : undefined,
+        isAttributedOnly: Boolean(c.is_attributed_only),
+        attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
+        supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
+        evidence: evidenceMap.get(String(c.id)) || [],
+      };
+    });
   } catch {
     return [];
   }
@@ -136,25 +141,30 @@ export async function getClaimsByPerson(personId: string, supabaseClient?: unkno
 
     if (error || !claimsData) return [];
 
-    return claimsData.map((c: Record<string, unknown>) => ({
-      id: String(c.id),
-      eventId: c.event_id ? String(c.event_id) : undefined,
-      subjectEntityType: (c.subject_entity_type as "event" | "person" | "organisation") || "person",
-      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
-      claimType: String(c.claim_type),
-      statement: String(c.statement),
-      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
-      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
-      sourceId: c.source_id ? String(c.source_id) : undefined,
-      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
-      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
-      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
-      legalStatus: c.legal_status || undefined,
-      isAttributedOnly: Boolean(c.is_attributed_only),
-      attributionSpeakerId: c.attribution_speaker_id || undefined,
-      supportingExcerpt: c.supporting_excerpt || undefined,
-      evidence: [],
-    }));
+    return claimsData.map((c: Record<string, unknown>) => {
+      const entityType = c.subject_entity_id
+        ? c.subject_entity_type
+        : (c.subject_id ? "person" : (c.subject_entity_type || "person"));
+      return {
+        id: String(c.id),
+        eventId: c.event_id ? String(c.event_id) : undefined,
+        subjectEntityType: (entityType as "event" | "person" | "organisation") || "person",
+        subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
+        claimType: String(c.claim_type),
+        statement: String(c.statement),
+        claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
+        claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
+        sourceId: c.source_id ? String(c.source_id) : undefined,
+        confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
+        claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
+        epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
+        legalStatus: c.legal_status ? String(c.legal_status) : undefined,
+        isAttributedOnly: Boolean(c.is_attributed_only),
+        attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
+        supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
+        evidence: [],
+      };
+    });
   } catch {
     return [];
   }

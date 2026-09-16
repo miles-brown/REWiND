@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import {
   ExtractedCandidateEventSchema,
   type ExtractedCandidateEvent,
@@ -156,6 +156,8 @@ export function processCandidateEvent(
             id: `clm-${publishedEventId}-${Date.now()}-${idx}`,
             eventId: publishedEventId!,
             subjectId: subId,
+            subjectEntityType: subId ? "person" : "event",
+            subjectEntityId: subId || publishedEventId!,
             claimType: clm.claimType,
             statement: clm.statement,
             claimedTime: clm.claimedTime || null,
@@ -243,6 +245,8 @@ export function processCandidateEvent(
             id: `clm-${eventSlug}-${idx}`,
             eventId: eventSlug,
             subjectId: subId,
+            subjectEntityType: subId ? "person" : "event",
+            subjectEntityId: subId || eventSlug,
             claimType: clm.claimType,
             statement: clm.statement,
             claimedTime: clm.claimedTime || null,
@@ -549,6 +553,7 @@ export function processCandidateEvent(
                 ec.subjectId === subjectId
             );
           });
+          livePersistedClaimsAdded = claimsToInsert.length;
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
@@ -557,12 +562,16 @@ export function processCandidateEvent(
                   id: `clm-${targetEventId}-${Date.now()}-${idx}`,
                   eventId: targetEventId,
                   subjectId,
+                  subjectEntityType: subjectId ? "person" : "event",
+                  subjectEntityId: subjectId || targetEventId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
                   claimedVenue: clm.claimedVenue || null,
                   sourceId: source.sourceId,
                   confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
+                  claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
+                  epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })
@@ -619,6 +628,20 @@ export function processCandidateEvent(
             }
           }
 
+          await recordAuditEventInTransaction(
+            tx,
+            "merged",
+            livePolicy.ruleId,
+            {
+              matchedEventId: targetEventId,
+              sourceId: source.sourceId,
+              similarity: liveDeduplication.similarity,
+              claimsAdded: claimsToInsert.length,
+            },
+            targetEventId,
+            candidateId
+          );
+
           syncResult.publishedEventId = targetEventId;
         } else {
           const baseSlug = deriveEventSlug(
@@ -671,6 +694,8 @@ export function processCandidateEvent(
               effectivePlaceId = persistedPlace.id;
             }
           }
+
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-slug:' + baseSlug}))`);
 
           let eventSlug = baseSlug;
           let [existingDbEvent] = await tx
@@ -805,9 +830,7 @@ export function processCandidateEvent(
             );
           });
 
-          if (liveDeduplication.isDuplicate && liveDeduplication.matchedEventId) {
-            livePersistedClaimsAdded = claimsToInsert.length;
-          }
+          livePersistedClaimsAdded = claimsToInsert.length;
 
           if (claimsToInsert.length > 0) {
             await tx.insert(schema.claims).values(
@@ -819,12 +842,16 @@ export function processCandidateEvent(
                   id: stableId,
                   eventId: eventSlug,
                   subjectId,
+                  subjectEntityType: subjectId ? "person" : "event",
+                  subjectEntityId: subjectId || eventSlug,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime || null,
                   claimedVenue: clm.claimedVenue || null,
                   sourceId: source.sourceId,
                   confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
+                  claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
+                  epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
                   supportingExcerpt: clm.supportingExcerpt || null,
                 };
               })
@@ -881,36 +908,20 @@ export function processCandidateEvent(
             }
           }
 
-          // Transactional audit log for auto-published or merged event
-          if (liveDeduplication.isDuplicate && liveDeduplication.matchedEventId) {
-            await recordAuditEventInTransaction(
-              tx,
-              "merged",
-              livePolicy.ruleId,
-              {
-                matchedEventId: liveDeduplication.matchedEventId,
-                sourceId: source.sourceId,
-                similarity: liveDeduplication.similarity,
-                claimsAdded: livePersistedClaimsAdded,
-              },
-              liveDeduplication.matchedEventId,
-              candidateId
-            );
-          } else {
-            await recordAuditEventInTransaction(
-              tx,
-              "auto-published",
-              livePolicy.ruleId,
-              {
-                eventId: eventSlug,
-                sourceId: source.sourceId,
-                sourceTier: source.sourceTier,
-                lane: livePolicy.lane,
-              },
-              eventSlug,
-              candidateId
-            );
-          }
+          // Transactional audit log for auto-published event
+          await recordAuditEventInTransaction(
+            tx,
+            "auto-published",
+            livePolicy.ruleId,
+            {
+              eventId: eventSlug,
+              sourceId: source.sourceId,
+              sourceTier: source.sourceTier,
+              lane: livePolicy.lane,
+            },
+            eventSlug,
+            candidateId
+          );
         }
       } else {
         const rawPayload = JSON.stringify({ ...candidate, sourceId: source.sourceId });

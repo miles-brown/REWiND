@@ -284,20 +284,25 @@ function initializeSeedStore(): MemoryRelationalStore {
   });
 
   const seedClaims: (typeof schema.claims.$inferSelect)[] = (events || []).flatMap((e) =>
-    (e.participants || []).map((p, idx) => ({
-      id: `clm-${e.id}-${idx}`,
-      eventId: e.id,
-      subjectId: personIdToSlug.get(p.personId) || p.personId,
-      claimType: "presence",
-      statement: `${p.name} was present at ${e.eventName} in ${e.city}`,
-      claimedTime: e.startDate,
-      claimedVenue: e.venueName || e.city,
-      sourceId: e.sourceIds[0] || null,
-      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
-      claimStatus: p.presenceConfidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL",
-      epistemicClass: p.presenceConfidence === "confirmed" ? "documented fact" : "attributed assertion",
-      supportingExcerpt: e.summary,
-    }))
+    (e.participants || []).map((p, idx) => {
+      const subjectPersonId = personIdToSlug.get(p.personId) || p.personId;
+      return {
+        id: `clm-${e.id}-${idx}`,
+        eventId: e.id,
+        subjectId: subjectPersonId,
+        subjectEntityType: "person",
+        subjectEntityId: subjectPersonId,
+        claimType: "presence",
+        statement: `${p.name} was present at ${e.eventName} in ${e.city}`,
+        claimedTime: e.startDate,
+        claimedVenue: e.venueName || e.city,
+        sourceId: e.sourceIds[0] || null,
+        confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
+        claimStatus: p.presenceConfidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL",
+        epistemicClass: p.presenceConfidence === "confirmed" ? "documented fact" : "attributed assertion",
+        supportingExcerpt: e.summary,
+      };
+    })
   );
 
   return {

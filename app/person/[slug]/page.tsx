@@ -7,7 +7,7 @@ import {
   CircleDashed,
   MapPin,
 } from "lucide-react";
-import { getPersonTimeline } from "@/lib/rewind";
+import { getPersonTimelineWithStatus } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
 import { InclusionBadge } from "@/components/rewind/InclusionBadge";
@@ -24,7 +24,35 @@ export default async function PersonPage({
     notFound();
   }
 
-  const timelineData = await getPersonTimeline(slug);
+  const { data: timelineData, error } = await getPersonTimelineWithStatus(slug);
+  if (error) {
+    return (
+      <div className="page-shell person-page">
+        <header className="page-hero">
+          <span className="eyebrow">TEMPORAL PROFILE</span>
+          <h1>Dossier Unavailable</h1>
+          <p>The timeline records could not be retrieved from the database at this time.</p>
+        </header>
+        <div
+          className="zero-state"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <CalendarRange size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+          <h2>Database unavailable</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The chronology for this figure could not be loaded. Please try again later.
+          </p>
+        </div>
+      </div>
+    );
+  }
   if (!timelineData) notFound();
 
   const { person, events: linked, years } = timelineData;

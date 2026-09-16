@@ -1197,7 +1197,10 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 /**
  * Retrieves events associated with a specific person slug, fully hydrated.
  */
-export async function getEventsByPerson(personSlug: string, supabaseClient?: unknown): Promise<EventRecord[]> {
+export async function getEventsByPersonWithStatus(
+  personSlug: string,
+  supabaseClient?: unknown
+): Promise<{ data: EventRecord[]; error: string | null }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
@@ -1208,7 +1211,12 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
         .eq("slug", personSlug)
         .maybeSingle();
 
-      if (personError || !person) return [];
+      if (personError) {
+        return { data: [], error: personError.message };
+      }
+      if (!person) {
+        return { data: [], error: null };
+      }
 
       const participations: { event_id: string }[] = [];
       const partPageSize = 1000;
@@ -1223,7 +1231,12 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
           .order("event_id", { ascending: true })
           .range(partFrom, partFrom + partPageSize - 1);
 
-        if (partError || !partRows) return [];
+        if (partError) {
+          return { data: [], error: partError.message };
+        }
+        if (!partRows || partRows.length === 0) {
+          break;
+        }
         participations.push(...partRows);
 
         if (partRows.length < partPageSize) {
@@ -1234,7 +1247,7 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
       }
 
       const eventIds = Array.from(new Set(participations.map((p) => p.event_id)));
-      if (eventIds.length === 0) return [];
+      if (eventIds.length === 0) return { data: [], error: null };
 
       const eventRows: Record<string, unknown>[] = [];
       const chunkSize = 500;
@@ -1248,12 +1261,16 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
           .order("start_date", { ascending: true })
           .order("id", { ascending: true });
 
-        if (eventsError || !chunkRows) return [];
-        eventRows.push(...chunkRows);
+        if (eventsError) {
+          return { data: [], error: eventsError.message };
+        }
+        if (chunkRows) {
+          eventRows.push(...chunkRows);
+        }
       }
 
       if (eventRows.length === 0) {
-        return [];
+        return { data: [], error: null };
       }
 
       eventRows.sort((a, b) => {
@@ -1268,12 +1285,12 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
         const hydratedBatch = await hydrateEventRows(supabase, batch);
         hydratedEvents.push(...hydratedBatch);
       }
-      return hydratedEvents;
+      return { data: hydratedEvents, error: null };
     }
 
     const fbPerson = fallbackPeople.find((p) => p.slug === personSlug || p.id === personSlug);
     if (fbPerson) {
-      return fallbackEvents
+      const fbEvents = fallbackEvents
         .filter((e) =>
           (e.participants || []).some(
             (p) => p.personId === fbPerson.id || p.personId === fbPerson.slug
@@ -1281,11 +1298,17 @@ export async function getEventsByPerson(personSlug: string, supabaseClient?: unk
         )
         .map(mapFallbackEvent)
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
+      return { data: fbEvents, error: null };
     }
-    return [];
-  } catch {
-    return [];
+    return { data: [], error: null };
+  } catch (err) {
+    return { data: [], error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+export async function getEventsByPerson(personSlug: string, supabaseClient?: unknown): Promise<EventRecord[]> {
+  const res = await getEventsByPersonWithStatus(personSlug, supabaseClient);
+  return res.data;
 }
 
 /**

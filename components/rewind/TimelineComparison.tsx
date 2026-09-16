@@ -30,6 +30,51 @@ function formatDate(dateStr: string, precision?: string): string {
   return formatTimelineDate(dateStr, precision) || dateStr;
 }
 
+/**
+ * Helper to check whether a participant record represents a confirmed, physical attendance.
+ * Excludes remote, written, proxy, and disputed presence.
+ */
+function isPhysicalConfirmedParticipant(p: { attendanceMode?: string; presenceConfidence?: string }): boolean {
+  const isPhysical = !p.attendanceMode || p.attendanceMode === "physical";
+  const isNotDisputed = !p.presenceConfidence || p.presenceConfidence !== "disputed";
+  return isPhysical && isNotDisputed;
+}
+
+/**
+ * Discovers the top physical co-attendee for a target person from an event dataset.
+ */
+function findTopCoAttendee(
+  targetSlugOrId: string | undefined,
+  events: EventRecord[],
+  people: PersonRecord[]
+): string | undefined {
+  if (!targetSlugOrId || events.length === 0) return undefined;
+  const coCounts = new Map<string, number>();
+
+  for (const e of events) {
+    const parts = (e.participants || []).filter(isPhysicalConfirmedParticipant);
+    const hasTarget = parts.some(
+      (p) => p.personId === targetSlugOrId || p.slug === targetSlugOrId
+    );
+    if (hasTarget) {
+      for (const p of parts) {
+        const idOrSlug = p.slug || p.personId;
+        if (idOrSlug && idOrSlug !== targetSlugOrId) {
+          coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  if (coCounts.size > 0) {
+    const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
+    const topSlugOrId = sorted[0][0];
+    const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
+    if (match) return match.slug;
+  }
+  return undefined;
+}
+
 export function TimelineComparison({
   initialPersonA,
   initialPersonB,
@@ -47,31 +92,8 @@ export function TimelineComparison({
   const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(() => {
     if (initialPersonB) return initialPersonB;
     const targetSlugA = initialPersonA || people[0]?.slug;
-    if (!targetSlugA || events.length === 0) {
-      return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
-    }
-    // Calculate top co-attendee for Person A directly from events
-    const coCounts = new Map<string, number>();
-    for (const e of events) {
-      const parts = e.participants || [];
-      const hasA = parts.some(
-        (p) => p.personId === targetSlugA || p.slug === targetSlugA
-      );
-      if (hasA) {
-        for (const p of parts) {
-          const idOrSlug = p.slug || p.personId;
-          if (idOrSlug && idOrSlug !== targetSlugA) {
-            coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
-          }
-        }
-      }
-    }
-    if (coCounts.size > 0) {
-      const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
-      const topSlugOrId = sorted[0][0];
-      const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
-      if (match) return match.slug;
-    }
+    const topCoAttendee = findTopCoAttendee(targetSlugA, events, people);
+    if (topCoAttendee) return topCoAttendee;
     return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
   });
   const [activeTab, setActiveTab] = useState<"intersections" | "sideBySide">("intersections");
@@ -112,7 +134,7 @@ export function TimelineComparison({
     const coCountMap = new Map<string, number>();
 
     events.forEach((e) => {
-      const parts = e.participants || [];
+      const parts = (e.participants || []).filter(isPhysicalConfirmedParticipant);
       const slugsInEvent: string[] = [];
 
       parts.forEach((p) => {

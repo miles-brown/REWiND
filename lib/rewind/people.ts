@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { people as fallbackPeople } from "@/archive/legacy-data/rewind";
-import { getEventsByPerson } from "./events";
+import { getEventsByPersonWithStatus } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
 
 function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
@@ -261,24 +261,30 @@ export async function getPersonBySlug(slug: string, supabaseClient?: unknown): P
 }
 
 /**
- * Retrieves the complete chronological dossier and event timeline for a person.
+ * Retrieves the complete chronological dossier and event timeline for a person with status.
  */
-export async function getPersonTimeline(
+export async function getPersonTimelineWithStatus(
   slug: string,
   options: { year?: string } = {}
 ): Promise<{
-  person: PersonRecord;
-  events: EventRecord[];
-  years: number[];
-} | null> {
+  data: {
+    person: PersonRecord;
+    events: EventRecord[];
+    years: number[];
+  } | null;
+  error: string | null;
+}> {
   if (options.year !== undefined && !/^\d{4}$/.test(options.year)) {
-    return null;
+    return { data: null, error: "Invalid year parameter" };
   }
 
   const person = await getPersonBySlug(slug);
-  if (!person) return null;
+  if (!person) return { data: null, error: null };
 
-  let events = await getEventsByPerson(slug);
+  const { data: events, error: eventsError } = await getEventsByPersonWithStatus(slug);
+  if (eventsError) {
+    return { data: null, error: eventsError };
+  }
 
   const yearsSet = new Set<number>();
   events.forEach((e) => {
@@ -289,13 +295,31 @@ export async function getPersonTimeline(
   });
   const years = Array.from(yearsSet).sort((a, b) => a - b);
 
-  if (options.year) {
-    events = events.filter((e) => e.startDate.startsWith(options.year!));
-  }
+  const filteredEvents = options.year
+    ? events.filter((e) => e.startDate.startsWith(options.year!))
+    : events;
 
   return {
-    person,
-    events,
-    years,
+    data: {
+      person,
+      events: filteredEvents,
+      years,
+    },
+    error: null,
   };
+}
+
+/**
+ * Retrieves the complete chronological dossier and event timeline for a person.
+ */
+export async function getPersonTimeline(
+  slug: string,
+  options: { year?: string } = {}
+): Promise<{
+  person: PersonRecord;
+  events: EventRecord[];
+  years: number[];
+} | null> {
+  const res = await getPersonTimelineWithStatus(slug, options);
+  return res.data;
 }

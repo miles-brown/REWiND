@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -78,13 +78,25 @@ export function RewindExplorer({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
 
-  // Synchronize index safely when filtered events change: preserve selected event if still in filtered list
+  const hasEvents = filtered.length > 0;
+  const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
+  const event = hasEvents ? filtered[safeIndex] : null;
+
+  // Track the selected event's identity independently of array index
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (event) {
+      selectedIdRef.current = event.id || event.slug || null;
+    }
+  }, [event]);
+
+  // Synchronize index safely when filtered events change: resolve selected identity against refreshed list
   useEffect(() => {
     setIndex((currentIndex) => {
       if (filtered.length === 0) return 0;
-      const currentEvent = filtered[currentIndex];
-      if (currentEvent) {
-        const foundIdx = filtered.findIndex((e) => e.id === currentEvent.id || e.slug === currentEvent.slug);
+      const targetId = selectedIdRef.current;
+      if (targetId) {
+        const foundIdx = filtered.findIndex((e) => e.id === targetId || e.slug === targetId);
         if (foundIdx >= 0) return foundIdx;
       }
       return currentIndex >= filtered.length ? Math.max(0, filtered.length - 1) : currentIndex;
@@ -105,9 +117,6 @@ export function RewindExplorer({
     return () => clearInterval(timer);
   }, [playing, speed, direction, filtered.length]);
 
-  const hasEvents = filtered.length > 0;
-  const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
-  const event = hasEvents ? filtered[safeIndex] : null;
   const source = event?.sources?.[0] || (event?.sourceIds?.[0] ? sourceById(event.sourceIds[0]) : null);
   const types = useMemo(
     () =>

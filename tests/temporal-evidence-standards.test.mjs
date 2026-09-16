@@ -656,3 +656,85 @@ test("verifies PR #13 round-5 review fixes: claim confidence defaults to limited
   );
 });
 
+test("verifies PR #13 round-6 review fixes: polymorphic claims, merge participant persistence, atomic slug locking, error propagation, and physical co-occurrence", async () => {
+  // 1. Migration cutover claims default
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  assert.ok(
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.claims ALTER COLUMN confidence SET DEFAULT 'limited';"),
+    "Cutover migration must alter claims.confidence default to limited for upgraded databases"
+  );
+
+  // 2. Drizzle schema polymorphic claims
+  const schemaTs = fs.readFileSync(path.join(root, "db/schema.ts"), "utf-8");
+  assert.ok(
+    schemaTs.includes('subjectEntityType: text("subject_entity_type").default("event")') &&
+    schemaTs.includes('subjectEntityId: text("subject_entity_id")'),
+    "schema.ts must define subjectEntityType and subjectEntityId on claims"
+  );
+
+  // 3. Ingestion pipeline atomic slug locking, audit placement, and epistemic claims
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  assert.ok(
+    pipelineTs.includes("pg_advisory_xact_lock"),
+    "pipeline.ts must utilize advisory transaction lock during live slug derivation"
+  );
+  assert.ok(
+    pipelineTs.includes('subjectEntityType: subjectId ? "person" : "event"') &&
+    pipelineTs.includes('claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL"'),
+    "pipeline.ts must populate polymorphic subject and epistemic status on claim inserts"
+  );
+
+  // 4. Evidence service participant persistence during editorial merges
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  assert.ok(
+    evidenceServiceTs.includes("Upsert participants from merged candidate into schema.eventPeople"),
+    "evidence-service.ts must persist new participants into schema.eventPeople on mergeCandidate"
+  );
+  assert.ok(
+    evidenceServiceTs.includes('subjectEntityType: resolvedDbSubjectId ? "person" : "event"') &&
+    evidenceServiceTs.includes("subjectEntityId: resolvedDbSubjectId || targetEventId"),
+    "evidence-service.ts must populate polymorphic subjects during merge and publish"
+  );
+
+  // 5. TimelineComparison physical participant filtering and helper extraction
+  const timelineComparisonTs = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    timelineComparisonTs.includes("function isPhysicalConfirmedParticipant"),
+    "TimelineComparison must define isPhysicalConfirmedParticipant helper"
+  );
+  assert.ok(
+    timelineComparisonTs.includes("function findTopCoAttendee"),
+    "TimelineComparison must extract findTopCoAttendee utility"
+  );
+
+  // 6. Person timeline query error propagation
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  assert.ok(
+    eventsTs.includes("export async function getEventsByPersonWithStatus("),
+    "events.ts must export getEventsByPersonWithStatus returning explicit errors"
+  );
+  const peopleTs = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
+  assert.ok(
+    peopleTs.includes("export async function getPersonTimelineWithStatus("),
+    "people.ts must export getPersonTimelineWithStatus propagating query failures"
+  );
+
+  // 7. RewindExplorer selected event identity preservation
+  const explorerTs = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  assert.ok(
+    explorerTs.includes("const selectedIdRef = useRef<string | null>(null);") &&
+    explorerTs.includes("const targetId = selectedIdRef.current;"),
+    "RewindExplorer must track selected event identity across list refreshes via ref"
+  );
+
+  // 8. Claims mapping subject_id fallback
+  const claimsModule = await vite.ssrLoadModule("/lib/rewind/claims.ts");
+  assert.equal(typeof claimsModule.getClaimsByPerson, "function");
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  assert.ok(
+    claimsTs.includes('c.subject_id ? "person" : (c.subject_entity_type || "event")'),
+    "claims.ts must fall back to person entity type when subject_id is present"
+  );
+});
+
+

@@ -471,12 +471,15 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 if (!resolvedDbSubjectId && clm.subjectMention) {
                   resolvedDbSubjectId = mentionToSubjectMap.get(clm.subjectMention.trim()) ?? null;
                 }
-                clm.subjectId = resolvedDbSubjectId;
                 const dbRow = { ...clm };
                 delete dbRow.subjectMention;
                 return {
                   ...dbRow,
                   subjectId: resolvedDbSubjectId,
+                  subjectEntityType: resolvedDbSubjectId ? "person" : "event",
+                  subjectEntityId: resolvedDbSubjectId || eventSlug,
+                  claimStatus: dbRow.claimStatus || "PROVISIONAL",
+                  epistemicClass: dbRow.epistemicClass || "unknown",
                 };
               });
               await tx.insert(schema.claims).values(dbClaims);
@@ -570,6 +573,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         eventId: clm.eventId || null,
         sourceId: clm.sourceId || null,
         subjectId: clm.subjectId || null,
+        subjectEntityType: clm.subjectId ? "person" : "event",
+        subjectEntityId: clm.subjectId || eventSlug,
         claimType: clm.claimType,
         statement: clm.statement,
         claimedTime: clm.claimedTime || null,
@@ -703,6 +708,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             id: `clm-${targetEventId}-mrg-${Date.now()}-${idx}`,
             eventId: targetEventId,
             subjectId,
+            subjectEntityType: subjectId ? "person" : "event",
+            subjectEntityId: subjectId || targetEventId,
             claimType: clm.claimType || "presence",
             statement,
             claimedTime: clm.claimedTime || null,
@@ -768,6 +775,45 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
               sourceId,
               isPrimary: false,
             });
+          }
+
+          // 3. Upsert participants from merged candidate into schema.eventPeople
+          if (Array.isArray(data.participants)) {
+            const participantConfidence = candidate.primarySourceTier === "tier-a" ? "confirmed" : "limited";
+            for (let i = 0; i < data.participants.length; i++) {
+              const p = data.participants[i];
+              if (!p || !p.name) continue;
+              const resolved = resolveEntity(p.name);
+              const stubId = createParticipantStubId(p.name, resolved.personId);
+              const personId = await resolvePersonEntityInTransaction(tx, {
+                personId: stubId,
+                rawName: p.name,
+                roleLabel: p.role,
+              });
+
+              const [existingEp] = await tx
+                .select({ id: schema.eventPeople.id })
+                .from(schema.eventPeople)
+                .where(
+                  and(
+                    eq(schema.eventPeople.eventId, targetEventId),
+                    eq(schema.eventPeople.personId, personId)
+                  )
+                );
+
+              if (!existingEp) {
+                await tx.insert(schema.eventPeople).values({
+                  id: `ep-${targetEventId}-${i}-${Date.now().toString(36).slice(-4)}`,
+                  eventId: targetEventId,
+                  personId,
+                  involvementType: "attendee",
+                  roleLabel: p.role || "participant",
+                  presenceConfidence: p.confidence && ["confirmed", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
+                  roleConfidence: p.confidence && ["confirmed", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
+                  attendanceMode: p.presenceMode || "physical",
+                });
+              }
+            }
           }
 
           if (claimsToInsert.length > 0) {
@@ -908,12 +954,16 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                   id: clm.id,
                   eventId: clm.eventId,
                   subjectId: resolvedDbSubjectId,
+                  subjectEntityType: resolvedDbSubjectId ? "person" : "event",
+                  subjectEntityId: resolvedDbSubjectId || targetEventId,
                   claimType: clm.claimType,
                   statement: clm.statement,
                   claimedTime: clm.claimedTime,
                   claimedVenue: clm.claimedVenue,
                   sourceId: clm.sourceId,
                   confidence: clm.confidence,
+                  claimStatus: clm.claimStatus || "PROVISIONAL",
+                  epistemicClass: clm.epistemicClass || "unknown",
                   supportingExcerpt: clm.supportingExcerpt,
                 });
               }
@@ -964,10 +1014,20 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
     candidate.status = "merged";
 
     const memTargetEvent = store.events.find((e) => e.id === targetEventId);
-    if (memTargetEvent && "sourceIds" in memTargetEvent && Array.isArray((memTargetEvent as { sourceIds?: string[] }).sourceIds)) {
-      const sIds = (memTargetEvent as { sourceIds: string[] }).sourceIds;
-      if (!sIds.includes(sourceId)) {
-        sIds.push(sourceId);
+    if (memTargetEvent) {
+      if ("sourceIds" in memTargetEvent && Array.isArray((memTargetEvent as { sourceIds?: string[] }).sourceIds)) {
+        const sIds = (memTargetEvent as { sourceIds: string[] }).sourceIds;
+        if (!sIds.includes(sourceId)) {
+          sIds.push(sourceId);
+        }
+      }
+      if ("people" in memTargetEvent && Array.isArray((memTargetEvent as { people?: string[] }).people)) {
+        const peopleList = (memTargetEvent as { people: string[] }).people;
+        mergedParticipants.forEach((p) => {
+          if (!peopleList.includes(p)) {
+            peopleList.push(p);
+          }
+        });
       }
     }
 
