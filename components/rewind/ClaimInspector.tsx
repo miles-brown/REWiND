@@ -118,17 +118,18 @@ export function ClaimInspector({
                     >
                       <div className="evidence-item-header">
                         <span className="evidence-form">
-                          <Eye size={12} /> {ev.evidenceForm} ({ev.directness})
+                          <Eye size={12} /> {ev.evidenceForm}
+                          {ev.directness && ev.directness !== "unknown" ? ` (${ev.directness})` : ""}
                         </span>
                         {ev.contradictsClaim ? (
                           <span className="contradiction-badge">
                             <XCircle size={12} /> Contradicts Claim
                           </span>
-                        ) : (
+                        ) : ev.evidenceStrength ? (
                           <span className="strength-badge">
                             <ShieldCheck size={12} /> {ev.evidenceStrength}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {ev.supportingExcerpt && (

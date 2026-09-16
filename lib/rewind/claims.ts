@@ -27,8 +27,11 @@ const ALLOWED_EPISTEMIC_CLASSES = new Set<EpistemicClass>([
 ]);
 
 function parseClaimStatus(status?: string | null): ClaimStatus {
-  if (status && ALLOWED_CLAIM_STATUSES.has(status as ClaimStatus)) {
-    return status as ClaimStatus;
+  if (!status) return "PROVISIONAL";
+  const upper = status.trim().toUpperCase();
+  if (upper === "REFUTED") return "CONTRADICTED";
+  if (ALLOWED_CLAIM_STATUSES.has(upper as ClaimStatus)) {
+    return upper as ClaimStatus;
   }
   return "PROVISIONAL";
 }
@@ -84,8 +87,8 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
         sourcePublisher: src?.publisher ? String(src.publisher) : undefined,
         sourceUrl: src?.url ? String(src.url) : undefined,
         evidenceForm: String(ev.evidence_form || "direct-citation"),
-        evidenceStrength: String(ev.evidence_strength || "conclusive"),
-        directness: (ev.directness as "direct" | "inferential") || "direct",
+        evidenceStrength: ev.evidence_strength ? String(ev.evidence_strength) : undefined,
+        directness: ev.directness ? (ev.directness as "direct" | "inferential" | "unknown") : undefined,
         citationLocator: ev.citation_locator ? String(ev.citation_locator) : undefined,
         supportingExcerpt: ev.supporting_excerpt ? String(ev.supporting_excerpt) : undefined,
         contradictsClaim: Boolean(ev.contradicts_claim),

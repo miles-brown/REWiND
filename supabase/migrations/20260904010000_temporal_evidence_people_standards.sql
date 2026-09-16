@@ -24,12 +24,42 @@ ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS holiday_type text,
   ADD COLUMN IF NOT EXISTS holiday_jurisdiction text;
 
+-- Ensure defaults are dropped on already-migrated databases
+ALTER TABLE public.events
+  ALTER COLUMN dst_observed DROP DEFAULT,
+  ALTER COLUMN timezone_confidence DROP DEFAULT,
+  ALTER COLUMN time_standard DROP DEFAULT;
+
+-- Remediate fabricated timezone defaults on unassessed events
+UPDATE public.events
+SET dst_observed = NULL,
+    timezone_confidence = NULL,
+    time_standard = NULL
+WHERE timezone_id IS NULL AND local_start_time IS NULL;
+
 -- 2. Extend Sources with Independence and Level Taxonomy
 ALTER TABLE public.sources
   ADD COLUMN IF NOT EXISTS source_level text,
   ADD COLUMN IF NOT EXISTS independence_status text,
   ADD COLUMN IF NOT EXISTS derived_from_source_id text REFERENCES public.sources(id),
   ADD COLUMN IF NOT EXISTS source_quality text;
+
+-- Ensure defaults are dropped on already-migrated databases
+ALTER TABLE public.sources
+  ALTER COLUMN source_level DROP DEFAULT,
+  ALTER COLUMN independence_status DROP DEFAULT,
+  ALTER COLUMN source_quality DROP DEFAULT;
+
+-- Remediate unassessed sources that were given synthetic high/primary defaults
+UPDATE public.sources
+SET source_level = NULL,
+    independence_status = NULL,
+    source_quality = NULL
+WHERE (tier IS NULL OR tier = 'C' OR tier = 'secondary' OR tier = 'tertiary')
+  AND source_level = 'primary'
+  AND independence_status = 'independent'
+  AND source_quality = 'high'
+  AND derived_from_source_id IS NULL;
 
 -- 3. Extend Claims to General Purpose Epistemic Architecture
 ALTER TABLE public.claims
@@ -48,16 +78,18 @@ SET
   claim_status = CASE
     WHEN confidence = 'confirmed' THEN 'ESTABLISHED'
     WHEN confidence = 'disputed' THEN 'DISPUTED'
-    WHEN confidence = 'refuted' THEN 'REFUTED'
+    WHEN confidence = 'refuted' THEN 'CONTRADICTED'
+    WHEN confidence = 'contradicted' THEN 'CONTRADICTED'
     ELSE 'PROVISIONAL'
   END,
   epistemic_class = CASE
     WHEN confidence = 'confirmed' THEN 'documented fact'
     WHEN confidence = 'disputed' THEN 'disputed proposition'
     WHEN confidence = 'refuted' THEN 'disputed proposition'
+    WHEN confidence = 'contradicted' THEN 'disputed proposition'
     ELSE 'allegation'
   END
-WHERE claim_status IS NULL OR claim_status = 'PROVISIONAL';
+WHERE claim_status IS NULL OR claim_status = 'PROVISIONAL' OR claim_status = 'REFUTED';
 
 -- 4. Create Claim Evidence Table (Linking Claims to Supporting or Contradictory Proof)
 CREATE TABLE IF NOT EXISTS public.claim_evidence (
@@ -65,13 +97,20 @@ CREATE TABLE IF NOT EXISTS public.claim_evidence (
   claim_id text NOT NULL REFERENCES public.claims(id) ON DELETE CASCADE,
   source_id text NOT NULL REFERENCES public.sources(id) ON DELETE CASCADE,
   evidence_form text NOT NULL,
-  evidence_strength text DEFAULT 'direct conclusive' NOT NULL,
-  directness text DEFAULT 'direct' NOT NULL,
+  evidence_strength text,
+  directness text,
   citation_locator text,
   supporting_excerpt text,
   contradicts_claim boolean DEFAULT false NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+-- Ensure defaults and not-null constraints are relaxed on already-migrated databases
+ALTER TABLE public.claim_evidence
+  ALTER COLUMN evidence_strength DROP DEFAULT,
+  ALTER COLUMN evidence_strength DROP NOT NULL,
+  ALTER COLUMN directness DROP DEFAULT,
+  ALTER COLUMN directness DROP NOT NULL;
 
 -- 5. Extend People with Structured Identity, Sensitive Demographics & Inclusion Basis
 ALTER TABLE public.people

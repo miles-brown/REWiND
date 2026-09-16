@@ -1000,4 +1000,55 @@ test("verifies round-10 Codex and Gemini review fixes: unset unknown timezone/so
   assert.equal(topCo, "bill-clinton", "findTopCoAttendee must find top co-attendee excluding disputed presence");
 });
 
+test("verifies round-11 Codex review fixes: drop defaults on migrated DBs, unassessed evidence strength, legacy contradicted claims, and unestablished timezone badge", async () => {
+  const root = process.cwd();
+
+  // 1. Migration drops defaults and remediates already-migrated databases
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  assert.ok(
+    standardsSql.includes("ALTER TABLE public.events") &&
+    standardsSql.includes("ALTER COLUMN dst_observed DROP DEFAULT") &&
+    standardsSql.includes("ALTER COLUMN timezone_confidence DROP DEFAULT") &&
+    standardsSql.includes("ALTER COLUMN time_standard DROP DEFAULT"),
+    "migration must drop events column defaults on already-migrated databases"
+  );
+  assert.ok(
+    standardsSql.includes("ALTER TABLE public.sources") &&
+    standardsSql.includes("ALTER COLUMN source_level DROP DEFAULT") &&
+    standardsSql.includes("ALTER COLUMN independence_status DROP DEFAULT") &&
+    standardsSql.includes("ALTER COLUMN source_quality DROP DEFAULT"),
+    "migration must drop sources column defaults on already-migrated databases"
+  );
+  assert.ok(
+    standardsSql.includes("ALTER TABLE public.claim_evidence") &&
+    standardsSql.includes("ALTER COLUMN evidence_strength DROP DEFAULT") &&
+    standardsSql.includes("ALTER COLUMN directness DROP DEFAULT"),
+    "migration must drop claim_evidence column defaults on already-migrated databases"
+  );
+  assert.ok(
+    standardsSql.includes("WHEN confidence = 'refuted' THEN 'CONTRADICTED'") &&
+    standardsSql.includes("WHEN confidence = 'contradicted' THEN 'CONTRADICTED'") &&
+    standardsSql.includes("WHEN confidence = 'refuted' THEN 'disputed proposition'") &&
+    standardsSql.includes("WHEN confidence = 'contradicted' THEN 'disputed proposition'"),
+    "migration must map legacy contradicted and refuted claims to CONTRADICTED and disputed proposition"
+  );
+
+  // 2. lib/rewind/claims.ts parseClaimStatus maps REFUTED to CONTRADICTED
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  assert.ok(
+    claimsTs.includes('if (upper === "REFUTED") return "CONTRADICTED";'),
+    "parseClaimStatus must map legacy REFUTED to CONTRADICTED"
+  );
+
+  // 3. TemporalBadge.tsx renders explicit unestablished timezone state
+  const temporalBadgeTs = fs.readFileSync(path.join(root, "components/rewind/TemporalBadge.tsx"), "utf-8");
+  assert.ok(
+    temporalBadgeTs.includes('event.timezoneId || "Timezone Not Established"') &&
+    temporalBadgeTs.includes('"Not established"') &&
+    !temporalBadgeTs.includes('"Local Jurisdiction"') &&
+    !temporalBadgeTs.includes('"Standard offset"'),
+    "TemporalBadge must not render positive assertions (Local Jurisdiction / Standard offset) for unassessed events"
+  );
+});
+
 

@@ -34,7 +34,7 @@ export function TemporalBadge({ event }: { event: EventRecord }) {
             <b>{civilDisplay || "Time Not Established"}</b>
             <span>
               {event.dayOfWeek ? `${event.dayOfWeek} · ` : ""}
-              {event.timeStandard || "Local civil standard"}
+              {event.timeStandard || (civilDisplay ? "Local civil standard" : "Civil standard unrecorded")}
             </span>
           </div>
         </div>
@@ -46,12 +46,13 @@ export function TemporalBadge({ event }: { event: EventRecord }) {
           </div>
           <div>
             <small>TIME ZONE & OFFSET</small>
-            <b>{event.timezoneId || "Local Jurisdiction"}</b>
+            <b>{event.timezoneId || "Timezone Not Established"}</b>
             <span>
               {event.utcOffsetSeconds != null
-                ? formatOffset(event.utcOffsetSeconds)
-                : "Standard offset"}
-              {dstSuffix}
+                ? `${formatOffset(event.utcOffsetSeconds)}${dstSuffix}`
+                : event.timezoneConfidence
+                ? `Confidence: ${event.timezoneConfidence}`
+                : "Not established"}
             </span>
           </div>
         </div>

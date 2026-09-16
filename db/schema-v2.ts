@@ -232,8 +232,8 @@ export const claimEvidence = pgTable("claim_evidence", {
     .references(() => sources.id, { onDelete: "cascade" })
     .notNull(),
   evidenceForm: text("evidence_form").notNull(),
-  evidenceStrength: text("evidence_strength").default("direct conclusive").notNull(),
-  directness: text("directness").default("direct").notNull(),
+  evidenceStrength: text("evidence_strength"),
+  directness: text("directness"),
   citationLocator: text("citation_locator"),
   supportingExcerpt: text("supporting_excerpt"),
   contradictsClaim: boolean("contradicts_claim").default(false).notNull(),

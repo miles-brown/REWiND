@@ -57,8 +57,8 @@ export interface ClaimEvidenceRecord {
   sourcePublisher?: string;
   sourceUrl?: string;
   evidenceForm: string;
-  evidenceStrength: string;
-  directness: "direct" | "inferential";
+  evidenceStrength?: string;
+  directness?: "direct" | "inferential" | "unknown";
   citationLocator?: string;
   supportingExcerpt?: string;
   contradictsClaim: boolean;
