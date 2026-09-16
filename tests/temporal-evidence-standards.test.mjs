@@ -600,4 +600,11 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   const datesToSort = ["1993-09-13", "c. 1948", "Spring 1975", "1948-05-14", "undated"];
   const sortedDates = [...datesToSort].sort(compareTimelineDates);
   assert.deepEqual(sortedDates, ["c. 1948", "1948-05-14", "Spring 1975", "1993-09-13", "undated"]);
+
+  // 14. Admin evidence console duplicateItems pending status filter
+  const adminPageContent = fs.readFileSync(path.join(root, "app/admin/evidence/page.tsx"), "utf-8");
+  assert.ok(
+    adminPageContent.includes('c.status === "pending" && Boolean(c.duplicateSimilarity && c.duplicateSimilarity >= 0.75)'),
+    "app/admin/evidence/page.tsx must filter duplicateItems by pending status"
+  );
 });

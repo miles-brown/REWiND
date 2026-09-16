@@ -218,7 +218,7 @@ export default function EvidenceControlConsole() {
     [queue]
   );
   const duplicateItems = useMemo(
-    () => queue.filter((c) => c.duplicateSimilarity && c.duplicateSimilarity >= 0.75),
+    () => queue.filter((c) => c.status === "pending" && Boolean(c.duplicateSimilarity && c.duplicateSimilarity >= 0.75)),
     [queue]
   );
 
