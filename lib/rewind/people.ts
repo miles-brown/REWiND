@@ -346,3 +346,6 @@ export async function getPersonTimeline(
   const res = await getPersonTimelineWithStatus(slug, options);
   return res.data;
 }
+
+export { isPhysicalConfirmedParticipant, findTopCoAttendee } from "./utils";
+

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
 import { formatTimelineDate, isStandardIsoDate, compareTimelineDates } from "@/lib/rewind/dates";
+import { findTopCoAttendee, isPhysicalConfirmedParticipant } from "@/lib/rewind/utils";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -28,51 +29,6 @@ function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boo
 
 function formatDate(dateStr: string, precision?: string): string {
   return formatTimelineDate(dateStr, precision) || dateStr;
-}
-
-/**
- * Helper to check whether a participant record represents a confirmed, physical attendance.
- * Excludes remote, written, proxy, and disputed presence.
- */
-function isPhysicalConfirmedParticipant(p: { attendanceMode?: string; presenceConfidence?: string }): boolean {
-  const isPhysical = !p.attendanceMode || p.attendanceMode === "physical";
-  const isNotDisputed = !p.presenceConfidence || p.presenceConfidence !== "disputed";
-  return isPhysical && isNotDisputed;
-}
-
-/**
- * Discovers the top physical co-attendee for a target person from an event dataset.
- */
-function findTopCoAttendee(
-  targetSlugOrId: string | undefined,
-  events: EventRecord[],
-  people: PersonRecord[]
-): string | undefined {
-  if (!targetSlugOrId || events.length === 0) return undefined;
-  const coCounts = new Map<string, number>();
-
-  for (const e of events) {
-    const parts = (e.participants || []).filter(isPhysicalConfirmedParticipant);
-    const hasTarget = parts.some(
-      (p) => p.personId === targetSlugOrId || p.slug === targetSlugOrId
-    );
-    if (hasTarget) {
-      for (const p of parts) {
-        const idOrSlug = p.slug || p.personId;
-        if (idOrSlug && idOrSlug !== targetSlugOrId) {
-          coCounts.set(idOrSlug, (coCounts.get(idOrSlug) || 0) + 1);
-        }
-      }
-    }
-  }
-
-  if (coCounts.size > 0) {
-    const sorted = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
-    const topSlugOrId = sorted[0][0];
-    const match = people.find((p) => p.slug === topSlugOrId || p.id === topSlugOrId);
-    if (match) return match.slug;
-  }
-  return undefined;
 }
 
 export function TimelineComparison({

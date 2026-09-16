@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople } from "@/archive/legacy-data/rewind";
-import { getPersonBySlug } from "./people";
+import { getPersonBySlugWithStatus } from "./people";
 import type { EventRecord, PersonRecord } from "./types";
 import { getEventsByIds, getAllEvents } from "./events";
 
@@ -207,22 +207,34 @@ export async function getRelationships(): Promise<RelationshipItem[]> {
 }
 
 /**
- * Retrieves the pairwise bilateral relationship and shared events between two individuals.
+ * Retrieves the pairwise bilateral relationship and shared events between two individuals, returning status.
  */
-export async function getRelationshipBetween(
+export async function getRelationshipBetweenWithStatus(
   slugA: string,
   slugB: string,
   supabaseClient?: unknown
-): Promise<PairwiseRelationshipData | null> {
+): Promise<{ data: PairwiseRelationshipData | null; error: string | null }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
-    const [personA, personB] = await Promise.all([
-      getPersonBySlug(slugA, supabase),
-      getPersonBySlug(slugB, supabase),
+    const [personARes, personBRes] = await Promise.all([
+      getPersonBySlugWithStatus(slugA, supabase),
+      getPersonBySlugWithStatus(slugB, supabase),
     ]);
 
-    if (!personA || !personB) return null;
+    if (personARes.error) {
+      return { data: null, error: `Person A lookup failed: ${personARes.error}` };
+    }
+    if (personBRes.error) {
+      return { data: null, error: `Person B lookup failed: ${personBRes.error}` };
+    }
+
+    const personA = personARes.data;
+    const personB = personBRes.data;
+
+    if (!personA || !personB) {
+      return { data: null, error: null };
+    }
 
     if (supabase) {
       // Find events where both personA.id and personB.id participate with robust pagination
@@ -275,7 +287,11 @@ export async function getRelationshipBetween(
       ]);
 
       if (resA.error || resB.error) {
-        return null;
+        if (process.env.NODE_ENV === "production") {
+          const err = resA.error || resB.error;
+          return { data: null, error: `Participation query failed: ${err?.message || "Unknown error"}` };
+        }
+        return { data: null, error: null };
       }
 
       const eventsA = new Set((resA.data || []).map((p) => p.event_id));
@@ -294,14 +310,14 @@ export async function getRelationshipBetween(
         const sharedEvents: EventRecord[] = fetchedEvents.filter(
           (e) => e.verificationStatus === "verified"
         );
-        return { personA, personB, sharedEvents };
+        return { data: { personA, personB, sharedEvents }, error: null };
       }
 
-      return { personA, personB, sharedEvents: [] };
+      return { data: { personA, personB, sharedEvents: [] }, error: null };
     }
 
     if (process.env.NODE_ENV === "production") {
-      return null;
+      return { data: null, error: "Database client unavailable" };
     }
     // Fallback: check shared events across all events
     const all = await getAllEvents();
@@ -313,11 +329,32 @@ export async function getRelationshipBetween(
     );
 
     return {
-      personA,
-      personB,
-      sharedEvents: shared,
+      data: {
+        personA,
+        personB,
+        sharedEvents: shared,
+      },
+      error: null,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      return { data: null, error: err instanceof Error ? err.message : "Database error" };
+    }
+    return { data: null, error: null };
   }
+}
+
+/**
+ * Retrieves the pairwise bilateral relationship and shared events between two individuals.
+ */
+export async function getRelationshipBetween(
+  slugA: string,
+  slugB: string,
+  supabaseClient?: unknown
+): Promise<PairwiseRelationshipData | null> {
+  const res = await getRelationshipBetweenWithStatus(slugA, slugB, supabaseClient);
+  if (res.error && process.env.NODE_ENV === "production") {
+    throw new Error(res.error);
+  }
+  return res.data;
 }

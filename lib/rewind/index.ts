@@ -10,5 +10,5 @@ export * from "./search";
 export * from "./stats";
 export * from "./temporal";
 export * from "./claims";
-export * from "./utils";
+export { getMonogram } from "./utils";
 

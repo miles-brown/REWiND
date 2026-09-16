@@ -12,10 +12,10 @@ ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS timezone_id text,
   ADD COLUMN IF NOT EXISTS utc_offset_seconds integer,
   ADD COLUMN IF NOT EXISTS timezone_abbreviation text,
-  ADD COLUMN IF NOT EXISTS dst_observed boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS timezone_confidence text DEFAULT 'exact',
+  ADD COLUMN IF NOT EXISTS dst_observed boolean,
+  ADD COLUMN IF NOT EXISTS timezone_confidence text,
   ADD COLUMN IF NOT EXISTS time_conversion_method text,
-  ADD COLUMN IF NOT EXISTS time_standard text DEFAULT 'local civil time',
+  ADD COLUMN IF NOT EXISTS time_standard text,
   ADD COLUMN IF NOT EXISTS duration_seconds integer,
   ADD COLUMN IF NOT EXISTS duration_precision text,
   ADD COLUMN IF NOT EXISTS duration_basis text,
@@ -26,10 +26,10 @@ ALTER TABLE public.events
 
 -- 2. Extend Sources with Independence and Level Taxonomy
 ALTER TABLE public.sources
-  ADD COLUMN IF NOT EXISTS source_level text DEFAULT 'primary',
-  ADD COLUMN IF NOT EXISTS independence_status text DEFAULT 'independent',
+  ADD COLUMN IF NOT EXISTS source_level text,
+  ADD COLUMN IF NOT EXISTS independence_status text,
   ADD COLUMN IF NOT EXISTS derived_from_source_id text REFERENCES public.sources(id),
-  ADD COLUMN IF NOT EXISTS source_quality text DEFAULT 'high';
+  ADD COLUMN IF NOT EXISTS source_quality text;
 
 -- 3. Extend Claims to General Purpose Epistemic Architecture
 ALTER TABLE public.claims

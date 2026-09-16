@@ -699,12 +699,9 @@ test("verifies PR #13 round-6 review fixes: polymorphic claims, merge participan
   // 5. TimelineComparison physical participant filtering and helper extraction
   const timelineComparisonTs = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
   assert.ok(
-    timelineComparisonTs.includes("function isPhysicalConfirmedParticipant"),
-    "TimelineComparison must define isPhysicalConfirmedParticipant helper"
-  );
-  assert.ok(
-    timelineComparisonTs.includes("function findTopCoAttendee"),
-    "TimelineComparison must extract findTopCoAttendee utility"
+    timelineComparisonTs.includes("isPhysicalConfirmedParticipant") &&
+    timelineComparisonTs.includes("findTopCoAttendee"),
+    "TimelineComparison must use isPhysicalConfirmedParticipant and findTopCoAttendee utilities"
   );
 
   // 6. Person timeline query error propagation
@@ -763,8 +760,7 @@ test("verifies round-7 Codex and Gemini forensic review items", async () => {
   // 3. Codex #3 & Gemini #5: app/compare/page.tsx robust findTopCoAttendee with physical & non-disputed filter
   const comparePageTs = fs.readFileSync(path.join(root, "app/compare/page.tsx"), "utf-8");
   assert.ok(
-    comparePageTs.includes("function isPhysicalConfirmedParticipant") &&
-    comparePageTs.includes("function findTopCoAttendee") &&
+    comparePageTs.includes("findTopCoAttendee") &&
     comparePageTs.includes("const initialPersonB = findTopCoAttendee(personA, people, allEvents);"),
     "app/compare/page.tsx must use robust findTopCoAttendee filtering physical and undisputed attendance"
   );
@@ -920,6 +916,88 @@ test("verifies round-9 Codex review fixes: cutover defaults restoration, duplica
     peopleTs.includes("return { data: null, error: personError };"),
     "getPersonTimelineWithStatus must propagate personError directly"
   );
+});
+
+test("verifies round-10 Codex and Gemini review fixes: unset unknown timezone/source defaults, relationship query error propagation, and shared findTopCoAttendee utility", async () => {
+  const root = process.cwd();
+
+  // 1. Migration 20260904010000_temporal_evidence_people_standards.sql leaves unknown timezone and source defaults unset
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  assert.ok(
+    !standardsSql.includes("dst_observed boolean DEFAULT false") &&
+    !standardsSql.includes("timezone_confidence text DEFAULT 'exact'") &&
+    !standardsSql.includes("time_standard text DEFAULT 'local civil time'"),
+    "standards migration must not backfill fabricated timezone assertions"
+  );
+  assert.ok(
+    !standardsSql.includes("source_level text DEFAULT 'primary'") &&
+    !standardsSql.includes("independence_status text DEFAULT 'independent'") &&
+    !standardsSql.includes("source_quality text DEFAULT 'high'"),
+    "standards migration must not classify unassessed sources as primary/independent/high"
+  );
+
+  // 2. lib/rewind/relationships.ts exports getRelationshipBetweenWithStatus and propagates participation failures
+  const relationshipsModule = await vite.ssrLoadModule("/lib/rewind/relationships.ts");
+  assert.equal(typeof relationshipsModule.getRelationshipBetweenWithStatus, "function");
+  assert.equal(typeof relationshipsModule.getRelationshipBetween, "function");
+
+  const relationshipsTs = fs.readFileSync(path.join(root, "lib/rewind/relationships.ts"), "utf-8");
+  assert.ok(
+    relationshipsTs.includes("export async function getRelationshipBetweenWithStatus(") &&
+    relationshipsTs.includes("Participation query failed:"),
+    "relationships.ts must propagate participation query failures in production"
+  );
+
+  // 3. app/relationship/[a]/[b]/page.tsx checks relationshipResult.error
+  const relationshipPageTs = fs.readFileSync(path.join(root, "app/relationship/[a]/[b]/page.tsx"), "utf-8");
+  assert.ok(
+    relationshipPageTs.includes("getRelationshipBetweenWithStatus(a, b)") &&
+    relationshipPageTs.includes("if (relationshipResult.error) {"),
+    "app/relationship/[a]/[b]/page.tsx must check relationshipResult.error to prevent false 404s"
+  );
+
+  // 4. lib/rewind/people.ts exports findTopCoAttendee and isPhysicalConfirmedParticipant
+  const peopleModule = await vite.ssrLoadModule("/lib/rewind/people.ts");
+  assert.equal(typeof peopleModule.findTopCoAttendee, "function");
+  assert.equal(typeof peopleModule.isPhysicalConfirmedParticipant, "function");
+
+  // Verify findTopCoAttendee logic
+  const mockPeople = [
+    { id: "p-1", slug: "benjamin-netanyahu", canonicalName: "Benjamin Netanyahu", displayName: "Benjamin Netanyahu", classification: "politician", notabilityBasis: "Prime Minister", isLiving: true, monitoringPriority: "normal", publicationStatus: "published" },
+    { id: "p-2", slug: "bill-clinton", canonicalName: "Bill Clinton", displayName: "Bill Clinton", classification: "politician", notabilityBasis: "President", isLiving: true, monitoringPriority: "normal", publicationStatus: "published" },
+    { id: "p-3", slug: "yasser-arafat", canonicalName: "Yasser Arafat", displayName: "Yasser Arafat", classification: "politician", notabilityBasis: "Chairman", isLiving: false, monitoringPriority: "normal", publicationStatus: "published" },
+  ];
+  const mockEvents = [
+    {
+      id: "e-1",
+      slug: "summit-1",
+      eventName: "Summit 1",
+      startDate: "1996-07-09",
+      datePrecision: "exact-day",
+      verificationStatus: "verified",
+      confidence: "confirmed",
+      participants: [
+        { personId: "p-1", slug: "benjamin-netanyahu", name: "Benjamin Netanyahu", attendanceMode: "physical" },
+        { personId: "p-2", slug: "bill-clinton", name: "Bill Clinton", attendanceMode: "physical" },
+      ],
+    },
+    {
+      id: "e-2",
+      slug: "summit-2",
+      eventName: "Summit 2",
+      startDate: "1998-10-23",
+      datePrecision: "exact-day",
+      verificationStatus: "verified",
+      confidence: "confirmed",
+      participants: [
+        { personId: "p-1", slug: "benjamin-netanyahu", name: "Benjamin Netanyahu", attendanceMode: "physical" },
+        { personId: "p-2", slug: "bill-clinton", name: "Bill Clinton", attendanceMode: "physical" },
+        { personId: "p-3", slug: "yasser-arafat", name: "Yasser Arafat", attendanceMode: "physical", presenceConfidence: "disputed" },
+      ],
+    },
+  ];
+  const topCo = peopleModule.findTopCoAttendee("benjamin-netanyahu", mockPeople, mockEvents);
+  assert.equal(topCo, "bill-clinton", "findTopCoAttendee must find top co-attendee excluding disputed presence");
 });
 
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import {
-  getRelationshipBetween,
+  getRelationshipBetweenWithStatus,
   getSourcesByIds,
   getMonogram,
   getPeopleWithStatus,
@@ -27,19 +27,22 @@ export default async function RelationshipPage({
     notFound();
   }
 
-  const [data, peopleResult, eventsResult] = await Promise.all([
-    getRelationshipBetween(a, b),
+  const [relationshipResult, peopleResult, eventsResult] = await Promise.all([
+    getRelationshipBetweenWithStatus(a, b),
     getPeopleWithStatus(),
     getAllEventsWithStatus(),
   ]);
-  if (!data) notFound();
+  if (relationshipResult.error) {
+    throw new Error(`Relationship data unavailable: ${relationshipResult.error}`);
+  }
+  if (!relationshipResult.data) notFound();
   if (peopleResult.error) {
     throw new Error(`Relationship people catalog unavailable: ${peopleResult.error}`);
   }
   if (eventsResult.error) {
     throw new Error(`Relationship event catalog unavailable: ${eventsResult.error}`);
   }
-  const { personA: pa, personB: pb } = data;
+  const { personA: pa, personB: pb } = relationshipResult.data;
   if (!pa || !pb || pa.id === pb.id) notFound();
   const verifiedEvents = (eventsResult.data || []).filter((e) => e.verificationStatus === "verified");
   const neededSourceIds = Array.from(new Set(verifiedEvents.flatMap((e) => e.sourceIds || [])));
