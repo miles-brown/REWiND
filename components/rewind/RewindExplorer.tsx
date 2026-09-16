@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate, formatTimelineDate } from "@/lib/rewind/dates";
+import { isStandardIsoDate, formatTimelineDate, compareTimelineDates } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
@@ -70,7 +70,7 @@ export function RewindExplorer({
             (status === "all" || e.verificationStatus === status)
           );
         })
-        .sort((a, b) => a.startDate.localeCompare(b.startDate)),
+        .sort((a, b) => compareTimelineDates(a.startDate, b.startDate)),
     [initialEvents, type, status]
   );
 

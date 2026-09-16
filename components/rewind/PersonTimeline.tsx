@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate, formatTimelineDate } from "@/lib/rewind/dates";
+import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -38,13 +38,13 @@ export function PersonTimeline({
   sources?: SourceRecord[];
 }) {
   const ordered = useMemo(
-    () => [...records].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    () => [...records].sort((a, b) => compareTimelineDates(a.startDate, b.startDate)),
     [records]
   );
 
   const [index, setIndex] = useState(() => {
     if (typeof window !== "undefined" && records.length) {
-      const sorted = [...records].sort((a, b) => a.startDate.localeCompare(b.startDate));
+      const sorted = [...records].sort((a, b) => compareTimelineDates(a.startDate, b.startDate));
       const params = new URLSearchParams(window.location.search);
       const targetSlug = params.get("evt") || params.get("event");
       if (targetSlug) {
@@ -69,16 +69,22 @@ export function PersonTimeline({
   const epochs = useMemo(() => {
     const map = new Map<string, number>();
     ordered.forEach((rec, idx) => {
-      const decade = rec.startDate.slice(0, 3) + "0s";
-      if (!map.has(decade)) {
-        map.set(decade, idx);
+      const year = extractYearFromDate(rec.startDate);
+      if (year !== null) {
+        const decade = `${Math.floor(year / 10) * 10}s`;
+        if (!map.has(decade)) {
+          map.set(decade, idx);
+        }
       }
     });
-    return Array.from(map.entries()).map(([decade, epochIdx]) => ({
-      decade,
-      index: epochIdx,
-      year: ordered[epochIdx]?.startDate.slice(0, 4) || "",
-    }));
+    return Array.from(map.entries()).map(([decade, epochIdx]) => {
+      const recYear = extractYearFromDate(ordered[epochIdx]?.startDate);
+      return {
+        decade,
+        index: epochIdx,
+        year: recYear !== null ? String(recYear) : "",
+      };
+    });
   }, [ordered]);
 
   // Bidirectional interval playback

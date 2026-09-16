@@ -640,16 +640,32 @@ export function processCandidateEvent(
           if (existingDbPlace) {
             effectivePlaceId = existingDbPlace.id;
           } else {
-            await tx.insert(schema.places).values({
-              id: livePlaceResolution.placeId,
-              slug: targetSlug,
-              venue: livePlaceResolution.venue,
-              city: livePlaceResolution.city,
-              country: livePlaceResolution.country,
-              latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-              longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
-              placeType: "venue",
-            });
+            await tx
+              .insert(schema.places)
+              .values({
+                id: livePlaceResolution.placeId,
+                slug: targetSlug,
+                venue: livePlaceResolution.venue,
+                city: livePlaceResolution.city,
+                country: livePlaceResolution.country,
+                latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+                longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+                placeType: "venue",
+              })
+              .onConflictDoNothing();
+
+            const [persistedPlace] = await tx
+              .select({ id: schema.places.id })
+              .from(schema.places)
+              .where(
+                or(
+                  eq(schema.places.id, livePlaceResolution.placeId),
+                  eq(schema.places.slug, targetSlug)
+                )
+              );
+            if (persistedPlace) {
+              effectivePlaceId = persistedPlace.id;
+            }
           }
 
           let eventSlug = baseSlug;

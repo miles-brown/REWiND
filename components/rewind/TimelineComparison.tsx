@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
-import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
+import { formatTimelineDate, isStandardIsoDate, compareTimelineDates } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
@@ -231,7 +231,7 @@ export function TimelineComparison({
       personA
         ? (personEventsMap.get(personA.slug) || [])
             .slice()
-            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+            .sort((a, b) => compareTimelineDates(a.startDate, b.startDate))
         : [],
     [personEventsMap, personA]
   );
@@ -241,7 +241,7 @@ export function TimelineComparison({
       personB
         ? (personEventsMap.get(personB.slug) || [])
             .slice()
-            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+            .sort((a, b) => compareTimelineDates(a.startDate, b.startDate))
         : [],
     [personEventsMap, personB]
   );
@@ -252,7 +252,7 @@ export function TimelineComparison({
     const eventsBIds = new Set((personEventsMap.get(personB.slug) || []).map((e) => e.id));
     return (personEventsMap.get(personA.slug) || [])
       .filter((e) => eventsBIds.has(e.id))
-      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+      .sort((a, b) => compareTimelineDates(a.startDate, b.startDate));
   }, [personEventsMap, personA, personB]);
 
   const filteredIntersections = useMemo(() => {

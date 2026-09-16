@@ -247,4 +247,45 @@ export function formatTimelineDate(
   }
 }
 
+/**
+ * Extracts a 4-digit calendar year from an ISO or archival date string (e.g. "c. 1963", "Spring 1999", "1993-09-13").
+ * Returns null if no valid 4-digit year can be extracted.
+ */
+export function extractYearFromDate(dateStr?: string | null): number | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const match = dateStr.match(/\b(\d{4})\b/);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  return isNaN(year) ? null : year;
+}
 
+/**
+ * Derives a normalized chronological sort key from an ISO or archival date string.
+ * Standard ISO dates: returns "1993-09-13" etc.
+ * Archival dates with year (e.g. "c. 1963", "Spring 1999"): returns "1963-00-00:c. 1963"
+ * Yearless / empty dates: returns "9999-99-99:<raw>"
+ */
+export function deriveChronologicalSortKey(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== "string") return "9999-99-99";
+  const trimmed = dateStr.trim();
+  if (!trimmed) return "9999-99-99";
+
+  if (isStandardIsoDate(trimmed)) {
+    return trimmed;
+  }
+
+  const year = extractYearFromDate(trimmed);
+  if (year !== null) {
+    return `${String(year).padStart(4, "0")}-00-00:${trimmed}`;
+  }
+
+  return `9999-99-99:${trimmed}`;
+}
+
+/**
+ * Chronological comparator for sorting historical events by startDate.
+ * Correctly orders both ISO-8601 dates and non-standard archival dates (e.g. "c. 1948" before "1993-09-13").
+ */
+export function compareTimelineDates(dateA?: string | null, dateB?: string | null): number {
+  return deriveChronologicalSortKey(dateA).localeCompare(deriveChronologicalSortKey(dateB));
+}

@@ -583,4 +583,21 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   const resColliding = processCandidateEvent(candColliding, srcA);
   assert.ok(resColliding.publishedEventId, "Colliding event must be published");
   assert.equal(resColliding.publishedEventId, `${expectedBaseSlug}-2`, "Colliding event must receive -2 suffix");
+
+  // 13. Chronological sorting with archival date prefixes and extractYearFromDate
+  const { extractYearFromDate, deriveChronologicalSortKey, compareTimelineDates } = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  assert.equal(extractYearFromDate("c. 1963"), 1963);
+  assert.equal(extractYearFromDate("circa 1948"), 1948);
+  assert.equal(extractYearFromDate("Spring 1999"), 1999);
+  assert.equal(extractYearFromDate("2023-10-07"), 2023);
+  assert.equal(extractYearFromDate("undated"), null);
+  assert.equal(extractYearFromDate(""), null);
+
+  assert.equal(deriveChronologicalSortKey("c. 1963"), "1963-00-00:c. 1963");
+  assert.equal(deriveChronologicalSortKey("2023-10-07"), "2023-10-07");
+  assert.equal(deriveChronologicalSortKey("undated"), "9999-99-99:undated");
+
+  const datesToSort = ["1993-09-13", "c. 1948", "Spring 1975", "1948-05-14", "undated"];
+  const sortedDates = [...datesToSort].sort(compareTimelineDates);
+  assert.deepEqual(sortedDates, ["c. 1948", "1948-05-14", "Spring 1975", "1993-09-13", "undated"]);
 });
