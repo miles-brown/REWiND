@@ -483,7 +483,7 @@ export function MapGraphic({
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Layer Theme Toggle: Satellite vs Dark Basemap */}
         {/* Only expose satellite toggle when a satellite style is actually configured */}
-        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE) && (
+        {webGlSupported && mapMode === "webgl" && Boolean(MAPBOX_SATELLITE_STYLE) && (
           <button
             type="button"
             className={`map-tool-btn theme-toggle ${mapTheme === "satellite" ? "active" : ""}`}

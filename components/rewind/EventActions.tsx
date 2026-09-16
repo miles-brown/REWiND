@@ -29,6 +29,12 @@ export function EventActions({
 
   const hasQuotes = event.quotes && event.quotes.length > 0;
 
+  // Fallback logic: Ensure EventActions always resolves an authoritative primary source
+  const effectivePrimarySource =
+    primarySource ||
+    event.sources?.find((s) => s.tier === "tier-a" || s.tier === "tier-b" || s.classification === "primary") ||
+    (event.sources && event.sources.length > 0 ? event.sources[0] : undefined);
+
   return (
     <>
       <div className="event-action-buttons">
@@ -73,7 +79,7 @@ export function EventActions({
 
       <CitationModal
         event={event}
-        source={primarySource || (event.sources && event.sources.length > 0 ? event.sources[0] : undefined)}
+        source={effectivePrimarySource}
         isOpen={citeOpen}
         onClose={() => setCiteOpen(false)}
       />

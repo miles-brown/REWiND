@@ -170,7 +170,9 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     const extractedLng = typeof data?.longitude === "number" && !isNaN(data.longitude) ? data.longitude : null;
 
     const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
-    const placeId = `plc-${(data?.city || data?.venue || candidate.suggestedPlace || "unspecified").toLowerCase().replace(/[^\w]/g, "-").slice(0, 24)}`;
+    const citySlug = (extractedCity || "unknown").toLowerCase().replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 16) || "unknown";
+    const venueSlug = (extractedVenue || "general").toLowerCase().replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20) || "general";
+    const placeId = `plc-${citySlug}-${venueSlug}`;
 
     const newClaims: Array<
       typeof schema.claims.$inferInsert & { subjectMention?: string }
@@ -265,7 +267,16 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           const [existingDbPlace] = await tx
             .select()
             .from(schema.places)
-            .where(or(eq(schema.places.id, placeId), eq(schema.places.slug, targetSlug)));
+            .where(
+              or(
+                eq(schema.places.id, placeId),
+                eq(schema.places.slug, targetSlug),
+                and(
+                  ilike(schema.places.city, escapeIlikePattern(extractedCity)),
+                  ilike(schema.places.venue, escapeIlikePattern(extractedVenue))
+                )
+              )
+            );
           if (existingDbPlace) {
             resolvedPlaceId = existingDbPlace.id;
           } else {

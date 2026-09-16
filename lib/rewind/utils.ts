@@ -6,6 +6,8 @@
  * Generates a 2-character uppercase monogram for a person or entity name.
  * e.g. "Benjamin Netanyahu" -> "BN", "Churchill" -> "CH"
  */
+export function getMonogram(name: string): string;
+export function getMonogram(name?: string | null): string;
 export function getMonogram(name?: string | null): string {
   if (!name || typeof name !== "string") return "—";
   const trimmed = name.trim();

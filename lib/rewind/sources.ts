@@ -209,31 +209,65 @@ export async function getSourceEventCounts(): Promise<Record<string, number>> {
 }
 
 /**
+ * Retrieves multiple sources by their IDs in bounded batch queries with status and error reporting.
+ * Preserves successfully hydrated chunks or falls back to archival records, failing closed in production.
+ */
+export async function getSourcesByIdsWithStatus(
+  ids: string[]
+): Promise<{ data: SourceRecord[]; error: string | null }> {
+  if (!ids || ids.length === 0) return { data: [], error: null };
+  try {
+    const supabase = await createClient();
+    if (supabase) {
+      const rows: Record<string, unknown>[] = [];
+      const uniqueIds = Array.from(new Set(ids));
+      const CHUNK_SIZE = 500;
+      let batchError: string | null = null;
+      for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+        const chunk = uniqueIds.slice(i, i + CHUNK_SIZE);
+        const { data, error } = await supabase
+          .from("sources")
+          .select("*")
+          .in("id", chunk);
+
+        if (error) {
+          batchError = error.message;
+          if (process.env.NODE_ENV === "production") {
+            throw error;
+          }
+          break;
+        }
+        if (data) rows.push(...data);
+      }
+
+      if (batchError && rows.length === 0) {
+        const fb = getFallbackSources().filter((s) => ids.includes(s.id));
+        return { data: fb, error: batchError };
+      }
+
+      return { data: rows.map(mapDatabaseSource), error: batchError };
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      return { data: [], error: "Database client unavailable in production" };
+    }
+    const fb = getFallbackSources().filter((s) => ids.includes(s.id));
+    return { data: fb, error: null };
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      throw err;
+    }
+    const fb = getFallbackSources().filter((s) => ids.includes(s.id));
+    return { data: fb, error: err instanceof Error ? err.message : "Failed to load sources" };
+  }
+}
+
+/**
  * Retrieves multiple sources by their IDs in bounded batch queries.
  */
 export async function getSourcesByIds(ids: string[]): Promise<SourceRecord[]> {
-  if (!ids || ids.length === 0) return [];
-  try {
-    const supabase = await createClient();
-    if (!supabase) return [];
-
-    const rows: Record<string, unknown>[] = [];
-    const uniqueIds = Array.from(new Set(ids));
-    const CHUNK_SIZE = 500;
-    for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
-      const chunk = uniqueIds.slice(i, i + CHUNK_SIZE);
-      const { data, error } = await supabase
-        .from("sources")
-        .select("*")
-        .in("id", chunk);
-
-      if (error) return [];
-      if (data) rows.push(...data);
-    }
-    return rows.map(mapDatabaseSource);
-  } catch {
-    return [];
-  }
+  const res = await getSourcesByIdsWithStatus(ids);
+  return res.data;
 }
 
 export async function getArchiveSourceById(

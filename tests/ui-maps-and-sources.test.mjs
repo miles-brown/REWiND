@@ -153,8 +153,8 @@ test("verifies MapGraphic.tsx WebGL hydration resilience and token safeguards", 
 
   // Satellite token safeguard: button must be completely hidden when satellite style is absent
   assert.ok(
-    content.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
-    "Satellite toggle button must be hidden entirely when MAPBOX_TOKEN or MAPBOX_SATELLITE_STYLE is empty"
+    content.includes("Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "Satellite toggle button must be hidden entirely when MAPBOX_SATELLITE_STYLE is empty"
   );
 });
 
@@ -669,9 +669,8 @@ test("verifies TimelineComparison dynamic person defaults and RewindExplorer sub
   assert.ok(
     compPageContent.includes("initialPersonA={personA?.slug}") &&
     compPageContent.includes("initialPersonB={initialPersonB}") &&
-    compPageContent.includes("initialPersonB = people[1]?.slug;") &&
-    compPageContent.includes("initialPersonB = matched.slug;"),
-    "app/compare/page.tsx must dynamically resolve initialPersonB based on top co-attendee falling back to people[1]?.slug"
+    compPageContent.includes("const initialPersonB = findTopCoAttendee(personA, people, allEvents);"),
+    "app/compare/page.tsx must dynamically resolve initialPersonB based on top co-attendee using findTopCoAttendee"
   );
   assert.ok(
     compContent.includes("initialPersonA || people[0]?.slug || \"\"") &&

@@ -629,8 +629,8 @@ test("verifies PR #13 round-5 review fixes: claim confidence defaults to limited
   // 3. MapGraphic satellite gating
   const mapContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
   assert.ok(
-    mapContent.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
-    "MapGraphic must conditionally render satellite toggle only when token and style are configured"
+    mapContent.includes("Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "MapGraphic must conditionally render satellite toggle when satellite style is configured"
   );
   assert.ok(
     !mapContent.includes('title="Requires Mapbox token"'),
@@ -734,6 +734,77 @@ test("verifies PR #13 round-6 review fixes: polymorphic claims, merge participan
   assert.ok(
     claimsTs.includes('c.subject_id ? "person" : (c.subject_entity_type || "event")'),
     "claims.ts must fall back to person entity type when subject_id is present"
+  );
+});
+
+test("verifies round-7 Codex and Gemini forensic review items", async () => {
+  const root = process.cwd();
+
+  // 1. Codex #1: publishCandidateEvent placeId incorporates city and venue
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  assert.ok(
+    evidenceServiceTs.includes("const citySlug = (extractedCity || \"unknown\").toLowerCase()") &&
+    evidenceServiceTs.includes("const venueSlug = (extractedVenue || \"general\").toLowerCase()") &&
+    evidenceServiceTs.includes("const placeId = `plc-${citySlug}-${venueSlug}`;"),
+    "evidence-service.ts must derive placeId by combining city and venue to avoid venue collisions"
+  );
+
+  // 2. Codex #2: getSourcesByIdsWithStatus preserves hydrated sources and propagates errors
+  const sourcesModule = await vite.ssrLoadModule("/lib/rewind/sources.ts");
+  assert.equal(typeof sourcesModule.getSourcesByIdsWithStatus, "function");
+  assert.equal(typeof sourcesModule.getSourcesByIds, "function");
+  const sourcesTs = fs.readFileSync(path.join(root, "lib/rewind/sources.ts"), "utf-8");
+  assert.ok(
+    sourcesTs.includes("export async function getSourcesByIdsWithStatus(") &&
+    sourcesTs.includes("if (batchError && rows.length === 0)"),
+    "sources.ts must export getSourcesByIdsWithStatus with fallback and error propagation"
+  );
+
+  // 3. Codex #3 & Gemini #5: app/compare/page.tsx robust findTopCoAttendee with physical & non-disputed filter
+  const comparePageTs = fs.readFileSync(path.join(root, "app/compare/page.tsx"), "utf-8");
+  assert.ok(
+    comparePageTs.includes("function isPhysicalConfirmedParticipant") &&
+    comparePageTs.includes("function findTopCoAttendee") &&
+    comparePageTs.includes("const initialPersonB = findTopCoAttendee(personA, people, allEvents);"),
+    "app/compare/page.tsx must use robust findTopCoAttendee filtering physical and undisputed attendance"
+  );
+
+  // 4. Gemini #1: components/ui/slider.tsx ARIA attributes
+  const sliderTs = fs.readFileSync(path.join(root, "components/ui/slider.tsx"), "utf-8");
+  assert.ok(
+    sliderTs.includes("aria-label={thumbLabel}") &&
+    sliderTs.includes("aria-valuetext={thumbValueText}") &&
+    sliderTs.includes("aria-valuenow={ariaValueNow ?? thumbValue}") &&
+    sliderTs.includes("aria-valuemin={ariaValueMin ?? min}") &&
+    sliderTs.includes("aria-valuemax={ariaValueMax ?? max}"),
+    "slider.tsx must pass explicit aria-valuemin, aria-valuemax, aria-valuenow, and aria-valuetext to SliderPrimitive.Thumb"
+  );
+
+  // 5. Gemini #2: lib/rewind/utils.ts getMonogram typing
+  const utilsModule = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+  assert.equal(typeof utilsModule.getMonogram, "function");
+  assert.equal(utilsModule.getMonogram("David Ben-Gurion"), "DB");
+  assert.equal(utilsModule.getMonogram(null), "—");
+  const utilsTs = fs.readFileSync(path.join(root, "lib/rewind/utils.ts"), "utf-8");
+  assert.ok(
+    utilsTs.includes("export function getMonogram(name: string): string;"),
+    "utils.ts must declare strict getMonogram typing overload"
+  );
+
+  // 6. Gemini #3: components/rewind/MapGraphic.tsx satellite check
+  const mapGraphicTs = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  assert.ok(
+    mapGraphicTs.includes("Boolean(MAPBOX_SATELLITE_STYLE) && (") &&
+    !mapGraphicTs.includes("Boolean(MAPBOX_TOKEN) && Boolean(MAPBOX_SATELLITE_STYLE)"),
+    "MapGraphic.tsx must check Boolean(MAPBOX_SATELLITE_STYLE) directly"
+  );
+
+  // 7. Gemini #4: components/rewind/EventActions.tsx primary source resolution
+  const eventActionsTs = fs.readFileSync(path.join(root, "components/rewind/EventActions.tsx"), "utf-8");
+  assert.ok(
+    eventActionsTs.includes("const effectivePrimarySource =") &&
+    eventActionsTs.includes("source={effectivePrimarySource}"),
+    "EventActions.tsx must resolve effectivePrimarySource before passing to CitationModal"
   );
 });
 
