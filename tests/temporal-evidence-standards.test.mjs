@@ -1003,27 +1003,14 @@ test("verifies round-10 Codex and Gemini review fixes: unset unknown timezone/so
 test("verifies round-11 Codex review fixes: drop defaults on migrated DBs, unassessed evidence strength, legacy contradicted claims, and unestablished timezone badge", async () => {
   const root = process.cwd();
 
-  // 1. Migration drops defaults and remediates already-migrated databases
+  // 1. Base migration 20260904010000 defines clean nullable columns
   const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
   assert.ok(
-    standardsSql.includes("ALTER TABLE public.events") &&
-    standardsSql.includes("ALTER COLUMN dst_observed DROP DEFAULT") &&
-    standardsSql.includes("ALTER COLUMN timezone_confidence DROP DEFAULT") &&
-    standardsSql.includes("ALTER COLUMN time_standard DROP DEFAULT"),
-    "migration must drop events column defaults on already-migrated databases"
-  );
-  assert.ok(
-    standardsSql.includes("ALTER TABLE public.sources") &&
-    standardsSql.includes("ALTER COLUMN source_level DROP DEFAULT") &&
-    standardsSql.includes("ALTER COLUMN independence_status DROP DEFAULT") &&
-    standardsSql.includes("ALTER COLUMN source_quality DROP DEFAULT"),
-    "migration must drop sources column defaults on already-migrated databases"
-  );
-  assert.ok(
-    standardsSql.includes("ALTER TABLE public.claim_evidence") &&
-    standardsSql.includes("ALTER COLUMN evidence_strength DROP DEFAULT") &&
-    standardsSql.includes("ALTER COLUMN directness DROP DEFAULT"),
-    "migration must drop claim_evidence column defaults on already-migrated databases"
+    !standardsSql.includes("dst_observed boolean DEFAULT false") &&
+    !standardsSql.includes("timezone_confidence text DEFAULT 'exact'") &&
+    !standardsSql.includes("source_level text DEFAULT 'primary'") &&
+    !standardsSql.includes("evidence_strength text DEFAULT 'direct conclusive'"),
+    "base migration 20260904010000 must define clean columns without fabricated defaults"
   );
   assert.ok(
     standardsSql.includes("WHEN confidence = 'refuted' THEN 'CONTRADICTED'") &&
@@ -1048,6 +1035,55 @@ test("verifies round-11 Codex review fixes: drop defaults on migrated DBs, unass
     !temporalBadgeTs.includes('"Local Jurisdiction"') &&
     !temporalBadgeTs.includes('"Standard offset"'),
     "TemporalBadge must not render positive assertions (Local Jurisdiction / Standard offset) for unassessed events"
+  );
+});
+
+test("verifies round-12 Codex review fixes: separate remediation migration, stored tier matching, evidence default clearing, and polymorphic claims RLS", async () => {
+  const root = process.cwd();
+
+  // 1. Dedicated remediation migration 20260904020000 exists
+  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
+  assert.ok(
+    remediationSql.includes("ALTER TABLE public.events") &&
+    remediationSql.includes("ALTER COLUMN dst_observed DROP DEFAULT") &&
+    remediationSql.includes("ALTER COLUMN timezone_confidence DROP DEFAULT") &&
+    remediationSql.includes("ALTER COLUMN time_standard DROP DEFAULT"),
+    "remediation migration must drop events column defaults"
+  );
+
+  // 2. Stored tier matching
+  assert.ok(
+    remediationSql.includes("tier-a") &&
+    remediationSql.includes("source_level = 'primary'"),
+    "remediation migration must match stored tier-a and non-tier-a codes"
+  );
+
+  // 3. Clear values written by removed claim_evidence defaults
+  assert.ok(
+    remediationSql.includes("UPDATE public.claim_evidence") &&
+    remediationSql.includes("SET evidence_strength = NULL") &&
+    remediationSql.includes("WHERE evidence_strength = 'direct conclusive'"),
+    "remediation migration must clear fabricated evidence_strength defaults"
+  );
+  assert.ok(
+    remediationSql.includes("UPDATE public.claim_evidence") &&
+    remediationSql.includes("SET directness = NULL") &&
+    remediationSql.includes("WHERE directness = 'direct'"),
+    "remediation migration must clear fabricated directness defaults"
+  );
+
+  // 4. Polymorphic subjects in claims and claim_evidence RLS
+  assert.ok(
+    remediationSql.includes("claims.subject_entity_type = 'person'") &&
+    remediationSql.includes("claims.subject_entity_type = 'organisation'") &&
+    remediationSql.includes("claims.subject_entity_type = 'event'"),
+    "remediation migration claims RLS must authorize published polymorphic subjects"
+  );
+  assert.ok(
+    remediationSql.includes("c.subject_entity_type = 'person'") &&
+    remediationSql.includes("c.subject_entity_type = 'organisation'") &&
+    remediationSql.includes("c.subject_entity_type = 'event'"),
+    "remediation migration claim_evidence RLS must authorize published polymorphic subjects"
   );
 });
 
