@@ -1,63 +1,39 @@
 -- ==============================================================================
--- REWiND — Standards Remediation, Conservative Evidence Defaults & Polymorphic RLS
--- Migration: 20260904020000_standards_remediation_and_rls.sql
+-- REWiND — Quote, Claim & Evidence RLS Hardening (Migration 20260904030000)
+-- Migration: 20260904030000_quote_and_claim_rls_hardening.sql
 -- ==============================================================================
 
--- 1. Drop Inadvertent Defaults & Remediate Unassessed Event Timezone Metadata
-ALTER TABLE public.events
-  ALTER COLUMN dst_observed DROP DEFAULT,
-  ALTER COLUMN timezone_confidence DROP DEFAULT,
-  ALTER COLUMN time_standard DROP DEFAULT;
+-- 1. Hardened Quotes RLS Policy (Speaker Must Be Published for Event Quotes)
+DROP POLICY IF EXISTS "Public read quotes" ON public.quotes;
+DROP POLICY IF EXISTS "Allow public read on quotes" ON public.quotes;
+CREATE POLICY "Allow public read on quotes"
+  ON public.quotes FOR SELECT
+  TO anon, authenticated
+  USING (
+    (
+      -- Case 1: Event-linked quote -> Event MUST be published; if speaker is specified, speaker MUST also be published
+      quotes.event_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM public.events e WHERE (e.id = quotes.event_id OR e.slug = quotes.event_id) AND e.publication_status = 'published'
+      )
+      AND (
+        quotes.speaker_id IS NULL OR EXISTS (
+          SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
+        )
+      )
+    )
+    OR
+    (
+      -- Case 2: Standalone quote (event_id is NULL) -> Speaker MUST be published
+      quotes.event_id IS NULL
+      AND quotes.speaker_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
+      )
+    )
+  );
 
-UPDATE public.events
-SET dst_observed = NULL,
-    timezone_confidence = NULL,
-    time_standard = NULL
-WHERE timezone_id IS NULL AND local_start_time IS NULL;
-
--- 2. Drop Inadvertent Defaults & Remediate Unassessed Sources
-ALTER TABLE public.sources
-  ALTER COLUMN source_level DROP DEFAULT,
-  ALTER COLUMN independence_status DROP DEFAULT,
-  ALTER COLUMN source_quality DROP DEFAULT;
-
-UPDATE public.sources
-SET source_level = NULL,
-    independence_status = NULL,
-    source_quality = NULL
-WHERE (tier IS NULL OR lower(tier) NOT IN ('tier-a', 'tier-1', 'a', '1'))
-  AND source_level = 'primary'
-  AND independence_status = 'independent'
-  AND source_quality = 'high'
-  AND derived_from_source_id IS NULL;
-
--- 3. Drop Defaults on Claim Evidence Strength and Directness
-ALTER TABLE public.claim_evidence
-  ALTER COLUMN evidence_strength DROP DEFAULT,
-  ALTER COLUMN evidence_strength DROP NOT NULL,
-  ALTER COLUMN directness DROP DEFAULT,
-  ALTER COLUMN directness DROP NOT NULL;
-
--- 4. Remediate Legacy Refuted and Contradicted Claims Status
-UPDATE public.claims
-SET
-  claim_status = CASE
-    WHEN confidence = 'confirmed' THEN 'ESTABLISHED'
-    WHEN confidence = 'disputed' THEN 'DISPUTED'
-    WHEN confidence = 'refuted' THEN 'CONTRADICTED'
-    WHEN confidence = 'contradicted' THEN 'CONTRADICTED'
-    ELSE 'PROVISIONAL'
-  END,
-  epistemic_class = CASE
-    WHEN confidence = 'confirmed' THEN 'documented fact'
-    WHEN confidence = 'disputed' THEN 'disputed proposition'
-    WHEN confidence = 'refuted' THEN 'disputed proposition'
-    WHEN confidence = 'contradicted' THEN 'disputed proposition'
-    ELSE 'allegation'
-  END
-WHERE claim_status IS NULL OR claim_status = 'PROVISIONAL' OR claim_status = 'REFUTED';
-
--- 5. Update RLS Policies to Authorize Published Polymorphic Subjects & Require ALL Referenced Events to be Published
+-- 2. Hardened Claims RLS Policy (ALL Referenced Events & Subjects Must Be Published)
 DROP POLICY IF EXISTS "Public read claims" ON public.claims;
 DROP POLICY IF EXISTS "Allow public read on claims" ON public.claims;
 CREATE POLICY "Allow public read on claims"
@@ -111,6 +87,7 @@ CREATE POLICY "Allow public read on claims"
     )
   );
 
+-- 3. Hardened Claim Evidence RLS Policy
 DROP POLICY IF EXISTS "Public read claim evidence" ON public.claim_evidence;
 CREATE POLICY "Public read claim evidence"
   ON public.claim_evidence FOR SELECT
@@ -166,35 +143,5 @@ CREATE POLICY "Public read claim evidence"
             )
           )
         )
-    )
-  );
-
--- 6. Authorize Published Quotes with Published Speakers
-DROP POLICY IF EXISTS "Public read quotes" ON public.quotes;
-DROP POLICY IF EXISTS "Allow public read on quotes" ON public.quotes;
-CREATE POLICY "Allow public read on quotes"
-  ON public.quotes FOR SELECT
-  TO anon, authenticated
-  USING (
-    (
-      -- Case 1: Event-linked quote -> Event MUST be published; if speaker is specified, speaker MUST also be published
-      quotes.event_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.events e WHERE (e.id = quotes.event_id OR e.slug = quotes.event_id) AND e.publication_status = 'published'
-      )
-      AND (
-        quotes.speaker_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
-        )
-      )
-    )
-    OR
-    (
-      -- Case 2: Standalone quote (event_id is NULL) -> Speaker MUST be published
-      quotes.event_id IS NULL
-      AND quotes.speaker_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
-      )
     )
   );

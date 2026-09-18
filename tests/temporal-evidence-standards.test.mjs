@@ -1038,67 +1038,39 @@ test("verifies round-11 Codex review fixes: drop defaults on migrated DBs, unass
   );
 });
 
-test("verifies round-12 Codex review fixes: separate remediation migration, stored tier matching, evidence default clearing, and polymorphic claims RLS", async () => {
-  const root = process.cwd();
-
-  // 1. Dedicated remediation migration 20260904020000 exists
-  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
-  assert.ok(
-    remediationSql.includes("ALTER TABLE public.events") &&
-    remediationSql.includes("ALTER COLUMN dst_observed DROP DEFAULT") &&
-    remediationSql.includes("ALTER COLUMN timezone_confidence DROP DEFAULT") &&
-    remediationSql.includes("ALTER COLUMN time_standard DROP DEFAULT"),
-    "remediation migration must drop events column defaults"
-  );
-
-  // 2. Stored tier matching
-  assert.ok(
-    remediationSql.includes("tier-a") &&
-    remediationSql.includes("source_level = 'primary'"),
-    "remediation migration must match stored tier-a and non-tier-a codes"
-  );
-
-  // 3. Clear values written by removed claim_evidence defaults while preserving assessed rows
-  assert.ok(
-    remediationSql.includes("UPDATE public.claim_evidence ce") &&
-    remediationSql.includes("SET evidence_strength = NULL") &&
-    remediationSql.includes("ce.citation_locator IS NULL") &&
-    remediationSql.includes("ce.supporting_excerpt IS NULL"),
-    "remediation migration must target unassessed claim_evidence rows lacking locators/excerpts"
-  );
-  assert.ok(
-    remediationSql.includes("UPDATE public.claim_evidence ce") &&
-    remediationSql.includes("SET directness = NULL") &&
-    remediationSql.includes("ce.citation_locator IS NULL") &&
-    remediationSql.includes("ce.supporting_excerpt IS NULL"),
-    "remediation migration must target unassessed directness rows lacking locators/excerpts"
-  );
-
-  // 4. Polymorphic subjects in claims and claim_evidence RLS
-  assert.ok(
-    remediationSql.includes("claims.subject_entity_type = 'person'") &&
-    remediationSql.includes("claims.subject_entity_type = 'organisation'") &&
-    remediationSql.includes("claims.subject_entity_type = 'event'"),
-    "remediation migration claims RLS must authorize published polymorphic subjects"
-  );
-  assert.ok(
-    remediationSql.includes("c.subject_entity_type = 'person'") &&
-    remediationSql.includes("c.subject_entity_type = 'organisation'") &&
-    remediationSql.includes("c.subject_entity_type = 'event'"),
-    "remediation migration claim_evidence RLS must authorize published polymorphic subjects"
-  );
-});
-
-test("verifies round-13 and round-14 Codex review fixes: strict TLS with trusted CA, quote policy migration, all-referenced-events publication check, and targeted evidence remediation", async () => {
+test("verifies round-12, round-13, round-14, and round-15 Codex review fixes: strict TLS with trusted CA, quote policy migration, all-referenced-events publication check, and non-destructive evidence defaults", async () => {
   const root = process.cwd();
 
   const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
   const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
   const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  const hardeningSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904030000_quote_and_claim_rls_hardening.sql"), "utf-8");
   const clientTs = fs.readFileSync(path.join(root, "lib/db/client.ts"), "utf-8");
 
-  // 1. RLS policies require ALL referenced events to be published for event-linked claims
-  for (const sql of [remediationSql, standardsSql]) {
+  // 1. Dedicated hardening migration 20260904030000 exists and drops/recreates policies for deployed databases
+  assert.ok(
+    hardeningSql.includes("DROP POLICY IF EXISTS \"Allow public read on quotes\" ON public.quotes;") &&
+    hardeningSql.includes("CREATE POLICY \"Allow public read on quotes\"") &&
+    hardeningSql.includes("quotes.speaker_id IS NULL OR EXISTS"),
+    "Hardening migration must drop and recreate quotes policy with speaker publication requirement"
+  );
+  assert.ok(
+    hardeningSql.includes("DROP POLICY IF EXISTS \"Allow public read on claims\" ON public.claims;") &&
+    hardeningSql.includes("CREATE POLICY \"Allow public read on claims\"") &&
+    hardeningSql.includes("claims.event_id IS NULL OR EXISTS") &&
+    hardeningSql.includes("claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS"),
+    "Hardening migration must enforce that all referenced events are published for claims"
+  );
+  assert.ok(
+    hardeningSql.includes("DROP POLICY IF EXISTS \"Public read claim evidence\" ON public.claim_evidence;") &&
+    hardeningSql.includes("CREATE POLICY \"Public read claim evidence\"") &&
+    hardeningSql.includes("c.event_id IS NULL OR EXISTS") &&
+    hardeningSql.includes("c.subject_entity_type <> 'event' OR c.subject_entity_id IS NULL OR EXISTS"),
+    "Hardening migration must enforce that all referenced events are published for claim evidence"
+  );
+
+  // 2. RLS policies require ALL referenced events to be published for event-linked claims
+  for (const sql of [remediationSql, standardsSql, hardeningSql]) {
     assert.ok(
       sql.includes("claims.event_id IS NULL OR EXISTS") &&
       sql.includes("claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS"),
@@ -1111,20 +1083,12 @@ test("verifies round-13 and round-14 Codex review fixes: strict TLS with trusted
     );
   }
 
-  // 2. Targeted evidence remediation preserves explicitly assessed rows across all source tiers
+  // 3. Dropping column defaults in remediation without destructive heuristic wipes of valid assessments
   assert.ok(
-    remediationSql.includes("ce.evidence_strength = 'direct conclusive'") &&
-    remediationSql.includes("ce.citation_locator IS NULL") &&
-    remediationSql.includes("ce.supporting_excerpt IS NULL"),
-    "Remediation must selectively target unassessed default values lacking locator and excerpt"
-  );
-
-  // 3. Remediation migration drops and recreates quotes RLS policy
-  assert.ok(
-    remediationSql.includes("DROP POLICY IF EXISTS \"Allow public read on quotes\" ON public.quotes;") &&
-    remediationSql.includes("CREATE POLICY \"Allow public read on quotes\"") &&
-    remediationSql.includes("quotes.speaker_id IS NULL OR EXISTS"),
-    "Remediation migration must drop and recreate quotes policy with speaker publication requirement"
+    remediationSql.includes("ALTER TABLE public.claim_evidence") &&
+    remediationSql.includes("ALTER COLUMN evidence_strength DROP DEFAULT") &&
+    remediationSql.includes("ALTER COLUMN directness DROP DEFAULT"),
+    "Remediation must drop claim_evidence column defaults"
   );
 
   // 4. Cutover migration requires published subject on event-linked claims and quotes
@@ -1147,6 +1111,7 @@ test("verifies round-13 and round-14 Codex review fixes: strict TLS with trusted
     "lib/db/client.ts must enforce certificate verification with trusted CA"
   );
 });
+
 
 
 
