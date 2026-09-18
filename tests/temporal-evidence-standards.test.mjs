@@ -1058,18 +1058,18 @@ test("verifies round-12 Codex review fixes: separate remediation migration, stor
     "remediation migration must match stored tier-a and non-tier-a codes"
   );
 
-  // 3. Clear values written by removed claim_evidence defaults
+  // 3. Clear values written by removed claim_evidence defaults while preserving assessed rows
   assert.ok(
-    remediationSql.includes("UPDATE public.claim_evidence") &&
+    remediationSql.includes("UPDATE public.claim_evidence ce") &&
     remediationSql.includes("SET evidence_strength = NULL") &&
-    remediationSql.includes("WHERE evidence_strength = 'direct conclusive'"),
-    "remediation migration must clear fabricated evidence_strength defaults"
+    remediationSql.includes("ce.citation_locator IS NULL AND ce.supporting_excerpt IS NULL"),
+    "remediation migration must target unassessed claim_evidence rows lacking locators/excerpts"
   );
   assert.ok(
-    remediationSql.includes("UPDATE public.claim_evidence") &&
+    remediationSql.includes("UPDATE public.claim_evidence ce") &&
     remediationSql.includes("SET directness = NULL") &&
-    remediationSql.includes("WHERE directness = 'direct'"),
-    "remediation migration must clear fabricated directness defaults"
+    remediationSql.includes("ce.citation_locator IS NULL AND ce.supporting_excerpt IS NULL"),
+    "remediation migration must target unassessed directness rows lacking locators/excerpts"
   );
 
   // 4. Polymorphic subjects in claims and claim_evidence RLS
@@ -1084,6 +1084,36 @@ test("verifies round-12 Codex review fixes: separate remediation migration, stor
     remediationSql.includes("c.subject_entity_type = 'organisation'") &&
     remediationSql.includes("c.subject_entity_type = 'event'"),
     "remediation migration claim_evidence RLS must authorize published polymorphic subjects"
+  );
+});
+
+test("verifies round-13 Codex review fixes: preserved explicit claim evidence and draft event leak prevention in person claims RLS", async () => {
+  const root = process.cwd();
+
+  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+
+  // 1. RLS policies require published events for event-linked claims
+  for (const sql of [remediationSql, standardsSql]) {
+    assert.ok(
+      sql.includes("claims.event_id IS NULL") &&
+      sql.includes("e.publication_status = 'published'"),
+      "Claims RLS must require event to be published when event_id is present"
+    );
+    assert.ok(
+      sql.includes("c.event_id IS NULL") &&
+      sql.includes("e.publication_status = 'published'"),
+      "Claim evidence RLS must require event to be published when event_id is present"
+    );
+  }
+
+  // 2. Targeted evidence remediation preserves explicitly assessed rows
+  assert.ok(
+    remediationSql.includes("FROM public.sources s") &&
+    remediationSql.includes("ce.source_id = s.id") &&
+    remediationSql.includes("ce.evidence_strength = 'direct conclusive'") &&
+    remediationSql.includes("ce.directness = 'direct'"),
+    "Remediation must selectively target unassessed default values"
   );
 });
 
