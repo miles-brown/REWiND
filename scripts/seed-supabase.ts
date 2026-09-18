@@ -10,6 +10,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../db/schema";
+import { getPostgresSslConfig } from "../lib/db/client";
 import { people, events, sources } from "../archive/legacy-data/rewind";
 
 async function main() {
@@ -49,7 +50,7 @@ async function main() {
   console.log("🚀 Connecting to Supabase PostgreSQL database...");
   const client = postgres(connectionString, {
     max: 5,
-    ssl: isLocal ? false : "require",
+    ssl: getPostgresSslConfig(isLocal),
   });
   const db = drizzle(client, { schema });
 

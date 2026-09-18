@@ -1062,13 +1062,15 @@ test("verifies round-12 Codex review fixes: separate remediation migration, stor
   assert.ok(
     remediationSql.includes("UPDATE public.claim_evidence ce") &&
     remediationSql.includes("SET evidence_strength = NULL") &&
-    remediationSql.includes("ce.citation_locator IS NULL AND ce.supporting_excerpt IS NULL"),
+    remediationSql.includes("ce.citation_locator IS NULL") &&
+    remediationSql.includes("ce.supporting_excerpt IS NULL"),
     "remediation migration must target unassessed claim_evidence rows lacking locators/excerpts"
   );
   assert.ok(
     remediationSql.includes("UPDATE public.claim_evidence ce") &&
     remediationSql.includes("SET directness = NULL") &&
-    remediationSql.includes("ce.citation_locator IS NULL AND ce.supporting_excerpt IS NULL"),
+    remediationSql.includes("ce.citation_locator IS NULL") &&
+    remediationSql.includes("ce.supporting_excerpt IS NULL"),
     "remediation migration must target unassessed directness rows lacking locators/excerpts"
   );
 
@@ -1087,43 +1089,45 @@ test("verifies round-12 Codex review fixes: separate remediation migration, stor
   );
 });
 
-test("verifies round-13 Codex review fixes: preserved explicit claim evidence and draft event leak prevention in person claims RLS", async () => {
+test("verifies round-13 and round-14 Codex review fixes: strict TLS with trusted CA, quote policy migration, all-referenced-events publication check, and targeted evidence remediation", async () => {
   const root = process.cwd();
 
   const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
   const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
-
-  // 1. RLS policies require published events for event-linked claims
-  for (const sql of [remediationSql, standardsSql]) {
-    assert.ok(
-      sql.includes("claims.event_id IS NULL") &&
-      sql.includes("e.publication_status = 'published'"),
-      "Claims RLS must require event to be published when event_id is present"
-    );
-    assert.ok(
-      sql.includes("c.event_id IS NULL") &&
-      sql.includes("e.publication_status = 'published'"),
-      "Claim evidence RLS must require event to be published when event_id is present"
-    );
-  }
-
-  // 2. Targeted evidence remediation preserves explicitly assessed rows
-  assert.ok(
-    remediationSql.includes("FROM public.sources s") &&
-    remediationSql.includes("ce.source_id = s.id") &&
-    remediationSql.includes("ce.evidence_strength = 'direct conclusive'") &&
-    remediationSql.includes("ce.directness = 'direct'"),
-    "Remediation must selectively target unassessed default values"
-  );
-});
-
-test("verifies cutover migration RLS alignment and database client TLS configuration", async () => {
-  const root = process.cwd();
-
   const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
   const clientTs = fs.readFileSync(path.join(root, "lib/db/client.ts"), "utf-8");
 
-  // 1. Cutover migration requires published subject on event-linked claims and quotes
+  // 1. RLS policies require ALL referenced events to be published for event-linked claims
+  for (const sql of [remediationSql, standardsSql]) {
+    assert.ok(
+      sql.includes("claims.event_id IS NULL OR EXISTS") &&
+      sql.includes("claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS"),
+      "Claims RLS must require all referenced events to be published"
+    );
+    assert.ok(
+      sql.includes("c.event_id IS NULL OR EXISTS") &&
+      sql.includes("c.subject_entity_type <> 'event' OR c.subject_entity_id IS NULL OR EXISTS"),
+      "Claim evidence RLS must require all referenced events to be published"
+    );
+  }
+
+  // 2. Targeted evidence remediation preserves explicitly assessed rows across all source tiers
+  assert.ok(
+    remediationSql.includes("ce.evidence_strength = 'direct conclusive'") &&
+    remediationSql.includes("ce.citation_locator IS NULL") &&
+    remediationSql.includes("ce.supporting_excerpt IS NULL"),
+    "Remediation must selectively target unassessed default values lacking locator and excerpt"
+  );
+
+  // 3. Remediation migration drops and recreates quotes RLS policy
+  assert.ok(
+    remediationSql.includes("DROP POLICY IF EXISTS \"Allow public read on quotes\" ON public.quotes;") &&
+    remediationSql.includes("CREATE POLICY \"Allow public read on quotes\"") &&
+    remediationSql.includes("quotes.speaker_id IS NULL OR EXISTS"),
+    "Remediation migration must drop and recreate quotes policy with speaker publication requirement"
+  );
+
+  // 4. Cutover migration requires published subject on event-linked claims and quotes
   assert.ok(
     cutoverSql.includes("event_id IS NOT NULL") &&
     cutoverSql.includes("subject_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published')"),
@@ -1135,12 +1139,15 @@ test("verifies cutover migration RLS alignment and database client TLS configura
     "Cutover quotes RLS must require published speaker on event-linked quotes"
   );
 
-  // 2. DB client uses TLS encryption without failing on certificate chain verification
+  // 5. DB client uses trusted CA certificate and strict rejectUnauthorized verification
   assert.ok(
-    clientTs.includes("ssl: isLocal ? false : \"require\""),
-    "lib/db/client.ts must use ssl require for remote database connections"
+    clientTs.includes("rejectUnauthorized: true") &&
+    clientTs.includes("SUPABASE_PROD_ROOT_CA") &&
+    clientTs.includes("getPostgresSslConfig"),
+    "lib/db/client.ts must enforce certificate verification with trusted CA"
   );
 });
+
 
 
 

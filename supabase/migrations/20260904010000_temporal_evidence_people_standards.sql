@@ -174,26 +174,24 @@ CREATE POLICY "Allow public read on claims"
   TO anon, authenticated
   USING (
     (
-      -- Case 1: Event-linked claim (event_id is present or subject is event) -> Event MUST be published; if subject person is specified, person MUST also be published
-      (
-        (claims.event_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.events e WHERE (e.id = claims.event_id OR e.slug = claims.event_id) AND e.publication_status = 'published'
-        ))
-        OR
-        (claims.subject_entity_type = 'event' AND claims.subject_entity_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.events e WHERE (e.id = claims.subject_entity_id OR e.slug = claims.subject_entity_id) AND e.publication_status = 'published'
-        ))
-      )
+      -- Case 1: Event-linked claim (event_id is present or subject is event) -> ALL referenced events MUST be published; if subject person is specified, person MUST also be published
+      (claims.event_id IS NOT NULL OR (claims.subject_entity_type = 'event' AND claims.subject_entity_id IS NOT NULL))
       AND
-      (
-        (claims.subject_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
-        ))
-        AND
-        (claims.subject_entity_type <> 'person' OR claims.subject_entity_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
-        ))
-      )
+      (claims.event_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.events e WHERE (e.id = claims.event_id OR e.slug = claims.event_id) AND e.publication_status = 'published'
+      ))
+      AND
+      (claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.events e WHERE (e.id = claims.subject_entity_id OR e.slug = claims.subject_entity_id) AND e.publication_status = 'published'
+      ))
+      AND
+      (claims.subject_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
+      ))
+      AND
+      (claims.subject_entity_type <> 'person' OR claims.subject_entity_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
+      ))
     )
     OR
     (
@@ -232,26 +230,24 @@ CREATE POLICY "Public read claim evidence"
       WHERE c.id = claim_evidence.claim_id
         AND (
           (
-            -- Case 1: Event-linked claim -> Event MUST be published; if subject person is specified, person MUST also be published
-            (
-              (c.event_id IS NOT NULL AND EXISTS (
-                SELECT 1 FROM public.events e WHERE (e.id = c.event_id OR e.slug = c.event_id) AND e.publication_status = 'published'
-              ))
-              OR
-              (c.subject_entity_type = 'event' AND c.subject_entity_id IS NOT NULL AND EXISTS (
-                SELECT 1 FROM public.events e WHERE (e.id = c.subject_entity_id OR e.slug = c.subject_entity_id) AND e.publication_status = 'published'
-              ))
-            )
+            -- Case 1: Event-linked claim -> ALL referenced events MUST be published; if subject person is specified, person MUST also be published
+            (c.event_id IS NOT NULL OR (c.subject_entity_type = 'event' AND c.subject_entity_id IS NOT NULL))
             AND
-            (
-              (c.subject_id IS NULL OR EXISTS (
-                SELECT 1 FROM public.people p WHERE (p.id = c.subject_id OR p.slug = c.subject_id) AND p.publication_status = 'published'
-              ))
-              AND
-              (c.subject_entity_type <> 'person' OR c.subject_entity_id IS NULL OR EXISTS (
-                SELECT 1 FROM public.people p WHERE (p.id = c.subject_entity_id OR p.slug = c.subject_entity_id) AND p.publication_status = 'published'
-              ))
-            )
+            (c.event_id IS NULL OR EXISTS (
+              SELECT 1 FROM public.events e WHERE (e.id = c.event_id OR e.slug = c.event_id) AND e.publication_status = 'published'
+            ))
+            AND
+            (c.subject_entity_type <> 'event' OR c.subject_entity_id IS NULL OR EXISTS (
+              SELECT 1 FROM public.events e WHERE (e.id = c.subject_entity_id OR e.slug = c.subject_entity_id) AND e.publication_status = 'published'
+            ))
+            AND
+            (c.subject_id IS NULL OR EXISTS (
+              SELECT 1 FROM public.people p WHERE (p.id = c.subject_id OR p.slug = c.subject_id) AND p.publication_status = 'published'
+            ))
+            AND
+            (c.subject_entity_type <> 'person' OR c.subject_entity_id IS NULL OR EXISTS (
+              SELECT 1 FROM public.people p WHERE (p.id = c.subject_entity_id OR p.slug = c.subject_entity_id) AND p.publication_status = 'published'
+            ))
           )
           OR
           (
