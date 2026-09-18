@@ -42,8 +42,10 @@ Populate `.env.local` with optional credentials if integrating cloud database or
 | :--- | :--- | :--- |
 | `NEXT_PUBLIC_APP_URL` | Canonical URL for metadata and sharing | `http://localhost:3000` |
 | `NEXT_PUBLIC_SITE_NAME` | Site branding header | `REWIND Evidence Atlas` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL (Data API endpoint) | `https://[PROJECT-ID].supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase public anonymous API key | `""` |
+| `DATABASE_URL` | PostgreSQL direct connection URI (Drizzle ORM) | `postgresql://...` |
 | `GEMINI_API_KEY` | Optional AI forensic verification & transcription key | `""` |
-| `CLOUDFLARE_D1_DATABASE_ID` | Optional Cloudflare D1 SQL database binding | `""` |
 
 ---
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -18,21 +18,32 @@ import {
   RotateCw,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { events, sourceById } from "@/data/rewind";
+import type { EventRecord, SourceRecord } from "@/lib/rewind";
+import { isStandardIsoDate, formatTimelineDate, compareTimelineDates } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
 export const DEFAULT_EXPLORER_TYPE = "All";
 export const DEFAULT_EXPLORER_STATUS = "all";
+/**
+ * @deprecated Demo fallback subject. Production consumers should pass a dynamic subject or leave as null for 'All Events'.
+ */
+export const DEFAULT_SUBJECT = { name: "Benjamin Netanyahu", slug: "benjamin-netanyahu" };
 
 export interface RewindExplorerProps {
   initialType?: string;
   initialStatus?: string;
+  initialEvents?: EventRecord[];
+  sources?: SourceRecord[];
+  subject?: { name: string; slug: string } | null;
 }
 
 export function RewindExplorer({
   initialType = DEFAULT_EXPLORER_TYPE,
   initialStatus = DEFAULT_EXPLORER_STATUS,
+  initialEvents = [],
+  sources = [],
+  subject = null,
 }: RewindExplorerProps = {}) {
   const [type, setType] = useState(initialType);
   const [status, setStatus] = useState(initialStatus);
@@ -46,21 +57,51 @@ export function RewindExplorer({
     setPlaying(false);
   };
 
+  const sourceMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
+  const sourceById = (id?: string) => (id ? sourceMap.get(id) : undefined);
+
   const filtered = useMemo(
     () =>
-      events
-        .filter(
-          (e) =>
-            (type === "All" || e.eventTypes.includes(type)) &&
+      initialEvents
+        .filter((e) => {
+          const tags = e.eventTypes?.length ? e.eventTypes : (e.categories ?? []);
+          return (
+            (type === "All" || tags.includes(type)) &&
             (status === "all" || e.verificationStatus === status)
-        )
-        .sort((a, b) => a.startDate.localeCompare(b.startDate)),
-    [type, status]
+          );
+        })
+        .sort((a, b) => compareTimelineDates(a.startDate, b.startDate)),
+    [initialEvents, type, status]
   );
 
-  const [index, setIndex] = useState(Math.min(18, Math.max(0, filtered.length - 1)));
+  const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1400);
+
+  const hasEvents = filtered.length > 0;
+  const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
+  const event = hasEvents ? filtered[safeIndex] : null;
+
+  // Track the selected event's identity independently of array index
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (event) {
+      selectedIdRef.current = event.id || event.slug || null;
+    }
+  }, [event]);
+
+  // Synchronize index safely when filtered events change: resolve selected identity against refreshed list
+  useEffect(() => {
+    setIndex((currentIndex) => {
+      if (filtered.length === 0) return 0;
+      const targetId = selectedIdRef.current;
+      if (targetId) {
+        const foundIdx = filtered.findIndex((e) => e.id === targetId || e.slug === targetId);
+        if (foundIdx >= 0) return foundIdx;
+      }
+      return currentIndex >= filtered.length ? Math.max(0, filtered.length - 1) : currentIndex;
+    });
+  }, [filtered]);
 
   useEffect(() => {
     if (!playing || filtered.length < 2) return;
@@ -76,13 +117,31 @@ export function RewindExplorer({
     return () => clearInterval(timer);
   }, [playing, speed, direction, filtered.length]);
 
-
-  const hasEvents = filtered.length > 0;
-  const safeIndex = hasEvents ? Math.min(index, filtered.length - 1) : 0;
-  const event = hasEvents ? filtered[safeIndex] : null;
-  const source = event ? sourceById(event.sourceIds[0]) : null;
-  const types = Array.from(new Set(events.flatMap((e) => e.eventTypes))).sort();
-  const date = event ? new Date(event.startDate + "T12:00:00") : null;
+  const source = event?.sources?.[0] || (event?.sourceIds?.[0] ? sourceById(event.sourceIds[0]) : null);
+  const types = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          initialEvents.flatMap((e) => (e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])))
+        )
+      ).sort(),
+    [initialEvents]
+  );
+  const stageFormattedDate = event
+    ? formatTimelineDate(event.startDate, event.timePrecision || event.datePrecision, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+  const consoleFormattedDate = event
+    ? formatTimelineDate(event.startDate, event.timePrecision || event.datePrecision, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).toUpperCase()
+    : "—";
 
   const choose = (id: string) => {
     const i = filtered.findIndex((e) => e.id === id);
@@ -101,12 +160,11 @@ export function RewindExplorer({
       </div>
 
       <div className="workspace-toolbar">
-
         <div className="person-lockup">
           <span className="person-dot" />
           <div>
             <small>EXPLORING</small>
-            <b>Benjamin Netanyahu</b>
+            <b>{subject ? subject.name : "All Events"}</b>
           </div>
         </div>
         <div className="workspace-filters">
@@ -114,6 +172,7 @@ export function RewindExplorer({
             <Filter size={14} />
             <span className="sr-only">Event type</span>
             <select
+              aria-label="Filter by event type"
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
@@ -128,8 +187,10 @@ export function RewindExplorer({
             </select>
           </label>
           <label>
+            <CalendarDays size={14} />
             <span className="sr-only">Verification status</span>
             <select
+              aria-label="Filter by verification status"
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
@@ -137,19 +198,16 @@ export function RewindExplorer({
                 setPlaying(false);
               }}
             >
-              <option value="all">All evidence</option>
-              <option value="verified">Verified only</option>
+              <option value="all">All Verification</option>
+              <option value="verified">Verified</option>
               <option value="provisional">Provisional</option>
             </select>
           </label>
           <button
-            onClick={() => {
-              setType("All");
-              setStatus("all");
-              setIndex(0);
-              setPlaying(false);
-            }}
-            aria-label="Clear filters"
+            className="reset-btn"
+            onClick={resetFilters}
+            aria-label="Reset filters"
+            title="Reset filters"
           >
             <RotateCcw size={15} />
           </button>
@@ -170,13 +228,14 @@ export function RewindExplorer({
                 {event.verificationStatus}
               </span>
             </div>
-            <time dateTime={event.startDate}>
-              {date?.toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+            <time
+              dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
+              title={!isStandardIsoDate(event.startDate) ? "Non-standard archival date format" : undefined}
+            >
+              {stageFormattedDate}
+              {!isStandardIsoDate(event.startDate) && (
+                <span className="sr-only"> (Non-standard archival date)</span>
+              )}
             </time>
             <h1>{event.eventName}</h1>
             <p className="event-place">
@@ -187,15 +246,15 @@ export function RewindExplorer({
               </small>
             </p>
             <div className="detail-tags">
-              {event.eventTypes.map((t) => (
+              {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((t) => (
                 <span key={t}>{t}</span>
               ))}
             </div>
             <div className="evidence-summary">
               <div>
                 <small>PRIMARY EVIDENCE</small>
-                <b>{source?.title}</b>
-                <span>{source?.publisher}</span>
+                <b>{source?.title || "Archival Record"}</b>
+                <span>{source?.publisher || "Primary documentation"}</span>
               </div>
               <div className="evidence-actions">
                 <button
@@ -206,20 +265,22 @@ export function RewindExplorer({
                   <Quote size={13} />
                   <span>Cite</span>
                 </button>
-                <a
-                  href={source?.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Open primary source"
-                >
-                  <ExternalLink />
-                </a>
+                {source?.url && (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open primary source"
+                  >
+                    <ExternalLink />
+                  </a>
+                )}
               </div>
             </div>
             <dl className="event-facts">
               <div>
                 <dt>Date</dt>
-                <dd>{event.datePrecision}</dd>
+                <dd>{event.datePrecision || event.timePrecision || "exact-day"}</dd>
               </div>
               <div>
                 <dt>Time</dt>
@@ -227,11 +288,11 @@ export function RewindExplorer({
               </div>
               <div>
                 <dt>Confidence</dt>
-                <dd>{event.confidence}</dd>
+                <dd>{event.confidence || "Not established"}</dd>
               </div>
               <div>
                 <dt>Medium</dt>
-                <dd>{event.medium.join(", ")}</dd>
+                <dd>{event.medium?.join(", ") || "Historical record"}</dd>
               </div>
             </dl>
             <Link className="primary-link" href={`/event/${event.slug}`}>
@@ -261,17 +322,7 @@ export function RewindExplorer({
       <div className="rewind-console">
         <div className="console-date">
           <small>REWIND TO</small>
-          <b>
-            {date
-              ? date
-                  .toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                  .toUpperCase()
-              : "—"}
-          </b>
+          <b>{consoleFormattedDate}</b>
         </div>
         <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
           <button
@@ -350,36 +401,44 @@ export function RewindExplorer({
           <span className="sr-only">Playback speed</span>
           <select
             value={speed}
-            disabled={!hasEvents}
             onChange={(e) => setSpeed(Number(e.target.value))}
+            aria-label="Playback speed"
           >
-            <option value="2200">0.5×</option>
-            <option value="1400">1×</option>
-            <option value="750">2×</option>
+            <option value={2000}>0.7x (Slow)</option>
+            <option value={1400}>1x (Realtime)</option>
+            <option value={800}>1.7x (Fast)</option>
+            <option value={400}>3.5x (Blitz)</option>
           </select>
         </label>
-        {event ? (
-          <Link
-            href={`/person/benjamin-netanyahu/${event.startDate.slice(0, 4)}`}
-            className="calendar-jump"
-            aria-label={`Open ${event.startDate.slice(0, 4)} year view`}
-          >
-            <CalendarDays />
-          </Link>
-        ) : (
-          <span
-            className="calendar-jump disabled"
-            aria-disabled="true"
-            title="Year view unavailable"
-          >
-            <CalendarDays />
-          </span>
-        )}
+        {(() => {
+          const eventYear = event && isStandardIsoDate(event.startDate)
+            ? event.startDate.slice(0, 4)
+            : null;
+          if (!event || !eventYear) return null;
+          return (
+            <Link
+              href={
+                subject
+                  ? `/person/${subject.slug}/${eventYear}`
+                  : `/events?year=${eventYear}`
+              }
+              className="calendar-jump"
+              aria-label={
+                subject
+                  ? `Open ${eventYear} year view for ${subject.name}`
+                  : `Open ${eventYear} year view`
+              }
+            >
+              <CalendarDays />
+            </Link>
+          );
+        })()}
       </div>
 
-      {event && (
+      {citeOpen && event && (
         <CitationModal
           event={event}
+          source={source}
           isOpen={citeOpen}
           onClose={() => setCiteOpen(false)}
         />
