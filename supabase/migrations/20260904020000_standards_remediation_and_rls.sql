@@ -21,16 +21,6 @@ ALTER TABLE public.sources
   ALTER COLUMN independence_status DROP DEFAULT,
   ALTER COLUMN source_quality DROP DEFAULT;
 
-UPDATE public.sources
-SET source_level = NULL,
-    independence_status = NULL,
-    source_quality = NULL
-WHERE (tier IS NULL OR lower(tier) NOT IN ('tier-a', 'tier-1', 'a', '1'))
-  AND source_level = 'primary'
-  AND independence_status = 'independent'
-  AND source_quality = 'high'
-  AND derived_from_source_id IS NULL;
-
 -- 3. Drop Defaults on Claim Evidence Strength and Directness
 ALTER TABLE public.claim_evidence
   ALTER COLUMN evidence_strength DROP DEFAULT,
@@ -65,48 +55,56 @@ CREATE POLICY "Allow public read on claims"
   TO anon, authenticated
   USING (
     (
-      -- Case 1: Event-linked claim (event_id is present or subject is event) -> ALL referenced events MUST be published; if subject person is specified, person MUST also be published
-      (claims.event_id IS NOT NULL OR (claims.subject_entity_type = 'event' AND claims.subject_entity_id IS NOT NULL))
-      AND
-      (claims.event_id IS NULL OR EXISTS (
-        SELECT 1 FROM public.events e WHERE (e.id = claims.event_id OR e.slug = claims.event_id) AND e.publication_status = 'published'
-      ))
-      AND
-      (claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS (
-        SELECT 1 FROM public.events e WHERE (e.id = claims.subject_entity_id OR e.slug = claims.subject_entity_id) AND e.publication_status = 'published'
-      ))
-      AND
-      (claims.subject_id IS NULL OR EXISTS (
-        SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
-      ))
-      AND
-      (claims.subject_entity_type <> 'person' OR claims.subject_entity_id IS NULL OR EXISTS (
-        SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
-      ))
-    )
-    OR
-    (
-      -- Case 2: Standalone Person Biographical Claim (event_id is NULL and subject_entity_type is NOT event) -> Person MUST be published
-      claims.event_id IS NULL
-      AND (claims.subject_entity_type IS NULL OR claims.subject_entity_type <> 'event')
-      AND (
-        (claims.subject_entity_type = 'person' AND claims.subject_entity_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
-        ))
-        OR
-        (claims.subject_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
-        ))
+      claims.attribution_speaker_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.people p WHERE (p.id = claims.attribution_speaker_id OR p.slug = claims.attribution_speaker_id) AND p.publication_status = 'published'
       )
     )
-    OR
+    AND
     (
-      -- Case 3: Standalone Organisation Claim (event_id is NULL and subject_entity_type is organisation) -> Organisation must exist
-      claims.event_id IS NULL
-      AND claims.subject_entity_type = 'organisation'
-      AND claims.subject_entity_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM public.organisations o WHERE o.id = claims.subject_entity_id OR o.slug = claims.subject_entity_id
+      (
+        -- Case 1: Event-linked claim (event_id is present or subject is event) -> ALL referenced events MUST be published; if subject person is specified, person MUST also be published
+        (claims.event_id IS NOT NULL OR (claims.subject_entity_type = 'event' AND claims.subject_entity_id IS NOT NULL))
+        AND
+        (claims.event_id IS NULL OR EXISTS (
+          SELECT 1 FROM public.events e WHERE (e.id = claims.event_id OR e.slug = claims.event_id) AND e.publication_status = 'published'
+        ))
+        AND
+        (claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS (
+          SELECT 1 FROM public.events e WHERE (e.id = claims.subject_entity_id OR e.slug = claims.subject_entity_id) AND e.publication_status = 'published'
+        ))
+        AND
+        (claims.subject_id IS NULL OR EXISTS (
+          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
+        ))
+        AND
+        (claims.subject_entity_type <> 'person' OR claims.subject_entity_id IS NULL OR EXISTS (
+          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
+        ))
+      )
+      OR
+      (
+        -- Case 2: Standalone Person Biographical Claim (event_id is NULL and subject_entity_type is NOT event) -> Person MUST be published
+        claims.event_id IS NULL
+        AND (claims.subject_entity_type IS NULL OR claims.subject_entity_type <> 'event')
+        AND (
+          (claims.subject_entity_type = 'person' AND claims.subject_entity_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'
+          ))
+          OR
+          (claims.subject_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
+          ))
+        )
+      )
+      OR
+      (
+        -- Case 3: Standalone Organisation Claim (event_id is NULL and subject_entity_type is organisation) -> Organisation must exist
+        claims.event_id IS NULL
+        AND claims.subject_entity_type = 'organisation'
+        AND claims.subject_entity_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM public.organisations o WHERE o.id = claims.subject_entity_id OR o.slug = claims.subject_entity_id
+        )
       )
     )
   );
@@ -119,6 +117,11 @@ CREATE POLICY "Public read claim evidence"
     EXISTS (
       SELECT 1 FROM public.claims c
       WHERE c.id = claim_evidence.claim_id
+        AND (
+          c.attribution_speaker_id IS NULL OR EXISTS (
+            SELECT 1 FROM public.people p WHERE (p.id = c.attribution_speaker_id OR p.slug = c.attribution_speaker_id) AND p.publication_status = 'published'
+          )
+        )
         AND (
           (
             -- Case 1: Event-linked claim -> ALL referenced events MUST be published; if subject person is specified, person MUST also be published
@@ -180,11 +183,11 @@ CREATE POLICY "Allow public read on quotes"
       -- Case 1: Event-linked quote -> Event MUST be published; if speaker is specified, speaker MUST also be published
       quotes.event_id IS NOT NULL
       AND EXISTS (
-        SELECT 1 FROM public.events e WHERE (e.id = quotes.event_id OR e.slug = quotes.event_id) AND e.publication_status = 'published'
+        SELECT 1 FROM public.events e WHERE e.id = quotes.event_id AND e.publication_status = 'published'
       )
       AND (
         quotes.speaker_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
+          SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published'
         )
       )
     )
@@ -194,7 +197,7 @@ CREATE POLICY "Allow public read on quotes"
       quotes.event_id IS NULL
       AND quotes.speaker_id IS NOT NULL
       AND EXISTS (
-        SELECT 1 FROM public.people p WHERE (p.id = quotes.speaker_id OR p.slug = quotes.speaker_id) AND p.publication_status = 'published'
+        SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published'
       )
     )
   );

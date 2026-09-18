@@ -1112,6 +1112,47 @@ test("verifies round-12, round-13, round-14, and round-15 Codex review fixes: st
   );
 });
 
+test("verifies round-17 Codex review fixes: non-destructive source default drop, attribution speaker publication guard, and ID-only FK matching for quotes RLS", async () => {
+  const root = process.cwd();
+
+  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  const hardeningSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904030000_quote_and_claim_rls_hardening.sql"), "utf-8");
+
+  // 1. Sources non-destructive default drop: drop defaults without destructive heuristic UPDATE
+  assert.ok(
+    remediationSql.includes("ALTER TABLE public.sources") &&
+    remediationSql.includes("ALTER COLUMN source_level DROP DEFAULT") &&
+    remediationSql.includes("ALTER COLUMN independence_status DROP DEFAULT") &&
+    remediationSql.includes("ALTER COLUMN source_quality DROP DEFAULT") &&
+    !remediationSql.includes("UPDATE public.sources"),
+    "Remediation migration must drop source column defaults without wiping valid lower-tier source assessments"
+  );
+
+  // 2. Attributed speakers publication guard in claims and claim evidence RLS
+  for (const sql of [remediationSql, standardsSql, hardeningSql]) {
+    assert.ok(
+      sql.includes("claims.attribution_speaker_id IS NULL OR EXISTS") &&
+      sql.includes("c.attribution_speaker_id IS NULL OR EXISTS"),
+      "Claims and claim evidence RLS must guard against unpublished attribution speakers"
+    );
+  }
+
+  // 3. Quotes RLS matches foreign keys strictly by ID (e.id = quotes.event_id, p.id = quotes.speaker_id)
+  for (const sql of [remediationSql, hardeningSql]) {
+    assert.ok(
+      sql.includes("WHERE e.id = quotes.event_id AND e.publication_status = 'published'") &&
+      sql.includes("WHERE p.id = quotes.speaker_id AND p.publication_status = 'published'"),
+      "Quotes RLS must match foreign keys strictly by ID rather than allowing cross-slug collisions"
+    );
+    assert.ok(
+      !sql.includes("e.slug = quotes.event_id") &&
+      !sql.includes("p.slug = quotes.speaker_id"),
+      "Quotes RLS must not allow slug fallback matching on FK columns"
+    );
+  }
+});
+
 
 
 
