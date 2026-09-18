@@ -1117,4 +1117,30 @@ test("verifies round-13 Codex review fixes: preserved explicit claim evidence an
   );
 });
 
+test("verifies cutover migration RLS alignment and database client TLS configuration", async () => {
+  const root = process.cwd();
+
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  const clientTs = fs.readFileSync(path.join(root, "lib/db/client.ts"), "utf-8");
+
+  // 1. Cutover migration requires published subject on event-linked claims and quotes
+  assert.ok(
+    cutoverSql.includes("event_id IS NOT NULL") &&
+    cutoverSql.includes("subject_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published')"),
+    "Cutover claims RLS must require published subject on event-linked claims"
+  );
+  assert.ok(
+    cutoverSql.includes("event_id IS NOT NULL") &&
+    cutoverSql.includes("speaker_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published')"),
+    "Cutover quotes RLS must require published speaker on event-linked quotes"
+  );
+
+  // 2. DB client uses TLS encryption without failing on certificate chain verification
+  assert.ok(
+    clientTs.includes("ssl: isLocal ? false : \"require\""),
+    "lib/db/client.ts must use ssl require for remote database connections"
+  );
+});
+
+
 

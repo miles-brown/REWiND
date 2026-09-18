@@ -31,10 +31,11 @@ async function main() {
     process.exit(1);
   }
 
+  let isLocal = false;
   try {
     const parsedUrl = new URL(connectionString);
     const host = parsedUrl.hostname.toLowerCase();
-    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
     const isExplicitlyAllowedHost = process.env.ALLOW_SEED_DATABASE_HOST === host;
     if (!isLocal && !isExplicitlyAllowedHost) {
       console.error(`❌ SEEDING BLOCKED: Target database host "${host}" is not local and not in ALLOW_SEED_DATABASE_HOST.`);
@@ -46,7 +47,10 @@ async function main() {
   }
 
   console.log("🚀 Connecting to Supabase PostgreSQL database...");
-  const client = postgres(connectionString, { max: 5 });
+  const client = postgres(connectionString, {
+    max: 5,
+    ssl: isLocal ? false : "require",
+  });
   const db = drizzle(client, { schema });
 
   try {

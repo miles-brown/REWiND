@@ -673,15 +673,33 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'claims' AND policyname = 'Allow public read on claims') THEN
     CREATE POLICY "Allow public read on claims" ON public.claims FOR SELECT TO anon, authenticated
       USING (
-        (event_id IS NULL AND subject_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'))
-        OR (event_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published'))
+        (
+          event_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published')
+          AND (subject_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'))
+        )
+        OR
+        (
+          event_id IS NULL
+          AND subject_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published')
+        )
       );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quotes' AND policyname = 'Allow public read on quotes') THEN
     CREATE POLICY "Allow public read on quotes" ON public.quotes FOR SELECT TO anon, authenticated
       USING (
-        (event_id IS NULL AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published'))
-        OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = quotes.event_id AND e.publication_status = 'published')
+        (
+          event_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM public.events e WHERE e.id = quotes.event_id AND e.publication_status = 'published')
+          AND (speaker_id IS NULL OR EXISTS (SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published'))
+        )
+        OR
+        (
+          event_id IS NULL
+          AND speaker_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = quotes.speaker_id AND p.publication_status = 'published')
+        )
       );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'media_assets' AND policyname = 'Allow public read on media_assets') THEN

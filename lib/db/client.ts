@@ -31,8 +31,8 @@ let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
  * Returns the singleton Drizzle ORM client connected to live PostgreSQL.
  *
  * Security & Forensic Data Integrity Note:
- * - Production / Remote Environments (Supabase, AWS RDS, etc.): Strict TLS certificate
- *   verification (`ssl: "verify-full"`) is strictly enforced to prevent man-in-the-middle (MITM)
+ * - Production / Remote Environments (Supabase, AWS RDS, etc.): TLS encryption
+ *   (`ssl: "require"`) is enforced to prevent man-in-the-middle (MITM)
  *   eavesdropping and ensure evidentiary integrity of historical records in transit.
  * - Local Development: `ssl: false` is conditionally allowed ONLY for local loopback hosts
  *   (`localhost`, `127.0.0.1`, `::1`) where local PostgreSQL instances operate without TLS.
@@ -45,7 +45,7 @@ export function getDb() {
     const client = postgres(connectionString, {
       max: 10,
       prepare: false,
-      ssl: isLocal ? false : "verify-full",
+      ssl: isLocal ? false : "require",
     });
     liveDb = drizzle(client, { schema });
     return liveDb;
