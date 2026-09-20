@@ -121,7 +121,7 @@ export async function resolvePersonEntityInTransaction(
       nationality: "International",
       classification: "historical-figure",
       notabilityBasis: "Documented participant in verified historical event",
-      publicationStatus: "published",
+      publicationStatus: "draft",
     })
     .onConflictDoNothing();
 

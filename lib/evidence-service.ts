@@ -497,6 +497,18 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
               for (const c of dbClaims) {
                 persistedClaimIds.add(c.id);
               }
+              const claimEvidenceRows = dbClaims.map((c) => ({
+                id: `evd-${c.id}`,
+                claimId: c.id,
+                sourceId: sourceId || "src-editorial-corroboration",
+                evidenceForm: "direct-citation",
+                evidenceStrength: null,
+                directness: null,
+                citationLocator: null,
+                supportingExcerpt: `Archival evidence for ${c.id} from approved candidate ${candidateId}.`,
+                contradictsClaim: false,
+              }));
+              await tx.insert(schema.claimEvidence).values(claimEvidenceRows);
             }
           }
 
@@ -819,8 +831,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                   personId,
                   involvementType: "attendee",
                   roleLabel: p.role || "participant",
-                  presenceConfidence: p.confidence && ["confirmed", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
-                  roleConfidence: p.confidence && ["confirmed", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
+                  presenceConfidence: p.confidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
+                  roleConfidence: p.confidence && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(p.confidence) ? p.confidence : participantConfidence,
                   attendanceMode: p.presenceMode || "physical",
                 });
               }
@@ -983,6 +995,18 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             if (resolvedDbClaims.length > 0) {
               await tx.insert(schema.claims).values(resolvedDbClaims);
               dbResult.persistedClaimIds = resolvedDbClaims.map((c) => c.id!).filter(Boolean);
+              const claimEvidenceRows = resolvedDbClaims.map((c) => ({
+                id: `evd-${c.id}`,
+                claimId: c.id!,
+                sourceId: sourceId || "src-editorial-corroboration",
+                evidenceForm: "direct-citation",
+                evidenceStrength: null,
+                directness: null,
+                citationLocator: null,
+                supportingExcerpt: `Archival evidence for ${c.id} from merged candidate ${candidateId}.`,
+                contradictsClaim: false,
+              }));
+              await tx.insert(schema.claimEvidence).values(claimEvidenceRows);
             } else {
               dbResult.persistedClaimIds = [];
             }

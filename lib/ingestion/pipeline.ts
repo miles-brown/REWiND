@@ -534,6 +534,7 @@ export function processCandidateEvent(
 
           const existingClaims = await tx
             .select({
+              id: schema.claims.id,
               subjectId: schema.claims.subjectId,
               statement: schema.claims.statement,
             })
@@ -548,58 +549,66 @@ export function processCandidateEvent(
           );
 
           const seenMergeClaimKeys = new Set<string>();
-          const claimsToInsert = resolvedMergeClaims.filter(({ clm, subjectId }) => {
+          const newClaimRows: Array<typeof schema.claims.$inferInsert> = [];
+          const evidenceRows: Array<typeof schema.claimEvidence.$inferInsert> = [];
+
+          for (const { clm, subjectId } of resolvedMergeClaims) {
             const normStatement = clm.statement.trim().toLowerCase();
             const key = `${subjectId ?? ""}::${normStatement}`;
-            if (seenMergeClaimKeys.has(key)) return false;
+            if (seenMergeClaimKeys.has(key)) continue;
             seenMergeClaimKeys.add(key);
-            return !existingClaims.some(
+
+            const existingClaim = existingClaims.find(
               (ec) =>
                 ec.statement.trim().toLowerCase() === normStatement &&
                 ec.subjectId === subjectId
             );
-          });
-          livePersistedClaimsAdded = claimsToInsert.length;
 
-          if (claimsToInsert.length > 0) {
-            const claimRows = claimsToInsert.map(({ clm, subjectId }) => {
-              const normStatement = clm.statement.trim().toLowerCase();
+            let claimId: string;
+            if (existingClaim) {
+              claimId = existingClaim.id;
+            } else {
               const claimKey = `${targetEventId}::${subjectId ?? ""}::${normStatement}`;
               const claimHash = createHash("sha256").update(claimKey).digest("hex").slice(0, 12);
-              const claimId = `clm-${targetEventId.replace(/^evt-/, "")}-${claimHash}`;
-              return {
-                claim: {
-                  id: claimId,
-                  eventId: targetEventId,
-                  subjectId,
-                  subjectEntityType: subjectId ? "person" : "event",
-                  subjectEntityId: subjectId || targetEventId,
-                  claimType: clm.claimType,
-                  statement: clm.statement,
-                  claimedTime: clm.claimedTime || null,
-                  claimedVenue: clm.claimedVenue || null,
-                  sourceId: source.sourceId,
-                  confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
-                  claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
-                  epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
-                  supportingExcerpt: clm.supportingExcerpt || null,
-                },
-                evidence: {
-                  id: `ev-${claimId}-${source.sourceId}`,
-                  claimId,
-                  sourceId: source.sourceId,
-                  evidenceForm: source.sourceType || "direct-citation",
-                  evidenceStrength: source.sourceTier === "tier-a" ? "primary-direct" : "corroborated",
-                  directness: "direct",
-                  citationLocator: null,
-                  supportingExcerpt: clm.supportingExcerpt || null,
-                  contradictsClaim: false,
-                },
-              };
-            });
+              claimId = `clm-${targetEventId.replace(/^evt-/, "")}-${claimHash}`;
+              newClaimRows.push({
+                id: claimId,
+                eventId: targetEventId,
+                subjectId,
+                subjectEntityType: subjectId ? "person" : "event",
+                subjectEntityId: subjectId || targetEventId,
+                claimType: clm.claimType,
+                statement: clm.statement,
+                claimedTime: clm.claimedTime || null,
+                claimedVenue: clm.claimedVenue || null,
+                sourceId: source.sourceId,
+                confidence: livePolicy.lane === "auto-publish" ? "confirmed" : "limited",
+                claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
+                epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
+                supportingExcerpt: clm.supportingExcerpt || null,
+              });
+            }
 
-            await tx.insert(schema.claims).values(claimRows.map((r) => r.claim)).onConflictDoNothing();
-            await tx.insert(schema.claimEvidence).values(claimRows.map((r) => r.evidence)).onConflictDoNothing();
+            evidenceRows.push({
+              id: `ev-${claimId}-${source.sourceId}`,
+              claimId,
+              sourceId: source.sourceId,
+              evidenceForm: source.sourceType || "direct-citation",
+              evidenceStrength: null,
+              directness: null,
+              citationLocator: null,
+              supportingExcerpt: clm.supportingExcerpt || null,
+              contradictsClaim: false,
+            });
+          }
+
+          livePersistedClaimsAdded = newClaimRows.length;
+
+          if (newClaimRows.length > 0) {
+            await tx.insert(schema.claims).values(newClaimRows).onConflictDoNothing();
+          }
+          if (evidenceRows.length > 0) {
+            await tx.insert(schema.claimEvidence).values(evidenceRows).onConflictDoNothing();
           }
 
           // Insert quotes into schema.quotes on merge
@@ -660,7 +669,7 @@ export function processCandidateEvent(
               matchedEventId: targetEventId,
               sourceId: source.sourceId,
               similarity: liveDeduplication.similarity,
-              claimsAdded: claimsToInsert.length,
+              claimsAdded: newClaimRows.length,
             },
             targetEventId,
             candidateId
@@ -883,8 +892,8 @@ export function processCandidateEvent(
                   claimId: stableId,
                   sourceId: source.sourceId,
                   evidenceForm: source.sourceType || "direct-citation",
-                  evidenceStrength: source.sourceTier === "tier-a" ? "primary-direct" : "corroborated",
-                  directness: "direct",
+                  evidenceStrength: null,
+                  directness: null,
                   citationLocator: null,
                   supportingExcerpt: clm.supportingExcerpt || null,
                   contradictsClaim: false,

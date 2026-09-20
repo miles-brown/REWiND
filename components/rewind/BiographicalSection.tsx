@@ -20,6 +20,37 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
   const awards = person.awards || [];
   const works = person.works || [];
 
+  const tabKeys: ("career" | "education" | "works" | "awards" | "identity")[] = [
+    "career",
+    "education",
+    "works",
+    "awards",
+    "identity",
+  ];
+
+  const handleTabKeyDown = (e: React.KeyboardEvent) => {
+    const currentIndex = tabKeys.indexOf(activeTab);
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const nextTab = tabKeys[(currentIndex + 1) % tabKeys.length];
+      setActiveTab(nextTab);
+      document.getElementById(`bio-tab-${nextTab}`)?.focus();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const prevTab = tabKeys[(currentIndex - 1 + tabKeys.length) % tabKeys.length];
+      setActiveTab(prevTab);
+      document.getElementById(`bio-tab-${prevTab}`)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActiveTab(tabKeys[0]);
+      document.getElementById(`bio-tab-${tabKeys[0]}`)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setActiveTab(tabKeys[tabKeys.length - 1]);
+      document.getElementById(`bio-tab-${tabKeys[tabKeys.length - 1]}`)?.focus();
+    }
+  };
+
   return (
     <section className="biographical-dossier" aria-label="Structured Biographical Dossier">
       <div className="section-header">
@@ -28,11 +59,17 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
       </div>
 
       {/* Tabs */}
-      <div className="bio-nav-tabs" role="tablist" aria-label="Biographical sections">
+      <div
+        className="bio-nav-tabs"
+        role="tablist"
+        aria-label="Biographical sections"
+        onKeyDown={handleTabKeyDown}
+      >
         <button
           type="button"
           role="tab"
           id="bio-tab-career"
+          tabIndex={activeTab === "career" ? 0 : -1}
           aria-selected={activeTab === "career"}
           aria-controls="bio-tabpanel-career"
           className={`bio-tab ${activeTab === "career" ? "active" : ""}`}
@@ -46,6 +83,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           type="button"
           role="tab"
           id="bio-tab-education"
+          tabIndex={activeTab === "education" ? 0 : -1}
           aria-selected={activeTab === "education"}
           aria-controls="bio-tabpanel-education"
           className={`bio-tab ${activeTab === "education" ? "active" : ""}`}
@@ -59,6 +97,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           type="button"
           role="tab"
           id="bio-tab-works"
+          tabIndex={activeTab === "works" ? 0 : -1}
           aria-selected={activeTab === "works"}
           aria-controls="bio-tabpanel-works"
           className={`bio-tab ${activeTab === "works" ? "active" : ""}`}
@@ -72,6 +111,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           type="button"
           role="tab"
           id="bio-tab-awards"
+          tabIndex={activeTab === "awards" ? 0 : -1}
           aria-selected={activeTab === "awards"}
           aria-controls="bio-tabpanel-awards"
           className={`bio-tab ${activeTab === "awards" ? "active" : ""}`}
@@ -85,6 +125,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           type="button"
           role="tab"
           id="bio-tab-identity"
+          tabIndex={activeTab === "identity" ? 0 : -1}
           aria-selected={activeTab === "identity"}
           aria-controls="bio-tabpanel-identity"
           className={`bio-tab ${activeTab === "identity" ? "active" : ""}`}

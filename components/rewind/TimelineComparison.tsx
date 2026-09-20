@@ -48,7 +48,7 @@ export function TimelineComparison({
   const [explicitSlugB, setExplicitSlugB] = useState<string | undefined>(() => {
     if (initialPersonB) return initialPersonB;
     const targetSlugA = initialPersonA || people[0]?.slug;
-    const topCoAttendee = findTopCoAttendee(targetSlugA, events, people);
+    const topCoAttendee = findTopCoAttendee({ target: targetSlugA, people, events });
     if (topCoAttendee) return topCoAttendee;
     return initialPersonB || (people.length > 1 ? people[1]?.slug : undefined);
   });

@@ -134,6 +134,7 @@ async function runIngestion() {
   let publishedCount = 0;
   let candidateCount = 0;
   let mergedCount = 0;
+  let failedCount = 0;
 
   for (let i = 0; i < events.length; i++) {
     const rawEvt = events[i];
@@ -247,6 +248,7 @@ async function runIngestion() {
       }
     } catch (err: unknown) {
       console.warn(`⚠️ Warning processing event "${rawEvt.eventName}" (${rawEvt.startDate}):`, (err as Error).message);
+      failedCount++;
     }
 
     if ((i + 1) % 10 === 0 || i === events.length - 1) {
@@ -259,6 +261,7 @@ async function runIngestion() {
   console.log(`- Auto-published new events: ${publishedCount}`);
   console.log(`- Merged evidence into existing events: ${mergedCount}`);
   console.log(`- Queued for review: ${candidateCount}`);
+  console.log(`- Failed: ${failedCount}`);
   console.log("=================================================");
 
   // Count current database rows
@@ -276,8 +279,13 @@ async function runIngestion() {
   console.log(`- Sources: ${dbSources.length}`);
   console.log(`- Claims: ${dbClaims.length}`);
   console.log(`- Quotes: ${dbQuotes.length}`);
-  console.log("\n Ingestion successfully finished!");
-  process.exit(0);
+  if (failedCount > 0) {
+    console.error(`\n❌ Ingestion finished with ${failedCount} failures.`);
+    process.exit(1);
+  } else {
+    console.log("\n Ingestion successfully finished!");
+    process.exit(0);
+  }
 }
 
 runIngestion().catch((err) => {

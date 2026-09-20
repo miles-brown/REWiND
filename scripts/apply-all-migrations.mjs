@@ -84,12 +84,14 @@ async function applyMigrations() {
     const sqlContent = fs.readFileSync(filePath, "utf-8");
 
     try {
-      await client.unsafe(sqlContent);
-      await client`
-        INSERT INTO supabase_migrations.schema_migrations (version, name)
-        VALUES (${version}, ${name})
-        ON CONFLICT (version) DO UPDATE SET name = ${name};
-      `;
+      await client.begin(async (sql) => {
+        await sql.unsafe(sqlContent);
+        await sql`
+          INSERT INTO supabase_migrations.schema_migrations (version, name)
+          VALUES (${version}, ${name})
+          ON CONFLICT (version) DO UPDATE SET name = ${name};
+        `;
+      });
       console.log(` Migration ${filename} applied successfully!`);
     } catch (err) {
       console.error(` Error applying migration ${filename}:`, err);

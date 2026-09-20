@@ -231,7 +231,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             </article>
           ))}
           <div className="confidence-box">
-            <b>Why “{event.confidence || "confirmed"}”?</b>
+            <b>Why “{event.confidence || "limited"}”?</b>
             <p>
               {event.verificationStatus === "verified"
                 ? "The event is tied to a primary or authoritative dated record."

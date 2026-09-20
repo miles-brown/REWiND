@@ -226,7 +226,9 @@ export function mapDatabaseEvent(
     eventTypes: [String(row.event_type || "historical-action")],
     quotes: quotesMap?.get(id) || [],
     organisations: [],
-    medium: ["official-record"],
+    medium: Array.isArray(sources) && sources.length > 0
+      ? Array.from(new Set(sources.map((s) => s.sourceType).filter((t): t is string => Boolean(t))))
+      : [],
     media: [],
     provenance: [],
     conflictingClaims: [],
@@ -784,7 +786,7 @@ export async function getEventsByIds(ids: string[], supabaseClient?: unknown): P
 
       if (error) {
         console.error("Error querying events by IDs chunk:", error);
-        return [];
+        throw new Error(`Failed to query events chunk: ${error.message || JSON.stringify(error)}`);
       }
       if (eventRows) {
         allEventRows.push(...eventRows);
@@ -804,8 +806,12 @@ export async function getEventsByIds(ids: string[], supabaseClient?: unknown): P
       hydratedEvents.push(...hydratedBatch);
     }
     return hydratedEvents;
-  } catch {
-    return [];
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      throw err;
+    }
+    console.error("Hydration/Query failure in getEventsByIds:", err);
+    throw err;
   }
 }
 

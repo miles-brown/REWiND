@@ -42,24 +42,53 @@ export function isPhysicalConfirmedParticipant(p: { attendanceMode?: string; pre
  * - Disputed or remote presences: filtered out so only physical confirmed meetings count toward co-attendance
  * - Zero co-attendees: gracefully falls back to the next distinct person in the register (or undefined)
  */
-export function findTopCoAttendee(
-  target: string | PersonRecord | undefined,
-  arg2: PersonRecord[] | EventRecord[],
-  arg3: PersonRecord[] | EventRecord[]
-): string | undefined {
-  // Determine argument positions dynamically for maximum caller ergonomics
-  const isArg2People = Array.isArray(arg2) && arg2.length > 0 && ("canonicalName" in (arg2[0] as object) || "notabilityBasis" in (arg2[0] as object));
-  const isArg3People = Array.isArray(arg3) && arg3.length > 0 && ("canonicalName" in (arg3[0] as object) || "notabilityBasis" in (arg3[0] as object));
-  
-  const people: PersonRecord[] = isArg2People
-    ? (arg2 as PersonRecord[])
-    : isArg3People
-    ? (arg3 as PersonRecord[])
-    : (arg2 as PersonRecord[]);
+export interface FindTopCoAttendeeOptions {
+  target?: string | PersonRecord;
+  people: PersonRecord[];
+  events: EventRecord[];
+}
 
-  const events: EventRecord[] = isArg2People
-    ? (arg3 as EventRecord[])
-    : (arg2 as EventRecord[]);
+export function findTopCoAttendee(
+  optionsOrTarget: FindTopCoAttendeeOptions | string | PersonRecord | undefined,
+  arg2?: PersonRecord[] | EventRecord[],
+  arg3?: PersonRecord[] | EventRecord[]
+): string | undefined {
+  let target: string | PersonRecord | undefined;
+  let people: PersonRecord[] = [];
+  let events: EventRecord[] = [];
+
+  if (
+    optionsOrTarget &&
+    typeof optionsOrTarget === "object" &&
+    "people" in optionsOrTarget &&
+    "events" in optionsOrTarget
+  ) {
+    target = optionsOrTarget.target;
+    people = Array.isArray(optionsOrTarget.people) ? optionsOrTarget.people : [];
+    events = Array.isArray(optionsOrTarget.events) ? optionsOrTarget.events : [];
+  } else {
+    target = optionsOrTarget as string | PersonRecord | undefined;
+    const isArg2People =
+      Array.isArray(arg2) &&
+      arg2.length > 0 &&
+      ("canonicalName" in (arg2[0] as object) || "notabilityBasis" in (arg2[0] as object));
+    const isArg3People =
+      Array.isArray(arg3) &&
+      arg3.length > 0 &&
+      ("canonicalName" in (arg3[0] as object) || "notabilityBasis" in (arg3[0] as object));
+
+    people = isArg2People
+      ? (arg2 as PersonRecord[])
+      : isArg3People
+      ? (arg3 as PersonRecord[])
+      : ((arg2 as PersonRecord[]) || []);
+
+    events = isArg2People
+      ? (arg3 as EventRecord[])
+      : isArg3People
+      ? ((arg2 as EventRecord[]) || [])
+      : ((arg3 as EventRecord[]) || (arg2 as EventRecord[]) || []);
+  }
 
   if (!target || events.length === 0) {
     const targetSlug = typeof target === "string" ? target : target?.slug;

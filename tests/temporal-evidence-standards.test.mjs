@@ -832,12 +832,11 @@ test("verifies round-8 Codex review fixes: participant confidence, merge seriali
     "app/relationship/[a]/[b]/page.tsx must pass verified events only to TimelineComparison"
   );
 
-  // 4. Ingestion resolve promotes participants to published
+  // 4. Ingestion resolve sets new person stubs to draft (Finding #2 & CodeRabbit)
   const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
   assert.ok(
-    resolveTs.includes('publicationStatus: "published"') &&
-    !resolveTs.includes('publicationStatus: "draft"'),
-    "resolve.ts must register participants as published so names resolve under public RLS"
+    resolveTs.includes('publicationStatus: "draft"'),
+    "resolve.ts must register new unapproved person stubs as draft"
   );
 
   // 5. Biographical relation error propagation in people.ts
@@ -1269,6 +1268,99 @@ test("verifies round-19 Codex review fixes: approximate coordinate visibility de
   assert.ok(
     eventCardTs.includes('event.confidence || "limited"'),
     "EventCard.tsx must default confidence to limited"
+  );
+});
+
+test("verifies round-20 Codex and CodeRabbit review fixes: biography arrow keys, provisional badge, evidence attachments, and options object findTopCoAttendee", async () => {
+  const bioSectionTs = fs.readFileSync(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf-8");
+  const personTimelineTs = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  const eventDetailTs = fs.readFileSync(path.join(root, "app/event/[slug]/page.tsx"), "utf-8");
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  const utilsTs = fs.readFileSync(path.join(root, "lib/rewind/utils.ts"), "utf-8");
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
+  const applyMigrationsMjs = fs.readFileSync(path.join(root, "scripts/apply-all-migrations.mjs"), "utf-8");
+  const runIngestionTs = fs.readFileSync(path.join(root, "scripts/run-forensic-ingestion.ts"), "utf-8");
+
+  // 1. Arrow-key navigation in BiographicalSection
+  assert.ok(
+    bioSectionTs.includes("handleTabKeyDown") &&
+    bioSectionTs.includes("ArrowRight") &&
+    bioSectionTs.includes("ArrowLeft") &&
+    bioSectionTs.includes("tabIndex={activeTab ==="),
+    "BiographicalSection.tsx must implement arrow-key navigation and roving tabindex"
+  );
+
+  // 2. Provisional fallback in PersonTimeline
+  assert.ok(
+    personTimelineTs.includes('className={`status ${event.verificationStatus || "provisional"}`}') &&
+    personTimelineTs.includes('{event.verificationStatus || "provisional"}'),
+    "PersonTimeline.tsx must use provisional as verificationStatus fallback"
+  );
+
+  // 3. Limited confidence fallback in app/event/[slug]/page.tsx
+  assert.ok(
+    eventDetailTs.includes('Why “{event.confidence || "limited"}”?'),
+    "app/event/[slug]/page.tsx must use limited as confidence fallback in heading"
+  );
+
+  // 4. Source-derived medium and error-propagating getEventsByIds in lib/rewind/events.ts
+  assert.ok(
+    eventsTs.includes("Array.isArray(sources) && sources.length > 0") &&
+    eventsTs.includes("sources.map((s) => s.sourceType)"),
+    "lib/rewind/events.ts must derive medium only from actual sources"
+  );
+  assert.ok(
+    eventsTs.includes("throw new Error(`Failed to query events chunk:"),
+    "lib/rewind/events.ts must throw on chunk query errors in getEventsByIds"
+  );
+
+  // 5. Options object findTopCoAttendee
+  assert.ok(
+    utilsTs.includes("export interface FindTopCoAttendeeOptions") &&
+    utilsTs.includes('"people" in optionsOrTarget') &&
+    utilsTs.includes('"events" in optionsOrTarget'),
+    "lib/rewind/utils.ts must support options object in findTopCoAttendee"
+  );
+
+  // 6. Evidence service claim evidence persistence and 5-tier confidence allow-list
+  assert.ok(
+    evidenceServiceTs.includes("await tx.insert(schema.claimEvidence).values(claimEvidenceRows);") &&
+    evidenceServiceTs.includes('["confirmed", "strong", "moderate", "limited", "disputed"].includes(p.confidence)'),
+    "lib/evidence-service.ts must persist claimEvidence attachments and support all 5 confidence levels"
+  );
+
+  // 7. Duplicate merge claim evidence and unassessed strength/directness in pipeline.ts
+  assert.ok(
+    pipelineTs.includes("evidenceStrength: null") &&
+    pipelineTs.includes("directness: null"),
+    "lib/ingestion/pipeline.ts must set unassessed evidence strength and directness to null"
+  );
+  assert.ok(
+    pipelineTs.includes("newClaimRows.push") &&
+    pipelineTs.includes("evidenceRows.push"),
+    "lib/ingestion/pipeline.ts must preserve evidence attachments for duplicate merge claims"
+  );
+
+  // 8. Draft publication status for new person stubs
+  assert.ok(
+    resolveTs.includes('publicationStatus: "draft"'),
+    "lib/ingestion/resolve.ts must default newly inserted person stubs to draft"
+  );
+
+  // 9. Transactional migration application
+  assert.ok(
+    applyMigrationsMjs.includes("await client.begin(async (sql) => {"),
+    "scripts/apply-all-migrations.mjs must wrap migration execution and ledger update in a single transaction"
+  );
+
+  // 10. Failed count tracking in run-forensic-ingestion.ts
+  assert.ok(
+    runIngestionTs.includes("let failedCount = 0;") &&
+    runIngestionTs.includes("failedCount++;") &&
+    runIngestionTs.includes("process.exit(1);"),
+    "scripts/run-forensic-ingestion.ts must track failedCount and exit non-zero on failure"
   );
 });
 
