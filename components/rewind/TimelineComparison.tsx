@@ -558,7 +558,7 @@ export function TimelineComparison({
                           );
                           const status = event.verificationStatus || "unknown";
                           const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
-                          const confidence = event.confidence || "Not established";
+                          const confidence = event.confidence || "limited";
 
                           return (
                             <article

@@ -12,7 +12,7 @@ export const EventCard = memo(function EventCard({
   compact?: boolean;
 }) {
   const verified = event.verificationStatus === "verified";
-  const confidence = event.confidence || "Not established";
+  const confidence = event.confidence || "limited";
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
   const isStandard = isStandardIsoDate(event.startDate);
 

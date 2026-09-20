@@ -270,15 +270,15 @@ export function PersonTimeline({
             <span>{event.startDate.slice(0, 4)}</span>
             <span
               className={`status ${event.verificationStatus || "verified"}`}
-              title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "Not established"}`}
+              title={`Verification: ${event.verificationStatus || "verified"} · Confidence: ${event.confidence || "limited"}`}
             >
               {event.verificationStatus || "verified"}
             </span>
             <span
               className="kicker-confidence-badge"
-              title={`Confidence level: ${event.confidence || "Not established"}`}
+              title={`Confidence level: ${event.confidence || "limited"}`}
             >
-              {event.confidence || "Not established"}
+              {event.confidence || "limited"}
             </span>
           </div>
           <time

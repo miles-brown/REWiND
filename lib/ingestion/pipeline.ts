@@ -562,13 +562,14 @@ export function processCandidateEvent(
           livePersistedClaimsAdded = claimsToInsert.length;
 
           if (claimsToInsert.length > 0) {
-            await tx.insert(schema.claims).values(
-              claimsToInsert.map(({ clm, subjectId }) => {
-                const normStatement = clm.statement.trim().toLowerCase();
-                const claimKey = `${targetEventId}::${subjectId ?? ""}::${normStatement}`;
-                const claimHash = createHash("sha256").update(claimKey).digest("hex").slice(0, 12);
-                return {
-                  id: `clm-${targetEventId.replace(/^evt-/, "")}-${claimHash}`,
+            const claimRows = claimsToInsert.map(({ clm, subjectId }) => {
+              const normStatement = clm.statement.trim().toLowerCase();
+              const claimKey = `${targetEventId}::${subjectId ?? ""}::${normStatement}`;
+              const claimHash = createHash("sha256").update(claimKey).digest("hex").slice(0, 12);
+              const claimId = `clm-${targetEventId.replace(/^evt-/, "")}-${claimHash}`;
+              return {
+                claim: {
+                  id: claimId,
                   eventId: targetEventId,
                   subjectId,
                   subjectEntityType: subjectId ? "person" : "event",
@@ -582,9 +583,23 @@ export function processCandidateEvent(
                   claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
                   epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
                   supportingExcerpt: clm.supportingExcerpt || null,
-                };
-              })
-            ).onConflictDoNothing();
+                },
+                evidence: {
+                  id: `ev-${claimId}-${source.sourceId}`,
+                  claimId,
+                  sourceId: source.sourceId,
+                  evidenceForm: source.sourceType || "direct-citation",
+                  evidenceStrength: source.sourceTier === "tier-a" ? "primary-direct" : "corroborated",
+                  directness: "direct",
+                  citationLocator: null,
+                  supportingExcerpt: clm.supportingExcerpt || null,
+                  contradictsClaim: false,
+                },
+              };
+            });
+
+            await tx.insert(schema.claims).values(claimRows.map((r) => r.claim)).onConflictDoNothing();
+            await tx.insert(schema.claimEvidence).values(claimRows.map((r) => r.evidence)).onConflictDoNothing();
           }
 
           // Insert quotes into schema.quotes on merge
@@ -842,12 +857,12 @@ export function processCandidateEvent(
           livePersistedClaimsAdded = claimsToInsert.length;
 
           if (claimsToInsert.length > 0) {
-            await tx.insert(schema.claims).values(
-              claimsToInsert.map(({ clm, subjectId }) => {
-                const contentKey = `${clm.subjectMention ?? ""}::${clm.statement}`.toLowerCase().trim();
-                const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
-                const stableId = `clm-${eventSlug}-${hash.toString(36)}`;
-                return {
+            const claimRows = claimsToInsert.map(({ clm, subjectId }) => {
+              const contentKey = `${clm.subjectMention ?? ""}::${clm.statement}`.toLowerCase().trim();
+              const hash = Array.from(contentKey).reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 0);
+              const stableId = `clm-${eventSlug}-${hash.toString(36)}`;
+              return {
+                claim: {
                   id: stableId,
                   eventId: eventSlug,
                   subjectId,
@@ -862,9 +877,23 @@ export function processCandidateEvent(
                   claimStatus: livePolicy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
                   epistemicClass: livePolicy.lane === "auto-publish" ? "documented fact" : "allegation",
                   supportingExcerpt: clm.supportingExcerpt || null,
-                };
-              })
-            );
+                },
+                evidence: {
+                  id: `ev-${stableId}-${source.sourceId}`,
+                  claimId: stableId,
+                  sourceId: source.sourceId,
+                  evidenceForm: source.sourceType || "direct-citation",
+                  evidenceStrength: source.sourceTier === "tier-a" ? "primary-direct" : "corroborated",
+                  directness: "direct",
+                  citationLocator: null,
+                  supportingExcerpt: clm.supportingExcerpt || null,
+                  contradictsClaim: false,
+                },
+              };
+            });
+
+            await tx.insert(schema.claims).values(claimRows.map((r) => r.claim)).onConflictDoNothing();
+            await tx.insert(schema.claimEvidence).values(claimRows.map((r) => r.evidence)).onConflictDoNothing();
           }
 
           // Insert quotes into schema.quotes

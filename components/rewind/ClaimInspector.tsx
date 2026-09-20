@@ -32,15 +32,31 @@ function getStatusBadgeClass(status: ClaimStatus): string {
 }
 
 export function ClaimInspector({
-  claims = [],
+  claims,
   title = "Factual Claims & Evidential Decomposition",
 }: {
   claims?: ClaimRecord[];
   title?: string;
 }) {
-  if (!claims || claims.length === 0) {
+  if (claims === undefined) {
     return (
-      <section className="claims-panel empty-claims">
+      <section className="claims-panel claims-unavailable" aria-label="Evidential Claim Decomposition">
+        <div className="section-header">
+          <span className="eyebrow">
+            <Scale size={14} /> FORENSIC EVIDENTIARY AUDIT
+          </span>
+          <h3>{title}</h3>
+        </div>
+        <p className="empty-copy">
+          Evidential claim data is temporarily unavailable. Detailed claims and primary source attachments could not be loaded.
+        </p>
+      </section>
+    );
+  }
+
+  if (claims.length === 0) {
+    return (
+      <section className="claims-panel empty-claims" aria-label="Evidential Claim Decomposition">
         <div className="section-header">
           <span className="eyebrow">
             <Scale size={14} /> FORENSIC EVIDENTIARY AUDIT

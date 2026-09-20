@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS public.event_person_locations (
   is_principal_location boolean DEFAULT true NOT NULL,
   location_basis text DEFAULT 'archival-record' NOT NULL,
   confidence text DEFAULT 'limited' NOT NULL,
-  public_visibility text DEFAULT 'public-exact' NOT NULL
+  public_visibility text DEFAULT 'approximate' NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.event_person_organisations (
@@ -429,7 +429,7 @@ ALTER TABLE IF EXISTS public.people ALTER COLUMN publication_status SET DEFAULT 
 ALTER TABLE IF EXISTS public.event_people ALTER COLUMN presence_confidence SET DEFAULT 'limited';
 ALTER TABLE IF EXISTS public.event_people ALTER COLUMN role_confidence SET DEFAULT 'limited';
 ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN confidence SET DEFAULT 'limited';
-ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'public-exact';
+ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'approximate';
 ALTER TABLE IF EXISTS public.event_person_organisations ALTER COLUMN confidence SET DEFAULT 'limited';
 ALTER TABLE IF EXISTS public.claims ALTER COLUMN confidence SET DEFAULT 'limited';
 
@@ -609,7 +609,10 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_people' AND policyname = 'Allow public read on event_people') THEN
     CREATE POLICY "Allow public read on event_people" ON public.event_people FOR SELECT TO anon, authenticated
-      USING (EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_people.event_id AND e.publication_status = 'published'));
+      USING (
+        EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_people.event_id AND e.publication_status = 'published')
+        AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = event_people.person_id AND p.publication_status = 'published')
+      );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'event_person_locations' AND policyname = 'Allow public read on event_person_locations') THEN
     CREATE POLICY "Allow public read on event_person_locations" ON public.event_person_locations FOR SELECT TO anon, authenticated
@@ -618,8 +621,10 @@ BEGIN
         AND EXISTS (
           SELECT 1 FROM public.event_people ep
           JOIN public.events e ON e.id = ep.event_id
+          JOIN public.people p ON p.id = ep.person_id
           WHERE ep.id = event_person_locations.event_person_id
           AND e.publication_status = 'published'
+          AND p.publication_status = 'published'
         )
       );
   END IF;
@@ -629,8 +634,10 @@ BEGIN
         EXISTS (
           SELECT 1 FROM public.event_people ep
           JOIN public.events e ON e.id = ep.event_id
+          JOIN public.people p ON p.id = ep.person_id
           WHERE ep.id = event_person_organisations.event_person_id
           AND e.publication_status = 'published'
+          AND p.publication_status = 'published'
         )
       );
   END IF;
@@ -664,8 +671,10 @@ BEGIN
           SELECT 1 FROM public.event_person_locations epl
           JOIN public.event_people ep ON ep.id = epl.event_person_id
           JOIN public.events e ON e.id = ep.event_id
+          JOIN public.people p ON p.id = ep.person_id
           WHERE epl.id = event_person_location_sources.event_person_location_id
           AND e.publication_status = 'published'
+          AND p.publication_status = 'published'
           AND epl.public_visibility = 'public-exact'
         )
       );

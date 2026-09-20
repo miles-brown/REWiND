@@ -21,12 +21,15 @@ ALTER TABLE public.sources
   ALTER COLUMN independence_status DROP DEFAULT,
   ALTER COLUMN source_quality DROP DEFAULT;
 
--- 3. Drop Defaults on Claim Evidence Strength and Directness
+-- 3. Drop Defaults on Claim Evidence Strength and Directness, and Set Safe Approximate Coordinate Visibility Default
 ALTER TABLE public.claim_evidence
   ALTER COLUMN evidence_strength DROP DEFAULT,
   ALTER COLUMN evidence_strength DROP NOT NULL,
   ALTER COLUMN directness DROP DEFAULT,
   ALTER COLUMN directness DROP NOT NULL;
+
+ALTER TABLE public.event_person_locations
+  ALTER COLUMN public_visibility SET DEFAULT 'approximate';
 
 -- 4. Remediate Legacy Refuted and Contradicted Claims Status
 UPDATE public.claims

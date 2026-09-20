@@ -146,7 +146,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       <section className="record-body">
         <div className="record-main">
           <ErrorBoundary sectionName="Claim Inspector">
-            <ClaimInspector claims={event.claims || []} />
+            <ClaimInspector claims={event.claims} />
           </ErrorBoundary>
 
           <section>

@@ -288,7 +288,7 @@ export function RewindExplorer({
               </div>
               <div>
                 <dt>Confidence</dt>
-                <dd>{event.confidence || "Not established"}</dd>
+                <dd>{event.confidence || "limited"}</dd>
               </div>
               <div>
                 <dt>Medium</dt>

@@ -261,7 +261,6 @@ export const eventSources = pgTable("event_sources", {
   isPrimary: boolean("is_primary").default(true).notNull(),
 });
 
-// Atomic Claim Layer: Source -> Evidence -> Claim -> Event
 export const claims = pgTable("claims", {
   id: text("id").primaryKey(),
   eventId: text("event_id")
@@ -278,6 +277,21 @@ export const claims = pgTable("claims", {
   claimStatus: text("claim_status").default("PROVISIONAL").notNull(),
   epistemicClass: text("epistemic_class").default("unknown").notNull(),
   supportingExcerpt: text("supporting_excerpt"),
+});
+
+export const claimEvidence = pgTable("claim_evidence", {
+  id: text("id").primaryKey(),
+  claimId: text("claim_id").notNull(),
+  sourceId: text("source_id")
+    .references(() => sources.id, { onDelete: "cascade" })
+    .notNull(),
+  evidenceForm: text("evidence_form").notNull(),
+  evidenceStrength: text("evidence_strength"),
+  directness: text("directness"),
+  citationLocator: text("citation_locator"),
+  supportingExcerpt: text("supporting_excerpt"),
+  contradictsClaim: boolean("contradicts_claim").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const quotes = pgTable("quotes", {

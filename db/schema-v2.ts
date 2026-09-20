@@ -134,7 +134,7 @@ export const eventPersonLocations = pgTable(
     isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
     locationBasis: text("location_basis").default("archival-record").notNull(),
     confidence: text("confidence").default("limited").notNull(),
-    publicVisibility: text("public_visibility").default("public-exact").notNull(),
+    publicVisibility: text("public_visibility").default("approximate").notNull(),
   },
   (table) => [
     check(

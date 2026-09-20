@@ -873,7 +873,7 @@ test("verifies round-9 Codex review fixes: cutover defaults restoration, duplica
   );
   assert.ok(
     cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN confidence SET DEFAULT 'limited';") &&
-    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'public-exact';"),
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'approximate';"),
     "cutover migration must set event_person_locations confidence and visibility defaults in upgrade block"
   );
 
@@ -1200,6 +1200,78 @@ test("verifies round-18 Codex review fixes: claims FK matching by ID only, polym
     }
   }
 });
+
+test("verifies round-19 Codex review fixes: approximate coordinate visibility default, participant publication RLS, claim evidence persistence, query error propagation, and EventCard limited confidence default", async () => {
+  const root = process.cwd();
+
+  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  const hardeningSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904030000_quote_and_claim_rls_hardening.sql"), "utf-8");
+  const schemaV2Ts = fs.readFileSync(path.join(root, "db/schema-v2.ts"), "utf-8");
+  const schemaTs = fs.readFileSync(path.join(root, "db/schema.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  const eventCardTs = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
+  const claimInspectorTs = fs.readFileSync(path.join(root, "components/rewind/ClaimInspector.tsx"), "utf-8");
+
+  // 1. Coordinate visibility opt-in default ('approximate' instead of 'public-exact')
+  assert.ok(
+    schemaV2Ts.includes('publicVisibility: text("public_visibility").default("approximate").notNull()'),
+    "schema-v2.ts must default public_visibility to approximate"
+  );
+  assert.ok(
+    cutoverSql.includes("public_visibility text DEFAULT 'approximate' NOT NULL") &&
+    cutoverSql.includes("ALTER TABLE IF EXISTS public.event_person_locations ALTER COLUMN public_visibility SET DEFAULT 'approximate';"),
+    "cutover migration must define and upgrade public_visibility default to approximate"
+  );
+  assert.ok(
+    remediationSql.includes("ALTER TABLE public.event_person_locations") &&
+    remediationSql.includes("ALTER COLUMN public_visibility SET DEFAULT 'approximate';"),
+    "remediation migration must ensure public_visibility default is approximate"
+  );
+
+  // 2. Published participants in public RLS policies
+  for (const sql of [cutoverSql, hardeningSql]) {
+    assert.ok(
+      sql.includes("EXISTS (SELECT 1 FROM public.people p WHERE p.id = event_people.person_id AND p.publication_status = 'published')"),
+      "event_people RLS policy must check person publication status"
+    );
+    assert.ok(
+      sql.includes("JOIN public.people p ON p.id = ep.person_id") &&
+      sql.includes("p.publication_status = 'published'"),
+      "event_person_locations and event_person_organisations RLS policies must check person publication status"
+    );
+  }
+
+  // 3. Persist claim evidence during ingestion and schema export
+  assert.ok(
+    schemaTs.includes("export const claimEvidence = pgTable(\"claim_evidence\""),
+    "db/schema.ts must export claimEvidence table"
+  );
+  assert.ok(
+    pipelineTs.includes("tx.insert(schema.claimEvidence).values(claimRows.map((r) => r.evidence))"),
+    "lib/ingestion/pipeline.ts must insert claimEvidence records during ingestion"
+  );
+
+  // 4. Claim query error propagation
+  assert.ok(
+    claimsTs.includes("throw new Error(`Failed to query claims for event") &&
+    claimsTs.includes("throw new Error(`Failed to query claim evidence for event"),
+    "lib/rewind/claims.ts must throw on database query failures"
+  );
+  assert.ok(
+    claimInspectorTs.includes("if (claims === undefined)") &&
+    claimInspectorTs.includes("claims-unavailable"),
+    "ClaimInspector.tsx must render distinct unavailable state when claims is undefined"
+  );
+
+  // 5. EventCard confidence default
+  assert.ok(
+    eventCardTs.includes('event.confidence || "limited"'),
+    "EventCard.tsx must default confidence to limited"
+  );
+});
+
 
 
 

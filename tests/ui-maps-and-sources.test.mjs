@@ -603,12 +603,12 @@ test("verifies confidence and temporal precision fallbacks across components", (
   const cardContent = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
   const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
-    cardContent.includes('event.confidence || "Not established"') &&
+    cardContent.includes('event.confidence || "limited"') &&
     cardContent.includes('event.datePrecision || event.timePrecision || "exact-day"'),
     "EventCard must apply consistent confidence and temporal precision fallbacks"
   );
   assert.ok(
-    timelineContent.includes('event.confidence || "Not established"') &&
+    timelineContent.includes('event.confidence || "limited"') &&
     timelineContent.includes('event.timePrecision || event.datePrecision || "exact-day"'),
     "PersonTimeline must apply consistent confidence and temporal precision fallbacks"
   );
@@ -947,12 +947,12 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     "events.ts must hydrate quotes from database, paginate, and propagate venue/address errors"
   );
 
-  // 4. PersonTimeline unestablished confidence and fixed viewport console
+  // 4. PersonTimeline limited confidence default and fixed viewport console
   const ptContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
-    ptContent.includes('Confidence: ${event.confidence || "Not established"}') &&
-    ptContent.includes('{event.confidence || "Not established"}'),
-    "PersonTimeline must render 'Not established' rather than 'confirmed' when confidence is absent"
+    ptContent.includes('Confidence: ${event.confidence || "limited"}') &&
+    ptContent.includes('{event.confidence || "limited"}'),
+    "PersonTimeline must render 'limited' rather than 'confirmed' when confidence is absent"
   );
 
   const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");

@@ -1127,6 +1127,7 @@ export async function getEventBySlug(
         eventRecord.claims = claims;
       } catch (err) {
         console.warn("Failed to load claims for event:", err);
+        eventRecord.claims = undefined;
       }
 
       return {
