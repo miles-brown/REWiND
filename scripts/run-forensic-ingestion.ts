@@ -1,11 +1,16 @@
-import dotenv from "dotenv";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { processCandidateEvent } from "@/lib/ingestion/pipeline";
 import { people, sources, events } from "../archive/legacy-data/rewind";
 
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === "function") {
+  try {
+    (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile(".env.local");
+  } catch {}
+  try {
+    (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile();
+  } catch {}
+}
 
 async function runIngestion() {
   console.log("=================================================");

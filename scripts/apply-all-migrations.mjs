@@ -1,10 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import dotenv from "dotenv";
 import postgres from "postgres";
 
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+if (typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile(".env.local");
+  } catch {}
+  try {
+    process.loadEnvFile();
+  } catch {}
+}
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
