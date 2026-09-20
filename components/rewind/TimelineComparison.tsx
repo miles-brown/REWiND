@@ -181,8 +181,13 @@ export function TimelineComparison({
         return topCo.person.slug;
       }
     }
+    // Fallback: pick the first distinct person from the register
+    const fallbackPerson = people.find((p) => p.slug !== effectiveSlugA);
+    if (fallbackPerson) {
+      return fallbackPerson.slug;
+    }
     return "";
-  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, effectiveSlugA]);
+  }, [coAttendeesWithCounts, explicitSlugB, peopleMap, effectiveSlugA, people]);
 
   const currentPairKey = `${effectiveSlugA}-${slugB}`;
   if (currentPairKey !== prevPairKey) {
@@ -198,11 +203,17 @@ export function TimelineComparison({
 
   const figure2Options = useMemo(() => {
     const list = [...coAttendeesWithCounts];
-    if (slugB && personB && !list.some((item) => item.person.slug === slugB) && slugB !== effectiveSlugA) {
-      list.unshift({ person: personB, count: 0 });
-    }
+    const coSlugs = new Set(list.map((item) => item.person.slug));
+
+    // Ensure all other distinct figures in the atlas are available for comparison
+    people.forEach((p) => {
+      if (p.slug !== effectiveSlugA && !coSlugs.has(p.slug)) {
+        list.push({ person: p, count: 0 });
+      }
+    });
+
     return list;
-  }, [coAttendeesWithCounts, slugB, personB, effectiveSlugA]);
+  }, [coAttendeesWithCounts, people, effectiveSlugA]);
 
   const eventsA = useMemo(
     () =>

@@ -1,5 +1,6 @@
 # CodeRabbit Configuration for REWIND Evidence Atlas
 # Documentation: https://docs.coderabbit.ai/getting-started/configure-coderabbit
+# CANONICAL INVARIANTS: Path instructions below directly reflect and enforce the authoritative standards defined in AGENTS.md.
 
 language: "en-US"
 tone_instructions: "Rigorous forensic reviewer auditing TypeScript safety, React 19 performance, WCAG 2.1 AA accessibility (slider thumbs, focus states), and archival data integrity."

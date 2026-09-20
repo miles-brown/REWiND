@@ -1435,10 +1435,26 @@ test("validates admin evidence console tab accessibility, API error typing, and 
   // Positional call with null target
   assert.equal(utils.findTopCoAttendee(null, samplePeople, sampleEvents), "benjamin-netanyahu");
 
-  // 5. RewindExplorer subject defaulting
+  // 5. RewindExplorer subject defaulting and calendar jump
   assert.ok(
-    explorerTs.includes("subject = null"),
-    "components/rewind/RewindExplorer.tsx must default subject to null for All Events view"
+    explorerTs.includes("subject = null") &&
+    explorerTs.includes("`/events?year=${eventYear}`"),
+    "components/rewind/RewindExplorer.tsx must default subject to null and link to /events?year= when subject is null"
+  );
+
+  // 6. TimelineComparison initial state and figure2Options robustness
+  const comparisonTs = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  assert.ok(
+    comparisonTs.includes("const fallbackPerson = people.find((p) => p.slug !== effectiveSlugA);") &&
+    comparisonTs.includes("!coSlugs.has(p.slug)"),
+    "components/rewind/TimelineComparison.tsx must robustly fall back to distinct people and provide all figures in figure2Options"
+  );
+
+  // 7. AGENTS.md and .coderabbit.yaml consistency
+  const coderabbitYaml = fs.readFileSync(path.join(root, ".coderabbit.yaml"), "utf-8");
+  assert.ok(
+    coderabbitYaml.includes("CANONICAL INVARIANTS: Path instructions below directly reflect and enforce the authoritative standards defined in AGENTS.md."),
+    ".coderabbit.yaml must explicitly declare AGENTS.md as the canonical source of truth"
   );
 });
 
