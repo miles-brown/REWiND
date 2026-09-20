@@ -43,17 +43,23 @@ export function isPhysicalConfirmedParticipant(p: { attendanceMode?: string; pre
  * - Zero co-attendees: gracefully falls back to the next distinct person in the register (or undefined)
  */
 export interface FindTopCoAttendeeOptions {
-  target?: string | PersonRecord;
+  target?: string | PersonRecord | null;
   people: PersonRecord[];
   events: EventRecord[];
 }
 
+export function findTopCoAttendee(options: FindTopCoAttendeeOptions): string | undefined;
 export function findTopCoAttendee(
-  optionsOrTarget: FindTopCoAttendeeOptions | string | PersonRecord | undefined,
+  target: string | PersonRecord | undefined | null,
+  people?: PersonRecord[],
+  events?: EventRecord[]
+): string | undefined;
+export function findTopCoAttendee(
+  optionsOrTarget: FindTopCoAttendeeOptions | string | PersonRecord | undefined | null,
   arg2?: PersonRecord[] | EventRecord[],
   arg3?: PersonRecord[] | EventRecord[]
 ): string | undefined {
-  let target: string | PersonRecord | undefined;
+  let target: string | PersonRecord | undefined | null;
   let people: PersonRecord[] = [];
   let events: EventRecord[] = [];
 

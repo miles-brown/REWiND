@@ -221,7 +221,31 @@ export default function EvidenceControlConsole() {
     () => queue.filter((c) => c.status === "pending" && Boolean(c.duplicateSimilarity && c.duplicateSimilarity >= 0.75)),
     [queue]
   );
+  const consoleTabs: ("queue" | "duplicates" | "audit")[] = ["queue", "duplicates", "audit"];
 
+  const handleTabKeyDown = (e: React.KeyboardEvent) => {
+    const currentIndex = consoleTabs.indexOf(activeTab as "queue" | "duplicates" | "audit");
+    if (currentIndex === -1) return;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const nextTab = consoleTabs[(currentIndex + 1) % consoleTabs.length];
+      setActiveTab(nextTab);
+      document.getElementById(`tab-${nextTab}`)?.focus();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const prevTab = consoleTabs[(currentIndex - 1 + consoleTabs.length) % consoleTabs.length];
+      setActiveTab(prevTab);
+      document.getElementById(`tab-${prevTab}`)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActiveTab(consoleTabs[0]);
+      document.getElementById(`tab-${consoleTabs[0]}`)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setActiveTab(consoleTabs[consoleTabs.length - 1]);
+      document.getElementById(`tab-${consoleTabs[consoleTabs.length - 1]}`)?.focus();
+    }
+  };
 
   return (
     <main className="evidence-console-main">
@@ -322,11 +346,17 @@ export default function EvidenceControlConsole() {
         </section>
 
         {/* Tab Navigation */}
-        <div className="console-tabs-nav" role="tablist" aria-label="Evidence Console Views">
+        <div
+          className="console-tabs-nav"
+          role="tablist"
+          aria-label="Evidence Console Views"
+          onKeyDown={handleTabKeyDown}
+        >
           <button
             type="button"
             role="tab"
             id="tab-queue"
+            tabIndex={activeTab === "queue" ? 0 : -1}
             aria-selected={activeTab === "queue"}
             aria-controls="tabpanel-queue"
             className={`tab-btn ${activeTab === "queue" ? "active" : ""}`}
@@ -341,6 +371,7 @@ export default function EvidenceControlConsole() {
             type="button"
             role="tab"
             id="tab-duplicates"
+            tabIndex={activeTab === "duplicates" ? 0 : -1}
             aria-selected={activeTab === "duplicates"}
             aria-controls="tabpanel-duplicates"
             className={`tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
@@ -355,6 +386,7 @@ export default function EvidenceControlConsole() {
             type="button"
             role="tab"
             id="tab-audit"
+            tabIndex={activeTab === "audit" ? 0 : -1}
             aria-selected={activeTab === "audit"}
             aria-controls="tabpanel-audit"
             className={`tab-btn ${activeTab === "audit" ? "active" : ""}`}

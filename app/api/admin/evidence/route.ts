@@ -80,13 +80,17 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 }
 
 
+import type { ApiErrorResponse } from "@/lib/rewind";
+
 export async function GET(req: Request) {
   const auth = authenticateAdminRequest(req);
   if (!auth.isAuthorized) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized: Valid admin credentials required for evidence data" },
-      { status: 401 }
-    );
+    const errorBody: ApiErrorResponse = {
+      success: false,
+      error: "Unauthorized: Valid admin credentials required for evidence data",
+      code: "UNAUTHORIZED",
+    };
+    return NextResponse.json(errorBody, { status: 401 });
   }
 
   const stats = await getEvidentiaryStats();
@@ -104,23 +108,24 @@ export async function POST(req: Request) {
   try {
     const auth = authenticateAdminRequest(req);
     if (!auth.isAuthorized) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized: Valid admin credentials required for review actions" },
-        { status: 401 }
-      );
+      const errorBody: ApiErrorResponse = {
+        success: false,
+        error: "Unauthorized: Valid admin credentials required for review actions",
+        code: "UNAUTHORIZED",
+      };
+      return NextResponse.json(errorBody, { status: 401 });
     }
 
     const body = await req.json();
     const parsed = AdminReviewActionSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request payload",
-          details: parsed.error.format(),
-        },
-        { status: 400 }
-      );
+      const errorBody: ApiErrorResponse = {
+        success: false,
+        error: "Invalid request payload",
+        code: "BAD_REQUEST",
+        details: parsed.error.format(),
+      };
+      return NextResponse.json(errorBody, { status: 400 });
     }
 
     const data = parsed.data;
@@ -150,10 +155,20 @@ export async function POST(req: Request) {
       return NextResponse.json(res, { status: 200 });
     }
 
-    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
+    const errorBody: ApiErrorResponse = {
+      success: false,
+      error: "Invalid action",
+      code: "BAD_ACTION",
+    };
+    return NextResponse.json(errorBody, { status: 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const errorBody: ApiErrorResponse = {
+      success: false,
+      error: message,
+      code: "INTERNAL_SERVER_ERROR",
+    };
+    return NextResponse.json(errorBody, { status: 500 });
   }
 }
 

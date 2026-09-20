@@ -10,5 +10,5 @@ export * from "./search";
 export * from "./stats";
 export * from "./temporal";
 export * from "./claims";
-export { getMonogram } from "./utils";
+export { getMonogram, findTopCoAttendee, isPhysicalConfirmedParticipant } from "./utils";
 

@@ -1364,6 +1364,85 @@ test("verifies round-20 Codex and CodeRabbit review fixes: biography arrow keys,
   );
 });
 
+test("validates admin evidence console tab accessibility, API error typing, and findTopCoAttendee overload typing", async () => {
+  const adminEvidenceTs = fs.readFileSync(path.join(root, "app/admin/evidence/page.tsx"), "utf-8");
+  const typesTs = fs.readFileSync(path.join(root, "lib/rewind/types.ts"), "utf-8");
+  const utilsTs = fs.readFileSync(path.join(root, "lib/rewind/utils.ts"), "utf-8");
+  const adminApiTs = fs.readFileSync(path.join(root, "app/api/admin/evidence/route.ts"), "utf-8");
+  const searchApiTs = fs.readFileSync(path.join(root, "app/api/search/route.ts"), "utf-8");
+  const explorerTs = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+
+  // 1. Evidence console tabs roving tabIndex and keydown handler
+  assert.ok(
+    adminEvidenceTs.includes('onKeyDown={handleTabKeyDown}') &&
+    adminEvidenceTs.includes('tabIndex={activeTab === "queue" ? 0 : -1}') &&
+    adminEvidenceTs.includes('tabIndex={activeTab === "duplicates" ? 0 : -1}') &&
+    adminEvidenceTs.includes('tabIndex={activeTab === "audit" ? 0 : -1}'),
+    "app/admin/evidence/page.tsx must implement roving tabIndex and keydown handler on console-tabs-nav"
+  );
+
+  // 2. ApiErrorResponse and ApiSuccessResponse interfaces
+  assert.ok(
+    typesTs.includes("export interface ApiErrorResponse") &&
+    typesTs.includes("export interface ApiSuccessResponse"),
+    "lib/rewind/types.ts must export ApiErrorResponse and ApiSuccessResponse"
+  );
+
+  // 3. API routes adoption of ApiErrorResponse
+  assert.ok(
+    adminApiTs.includes("ApiErrorResponse") &&
+    adminApiTs.includes('code: "UNAUTHORIZED"') &&
+    adminApiTs.includes('code: "BAD_REQUEST"'),
+    "app/api/admin/evidence/route.ts must use ApiErrorResponse"
+  );
+  assert.ok(
+    searchApiTs.includes("ApiErrorResponse") &&
+    searchApiTs.includes('code: "QUERY_TOO_LONG"') &&
+    searchApiTs.includes('code: "SERVICE_UNAVAILABLE"'),
+    "app/api/search/route.ts must use ApiErrorResponse"
+  );
+
+  // 4. findTopCoAttendee overload typing and execution with null/undefined target
+  assert.ok(
+    utilsTs.includes("export function findTopCoAttendee(options: FindTopCoAttendeeOptions): string | undefined;") &&
+    utilsTs.includes("target: string | PersonRecord | undefined | null"),
+    "lib/rewind/utils.ts must define explicit overloads and strict target typing"
+  );
+  const utils = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+  assert.equal(typeof utils.findTopCoAttendee, "function");
+
+  const samplePeople = [
+    { id: "p1", slug: "benjamin-netanyahu", canonicalName: "Benjamin Netanyahu" },
+    { id: "p2", slug: "bill-clinton", canonicalName: "Bill Clinton" },
+  ];
+  const sampleEvents = [
+    {
+      id: "e1",
+      slug: "event-1",
+      eventName: "Summit",
+      startDate: "1998-10-23",
+      participants: [
+        { personId: "p1", slug: "benjamin-netanyahu", name: "Benjamin Netanyahu", attendanceMode: "physical", presenceConfidence: "confirmed" },
+        { personId: "p2", slug: "bill-clinton", name: "Bill Clinton", attendanceMode: "physical", presenceConfidence: "confirmed" },
+      ],
+    },
+  ];
+
+  // Options object call
+  assert.equal(utils.findTopCoAttendee({ target: "benjamin-netanyahu", people: samplePeople, events: sampleEvents }), "bill-clinton");
+  // Positional call with undefined target
+  assert.equal(utils.findTopCoAttendee(undefined, samplePeople, sampleEvents), "benjamin-netanyahu");
+  // Positional call with null target
+  assert.equal(utils.findTopCoAttendee(null, samplePeople, sampleEvents), "benjamin-netanyahu");
+
+  // 5. RewindExplorer subject defaulting
+  assert.ok(
+    explorerTs.includes("subject = null"),
+    "components/rewind/RewindExplorer.tsx must default subject to null for All Events view"
+  );
+});
+
+
 
 
 

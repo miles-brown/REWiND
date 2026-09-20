@@ -334,3 +334,18 @@ export interface SearchResultItem {
   date?: string;
   badge?: string;
 }
+
+export interface ApiErrorResponse {
+  success?: false;
+  error: string;
+  message?: string;
+  code?: string;
+  details?: unknown;
+}
+
+export interface ApiSuccessResponse<T = unknown> {
+  success: true;
+  data?: T;
+  message?: string;
+}
+

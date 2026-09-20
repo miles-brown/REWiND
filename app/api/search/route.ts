@@ -1,4 +1,5 @@
 import { searchRewind } from "@/lib/rewind/search";
+import type { ApiErrorResponse } from "@/lib/rewind/types";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -11,10 +12,12 @@ export async function GET(request: NextRequest) {
     : 10;
 
   if (q.length > 200) {
-    return NextResponse.json(
-      { results: [], error: "Search query is too long" },
-      { status: 400 }
-    );
+    const errorBody: ApiErrorResponse & { results: [] } = {
+      results: [],
+      error: "Search query is too long",
+      code: "QUERY_TOO_LONG",
+    };
+    return NextResponse.json(errorBody, { status: 400 });
   }
 
   if (!q.trim()) {
@@ -26,9 +29,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results });
   } catch (error) {
     console.error("Search API error:", error);
-    return NextResponse.json(
-      { results: [], error: "Search service unavailable" },
-      { status: 503 }
-    );
+    const errorBody: ApiErrorResponse & { results: [] } = {
+      results: [],
+      error: "Search service unavailable",
+      code: "SERVICE_UNAVAILABLE",
+    };
+    return NextResponse.json(errorBody, { status: 503 });
   }
 }
+
