@@ -1153,6 +1153,54 @@ test("verifies round-17 Codex review fixes: non-destructive source default drop,
   }
 });
 
+test("verifies round-18 Codex review fixes: claims FK matching by ID only, polymorphic event claims lookup, and fallback events limited confidence default", async () => {
+  const root = process.cwd();
+
+  const remediationSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904020000_standards_remediation_and_rls.sql"), "utf-8");
+  const standardsSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904010000_temporal_evidence_people_standards.sql"), "utf-8");
+  const hardeningSql = fs.readFileSync(path.join(root, "supabase/migrations/20260904030000_quote_and_claim_rls_hardening.sql"), "utf-8");
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+
+  // 1. Claims and claim evidence RLS match FK columns strictly by ID
+  for (const sql of [remediationSql, standardsSql, hardeningSql]) {
+    assert.ok(
+      sql.includes("WHERE e.id = claims.event_id AND e.publication_status = 'published'") &&
+      sql.includes("WHERE p.id = claims.subject_id AND p.publication_status = 'published'") &&
+      sql.includes("WHERE p.id = claims.attribution_speaker_id AND p.publication_status = 'published'"),
+      "Claims RLS must match foreign keys (event_id, subject_id, attribution_speaker_id) strictly by ID"
+    );
+    assert.ok(
+      sql.includes("WHERE e.id = c.event_id AND e.publication_status = 'published'") &&
+      sql.includes("WHERE p.id = c.subject_id AND p.publication_status = 'published'") &&
+      sql.includes("WHERE p.id = c.attribution_speaker_id AND p.publication_status = 'published'"),
+      "Claim evidence RLS must match foreign keys (event_id, subject_id, attribution_speaker_id) strictly by ID"
+    );
+  }
+
+  // 2. getClaimsByEvent queries both direct event_id and polymorphic event representation
+  assert.ok(
+    claimsTs.includes(".or(`event_id.eq.${eventId},and(subject_entity_type.eq.event,subject_entity_id.eq.${eventId})`)"),
+    "getClaimsByEvent must query both legacy event_id and polymorphic subject_entity_id representations"
+  );
+
+  // 3. Fallback event mapping defaults unverified events to 'limited' confidence unless explicit
+  assert.ok(
+    eventsTs.includes('e.verificationStatus === "verified" ? "confirmed" : "limited"'),
+    "mapFallbackEvent must default non-verified fallback events to limited confidence"
+  );
+
+  // Dynamic test of getFallbackEventsResult confidence mapping
+  const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const fallbackResult = eventsModule.getFallbackEventsResult({ limit: 5 });
+  assert.ok(fallbackResult.data.length > 0);
+  for (const ev of fallbackResult.data) {
+    if (ev.verificationStatus !== "verified") {
+      assert.equal(ev.confidence, "limited", "Unverified fallback event must default to limited confidence");
+    }
+  }
+});
+
 
 
 

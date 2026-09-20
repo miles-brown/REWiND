@@ -175,7 +175,7 @@ CREATE POLICY "Allow public read on claims"
   USING (
     (
       claims.attribution_speaker_id IS NULL OR EXISTS (
-        SELECT 1 FROM public.people p WHERE (p.id = claims.attribution_speaker_id OR p.slug = claims.attribution_speaker_id) AND p.publication_status = 'published'
+        SELECT 1 FROM public.people p WHERE p.id = claims.attribution_speaker_id AND p.publication_status = 'published'
       )
     )
     AND
@@ -185,7 +185,7 @@ CREATE POLICY "Allow public read on claims"
         (claims.event_id IS NOT NULL OR (claims.subject_entity_type = 'event' AND claims.subject_entity_id IS NOT NULL))
         AND
         (claims.event_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.events e WHERE (e.id = claims.event_id OR e.slug = claims.event_id) AND e.publication_status = 'published'
+          SELECT 1 FROM public.events e WHERE e.id = claims.event_id AND e.publication_status = 'published'
         ))
         AND
         (claims.subject_entity_type <> 'event' OR claims.subject_entity_id IS NULL OR EXISTS (
@@ -193,7 +193,7 @@ CREATE POLICY "Allow public read on claims"
         ))
         AND
         (claims.subject_id IS NULL OR EXISTS (
-          SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
+          SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'
         ))
         AND
         (claims.subject_entity_type <> 'person' OR claims.subject_entity_id IS NULL OR EXISTS (
@@ -211,7 +211,7 @@ CREATE POLICY "Allow public read on claims"
           ))
           OR
           (claims.subject_id IS NOT NULL AND EXISTS (
-            SELECT 1 FROM public.people p WHERE (p.id = claims.subject_id OR p.slug = claims.subject_id) AND p.publication_status = 'published'
+            SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'
           ))
         )
       )
@@ -222,7 +222,7 @@ CREATE POLICY "Allow public read on claims"
         AND claims.subject_entity_type = 'organisation'
         AND claims.subject_entity_id IS NOT NULL
         AND EXISTS (
-          SELECT 1 FROM public.organisations o WHERE o.id = claims.subject_entity_id OR o.slug = claims.subject_entity_id
+          SELECT 1 FROM public.organisations o WHERE (o.id = claims.subject_entity_id OR o.slug = claims.subject_entity_id)
         )
       )
     )
@@ -238,7 +238,7 @@ CREATE POLICY "Public read claim evidence"
       WHERE c.id = claim_evidence.claim_id
         AND (
           c.attribution_speaker_id IS NULL OR EXISTS (
-            SELECT 1 FROM public.people p WHERE (p.id = c.attribution_speaker_id OR p.slug = c.attribution_speaker_id) AND p.publication_status = 'published'
+            SELECT 1 FROM public.people p WHERE p.id = c.attribution_speaker_id AND p.publication_status = 'published'
           )
         )
         AND (
@@ -247,7 +247,7 @@ CREATE POLICY "Public read claim evidence"
             (c.event_id IS NOT NULL OR (c.subject_entity_type = 'event' AND c.subject_entity_id IS NOT NULL))
             AND
             (c.event_id IS NULL OR EXISTS (
-              SELECT 1 FROM public.events e WHERE (e.id = c.event_id OR e.slug = c.event_id) AND e.publication_status = 'published'
+              SELECT 1 FROM public.events e WHERE e.id = c.event_id AND e.publication_status = 'published'
             ))
             AND
             (c.subject_entity_type <> 'event' OR c.subject_entity_id IS NULL OR EXISTS (
@@ -255,7 +255,7 @@ CREATE POLICY "Public read claim evidence"
             ))
             AND
             (c.subject_id IS NULL OR EXISTS (
-              SELECT 1 FROM public.people p WHERE (p.id = c.subject_id OR p.slug = c.subject_id) AND p.publication_status = 'published'
+              SELECT 1 FROM public.people p WHERE p.id = c.subject_id AND p.publication_status = 'published'
             ))
             AND
             (c.subject_entity_type <> 'person' OR c.subject_entity_id IS NULL OR EXISTS (
@@ -273,7 +273,7 @@ CREATE POLICY "Public read claim evidence"
               ))
               OR
               (c.subject_id IS NOT NULL AND EXISTS (
-                SELECT 1 FROM public.people p WHERE (p.id = c.subject_id OR p.slug = c.subject_id) AND p.publication_status = 'published'
+                SELECT 1 FROM public.people p WHERE p.id = c.subject_id AND p.publication_status = 'published'
               ))
             )
           )
@@ -284,7 +284,7 @@ CREATE POLICY "Public read claim evidence"
             AND c.subject_entity_type = 'organisation'
             AND c.subject_entity_id IS NOT NULL
             AND EXISTS (
-              SELECT 1 FROM public.organisations o WHERE o.id = c.subject_entity_id OR o.slug = c.subject_entity_id
+              SELECT 1 FROM public.organisations o WHERE (o.id = c.subject_entity_id OR o.slug = c.subject_entity_id)
             )
           )
         )

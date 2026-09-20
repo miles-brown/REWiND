@@ -58,7 +58,7 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
     const { data: claimsData, error: claimsError } = await supabase
       .from("claims")
       .select("*")
-      .eq("event_id", eventId);
+      .or(`event_id.eq.${eventId},and(subject_entity_type.eq.event,subject_entity_id.eq.${eventId})`);
 
     if (claimsError || !claimsData || claimsData.length === 0) {
       return [];

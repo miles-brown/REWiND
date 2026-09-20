@@ -50,6 +50,11 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
 
   const startDate = e.startDate;
   const dayOfWeek = deriveDayOfWeek(startDate) || undefined;
+  const explicitConfidence = (e as { confidence?: unknown }).confidence;
+  const confidence: Confidence = isConfidence(explicitConfidence)
+    ? explicitConfidence
+    : (e.verificationStatus === "verified" ? "confirmed" : "limited");
+  const confidenceScore = (e as { confidenceScore?: number }).confidenceScore ?? (confidence === "confirmed" ? 1.0 : (confidence === "strong" ? 0.85 : (confidence === "moderate" ? 0.7 : (confidence === "disputed" ? 0.3 : 0.5))));
 
   return {
     id: e.id,
@@ -67,8 +72,8 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     summary: e.summary,
     description: e.summary || null,
     verificationStatus: e.verificationStatus,
-    confidence: (e.verificationStatus === "verified" ? "confirmed" : "moderate") as Confidence,
-    confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
+    confidence,
+    confidenceScore,
     sourceIds: e.sourceIds || [],
     sources: sources,
     participants: (e.participants || []).map((p) => ({
