@@ -74,9 +74,13 @@ export function getPostgresSslConfig(isLocal: boolean): boolean | { ca?: string;
  */
 export function getDb() {
   if (liveDb) return liveDb;
-  if (isLiveDbConnected && connectionString) {
-    const isLocal = isLocalDatabaseHost(connectionString);
-    const client = postgres(connectionString, {
+  const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL || connectionString;
+  const isConnected = Boolean(
+    connStr && (connStr.startsWith("postgres://") || connStr.startsWith("postgresql://"))
+  );
+  if (isConnected && connStr) {
+    const isLocal = isLocalDatabaseHost(connStr);
+    const client = postgres(connStr, {
       max: 10,
       prepare: false,
       ssl: getPostgresSslConfig(isLocal),
