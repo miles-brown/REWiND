@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getPlacesStrict } from "./places";
 
 export interface AtlasStatistics {
   eventCount: number;
@@ -29,22 +30,22 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     };
   }
 
-  const [eventsRes, peopleRes, sourcesRes, verifiedRes, provisionalRes, disputedRes, placesRes, minYearRes, maxYearRes] = await Promise.all([
+  const [eventsRes, peopleRes, sourcesRes, verifiedRes, provisionalRes, disputedRes, places, minYearRes, maxYearRes] = await Promise.all([
     supabase.from("events").select("id", { count: "exact", head: true }).eq("publication_status", "published"),
     supabase.from("people").select("id", { count: "exact", head: true }).eq("publication_status", "published"),
     supabase.from("sources").select("id", { count: "exact", head: true }),
     supabase.from("events").select("id", { count: "exact", head: true }).eq("verification_status", "verified").eq("publication_status", "published"),
     supabase.from("events").select("id", { count: "exact", head: true }).eq("verification_status", "provisional").eq("publication_status", "published"),
     supabase.from("events").select("id", { count: "exact", head: true }).eq("verification_status", "disputed").eq("publication_status", "published"),
-    supabase.from("places").select("id", { count: "exact", head: true }),
+    getPlacesStrict(supabase),
     supabase.from("events").select("start_date").eq("publication_status", "published").order("start_date", { ascending: true }).limit(1),
     supabase.from("events").select("start_date").eq("publication_status", "published").order("start_date", { ascending: false }).limit(1),
   ]);
 
   // Any failed count query returns { count: null, error } — do not convert failures
   // into zero counts which would make a DB outage look like an empty-but-healthy atlas.
-  if (eventsRes.error || peopleRes.error || sourcesRes.error || verifiedRes.error || provisionalRes.error || disputedRes.error || placesRes.error || minYearRes.error || maxYearRes.error) {
-    const firstError = eventsRes.error ?? peopleRes.error ?? sourcesRes.error ?? verifiedRes.error ?? provisionalRes.error ?? disputedRes.error ?? placesRes.error ?? minYearRes.error ?? maxYearRes.error;
+  if (eventsRes.error || peopleRes.error || sourcesRes.error || verifiedRes.error || provisionalRes.error || disputedRes.error || minYearRes.error || maxYearRes.error) {
+    const firstError = eventsRes.error ?? peopleRes.error ?? sourcesRes.error ?? verifiedRes.error ?? provisionalRes.error ?? disputedRes.error ?? minYearRes.error ?? maxYearRes.error;
     throw new Error(`Atlas statistics query failed: ${firstError?.message ?? "unknown error"}`);
   }
 
@@ -66,7 +67,7 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     verifiedCount: verifiedRes.count ?? 0,
     provisionalCount: provisionalRes.count ?? 0,
     disputedCount: disputedRes.count ?? 0,
-    placeCount: placesRes.count ?? 0,
+    placeCount: places.length,
     yearsCovered,
   };
 }

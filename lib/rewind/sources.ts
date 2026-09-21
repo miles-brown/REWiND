@@ -17,6 +17,7 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     publisher: String(s.publisher || ""),
     sourceType: (s.source_type as SourceRecord["sourceType"]) || "official-record",
     classification: s.tier === "tier-a" || s.tier === "tier-b" ? "primary" : "secondary",
+    sourceLevel: (s.source_level as SourceRecord["sourceLevel"]) || undefined,
     tier: s.tier as SourceRecord["tier"],
     url: s.url ? String(s.url) : undefined,
     archiveUrl: s.archive_url ? String(s.archive_url) : undefined,
@@ -25,6 +26,9 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     accessedDate: accDateNorm && isStandardIsoDate(accDateNorm) ? accDateNorm : undefined,
     language: s.language ? String(s.language) : undefined,
     trustScore: typeof s.trust_score === "number" ? s.trust_score : undefined,
+    independenceStatus: (s.independence_status as SourceRecord["independenceStatus"]) || undefined,
+    derivedFromSourceId: s.derived_from_source_id ? String(s.derived_from_source_id) : undefined,
+    sourceQuality: s.source_quality ? String(s.source_quality) : undefined,
   };
 }
 

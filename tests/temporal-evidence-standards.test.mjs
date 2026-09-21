@@ -1654,6 +1654,77 @@ test("verifies round-24 Codex review fixes: cutover migration polymorphic claims
   );
 });
 
+test("verifies round-25 Codex review fixes: participant index alignment, source provenance mapping, search interleaving, and place stats venue counting", async () => {
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const sourcesModule = await vite.ssrLoadModule("/lib/rewind/sources.ts");
+  const searchModule = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  const statsTs = fs.readFileSync(path.join(root, "lib/rewind/stats.ts"), "utf-8");
+
+  // 1. Participant index alignment in ingestion pipeline
+  assert.ok(
+    pipelineTs.includes("entityResolutions[idx]?.personId || resolveEntity(p.name).personId"),
+    "lib/ingestion/pipeline.ts must resolve participant IDs directly by 1:1 entityResolutions index"
+  );
+  assert.ok(
+    !pipelineTs.includes("resolvedParticipantIds[idx] || resolveEntity"),
+    "lib/ingestion/pipeline.ts must not index compacted resolvedParticipantIds with candidate participant index"
+  );
+
+  // 2. Source provenance metadata mapping
+  const testDbSource = {
+    id: "src-provenance-1",
+    title: "Official Investigation Report",
+    publisher: "Judicial Commission",
+    source_type: "official-record",
+    tier: "tier-a",
+    source_level: "primary",
+    independence_status: "independent",
+    derived_from_source_id: "src-root-99",
+    source_quality: "authenticated-transcript",
+    publication_date: "2025-05-15",
+  };
+  const mappedSource = sourcesModule.mapDatabaseSource(testDbSource);
+  assert.equal(mappedSource.sourceLevel, "primary");
+  assert.equal(mappedSource.independenceStatus, "independent");
+  assert.equal(mappedSource.derivedFromSourceId, "src-root-99");
+  assert.equal(mappedSource.sourceQuality, "authenticated-transcript");
+  assert.equal(mappedSource.classification, "primary");
+
+  // 3. Search category diversity & fairness (round-robin interleaving)
+  assert.equal(typeof searchModule.interleaveSearchResults, "function");
+  const catA = [
+    { id: "e1", title: "Event 1", type: "event", url: "/event/1", badge: "Event" },
+    { id: "e2", title: "Event 2", type: "event", url: "/event/2", badge: "Event" },
+  ];
+  const catB = [
+    { id: "p1", title: "Person 1", type: "person", url: "/person/1", badge: "Person" },
+    { id: "p2", title: "Person 2", type: "person", url: "/person/2", badge: "Person" },
+    { id: "p3", title: "Person 3", type: "person", url: "/person/3", badge: "Person" },
+  ];
+  const catC = [
+    { id: "pl1", title: "Place 1", type: "place", url: "/place/1", badge: "Place" },
+  ];
+
+  const interleaved = searchModule.interleaveSearchResults([catA, catB, catC], 5);
+  assert.equal(interleaved.length, 5);
+  assert.deepEqual(interleaved.map((item) => item.id), ["e1", "p1", "pl1", "e2", "p2"]);
+
+  const constrained = searchModule.interleaveSearchResults([catA, catB, catC], 2);
+  assert.equal(constrained.length, 2);
+  assert.deepEqual(constrained.map((item) => item.id), ["e1", "p1"]);
+
+  // 4. Atlas place stats venue counting via getPlacesStrict
+  assert.ok(
+    statsTs.includes('import { getPlacesStrict } from "./places";'),
+    "lib/rewind/stats.ts must import getPlacesStrict"
+  );
+  assert.ok(
+    statsTs.includes("getPlacesStrict(supabase)") && statsTs.includes("placeCount: places.length"),
+    "lib/rewind/stats.ts must count both places and venues via getPlacesStrict"
+  );
+});
+
+
 
 
 

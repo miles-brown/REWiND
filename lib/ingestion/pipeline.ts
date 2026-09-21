@@ -177,7 +177,7 @@ export function processCandidateEvent(
             targetEvent.participants = [];
           }
           candidate.participants.forEach((p, idx) => {
-            const pId = resolvedParticipantIds[idx] || resolveEntity(p.name).personId;
+            const pId = entityResolutions[idx]?.personId || resolveEntity(p.name).personId;
             if (!targetEvent.participants!.some((ep) => ep.personId === pId || (ep.name && ep.name.toLowerCase() === p.name.toLowerCase()))) {
               targetEvent.participants!.push({
                 personId: pId,
@@ -254,7 +254,7 @@ export function processCandidateEvent(
           publicationLane: policy.lane,
           significanceScore: 85,
           participants: candidate.participants.map((p, idx) => ({
-            personId: resolvedParticipantIds[idx] || resolveEntity(p.name).personId,
+            personId: entityResolutions[idx]?.personId || resolveEntity(p.name).personId,
             name: p.name,
             role: p.role,
             presenceMode: p.presenceMode || "physical",
