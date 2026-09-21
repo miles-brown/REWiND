@@ -34,7 +34,10 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
     try {
       const [published] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationStatus, "published"));
       const [autoPublished] = await db.select({ val: count() }).from(schema.events).where(eq(schema.events.publicationLane, "auto-publish"));
-      const [claims] = await db.select({ val: count() }).from(schema.claims).where(eq(schema.claims.confidence, "confirmed"));
+      const [claims] = await db
+        .select({ val: count() })
+        .from(schema.claims)
+        .where(or(eq(schema.claims.confidence, "confirmed"), eq(schema.claims.claimStatus, "ESTABLISHED")));
       const [sources] = await db
         .select({ val: count() })
         .from(schema.sources)
@@ -61,7 +64,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const autoPublished = store.events.filter((e) => e.publicationLane === "auto-publish");
   const primarySources = store.sources.filter((s) => s.tier === "tier-a" || s.tier === "tier-b");
   const pending = store.candidateEvents.filter((c) => c.status === "pending");
-  const verifiedClaims = store.claims.filter((c) => c.confidence === "confirmed");
+  const verifiedClaims = store.claims.filter((c) => c.confidence === "confirmed" || c.claimStatus === "ESTABLISHED");
 
   return {
     publishedEventsCount: published.length,

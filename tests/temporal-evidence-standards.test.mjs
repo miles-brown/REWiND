@@ -337,7 +337,7 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   const evidenceServiceContent = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
   assert.ok(
     evidenceServiceContent.includes('eq(schema.claims.confidence, "confirmed")') &&
-      evidenceServiceContent.includes('store.claims.filter((c) => c.confidence === "confirmed")'),
+      evidenceServiceContent.includes('c.confidence === "confirmed"'),
     "getEvidentiaryStats must filter confirmed claims in both DB and in-memory store"
   );
 
@@ -1644,7 +1644,16 @@ test("verifies round-24 Codex review fixes: cutover migration polymorphic claims
     quotesTs.includes("filter(Boolean)"),
     "lib/rewind/quotes.ts must query quotes cleanly without fragile inner join filters and filter IDs safely"
   );
+
+  // 3. Evidence stats counts verified or established claims
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  assert.ok(
+    evidenceServiceTs.includes('or(eq(schema.claims.confidence, "confirmed"), eq(schema.claims.claimStatus, "ESTABLISHED"))') &&
+    evidenceServiceTs.includes('c.confidence === "confirmed" || c.claimStatus === "ESTABLISHED"'),
+    "lib/evidence-service.ts must count confirmed or ESTABLISHED claims in getEvidentiaryStats"
+  );
 });
+
 
 
 
