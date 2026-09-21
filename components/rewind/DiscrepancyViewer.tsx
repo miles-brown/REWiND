@@ -96,7 +96,7 @@ export function DiscrepancyViewer({
                 </div>
                 <div className="breakdown-item">
                   <small>Audit Review Date</small>
-                  <b>{event.reviewedAt || "2026-08-31"}</b>
+                  <b>{event.reviewedAt || "Unreviewed / Pending"}</b>
                 </div>
               </div>
             </div>

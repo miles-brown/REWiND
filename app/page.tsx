@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleDashed, Database, GitBranch, MapPinned, Quote, Search, Users } from "lucide-react";
-import { getAtlasStatistics, getPeople } from "@/lib/rewind";
+import { getAtlasStatisticsWithStatus, getPeopleWithStatus } from "@/lib/rewind";
 
 export default async function Home() {
-  const stats = await getAtlasStatistics();
-  const people = await getPeople({ limit: 6 });
+  const [statsRes, peopleRes] = await Promise.all([
+    getAtlasStatisticsWithStatus(),
+    getPeopleWithStatus({ limit: 6 }),
+  ]);
+
+  const stats = statsRes.data;
+  const isDbUnavailable = Boolean(statsRes.error || peopleRes.error);
+  const people = peopleRes.data || [];
   const provisional = stats.provisionalCount;
   const disputed = stats.disputedCount;
 
@@ -26,7 +32,7 @@ export default async function Home() {
         <aside className="hub-index-card">
           <div>
             <small>ATLAS STATUS</small>
-            <span>{stats.eventCount > 0 ? "LIVE INDEX" : "DATABASE READY"}</span>
+            <span>{isDbUnavailable ? "DATABASE UNAVAILABLE" : stats.eventCount > 0 ? "LIVE INDEX" : "DATABASE READY"}</span>
           </div>
           <dl>
             <div><dt>Events</dt><dd>{stats.eventCount}</dd></div>
@@ -117,7 +123,14 @@ export default async function Home() {
           <Link href="/people">View everyone <ArrowRight /></Link>
         </div>
 
-        {people.length === 0 ? (
+        {isDbUnavailable ? (
+          <div className="empty-state-banner" style={{ padding: "2rem", border: "1px dashed var(--border-subtle, #333)", borderRadius: "8px", textAlign: "center", color: "var(--text-muted, #888)" }}>
+            <p style={{ margin: 0, fontWeight: 500 }}>Canonical Database Configuration Unavailable</p>
+            <small style={{ display: "block", marginTop: "0.5rem" }}>
+              {statsRes.error || peopleRes.error || "The canonical Supabase database is unreachable or unconfigured."}
+            </small>
+          </div>
+        ) : people.length === 0 ? (
           <div className="empty-state-banner" style={{ padding: "2rem", border: "1px dashed var(--border-subtle, #333)", borderRadius: "8px", textAlign: "center", color: "var(--text-muted, #888)" }}>
             <p style={{ margin: 0, fontWeight: 500 }}>Canonical Supabase Evidence Database Connected</p>
             <small style={{ display: "block", marginTop: "0.5rem" }}>

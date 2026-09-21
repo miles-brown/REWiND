@@ -94,10 +94,14 @@ export function processCandidateEvent(
   // 3. Check for Duplicate Events
   const deduplication = findDuplicateEvent(candidate);
 
-  // 4. Evaluate Policy Lane
-  const policy = evaluatePublicationPolicy(candidate, source.sourceTier, entityResolutions);
+  // 4. Resolve Canonical Source Tier from Memory Store if already registered
+  let existingSource = store.sources.find((s) => s.id === source.sourceId);
+  const effectiveSourceTier = (existingSource?.tier as typeof source.sourceTier) || source.sourceTier;
 
-  // 5. Generate Candidate ID and Fingerprint
+  // 5. Evaluate Policy Lane using Canonical Source Tier
+  const policy = evaluatePublicationPolicy(candidate, effectiveSourceTier, entityResolutions);
+
+  // 6. Generate Candidate ID and Fingerprint
   const fingerprint = calculateEventFingerprint(
     resolvedParticipantIds,
     candidate.startDate,
@@ -109,8 +113,7 @@ export function processCandidateEvent(
   let publishedEventId: string | undefined;
   let auditPromise: Promise<unknown> | undefined;
 
-  // 6. Ensure Source is Registered in Memory Store
-  let existingSource = store.sources.find((s) => s.id === source.sourceId);
+  // 7. Ensure Source is Registered in Memory Store
   if (!existingSource) {
     existingSource = {
       id: source.sourceId,
@@ -412,7 +415,14 @@ export function processCandidateEvent(
     const liveDeduplication = await findDuplicateEventAsync(candidate, db);
     syncResult.deduplication = liveDeduplication;
 
-    const livePolicy = evaluatePublicationPolicy(candidate, source.sourceTier, liveEntityResolutions);
+    // Resolve Canonical Source Tier from Database before Policy Evaluation
+    const [existingDbSource] = await db
+      .select({ id: schema.sources.id, tier: schema.sources.tier })
+      .from(schema.sources)
+      .where(eq(schema.sources.id, source.sourceId));
+
+    const effectiveLiveSourceTier = (existingDbSource?.tier as typeof source.sourceTier) || source.sourceTier;
+    const livePolicy = evaluatePublicationPolicy(candidate, effectiveLiveSourceTier, liveEntityResolutions);
     const liveFingerprint = calculateEventFingerprint(
       liveResolvedParticipantIds,
       candidate.startDate,
@@ -445,11 +455,7 @@ export function processCandidateEvent(
 
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
-      const [existingSrc] = await tx
-        .select({ id: schema.sources.id })
-        .from(schema.sources)
-        .where(eq(schema.sources.id, source.sourceId));
-      if (!existingSrc) {
+      if (!existingDbSource) {
         await tx.insert(schema.sources).values({
           id: source.sourceId,
           title: source.sourceTitle,

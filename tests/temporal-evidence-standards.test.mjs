@@ -1724,6 +1724,50 @@ test("verifies round-25 Codex review fixes: participant index alignment, source 
   );
 });
 
+test("verifies round-26 Codex review fixes: canonical source tier validation, audit review date integrity, and missing DB error propagation", async () => {
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  const discrepancyTs = fs.readFileSync(path.join(root, "components/rewind/DiscrepancyViewer.tsx"), "utf-8");
+  const statsModule = await vite.ssrLoadModule("/lib/rewind/stats.ts");
+  const pageTs = fs.readFileSync(path.join(root, "app/page.tsx"), "utf-8");
+
+  // 1. Canonical source tier verification before policy evaluation
+  assert.ok(
+    pipelineTs.includes("effectiveSourceTier = (existingSource?.tier as typeof source.sourceTier) || source.sourceTier;") &&
+    pipelineTs.includes("evaluatePublicationPolicy(candidate, effectiveSourceTier, entityResolutions);"),
+    "lib/ingestion/pipeline.ts must resolve and use stored source tier before sync policy evaluation"
+  );
+  assert.ok(
+    pipelineTs.includes("const [existingDbSource] = await db") &&
+    pipelineTs.includes("effectiveLiveSourceTier = (existingDbSource?.tier as typeof source.sourceTier) || source.sourceTier;") &&
+    pipelineTs.includes("evaluatePublicationPolicy(candidate, effectiveLiveSourceTier, liveEntityResolutions);"),
+    "lib/ingestion/pipeline.ts must resolve and use stored database source tier before async policy evaluation"
+  );
+
+  // 2. Audit review date integrity (no fabrication)
+  assert.ok(
+    eventsTs.includes("reviewedAt: row.reviewed_at"),
+    "lib/rewind/events.ts must map row.reviewed_at directly"
+  );
+  assert.ok(
+    !discrepancyTs.includes('"2026-08-31"'),
+    "components/rewind/DiscrepancyViewer.tsx must never fabricate an unverified hardcoded review date"
+  );
+  assert.ok(
+    discrepancyTs.includes('event.reviewedAt || "Unreviewed / Pending"'),
+    "components/rewind/DiscrepancyViewer.tsx must render Unreviewed / Pending when no review date exists"
+  );
+
+  // 3. Missing database error propagation
+  assert.equal(typeof statsModule.getAtlasStatisticsWithStatus, "function");
+  assert.ok(
+    pageTs.includes("getAtlasStatisticsWithStatus") &&
+    pageTs.includes("DATABASE UNAVAILABLE"),
+    "app/page.tsx must report DATABASE UNAVAILABLE when database connection error occurs"
+  );
+});
+
+
 
 
 

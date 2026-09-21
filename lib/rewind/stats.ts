@@ -18,16 +18,7 @@ export interface AtlasStatistics {
 export async function getAtlasStatistics(): Promise<AtlasStatistics> {
   const supabase = await createClient();
   if (!supabase) {
-    return {
-      eventCount: 0,
-      personCount: 0,
-      sourceCount: 0,
-      verifiedCount: 0,
-      provisionalCount: 0,
-      disputedCount: 0,
-      placeCount: 0,
-      yearsCovered: 0,
-    };
+    throw new Error("Atlas statistics query failed: Supabase client is unavailable: Missing database configuration");
   }
 
   const [eventsRes, peopleRes, sourcesRes, verifiedRes, provisionalRes, disputedRes, places, minYearRes, maxYearRes] = await Promise.all([
@@ -70,4 +61,32 @@ export async function getAtlasStatistics(): Promise<AtlasStatistics> {
     placeCount: places.length,
     yearsCovered,
   };
+}
+
+/**
+ * Retrieves aggregate statistics with status and error reporting.
+ */
+export async function getAtlasStatisticsWithStatus(): Promise<{
+  data: AtlasStatistics;
+  error: string | null;
+}> {
+  try {
+    const data = await getAtlasStatistics();
+    return { data, error: null };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      data: {
+        eventCount: 0,
+        personCount: 0,
+        sourceCount: 0,
+        verifiedCount: 0,
+        provisionalCount: 0,
+        disputedCount: 0,
+        placeCount: 0,
+        yearsCovered: 0,
+      },
+      error: message,
+    };
+  }
 }

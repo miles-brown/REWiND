@@ -154,13 +154,19 @@ test("handles empty Supabase database state intentionally and gracefully", async
   );
 
   // Statistics
-  const stats = await getAtlasStatistics();
-  assert.equal(typeof stats.personCount, "number");
-  assert.equal(typeof stats.eventCount, "number");
-  assert.equal(typeof stats.placeCount, "number");
-  assert.equal(typeof stats.sourceCount, "number");
-  assert.equal(typeof stats.verifiedCount, "number");
-  assert.equal(typeof stats.yearsCovered, "number");
+  await assert.rejects(
+    getAtlasStatistics(),
+    /Atlas statistics query failed: Supabase client is unavailable/
+  );
+  const { getAtlasStatisticsWithStatus } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
+  const statsRes = await getAtlasStatisticsWithStatus();
+  assert.equal(typeof statsRes.data.personCount, "number");
+  assert.equal(typeof statsRes.data.eventCount, "number");
+  assert.equal(typeof statsRes.data.placeCount, "number");
+  assert.equal(typeof statsRes.data.sourceCount, "number");
+  assert.equal(typeof statsRes.data.verifiedCount, "number");
+  assert.equal(typeof statsRes.data.yearsCovered, "number");
+  assert.ok(statsRes.error !== null);
 });
 
 test("behaviorally verifies pagination and chunking patterns in lib/rewind/events.ts", async () => {
@@ -474,11 +480,11 @@ test("verifies Codex review fixes: live entity resolution, source tier rendering
   const { searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
   assert.equal(typeof searchRewind, "function");
 
-  // 5. Atlas Statistics aggregates locations via getPlaces()
-  const { getAtlasStatistics } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
-  const stats = await getAtlasStatistics();
-  assert.ok(typeof stats.placeCount === "number");
-  assert.ok(stats.placeCount >= 0);
+  // 5. Atlas Statistics aggregates locations via getPlacesStrict and reports status
+  const { getAtlasStatisticsWithStatus: getStatsWithStatus } = await vite.ssrLoadModule("/lib/rewind/stats.ts");
+  const statsWithStatus = await getStatsWithStatus();
+  assert.ok(typeof statsWithStatus.data.placeCount === "number");
+  assert.ok(statsWithStatus.data.placeCount >= 0);
 });
 
 test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and error sanitization in getEventBySlug", async () => {

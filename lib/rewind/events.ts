@@ -258,6 +258,11 @@ export function mapDatabaseEvent(
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "provisional",
     confidence: (row.confidence as Confidence) || (typeof row.confidence_score === "number" ? (row.confidence_score < 0.6 ? "limited" : row.confidence_score < 0.7 ? "moderate" : "confirmed") : "limited"),
     confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : 0.0,
+    reviewedAt: row.reviewed_at
+      ? String(row.reviewed_at)
+      : row.reviewedAt
+      ? String(row.reviewedAt)
+      : undefined,
     sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
     sources: Array.isArray(sources) ? sources : [],
     participants: Array.isArray(participants) ? participants : [],
