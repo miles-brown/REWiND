@@ -9,6 +9,13 @@ export function escapePostgrestValue(val: string): string {
 }
 
 /**
+ * Escapes wildcard characters in SQL ILIKE patterns.
+ */
+export function escapeIlikePattern(val: string): string {
+  return val.replace(/[%_\\]/g, "\\$&");
+}
+
+/**
  * Interleaves search result categories round-robin to preserve diversity and avoid category starvation.
  */
 export function interleaveSearchResults(
@@ -43,46 +50,48 @@ export async function searchRewind(
 ): Promise<SearchResultItem[]> {
   const term = query.trim();
   if (!term) return [];
+  if (!Number.isInteger(limit) || limit < 1 || limit > 30) return [];
 
   const supabase = await createClient();
   if (!supabase) {
     throw new Error("Supabase search client is unavailable");
   }
 
-  const escaped = escapePostgrestValue(term);
+  const ilikeEscaped = escapeIlikePattern(term);
+  const postgrestIlikeEscaped = escapePostgrestValue(ilikeEscaped);
 
   const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
     supabase
       .from("events")
       .select("id, slug, title, start_date, summary")
       .eq("publication_status", "published")
-      .or(`title.ilike."%${escaped}%",summary.ilike."%${escaped}%"`)
+      .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`)
       .limit(limit),
     supabase
       .from("people")
       .select("id, slug, display_name, canonical_name, primary_role")
       .eq("publication_status", "published")
-      .or(`canonical_name.ilike."%${escaped}%",display_name.ilike."%${escaped}%"`)
+      .or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`)
       .limit(limit),
     supabase
       .from("places")
       .select("id, slug, venue, city, country")
-      .or(`venue.ilike."%${escaped}%",city.ilike."%${escaped}%",country.ilike."%${escaped}%"`)
+      .or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`)
       .limit(limit),
     supabase
       .from("venues")
       .select("id, name, address_id")
-      .ilike("name", `%${escaped}%`)
+      .ilike("name", `%${ilikeEscaped}%`)
       .limit(limit),
     supabase
       .from("sources")
       .select("id, title, publisher, tier")
-      .or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`)
+      .or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`)
       .limit(limit),
     supabase
       .from("quotes")
       .select("id, quote, context, speaker_id, event_id")
-      .or(`quote.ilike."%${escaped}%",context.ilike."%${escaped}%"`)
+      .or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`)
       .limit(limit),
   ]);
 
@@ -119,23 +128,29 @@ export async function searchRewind(
       new Set(
         quoteRows
           .map((q) => q.event_id)
-          .filter((id) => id && !eventsRes.data?.some((e) => e.id === id || e.slug === id))
+          .filter((id): id is string => Boolean(id) && !eventsRes.data?.some((e) => e.id === id || e.slug === id))
       )
     );
     const neededSpeakerIds = Array.from(
       new Set(
         quoteRows
           .map((q) => q.speaker_id)
-          .filter((id) => id && !peopleRes.data?.some((p) => p.id === id || p.slug === id))
+          .filter((id): id is string => Boolean(id) && !peopleRes.data?.some((p) => p.id === id || p.slug === id))
       )
     );
 
     const [extraEventsRes, extraPeopleRes] = await Promise.all([
       neededEventIds.length > 0
-        ? supabase.from("events").select("id, slug, title").in("id", neededEventIds)
+        ? supabase
+            .from("events")
+            .select("id, slug, title")
+            .or(`id.in.(${neededEventIds.map(escapePostgrestValue).join(",")}),slug.in.(${neededEventIds.map(escapePostgrestValue).join(",")})`)
         : Promise.resolve({ data: [], error: null }),
       neededSpeakerIds.length > 0
-        ? supabase.from("people").select("id, slug, display_name, canonical_name").in("id", neededSpeakerIds)
+        ? supabase
+            .from("people")
+            .select("id, slug, display_name, canonical_name")
+            .or(`id.in.(${neededSpeakerIds.map(escapePostgrestValue).join(",")}),slug.in.(${neededSpeakerIds.map(escapePostgrestValue).join(",")})`)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -145,12 +160,26 @@ export async function searchRewind(
     }
 
     const eventSlugMap = new Map<string, { slug: string; title: string }>();
-    (eventsRes.data || []).forEach((e) => eventSlugMap.set(e.id, { slug: e.slug, title: e.title }));
-    (extraEventsRes.data || []).forEach((e) => eventSlugMap.set(e.id, { slug: e.slug, title: e.title }));
+    (eventsRes.data || []).forEach((e) => {
+      eventSlugMap.set(e.id, { slug: e.slug, title: e.title });
+      if (e.slug) eventSlugMap.set(e.slug, { slug: e.slug, title: e.title });
+    });
+    (extraEventsRes.data || []).forEach((e) => {
+      eventSlugMap.set(e.id, { slug: e.slug, title: e.title });
+      if (e.slug) eventSlugMap.set(e.slug, { slug: e.slug, title: e.title });
+    });
 
     const speakerNameMap = new Map<string, string>();
-    (peopleRes.data || []).forEach((p) => speakerNameMap.set(p.id, p.display_name || p.canonical_name));
-    (extraPeopleRes.data || []).forEach((p) => speakerNameMap.set(p.id, p.display_name || p.canonical_name));
+    (peopleRes.data || []).forEach((p) => {
+      const name = p.display_name || p.canonical_name;
+      speakerNameMap.set(p.id, name);
+      if (p.slug) speakerNameMap.set(p.slug, name);
+    });
+    (extraPeopleRes.data || []).forEach((p) => {
+      const name = p.display_name || p.canonical_name;
+      speakerNameMap.set(p.id, name);
+      if (p.slug) speakerNameMap.set(p.slug, name);
+    });
 
     quoteRows.forEach((q) => {
       const evt = eventSlugMap.get(q.event_id);

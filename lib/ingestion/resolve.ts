@@ -64,13 +64,21 @@ export async function resolvePersonEntityInTransaction(
   // 2. Slug match (reusing existing canonical ID if different from generated ID)
   const pSlug = effectivePersonId.replace(/^p-/, "");
   const normalizedNameSlug = normalizeName(rawName).replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
-  const [bySlug] = await tx
+  const slugConditions = [eq(schema.people.slug, pSlug)];
+  if (normalizedNameSlug && normalizedNameSlug !== pSlug) {
+    slugConditions.push(eq(schema.people.slug, normalizedNameSlug));
+  }
+  const bySlugMatches = await tx
     .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
     .from(schema.people)
-    .where(or(eq(schema.people.slug, pSlug), eq(schema.people.slug, normalizedNameSlug)));
+    .where(or(...slugConditions));
 
-  if (bySlug) {
-    return bySlug.id;
+  const distinctSlugIds = Array.from(new Set(bySlugMatches.map((p) => p.id)));
+  if (distinctSlugIds.length === 1) {
+    return distinctSlugIds[0];
+  }
+  if (distinctSlugIds.length > 1) {
+    throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match slug candidates (${distinctSlugIds.join(", ")})`);
   }
 
   // 3. Name match via canonicalName or displayName (exact or normalized)
@@ -92,6 +100,9 @@ export async function resolvePersonEntityInTransaction(
   if (distinctNameMatches.length === 1) {
     return distinctNameMatches[0];
   }
+  if (distinctNameMatches.length > 1) {
+    throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match name candidates (${distinctNameMatches.join(", ")})`);
+  }
 
   // 4. Alias match
   if (distinctNameMatches.length === 0) {
@@ -108,6 +119,9 @@ export async function resolvePersonEntityInTransaction(
     const distinctPersonIds: string[] = Array.from(new Set(aliasRows.map((r: { personId: string }) => r.personId)));
     if (distinctPersonIds.length === 1) {
       return distinctPersonIds[0];
+    }
+    if (distinctPersonIds.length > 1) {
+      throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match alias candidates (${distinctPersonIds.join(", ")})`);
     }
   }
 
@@ -430,11 +444,11 @@ export function resolvePlace(
       };
     }
 
-    if (cityMatches) {
+    if (cityMatches && !safeVenue) {
       const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
       return {
         placeId: pl.id,
-        venue: safeVenue || pl.venue,
+        venue: pl.venue,
         city: pl.city,
         country: pl.country,
         latitude: resolvedCoords.latitude,
@@ -572,8 +586,8 @@ export async function resolvePlaceAsync(
         }
       }
 
-      // 3. Match city only (when venue is empty or no specific venue matched)
-      if (safeCity) {
+      // 3. Match city only (only when no specific venue was supplied)
+      if (safeCity && !safeVenue) {
         const cityConditions = [ilike(schema.places.city, escapedCity)];
         if (safeCountry) {
           cityConditions.push(ilike(schema.places.country, escapedCountry));
@@ -590,7 +604,7 @@ export async function resolvePlaceAsync(
           const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
           return {
             placeId: pl.id,
-            venue: safeVenue || pl.venue,
+            venue: pl.venue,
             city: pl.city,
             country: pl.country,
             latitude: resolvedCoords.latitude,
@@ -598,20 +612,19 @@ export async function resolvePlaceAsync(
             confidence: 0.92,
           };
         } else if (cityMatches.length > 1) {
-          // If multiple places exist in the city, check for a general city marker or exact venue match
-          const specificMatch = cityMatches.find(
+          // If multiple places exist in the city, check for a general city marker
+          const generalMatch = cityMatches.find(
             (pl) =>
-              (safeVenue && pl.venue.toLowerCase() === normVenue) ||
               pl.venue.toLowerCase() === "general" ||
               pl.venue.toLowerCase() === normCity
           );
-          if (specificMatch) {
-            const resolvedCoords = resolveMatchedCoordinates(specificMatch.latitude, specificMatch.longitude, coords);
+          if (generalMatch) {
+            const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
             return {
-              placeId: specificMatch.id,
-              venue: safeVenue || specificMatch.venue,
-              city: specificMatch.city,
-              country: specificMatch.country,
+              placeId: generalMatch.id,
+              venue: generalMatch.venue,
+              city: generalMatch.city,
+              country: generalMatch.country,
               latitude: resolvedCoords.latitude,
               longitude: resolvedCoords.longitude,
               confidence: 0.92,

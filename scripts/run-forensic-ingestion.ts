@@ -148,7 +148,23 @@ async function runIngestion() {
       classification: "primary",
     };
 
-    const sourceTier: "tier-a" | "tier-b" | "tier-c" | "tier-d" = src.classification === "primary" ? "tier-a" : "tier-b";
+    let sourceTier: "tier-a" | "tier-b" | "tier-c" | "tier-d" = "tier-c";
+    if (
+      src.classification === "primary" ||
+      src.sourceType === "official-record" ||
+      src.sourceType === "transcript" ||
+      src.sourceType === "archive-video" ||
+      src.sourceType === "archive-photo"
+    ) {
+      sourceTier = "tier-a";
+    } else if (src.sourceType === "retrospective") {
+      sourceTier = "tier-d";
+    } else if (src.sourceType === "contemporary-report") {
+      sourceTier = "tier-c";
+    } else {
+      sourceTier = "tier-c";
+    }
+
     const sourceTypeMapping: Record<string, "official-transcript" | "broadcast-video" | "government-record" | "wire-report"> = {
       "official-record": "official-transcript",
       "archive-video": "broadcast-video",
@@ -165,8 +181,6 @@ async function runIngestion() {
       sourceType: sourceTypeMapping[src.sourceType] || "official-transcript",
       sourceTier,
       url: src.url || undefined,
-      rawText: `${rawEvt.summary}. Documented in official archives from ${rawEvt.startDate}. Verified forensic historical event record.`,
-      fetchedAt: new Date().toISOString(),
     };
 
     // Map Event Types

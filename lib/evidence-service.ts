@@ -3,6 +3,7 @@ import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
 import { recordAuditEvent, recordAuditEventInTransaction, recordAuditEventStoreOnly } from "@/lib/ingestion/audit";
 import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
+import { deriveEventSlug } from "@/lib/ingestion/pipeline";
 
 export interface EvidenceStats {
   publishedEventsCount: number;
@@ -178,7 +179,14 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     const extractedLat = typeof data?.latitude === "number" && !isNaN(data.latitude) ? data.latitude : null;
     const extractedLng = typeof data?.longitude === "number" && !isNaN(data.longitude) ? data.longitude : null;
 
-    const eventSlug = `evt-${candidate.suggestedDate.slice(0, 10)}-cand-${Date.now().toString(36).slice(-4)}`;
+    const baseSlug = deriveEventSlug(
+      candidate.suggestedDate,
+      (Array.isArray(data?.participants) ? data.participants : []).map((p: { name: string }) => resolveEntity(p.name).personId || createParticipantStubId(p.name)),
+      data?.eventType || "historical-action",
+      extractedCity,
+      candidate.suggestedTitle
+    );
+    let eventSlug = baseSlug;
     const citySlug = (extractedCity || "unknown").toLowerCase().replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 16) || "unknown";
     const venueSlug = (extractedVenue || "general").toLowerCase().replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20) || "general";
     const placeId = `plc-${citySlug}-${venueSlug}`;
@@ -197,8 +205,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             ? clm.confidence
             : "limited";
           newClaims.push({
-            id: `clm-${eventSlug}-appr-${Date.now()}-${idx}`,
-            eventId: eventSlug,
+            id: `clm-${baseSlug}-appr-${Date.now()}-${idx}`,
+            eventId: baseSlug,
             subjectId: resolvedSubject?.personId || null,
             claimType: clm.claimType || "presence",
             statement: clm.statement || `${candidate.suggestedTitle} verified by editorial review`,
@@ -225,8 +233,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           ? p.roleConfidence
           : "limited";
         eventPeopleRows.push({
-          id: `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
-          eventId: eventSlug,
+          id: `ep-${baseSlug}-${idx}-${Date.now().toString(36).slice(-4)}`,
+          eventId: baseSlug,
           personId,
           involvementType: p.involvementType || "attendee",
           roleLabel: p.role || "participant",
@@ -261,6 +269,29 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             throw new Error("Candidate was already reviewed or claimed by another editor");
           }
 
+          // 1b. Determine deterministic collision-safe event slug under transaction
+          const existingSlugs = new Set<string>();
+          const matchingEvents = await tx
+            .select({ id: schema.events.id })
+            .from(schema.events)
+            .where(or(eq(schema.events.id, baseSlug), ilike(schema.events.id, `${escapeIlikePattern(baseSlug)}-%`)));
+          matchingEvents.forEach((e) => existingSlugs.add(e.id));
+          store.events.forEach((e) => existingSlugs.add(e.id));
+
+          let collisionIdx = 2;
+          while (existingSlugs.has(eventSlug)) {
+            eventSlug = `${baseSlug}-${collisionIdx++}`;
+          }
+
+          newClaims.forEach((c, idx) => {
+            c.id = `clm-${eventSlug}-appr-${Date.now()}-${idx}`;
+            c.eventId = eventSlug;
+          });
+          eventPeopleRows.forEach((ep, idx) => {
+            ep.id = `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`;
+            ep.eventId = eventSlug;
+          });
+
           // 2. Ensure source exists in schema.sources before linking
           if (sourceId) {
             const [existingSrc] = await tx
@@ -278,17 +309,22 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             .from(schema.places)
             .where(eq(schema.places.id, placeId));
 
-          const [matchingPlaceByVenueCity] = !matchingPlaceById && extractedCity && extractedVenue
+          const placeConditions = [
+            ilike(schema.places.city, escapeIlikePattern(extractedCity)),
+            ilike(schema.places.venue, escapeIlikePattern(extractedVenue)),
+          ];
+          if (extractedCountry && extractedCountry !== "International") {
+            placeConditions.push(ilike(schema.places.country, escapeIlikePattern(extractedCountry)));
+          }
+
+          const matchingPlacesByVenueCity = !matchingPlaceById && extractedCity && extractedVenue
             ? await tx
                 .select()
                 .from(schema.places)
-                .where(
-                  and(
-                    ilike(schema.places.city, escapeIlikePattern(extractedCity)),
-                    ilike(schema.places.venue, escapeIlikePattern(extractedVenue))
-                  )
-                )
-            : [null];
+                .where(and(...placeConditions))
+            : [];
+
+          const matchingPlaceByVenueCity = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
 
           const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
 
@@ -593,6 +629,21 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         console.error("Live DB transaction failed on approveCandidate:", err);
         return { success: false, error: err instanceof Error ? err.message : "Database transaction failed" };
       }
+    }
+
+    if (!db) {
+      let collisionIdx = 2;
+      while (store.events.some((e) => e.id === eventSlug)) {
+        eventSlug = `${baseSlug}-${collisionIdx++}`;
+      }
+      newClaims.forEach((c, idx) => {
+        c.id = `clm-${eventSlug}-appr-${Date.now()}-${idx}`;
+        c.eventId = eventSlug;
+      });
+      eventPeopleRows.forEach((ep, idx) => {
+        ep.id = `ep-${eventSlug}-${idx}-${Date.now().toString(36).slice(-4)}`;
+        ep.eventId = eventSlug;
+      });
     }
 
     const memCand = store.candidateEvents.find((c) => c.id === candidateId);

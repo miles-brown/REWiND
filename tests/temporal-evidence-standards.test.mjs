@@ -237,7 +237,11 @@ test("verifies PR #13 follow-up review fixes: event_sources constraint, biograph
 
   // Fix 4 & 5: Pipeline provisional confidence & alias-aware subject resolution
   const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
-  assert.ok(pipelineContent.includes('livePolicy.lane === "provisional" || source.sourceTier === "tier-c"'), "Pipeline must check provisional lane or tier-c source for limited confidence");
+  assert.ok(
+    pipelineContent.includes('livePolicy.lane === "provisional"') &&
+      (pipelineContent.includes('source.sourceTier === "tier-c"') || pipelineContent.includes('finalLiveSourceTier === "tier-c"')),
+    "Pipeline must check provisional lane or tier-c source for limited confidence"
+  );
   assert.ok(pipelineContent.includes('? "limited"'), "Provisional/tier-c participants must receive limited confidence");
   assert.ok(pipelineContent.includes("resolveParticipantOrMentionSync"), "Pipeline must support alias-aware sync subject resolution");
   assert.ok(pipelineContent.includes("resolveParticipantOrMentionLive"), "Pipeline must support alias-aware live subject resolution");
@@ -1888,7 +1892,7 @@ test("verifies round-28 Codex & CodeRabbit review fixes: dated events count, pla
   // 3. Recompute livePolicy from winning persisted source
   assert.ok(
     pipelineTs.includes("const [winningDbSource] = await tx") &&
-    pipelineTs.includes("const finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;") &&
+    pipelineTs.includes("finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;") &&
     pipelineTs.includes("livePolicy = evaluatePublicationPolicy(candidate, finalLiveSourceTier, liveEntityResolutions);"),
     "pipeline.ts must re-evaluate livePolicy using winning persisted source tier after onConflictDoNothing"
   );
@@ -1904,8 +1908,105 @@ test("verifies round-28 Codex & CodeRabbit review fixes: dated events count, pla
   // 5. Normalized slug resolution
   assert.ok(
     resolveTs.includes("const normalizedNameSlug = normalizeName(rawName)") &&
-    resolveTs.includes("or(eq(schema.people.slug, pSlug), eq(schema.people.slug, normalizedNameSlug))"),
+    resolveTs.includes("or(...slugConditions)"),
     "resolve.ts must check normalizedNameSlug during person entity resolution"
+  );
+});
+
+test("verifies round-29 Codex & CodeRabbit review fixes: country-aware place matching, winning source tier propagation, ambiguous person rejection, search limit validation and ILIKE escaping, quote relation resolution, and secondary source classification", async () => {
+  const evidenceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
+  const searchTs = fs.readFileSync(path.join(root, "lib/rewind/search.ts"), "utf-8");
+  const runIngestionTs = fs.readFileSync(path.join(root, "scripts/run-forensic-ingestion.ts"), "utf-8");
+  const typesTs = fs.readFileSync(path.join(root, "lib/ingestion/types.ts"), "utf-8");
+
+  // 1. Country-aware place matching and unique match requirement
+  assert.ok(
+    evidenceTs.includes("if (extractedCountry && extractedCountry !== \"International\")") &&
+    evidenceTs.includes("matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null"),
+    "evidence-service.ts must include extractedCountry in place conditions and only accept exactly one match"
+  );
+  assert.ok(
+    pipelineTs.includes("if (livePlaceResolution.country && livePlaceResolution.country !== \"International\")") &&
+    pipelineTs.includes("matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null"),
+    "pipeline.ts must include country in place conditions and only accept exactly one match"
+  );
+
+  // 2. Deterministic collision-safe approval event slugs
+  assert.ok(
+    evidenceTs.includes("export function deriveEventSlug") || pipelineTs.includes("export function deriveEventSlug"),
+    "deriveEventSlug must be exported"
+  );
+  assert.ok(
+    evidenceTs.includes("const baseSlug = deriveEventSlug(") &&
+    evidenceTs.includes("eventSlug = `${baseSlug}-${collisionIdx++}`;"),
+    "evidence-service.ts must derive baseSlug and allocate deterministic collision suffixes"
+  );
+
+  // 3. Winning source tier propagation to policy, confidence, and audit records
+  assert.ok(
+    pipelineTs.includes("finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;") &&
+    pipelineTs.includes("sourceTier: finalLiveSourceTier") &&
+    pipelineTs.includes("primarySourceTier: finalLiveSourceTier"),
+    "pipeline.ts must propagate winning source tier to participant confidence and audit records"
+  );
+
+  // 4. Rejection of ambiguous slug, name, and alias matches with explicit errors
+  assert.ok(
+    resolveTs.includes("Ambiguous person resolution for") &&
+    resolveTs.includes("multiple people match slug candidates") &&
+    resolveTs.includes("multiple people match name candidates") &&
+    resolveTs.includes("multiple people match alias candidates"),
+    "resolve.ts must throw explicit ambiguity errors when multiple people match slugs, names, or aliases"
+  );
+
+  // 5. Place resolution city-only fallback restricted to !safeVenue
+  assert.ok(
+    resolveTs.includes("if (cityMatches && !safeVenue)") &&
+    resolveTs.includes("if (safeCity && !safeVenue)"),
+    "resolve.ts must only apply city fallback when no venue was supplied"
+  );
+
+  // 6. Secondary source tier classification (Tier C/D) and rawText optionality
+  assert.ok(
+    runIngestionTs.includes('sourceTier = "tier-d";') &&
+    runIngestionTs.includes('sourceTier = "tier-c";') &&
+    runIngestionTs.includes('sourceTier = "tier-a";') &&
+    !runIngestionTs.includes("Verified forensic historical event record"),
+    "run-forensic-ingestion.ts must classify retrospective to Tier D, contemporary reports to Tier C, and omit synthetic rawText"
+  );
+  assert.ok(
+    typesTs.includes("rawText: z.string().min(10).optional()"),
+    "types.ts must allow optional rawText in RawEvidenceItemSchema"
+  );
+
+  // 7. Search limit integer validation (1..30)
+  const searchModule = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  assert.equal(typeof searchModule.escapeIlikePattern, "function");
+  assert.equal(searchModule.escapeIlikePattern("100% test_val\\key"), "100\\% test\\_val\\\\key");
+
+  assert.deepEqual(await searchModule.searchRewind("", 10), []);
+  assert.deepEqual(await searchModule.searchRewind("test", 0), []);
+  assert.deepEqual(await searchModule.searchRewind("test", -5), []);
+  assert.deepEqual(await searchModule.searchRewind("test", 35), []);
+  assert.deepEqual(await searchModule.searchRewind("test", 2.5), []);
+
+  // 8. Quote relations lookup by both id and slug
+  assert.ok(
+    searchTs.includes("or(`id.in.(${neededEventIds.map(escapePostgrestValue).join(\",\")}),slug.in.(${neededEventIds.map(escapePostgrestValue).join(\",\")})`)") &&
+    searchTs.includes("or(`id.in.(${neededSpeakerIds.map(escapePostgrestValue).join(\",\")}),slug.in.(${neededSpeakerIds.map(escapePostgrestValue).join(\",\")})`)"),
+    "search.ts must match related quote events and speakers across both IDs and slugs"
+  );
+  assert.ok(
+    searchTs.includes("eventSlugMap.set(e.id, { slug: e.slug, title: e.title });") &&
+    searchTs.includes("if (e.slug) eventSlugMap.set(e.slug, { slug: e.slug, title: e.title });"),
+    "search.ts must index eventSlugMap by both id and slug"
+  );
+  assert.ok(
+    searchTs.includes("speakerNameMap.set(p.id, name);") &&
+    searchTs.includes("if (p.slug) speakerNameMap.set(p.slug, name);"),
+    "search.ts must index speakerNameMap by both id and slug"
   );
 });
 

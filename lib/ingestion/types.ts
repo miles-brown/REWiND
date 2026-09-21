@@ -14,7 +14,7 @@ export const RawEvidenceItemSchema = z.object({
   ]),
   sourceTier: z.enum(["tier-a", "tier-b", "tier-c", "tier-d"]),
   url: z.string().url().optional(),
-  rawText: z.string().min(10),
+  rawText: z.string().min(10).optional(),
   fetchedAt: z.string().optional(),
 });
 

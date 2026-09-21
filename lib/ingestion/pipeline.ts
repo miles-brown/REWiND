@@ -38,7 +38,7 @@ import {
  * Incorporates date, participant IDs, event type, city, and a title hash
  * so distinct same-day events for the same participants do not collide.
  */
-function deriveEventSlug(
+export function deriveEventSlug(
   startDate: string,
   participantIds: string[],
   eventType: string,
@@ -455,6 +455,7 @@ export function processCandidateEvent(
       return direct?.personId || null;
     };
 
+    let finalLiveSourceTier = effectiveLiveSourceTier;
     let livePersistedClaimsAdded = candidate.claims.length;
 
     await db.transaction(async (tx) => {
@@ -483,7 +484,7 @@ export function processCandidateEvent(
         .from(schema.sources)
         .where(eq(schema.sources.id, source.sourceId));
 
-      const finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;
+      finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;
       livePolicy = evaluatePublicationPolicy(candidate, finalLiveSourceTier, liveEntityResolutions);
       syncResult.lane = livePolicy.lane;
       syncResult.policy = livePolicy;
@@ -543,7 +544,7 @@ export function processCandidateEvent(
 
           // Upsert participants into eventPeople
           const participantConfidence =
-            livePolicy.lane === "provisional" || source.sourceTier === "tier-c"
+            livePolicy.lane === "provisional" || finalLiveSourceTier === "tier-c" || finalLiveSourceTier === "tier-d"
               ? "limited"
               : "confirmed";
 
@@ -740,17 +741,22 @@ export function processCandidateEvent(
             .from(schema.places)
             .where(eq(schema.places.id, livePlaceResolution.placeId));
 
-          const [matchingPlaceByVenueCity] = !matchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
+          const placeConditions = [
+            ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
+            ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue)),
+          ];
+          if (livePlaceResolution.country && livePlaceResolution.country !== "International") {
+            placeConditions.push(ilike(schema.places.country, escapeIlikePattern(livePlaceResolution.country)));
+          }
+
+          const matchingPlacesByVenueCity = !matchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
             ? await tx
                 .select({ id: schema.places.id })
                 .from(schema.places)
-                .where(
-                  and(
-                    ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
-                    ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue))
-                  )
-                )
-            : [null];
+                .where(and(...placeConditions))
+            : [];
+
+          const matchingPlaceByVenueCity = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
 
           const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
 
@@ -872,7 +878,7 @@ export function processCandidateEvent(
           }
 
           const participantConfidence =
-            livePolicy.lane === "provisional" || source.sourceTier === "tier-c"
+            livePolicy.lane === "provisional" || finalLiveSourceTier === "tier-c" || finalLiveSourceTier === "tier-d"
               ? "limited"
               : "confirmed";
 
@@ -1038,7 +1044,7 @@ export function processCandidateEvent(
             {
               eventId: eventSlug,
               sourceId: source.sourceId,
-              sourceTier: source.sourceTier,
+              sourceTier: finalLiveSourceTier,
               lane: livePolicy.lane,
             },
             eventSlug,
@@ -1069,7 +1075,7 @@ export function processCandidateEvent(
             suggestedDate: candidate.startDate,
             suggestedPlace: `${candidate.venue}, ${candidate.city}, ${candidate.country}`,
             suggestedParticipants: JSON.stringify(candidate.participants),
-            primarySourceTier: source.sourceTier,
+            primarySourceTier: finalLiveSourceTier,
             assignedLane: livePolicy.lane,
             duplicateMatchId: liveDeduplication.matchedEventId || null,
             duplicateSimilarity: liveDeduplication.similarity,
@@ -1117,7 +1123,7 @@ export function processCandidateEvent(
           {
             eventId: publishedId,
             sourceId: source.sourceId,
-            sourceTier: source.sourceTier,
+            sourceTier: finalLiveSourceTier,
             lane: livePolicy.lane,
           },
           publishedId,
