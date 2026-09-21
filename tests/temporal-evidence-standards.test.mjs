@@ -1569,6 +1569,66 @@ test("verifies round-22 Codex and CodeRabbit review fixes: claims person polymor
   );
 });
 
+test("verifies round-23 Codex review fixes: supporting excerpts preservation, schema-v2 people tables alignment, location precision derivation, migration idempotency, and HMAC actor security", async () => {
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const schemaV2Ts = fs.readFileSync(path.join(root, "db/schema-v2.ts"), "utf-8");
+  const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
+  const migrationScript = fs.readFileSync(path.join(root, "scripts/apply-all-migrations.mjs"), "utf-8");
+  const adminApiTs = fs.readFileSync(path.join(root, "app/api/admin/evidence/route.ts"), "utf-8");
+
+  // 1. Supporting excerpt preservation in claim evidence
+  assert.ok(
+    evidenceServiceTs.includes("supportingExcerpt: c.supportingExcerpt || null"),
+    "lib/evidence-service.ts must preserve candidate supportingExcerpt instead of synthetic boilerplate"
+  );
+
+  // 2. Schema-v2 column alignment with PostgreSQL migration
+  assert.ok(schemaV2Ts.includes('fieldOfStudy: text("field_of_study")'), "personEducation must include field_of_study");
+  assert.ok(schemaV2Ts.includes('startYear: text("start_year")'), "personEducation must include start_year");
+  assert.ok(schemaV2Ts.includes('endYear: text("end_year")'), "personEducation must include end_year");
+  assert.ok(schemaV2Ts.includes('roleTitle: text("role_title").notNull()'), "personCareer must include role_title");
+  assert.ok(schemaV2Ts.includes('isCurrent: boolean("is_current")'), "personCareer must include is_current");
+  assert.ok(schemaV2Ts.includes('yearReceived: text("year_received")'), "personAwards must include year_received");
+  assert.ok(schemaV2Ts.includes('citation: text("citation")'), "personAwards must include citation");
+  assert.ok(schemaV2Ts.includes('title: text("title").notNull()'), "personWorks must include title");
+  assert.ok(schemaV2Ts.includes('publicationYear: text("publication_year")'), "personWorks must include publication_year");
+
+  // 3. Location precision derivation
+  assert.equal(typeof eventsModule.deriveLocationPrecision, "function");
+  // Explicit value respected
+  assert.equal(eventsModule.deriveLocationPrecision("venue"), "venue");
+  assert.equal(eventsModule.deriveLocationPrecision("city"), "city");
+  assert.equal(eventsModule.deriveLocationPrecision("country"), "country");
+  assert.equal(eventsModule.deriveLocationPrecision("unknown"), "unknown");
+  // Inferred from venue
+  assert.equal(eventsModule.deriveLocationPrecision(undefined, { venue: "United Nations Headquarters", city: "New York" }), "venue");
+  // Inferred from participant coordinatePrecision
+  assert.equal(eventsModule.deriveLocationPrecision(undefined, { city: "New York" }, [{ personId: "p1", name: "Test", coordinatePrecision: "exact" }]), "venue");
+  // Inferred from city
+  assert.equal(eventsModule.deriveLocationPrecision(undefined, { city: "London", country: "United Kingdom" }), "city");
+  // Inferred from country
+  assert.equal(eventsModule.deriveLocationPrecision(undefined, { country: "France" }), "country");
+  // Fallback to unknown
+  assert.equal(eventsModule.deriveLocationPrecision(undefined, {}), "unknown");
+
+  // 4. Migration script idempotency
+  assert.ok(
+    migrationScript.includes("SELECT version FROM supabase_migrations.schema_migrations") &&
+    migrationScript.includes("appliedVersions.has(version)") &&
+    migrationScript.includes("Skipping already applied migration"),
+    "scripts/apply-all-migrations.mjs must query schema_migrations and skip applied files"
+  );
+
+  // 5. Admin API HMAC verified actor derivation
+  assert.ok(
+    adminApiTs.includes("verifySignedActor") &&
+    adminApiTs.includes("crypto.createHmac") &&
+    adminApiTs.includes("deriveVerifiedActor"),
+    "app/api/admin/evidence/route.ts must securely verify HMAC signatures for editor actors"
+  );
+});
+
+
 
 
 

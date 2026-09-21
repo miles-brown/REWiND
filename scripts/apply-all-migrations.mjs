@@ -72,10 +72,24 @@ async function applyMigrations() {
     );
   `;
 
+  // Fetch already applied migrations to ensure idempotency
+  const appliedMigrationRows = await client`
+    SELECT version FROM supabase_migrations.schema_migrations;
+  `;
+  const appliedVersions = new Set(appliedMigrationRows.map((r) => String(r.version)));
+  console.log(`Found ${appliedVersions.size} already applied migrations in supabase_migrations.schema_migrations.`);
+
   for (const filename of migrationFiles) {
     const filePath = path.join("supabase/migrations", filename);
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
+
+    if (appliedVersions.has(version)) {
+      console.log(`\n========================================`);
+      console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
+      console.log(`========================================`);
+      continue;
+    }
 
     console.log(`\n========================================`);
     console.log(`Applying migration: ${filename} (version: ${version})`);

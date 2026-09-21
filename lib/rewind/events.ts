@@ -160,6 +160,45 @@ export function getFallbackEventsResult(params: EventFilters = {}): PaginatedRes
 }
 
 /**
+ * Derives a standardized location precision (venue | city | country | unknown)
+ * from explicit database precision or inferred place and participant spatial attributes.
+ */
+export function deriveLocationPrecision(
+  rawPrecision?: unknown,
+  place?: { venue?: string; city?: string; country?: string; placeType?: string },
+  participants?: Participant[]
+): LocationPrecision {
+  if (rawPrecision === "venue" || rawPrecision === "city" || rawPrecision === "country" || rawPrecision === "unknown") {
+    return rawPrecision;
+  }
+  if (place?.venue || place?.placeType === "venue") {
+    return "venue";
+  }
+  if (participants?.some((p) => p.coordinatePrecision === "venue" || p.coordinatePrecision === "exact" || p.coordinatePrecision === "building")) {
+    return "venue";
+  }
+  if (place?.city && place.city !== "Unknown" && place.city.trim() !== "") {
+    return "city";
+  }
+  if (place?.placeType === "city") {
+    return "city";
+  }
+  if (participants?.some((p) => p.coordinatePrecision === "city")) {
+    return "city";
+  }
+  if (place?.country && place.country !== "Unknown" && place.country.trim() !== "") {
+    return "country";
+  }
+  if (place?.placeType === "country") {
+    return "country";
+  }
+  if (participants?.some((p) => p.coordinatePrecision === "country")) {
+    return "country";
+  }
+  return "unknown";
+}
+
+/**
  * Maps raw database event row and related joins into an application EventRecord.
  */
 export function mapDatabaseEvent(
@@ -208,7 +247,7 @@ export function mapDatabaseEvent(
     holidayName: row.holiday_name ? String(row.holiday_name) : undefined,
     holidayType: row.holiday_type ? String(row.holiday_type) : undefined,
     holidayJurisdiction: row.holiday_jurisdiction ? String(row.holiday_jurisdiction) : undefined,
-    locationPrecision: (row.location_precision ? String(row.location_precision) : undefined) as LocationPrecision | undefined,
+    locationPrecision: deriveLocationPrecision(row.location_precision, place, participants),
     city: place.city || "Unknown",
     country: place.country || "Unknown",
     venueName: place.venue || undefined,

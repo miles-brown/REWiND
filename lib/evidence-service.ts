@@ -511,7 +511,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 evidenceStrength: null,
                 directness: null,
                 citationLocator: null,
-                supportingExcerpt: `Archival evidence for ${c.id} from approved candidate ${candidateId}.`,
+                supportingExcerpt: c.supportingExcerpt || null,
                 contradictsClaim: false,
               }));
               await tx.insert(schema.claimEvidence).values(claimEvidenceRows);
@@ -1015,7 +1015,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                 evidenceStrength: null,
                 directness: null,
                 citationLocator: null,
-                supportingExcerpt: `Archival evidence for ${c.id} from merged candidate ${candidateId}.`,
+                supportingExcerpt: c.supportingExcerpt || null,
                 contradictsClaim: false,
               }));
               await tx.insert(schema.claimEvidence).values(claimEvidenceRows);
