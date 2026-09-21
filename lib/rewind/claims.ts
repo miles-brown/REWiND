@@ -151,6 +151,38 @@ export async function getClaimsByPerson(personId: string, supabaseClient?: unkno
     return [];
   }
 
+  const claimIds = claimsData.map((c: { id: string }) => c.id);
+  const { data: evidenceData, error: evidenceError } = await supabase
+    .from("claim_evidence")
+    .select("*, sources(id, title, publisher, url)")
+    .in("claim_id", claimIds);
+
+  if (evidenceError) {
+    console.error(`Error retrieving claim evidence for person ${personId}:`, evidenceError);
+    throw new Error(`Failed to query claim evidence for person ${personId}: ${evidenceError.message || String(evidenceError)}`);
+  }
+
+  const evidenceMap = new Map<string, ClaimEvidenceRecord[]>();
+  (evidenceData || []).forEach((ev: Record<string, unknown>) => {
+    const list = evidenceMap.get(String(ev.claim_id)) || [];
+    const src = (Array.isArray(ev.sources) ? ev.sources[0] : ev.sources) as Record<string, unknown> | undefined;
+    list.push({
+      id: String(ev.id),
+      claimId: String(ev.claim_id),
+      sourceId: String(ev.source_id || ""),
+      sourceTitle: src?.title ? String(src.title) : undefined,
+      sourcePublisher: src?.publisher ? String(src.publisher) : undefined,
+      sourceUrl: src?.url ? String(src.url) : undefined,
+      evidenceForm: String(ev.evidence_form || "direct-citation"),
+      evidenceStrength: ev.evidence_strength ? String(ev.evidence_strength) : undefined,
+      directness: ev.directness ? (ev.directness as "direct" | "inferential" | "unknown") : undefined,
+      citationLocator: ev.citation_locator ? String(ev.citation_locator) : undefined,
+      supportingExcerpt: ev.supporting_excerpt ? String(ev.supporting_excerpt) : undefined,
+      contradictsClaim: Boolean(ev.contradicts_claim),
+    });
+    evidenceMap.set(String(ev.claim_id), list);
+  });
+
   return claimsData.map((c: Record<string, unknown>) => {
     const entityType = c.subject_entity_id
       ? c.subject_entity_type
@@ -172,7 +204,7 @@ export async function getClaimsByPerson(personId: string, supabaseClient?: unkno
       isAttributedOnly: Boolean(c.is_attributed_only),
       attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
       supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
-      evidence: [],
+      evidence: evidenceMap.get(String(c.id)) || [],
     };
   });
 }

@@ -1462,6 +1462,15 @@ test("validates admin evidence console tab accessibility, API error typing, and 
     comparisonTs.includes("Boolean(p.slug) && (p.slug === person.slug || p.slug === person.id)"),
     "components/rewind/TimelineComparison.tsx must check participant slug against person id and slug"
   );
+
+  // 9. getClaimsByPerson claim evidence attachment and error propagation
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  assert.ok(
+    claimsTs.includes('from("claim_evidence")') &&
+    claimsTs.includes("Failed to query claim evidence for person") &&
+    claimsTs.includes("evidence: evidenceMap.get(String(c.id)) || []"),
+    "lib/rewind/claims.ts must attach claim evidence in getClaimsByPerson and propagate errors"
+  );
 });
 
 
