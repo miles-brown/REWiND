@@ -273,48 +273,71 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           }
 
           // 3. Resolve or insert canonical place
-          const targetSlug = placeId.replace(/^plc-/, "");
-          const [existingDbPlace] = await tx
+          const [matchingPlaceById] = await tx
             .select()
             .from(schema.places)
-            .where(
-              or(
-                eq(schema.places.id, placeId),
-                eq(schema.places.slug, targetSlug),
-                and(
-                  ilike(schema.places.city, escapeIlikePattern(extractedCity)),
-                  ilike(schema.places.venue, escapeIlikePattern(extractedVenue))
+            .where(eq(schema.places.id, placeId));
+
+          const [matchingPlaceByVenueCity] = !matchingPlaceById && extractedCity && extractedVenue
+            ? await tx
+                .select()
+                .from(schema.places)
+                .where(
+                  and(
+                    ilike(schema.places.city, escapeIlikePattern(extractedCity)),
+                    ilike(schema.places.venue, escapeIlikePattern(extractedVenue))
+                  )
                 )
-              )
-            );
+            : [null];
+
+          const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
+
           if (existingDbPlace) {
             resolvedPlaceId = existingDbPlace.id;
           } else {
-            await tx
-              .insert(schema.places)
-              .values({
-                id: placeId,
-                slug: targetSlug,
-                venue: extractedVenue,
-                city: extractedCity,
-                country: extractedCountry,
-                latitude: extractedLat,
-                longitude: extractedLng,
-                placeType: "venue",
-              })
-              .onConflictDoNothing();
-
-            const [persistedPlace] = await tx
-              .select({ id: schema.places.id })
+            let targetSlug = placeId.replace(/^plc-/, "");
+            const [slugOccupier] = await tx
+              .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
               .from(schema.places)
-              .where(
-                or(
-                  eq(schema.places.id, placeId),
-                  eq(schema.places.slug, targetSlug)
-                )
-              );
-            if (persistedPlace) {
-              resolvedPlaceId = persistedPlace.id;
+              .where(eq(schema.places.slug, targetSlug));
+
+            if (slugOccupier) {
+              const isSamePlace =
+                (!extractedCity || slugOccupier.city?.toLowerCase() === extractedCity.toLowerCase()) &&
+                (!extractedVenue || slugOccupier.venue?.toLowerCase() === extractedVenue.toLowerCase()) &&
+                (!extractedCountry || slugOccupier.country?.toLowerCase() === extractedCountry.toLowerCase());
+
+              if (isSamePlace) {
+                resolvedPlaceId = slugOccupier.id;
+              } else {
+                const suffix = placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
+                targetSlug = `${targetSlug}-${suffix || "2"}`;
+              }
+            }
+
+            if (!existingDbPlace && (!slugOccupier || resolvedPlaceId === placeId)) {
+              await tx
+                .insert(schema.places)
+                .values({
+                  id: placeId,
+                  slug: targetSlug,
+                  venue: extractedVenue,
+                  city: extractedCity,
+                  country: extractedCountry,
+                  latitude: extractedLat,
+                  longitude: extractedLng,
+                  placeType: "venue",
+                })
+                .onConflictDoNothing();
+
+              const [persistedPlace] = await tx
+                .select({ id: schema.places.id })
+                .from(schema.places)
+                .where(eq(schema.places.id, placeId));
+
+              if (persistedPlace) {
+                resolvedPlaceId = persistedPlace.id;
+              }
             }
           }
 

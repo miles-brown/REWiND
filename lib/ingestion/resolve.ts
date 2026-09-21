@@ -63,10 +63,11 @@ export async function resolvePersonEntityInTransaction(
 
   // 2. Slug match (reusing existing canonical ID if different from generated ID)
   const pSlug = effectivePersonId.replace(/^p-/, "");
+  const normalizedNameSlug = normalizeName(rawName).replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   const [bySlug] = await tx
     .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
     .from(schema.people)
-    .where(eq(schema.people.slug, pSlug));
+    .where(or(eq(schema.people.slug, pSlug), eq(schema.people.slug, normalizedNameSlug)));
 
   if (bySlug) {
     return bySlug.id;

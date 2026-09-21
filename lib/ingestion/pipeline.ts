@@ -1,13 +1,17 @@
 import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, sql, ilike } from "drizzle-orm";
 import {
   ExtractedCandidateEventSchema,
   type ExtractedCandidateEvent,
   type RawEvidenceItem,
   type IngestionResult,
 } from "./types";
+
+function escapeIlikePattern(str: string): string {
+  return str.replace(/[%_\\]/g, "\\$&");
+}
 import {
   resolveEntity,
   resolveEntityAsync,
@@ -422,7 +426,7 @@ export function processCandidateEvent(
       .where(eq(schema.sources.id, source.sourceId));
 
     const effectiveLiveSourceTier = (existingDbSource?.tier as typeof source.sourceTier) || source.sourceTier;
-    const livePolicy = evaluatePublicationPolicy(candidate, effectiveLiveSourceTier, liveEntityResolutions);
+    let livePolicy = evaluatePublicationPolicy(candidate, effectiveLiveSourceTier, liveEntityResolutions);
     const liveFingerprint = calculateEventFingerprint(
       liveResolvedParticipantIds,
       candidate.startDate,
@@ -472,6 +476,17 @@ export function processCandidateEvent(
           })
           .onConflictDoNothing();
       }
+
+      // Re-read winning persisted source row by sourceId and recompute livePolicy before entering publication branch
+      const [winningDbSource] = await tx
+        .select({ id: schema.sources.id, tier: schema.sources.tier })
+        .from(schema.sources)
+        .where(eq(schema.sources.id, source.sourceId));
+
+      const finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;
+      livePolicy = evaluatePublicationPolicy(candidate, finalLiveSourceTier, liveEntityResolutions);
+      syncResult.lane = livePolicy.lane;
+      syncResult.policy = livePolicy;
 
       // 2. Hash and preserve fetched source payload in schema.sourceFetches only when fetch evidence exists (SOURCE_POLICY.md)
       if (source.rawText) {
@@ -718,47 +733,73 @@ export function processCandidateEvent(
             candidate.city,
             candidate.title
           );
-          const targetSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
+          let targetSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
 
-          const [existingDbPlace] = await tx
+          const [matchingPlaceById] = await tx
             .select({ id: schema.places.id })
             .from(schema.places)
-            .where(
-              or(
-                eq(schema.places.id, livePlaceResolution.placeId),
-                eq(schema.places.slug, targetSlug)
-              )
-            );
+            .where(eq(schema.places.id, livePlaceResolution.placeId));
+
+          const [matchingPlaceByVenueCity] = !matchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
+            ? await tx
+                .select({ id: schema.places.id })
+                .from(schema.places)
+                .where(
+                  and(
+                    ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
+                    ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue))
+                  )
+                )
+            : [null];
+
+          const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
 
           let effectivePlaceId = livePlaceResolution.placeId;
           if (existingDbPlace) {
             effectivePlaceId = existingDbPlace.id;
           } else {
-            await tx
-              .insert(schema.places)
-              .values({
-                id: livePlaceResolution.placeId,
-                slug: targetSlug,
-                venue: livePlaceResolution.venue,
-                city: livePlaceResolution.city,
-                country: livePlaceResolution.country,
-                latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-                longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
-                placeType: "venue",
-              })
-              .onConflictDoNothing();
-
-            const [persistedPlace] = await tx
-              .select({ id: schema.places.id })
+            const [slugOccupier] = await tx
+              .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
               .from(schema.places)
-              .where(
-                or(
-                  eq(schema.places.id, livePlaceResolution.placeId),
-                  eq(schema.places.slug, targetSlug)
-                )
-              );
-            if (persistedPlace) {
-              effectivePlaceId = persistedPlace.id;
+              .where(eq(schema.places.slug, targetSlug));
+
+            if (slugOccupier) {
+              const isSamePlace =
+                (!livePlaceResolution.city || slugOccupier.city?.toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
+                (!livePlaceResolution.venue || slugOccupier.venue?.toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
+                (!livePlaceResolution.country || slugOccupier.country?.toLowerCase() === livePlaceResolution.country.toLowerCase());
+
+              if (isSamePlace) {
+                effectivePlaceId = slugOccupier.id;
+              } else {
+                const suffix = livePlaceResolution.placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
+                targetSlug = `${targetSlug}-${suffix || "2"}`;
+              }
+            }
+
+            if (!existingDbPlace && (!slugOccupier || effectivePlaceId === livePlaceResolution.placeId)) {
+              await tx
+                .insert(schema.places)
+                .values({
+                  id: livePlaceResolution.placeId,
+                  slug: targetSlug,
+                  venue: livePlaceResolution.venue,
+                  city: livePlaceResolution.city,
+                  country: livePlaceResolution.country,
+                  latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
+                  longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+                  placeType: "venue",
+                })
+                .onConflictDoNothing();
+
+              const [persistedPlace] = await tx
+                .select({ id: schema.places.id })
+                .from(schema.places)
+                .where(eq(schema.places.id, livePlaceResolution.placeId));
+
+              if (persistedPlace) {
+                effectivePlaceId = persistedPlace.id;
+              }
             }
           }
 

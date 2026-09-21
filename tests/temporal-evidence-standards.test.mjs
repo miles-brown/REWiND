@@ -1863,6 +1863,53 @@ test("verifies round-27 Codex & CodeRabbit review fixes: date ambiguity rejectio
   );
 });
 
+test("verifies round-28 Codex & CodeRabbit review fixes: dated events count, place collision suffixing, winning source tier recomputation, search address error propagation, and normalized slug resolution", async () => {
+  const navTs = fs.readFileSync(path.join(root, "components/rewind/PersonCoverageNav.tsx"), "utf-8");
+  const evidenceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const searchTs = fs.readFileSync(path.join(root, "lib/rewind/search.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
+
+  // 1. PersonCoverageNav dated events count based on periods/yearCountMap
+  assert.ok(
+    navTs.includes("const totalDatedEvents = useMemo(") &&
+    navTs.includes("periods.reduce((acc, curr) => acc + curr.totalEvents, 0)") &&
+    navTs.includes("{totalDatedEvents} dated events"),
+    "PersonCoverageNav must compute dated events count from periods rather than raw records.length"
+  );
+
+  // 2. Place resolution collision suffixing
+  assert.ok(
+    evidenceTs.includes("targetSlug = `${targetSlug}-${suffix || \"2\"}`;") &&
+    pipelineTs.includes("targetSlug = `${targetSlug}-${suffix || \"2\"}`;"),
+    "evidence-service.ts and pipeline.ts must derive collision suffixes when targetSlug is occupied by another place"
+  );
+
+  // 3. Recompute livePolicy from winning persisted source
+  assert.ok(
+    pipelineTs.includes("const [winningDbSource] = await tx") &&
+    pipelineTs.includes("const finalLiveSourceTier = (winningDbSource?.tier as typeof source.sourceTier) || effectiveLiveSourceTier;") &&
+    pipelineTs.includes("livePolicy = evaluatePublicationPolicy(candidate, finalLiveSourceTier, liveEntityResolutions);"),
+    "pipeline.ts must re-evaluate livePolicy using winning persisted source tier after onConflictDoNothing"
+  );
+
+  // 4. Address error propagation in search
+  assert.ok(
+    searchTs.includes("const { data: addressRows, error: addressError } = await supabase") &&
+    searchTs.includes("if (addressError) {") &&
+    searchTs.includes("throw new Error(`Supabase search query failed: ${addressError.message}`);"),
+    "search.ts must propagate address query errors consistently"
+  );
+
+  // 5. Normalized slug resolution
+  assert.ok(
+    resolveTs.includes("const normalizedNameSlug = normalizeName(rawName)") &&
+    resolveTs.includes("or(eq(schema.people.slug, pSlug), eq(schema.people.slug, normalizedNameSlug))"),
+    "resolve.ts must check normalizedNameSlug during person entity resolution"
+  );
+});
+
+
 
 
 

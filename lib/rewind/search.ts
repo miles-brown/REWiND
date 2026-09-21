@@ -191,10 +191,13 @@ export async function searchRewind(
     const addressIds = Array.from(new Set(venueRows.map((v) => v.address_id).filter(Boolean))) as string[];
     const addressesMap = new Map<string, { city?: string | null; country_code?: string | null }>();
     if (addressIds.length > 0) {
-      const { data: addressRows } = await supabase
+      const { data: addressRows, error: addressError } = await supabase
         .from("addresses")
         .select("id, city, country_code")
         .in("id", addressIds);
+      if (addressError) {
+        throw new Error(`Supabase search query failed: ${addressError.message}`);
+      }
       (addressRows || []).forEach((a: { id: string; city?: string | null; country_code?: string | null }) => addressesMap.set(a.id, a));
     }
 

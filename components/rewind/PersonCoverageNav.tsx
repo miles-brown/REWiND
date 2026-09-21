@@ -58,6 +58,11 @@ export function PersonCoverageNav({
     return { [lastPeriod]: true };
   });
 
+  const totalDatedEvents = useMemo(
+    () => periods.reduce((acc, curr) => acc + curr.totalEvents, 0),
+    [periods]
+  );
+
   const togglePeriod = (period: string) => {
     setExpandedPeriods((prev) => ({
       ...prev,
@@ -74,7 +79,7 @@ export function PersonCoverageNav({
           <Clock size={14} className="coverage-icon" />
           <span>INDEXED COVERAGE</span>
         </div>
-        <small className="coverage-count">{records.length} dated events</small>
+        <small className="coverage-count">{totalDatedEvents} dated events</small>
       </div>
 
       <div className="coverage-nav-scroll-container">
