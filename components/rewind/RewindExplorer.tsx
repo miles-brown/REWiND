@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
-import { isStandardIsoDate, formatTimelineDate, compareTimelineDates } from "@/lib/rewind/dates";
+import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 
@@ -391,9 +391,9 @@ export function RewindExplorer({
             }}
           />
           <div>
-            <span>{filtered[0]?.startDate.slice(0, 4) || "—"}</span>
-            <b>{event?.startDate.slice(0, 4) || "—"}</b>
-            <span>{filtered.at(-1)?.startDate.slice(0, 4) || "—"}</span>
+            <span>{extractYearFromDate(filtered[0]?.startDate) ?? (filtered[0]?.startDate ? filtered[0].startDate.slice(0, 4) : "—")}</span>
+            <b>{extractYearFromDate(event?.startDate) ?? (event?.startDate ? event.startDate.slice(0, 4) : "—")}</b>
+            <span>{extractYearFromDate(filtered.at(-1)?.startDate) ?? (filtered.at(-1)?.startDate ? filtered.at(-1)!.startDate.slice(0, 4) : "—")}</span>
           </div>
         </div>
         <label className="speed">

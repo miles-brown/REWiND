@@ -51,7 +51,7 @@ export async function searchRewind(
 
   const escaped = escapePostgrestValue(term);
 
-  const [eventsRes, peopleRes, placesRes, sourcesRes, quotesRes] = await Promise.all([
+  const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
     supabase
       .from("events")
       .select("id, slug, title, start_date, summary")
@@ -70,6 +70,11 @@ export async function searchRewind(
       .or(`venue.ilike."%${escaped}%",city.ilike."%${escaped}%",country.ilike."%${escaped}%"`)
       .limit(limit),
     supabase
+      .from("venues")
+      .select("id, name, address_id")
+      .ilike("name", `%${escaped}%`)
+      .limit(limit),
+    supabase
       .from("sources")
       .select("id, title, publisher, tier")
       .or(`title.ilike."%${escaped}%",publisher.ilike."%${escaped}%"`)
@@ -81,7 +86,7 @@ export async function searchRewind(
       .limit(limit),
   ]);
 
-  const searchError = eventsRes.error || peopleRes.error || placesRes.error || sourcesRes.error || quotesRes.error;
+  const searchError = eventsRes.error || peopleRes.error || placesRes.error || venuesRes.error || sourcesRes.error || quotesRes.error;
   if (searchError) {
     throw new Error(`Supabase search query failed: ${searchError.message}`);
   }
@@ -164,14 +169,53 @@ export async function searchRewind(
     });
   }
 
-  const placeItems: SearchResultItem[] = (placesRes.data || []).map((pl) => ({
-    id: `place-${pl.id}`,
-    title: pl.venue || pl.city,
-    subtitle: `${pl.city}, ${pl.country}`,
-    type: "place",
-    url: `/place/${pl.slug}`,
-    badge: "Place",
-  }));
+  const placeItems: SearchResultItem[] = [];
+  const seenPlaceIds = new Set<string>();
+  const seenPlaceSlugs = new Set<string>();
+
+  (placesRes.data || []).forEach((pl) => {
+    seenPlaceIds.add(pl.id);
+    seenPlaceSlugs.add(pl.slug);
+    placeItems.push({
+      id: `place-${pl.id}`,
+      title: pl.venue || pl.city,
+      subtitle: `${pl.city}, ${pl.country}`,
+      type: "place",
+      url: `/place/${pl.slug}`,
+      badge: "Place",
+    });
+  });
+
+  const venueRows = venuesRes.data || [];
+  if (venueRows.length > 0) {
+    const addressIds = Array.from(new Set(venueRows.map((v) => v.address_id).filter(Boolean))) as string[];
+    const addressesMap = new Map<string, { city?: string | null; country_code?: string | null }>();
+    if (addressIds.length > 0) {
+      const { data: addressRows } = await supabase
+        .from("addresses")
+        .select("id, city, country_code")
+        .in("id", addressIds);
+      (addressRows || []).forEach((a: { id: string; city?: string | null; country_code?: string | null }) => addressesMap.set(a.id, a));
+    }
+
+    venueRows.forEach((v) => {
+      const vSlug = v.id.replace(/^plc-|^ven-/, "");
+      if (!seenPlaceIds.has(v.id) && !seenPlaceSlugs.has(vSlug)) {
+        seenPlaceIds.add(v.id);
+        seenPlaceSlugs.add(vSlug);
+        const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
+        const loc = [addr?.city, addr?.country_code].filter(Boolean).join(", ") || "Venue";
+        placeItems.push({
+          id: `place-${v.id}`,
+          title: v.name,
+          subtitle: loc,
+          type: "place",
+          url: `/place/${vSlug}`,
+          badge: "Place",
+        });
+      }
+    });
+  }
 
   const sourceItems: SearchResultItem[] = (sourcesRes.data || []).map((s) => ({
     id: `source-${s.id}`,

@@ -267,7 +267,7 @@ export function PersonTimeline({
       <div className="person-time-main">
         <article className="person-event-stage" key={event.id} aria-live="polite">
           <div className="person-event-kicker">
-            <span>{event.startDate.slice(0, 4)}</span>
+            <span>{extractYearFromDate(event.startDate) ?? event.startDate}</span>
             <span
               className={`status ${event.verificationStatus || "provisional"}`}
               title={`Verification: ${event.verificationStatus || "provisional"} · Confidence: ${event.confidence || "limited"}`}

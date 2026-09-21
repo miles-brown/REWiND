@@ -10,6 +10,10 @@ export default async function Home() {
 
   const stats = statsRes.data;
   const isDbUnavailable = Boolean(statsRes.error || peopleRes.error);
+  if (isDbUnavailable) {
+    if (statsRes.error) console.error("[Home] Atlas statistics error:", statsRes.error);
+    if (peopleRes.error) console.error("[Home] People query error:", peopleRes.error);
+  }
   const people = peopleRes.data || [];
   const provisional = stats.provisionalCount;
   const disputed = stats.disputedCount;
@@ -127,7 +131,7 @@ export default async function Home() {
           <div className="empty-state-banner" style={{ padding: "2rem", border: "1px dashed var(--border-subtle, #333)", borderRadius: "8px", textAlign: "center", color: "var(--text-muted, #888)" }}>
             <p style={{ margin: 0, fontWeight: 500 }}>Canonical Database Configuration Unavailable</p>
             <small style={{ display: "block", marginTop: "0.5rem" }}>
-              {statsRes.error || peopleRes.error || "The canonical Supabase database is unreachable or unconfigured."}
+              The canonical Supabase database is unreachable or unconfigured in this environment.
             </small>
           </div>
         ) : people.length === 0 ? (

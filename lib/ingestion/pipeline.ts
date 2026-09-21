@@ -456,18 +456,21 @@ export function processCandidateEvent(
     await db.transaction(async (tx) => {
       // 1. Ensure Source exists in DB
       if (!existingDbSource) {
-        await tx.insert(schema.sources).values({
-          id: source.sourceId,
-          title: source.sourceTitle,
-          publisher: source.publisher,
-          sourceType: source.sourceType,
-          tier: source.sourceTier,
-          url: source.url || null,
-          archiveUrl: null,
-          author: null,
-          publicationDate: null,
-          trustScore: source.sourceTier === "tier-a" ? 1.0 : source.sourceTier === "tier-b" ? 0.9 : 0.8,
-        });
+        await tx
+          .insert(schema.sources)
+          .values({
+            id: source.sourceId,
+            title: source.sourceTitle,
+            publisher: source.publisher,
+            sourceType: source.sourceType,
+            tier: source.sourceTier,
+            url: source.url || null,
+            archiveUrl: null,
+            author: null,
+            publicationDate: null,
+            trustScore: source.sourceTier === "tier-a" ? 1.0 : source.sourceTier === "tier-b" ? 0.9 : 0.8,
+          })
+          .onConflictDoNothing();
       }
 
       // 2. Hash and preserve fetched source payload in schema.sourceFetches only when fetch evidence exists (SOURCE_POLICY.md)

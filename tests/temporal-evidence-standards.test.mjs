@@ -1767,6 +1767,103 @@ test("verifies round-26 Codex review fixes: canonical source tier validation, au
   );
 });
 
+test("verifies round-27 Codex & CodeRabbit review fixes: date ambiguity rejection, primary citation priority, venue search, participant ID propagation, and source taxonomy validation", async () => {
+  const datesModule = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const sourcesModule = await vite.ssrLoadModule("/lib/rewind/sources.ts");
+  const eventsTs = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+  const searchTs = fs.readFileSync(path.join(root, "lib/rewind/search.ts"), "utf-8");
+  const pageTs = fs.readFileSync(path.join(root, "app/page.tsx"), "utf-8");
+  const evidenceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const timelineTs = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  const comparisonTs = fs.readFileSync(path.join(root, "components/rewind/TimelineComparison.tsx"), "utf-8");
+  const explorerTs = fs.readFileSync(path.join(root, "components/rewind/RewindExplorer.tsx"), "utf-8");
+  const navTs = fs.readFileSync(path.join(root, "components/rewind/PersonCoverageNav.tsx"), "utf-8");
+
+  // 1. Ambiguous slash dates rejected in normalizeIsoDate
+  assert.equal(datesModule.normalizeIsoDate("04/02/2025"), "04/02/2025");
+  assert.equal(datesModule.isStandardIsoDate("04/02/2025"), false);
+  assert.equal(datesModule.isStandardIsoDate(datesModule.normalizeIsoDate("04/02/2025")), false);
+
+  // 2. Event sources hydration orders by is_primary DESC
+  assert.ok(
+    eventsTs.includes('select("event_id, source_id, is_primary")') &&
+    eventsTs.includes('.order("is_primary", { ascending: false })'),
+    "lib/rewind/events.ts must select is_primary and order by is_primary DESC"
+  );
+
+  // 3. Search queries venues table and merges deduplicated venue results
+  assert.ok(
+    searchTs.includes('.from("venues")') &&
+    searchTs.includes("const venueRows = venuesRes.data || [];"),
+    "lib/rewind/search.ts must query venues table and map to place search results"
+  );
+
+  // 4. Public home page error sanitization
+  assert.ok(
+    pageTs.includes("The canonical Supabase database is unreachable or unconfigured in this environment.") &&
+    pageTs.includes('console.error("[Home] Atlas statistics error:"'),
+    "app/page.tsx must sanitize public error banner and log detailed error diagnostics server-side"
+  );
+
+  // 5. Evidence service canonical participant ID propagation & conflict safety
+  assert.ok(
+    evidenceTs.includes("resolvedParticipantMap.get(p.name?.toLowerCase().trim())") &&
+    evidenceTs.includes("resolvedParticipantMap.get(p.name.toLowerCase().trim())"),
+    "lib/evidence-service.ts must propagate transaction-resolved canonical participant IDs into memory store"
+  );
+
+  // 6. Conflict-safe source & place inserts
+  assert.ok(
+    pipelineTs.includes("await tx.insert(schema.sources).values(") ||
+    pipelineTs.includes("await tx\n          .insert(schema.sources)\n          .values("),
+    "lib/ingestion/pipeline.ts must insert sources safely"
+  );
+  assert.ok(
+    pipelineTs.includes(".onConflictDoNothing()") &&
+    evidenceTs.includes(".onConflictDoNothing()"),
+    "lib/ingestion/pipeline.ts and lib/evidence-service.ts must use .onConflictDoNothing() for conflict safety"
+  );
+
+  // 7. Source taxonomy union validation
+  const mappedValidSource = sourcesModule.mapDatabaseSource({
+    id: "src-1",
+    title: "Test Source",
+    source_level: "primary",
+    independence_status: "independent",
+  });
+  assert.equal(mappedValidSource.sourceLevel, "primary");
+  assert.equal(mappedValidSource.independenceStatus, "independent");
+
+  const mappedInvalidSource = sourcesModule.mapDatabaseSource({
+    id: "src-2",
+    title: "Invalid Source",
+    source_level: "unverified-level",
+    independence_status: "bogus-status",
+  });
+  assert.equal(mappedInvalidSource.sourceLevel, undefined);
+  assert.equal(mappedInvalidSource.independenceStatus, undefined);
+
+  // 8. Safe 4-digit year extraction in timeline components
+  assert.ok(
+    timelineTs.includes("extractYearFromDate(event.startDate)"),
+    "PersonTimeline.tsx must use extractYearFromDate for kicker display"
+  );
+  assert.ok(
+    comparisonTs.includes("extractYearFromDate(intersections[0].startDate)"),
+    "TimelineComparison.tsx must use extractYearFromDate for timeSpan"
+  );
+  assert.ok(
+    explorerTs.includes("extractYearFromDate(event?.startDate)"),
+    "RewindExplorer.tsx must use extractYearFromDate for ticks and jump links"
+  );
+  assert.ok(
+    navTs.includes("extractYearFromDate(r.startDate)"),
+    "PersonCoverageNav.tsx must use extractYearFromDate for decade grouping"
+  );
+});
+
+
 
 
 

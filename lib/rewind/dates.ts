@@ -48,16 +48,6 @@ export function normalizeIsoDate(input?: unknown): string {
     return day ? `${year}-${month}-${day}` : `${year}-${month}`;
   }
 
-  // Attempt JavaScript Date parse as a final fallback
-  try {
-    const parsed = new Date(trimmed);
-    if (!isNaN(parsed.getTime())) {
-      return parsed.toISOString();
-    }
-  } catch {
-    // Fallback below
-  }
-
   return trimmed;
 }
 

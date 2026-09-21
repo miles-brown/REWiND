@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
-import { formatTimelineDate, isStandardIsoDate, compareTimelineDates } from "@/lib/rewind/dates";
+import { formatTimelineDate, isStandardIsoDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { findTopCoAttendee, isPhysicalConfirmedParticipant } from "@/lib/rewind/utils";
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
@@ -269,8 +269,10 @@ export function TimelineComparison({
   // Date range of intersections
   const timeSpan = useMemo(() => {
     if (intersections.length === 0) return null;
-    const start = intersections[0].startDate.slice(0, 4);
-    const end = intersections[intersections.length - 1].startDate.slice(0, 4);
+    const startYear = extractYearFromDate(intersections[0].startDate);
+    const endYear = extractYearFromDate(intersections[intersections.length - 1].startDate);
+    const start = startYear !== null ? String(startYear) : intersections[0].startDate;
+    const end = endYear !== null ? String(endYear) : intersections[intersections.length - 1].startDate;
     return start === end ? start : `${start} – ${end}`;
   }, [intersections]);
 

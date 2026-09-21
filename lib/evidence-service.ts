@@ -240,6 +240,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
     let resolvedPlaceId = placeId;
     const persistedClaimIds = new Set<string>();
+    const resolvedParticipantMap = new Map<string, string>();
 
     if (db) {
       try {
@@ -289,16 +290,32 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           if (existingDbPlace) {
             resolvedPlaceId = existingDbPlace.id;
           } else {
-            await tx.insert(schema.places).values({
-              id: placeId,
-              slug: targetSlug,
-              venue: extractedVenue,
-              city: extractedCity,
-              country: extractedCountry,
-              latitude: extractedLat,
-              longitude: extractedLng,
-              placeType: "venue",
-            });
+            await tx
+              .insert(schema.places)
+              .values({
+                id: placeId,
+                slug: targetSlug,
+                venue: extractedVenue,
+                city: extractedCity,
+                country: extractedCountry,
+                latitude: extractedLat,
+                longitude: extractedLng,
+                placeType: "venue",
+              })
+              .onConflictDoNothing();
+
+            const [persistedPlace] = await tx
+              .select({ id: schema.places.id })
+              .from(schema.places)
+              .where(
+                or(
+                  eq(schema.places.id, placeId),
+                  eq(schema.places.slug, targetSlug)
+                )
+              );
+            if (persistedPlace) {
+              resolvedPlaceId = persistedPlace.id;
+            }
           }
 
           // 4. Insert published event
@@ -340,6 +357,10 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 roleLabel: ep.roleLabel,
               });
               ep.personId = canonicalPersonId;
+              if (ep.rawName) {
+                resolvedParticipantMap.set(ep.rawName.toLowerCase().trim(), canonicalPersonId);
+              }
+              resolvedParticipantMap.set(ep.personId.toLowerCase().trim(), canonicalPersonId);
               const epRow = { ...ep };
               delete epRow.rawName;
               await tx.insert(schema.eventPeople).values(epRow);
@@ -577,12 +598,18 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,
-      participants: (Array.isArray(data.participants) ? data.participants : []).map((p: { name: string; role?: string; presenceMode?: string }) => ({
-        personId: resolveEntity(p.name).personId,
-        name: p.name,
-        role: p.role,
-        presenceMode: p.presenceMode || "physical",
-      })),
+      participants: (Array.isArray(data.participants) ? data.participants : []).map((p: { name: string; role?: string; presenceMode?: string }) => {
+        const canonicalId =
+          resolvedParticipantMap.get(p.name?.toLowerCase().trim()) ||
+          resolveEntity(p.name).personId ||
+          createParticipantStubId(p.name);
+        return {
+          personId: canonicalId,
+          name: p.name,
+          role: p.role,
+          presenceMode: p.presenceMode || "physical",
+        };
+      }),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -763,14 +790,14 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       });
     }
 
+    const resolvedParticipantMap = new Map<string, string>();
+
     const dbResult: { persistedClaimIds: string[] | null } = { persistedClaimIds: null };
 
     if (db) {
       try {
-        // targetEvent already resolved above (lines 617-623); no second lookup needed.
-
         await db.transaction(async (tx) => {
-          // Atomically update candidate status inside database transaction (Codex Issue)
+          // 1. Claim pending candidate atomically (Codex Issue 5)
           const updateResult = await tx
             .update(schema.candidateEvents)
             .set({ status: "merged" })
@@ -828,6 +855,7 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                 rawName: p.name,
                 roleLabel: p.role,
               });
+              resolvedParticipantMap.set(p.name.toLowerCase().trim(), personId);
 
               const [existingEp] = await tx
                 .select({ id: schema.eventPeople.id })
@@ -1085,7 +1113,10 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
       if (Array.isArray(data.participants)) {
         data.participants.forEach((p: { name: string; role?: string; presenceMode?: string }) => {
           const resolved = resolveEntity(p.name);
-          const pId = resolved.personId || createParticipantStubId(p.name);
+          const pId =
+            resolvedParticipantMap.get(p.name.toLowerCase().trim()) ||
+            resolved.personId ||
+            createParticipantStubId(p.name);
           if (!memTargetEvent.participants!.some((ep) => ep.personId === pId || (ep.name && ep.name.toLowerCase() === p.name.toLowerCase()))) {
             memTargetEvent.participants!.push({
               personId: pId,

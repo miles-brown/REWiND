@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Clock } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
+import { extractYearFromDate } from "@/lib/rewind/dates";
 
 interface PeriodGroup {
   period: string; // e.g., "1990s"
@@ -25,8 +26,11 @@ export function PersonCoverageNav({
   const periods = useMemo<PeriodGroup[]>(() => {
     const yearCountMap = new Map<string, number>();
     records.forEach((r) => {
-      const y = r.startDate.slice(0, 4);
-      yearCountMap.set(y, (yearCountMap.get(y) || 0) + 1);
+      const year = extractYearFromDate(r.startDate);
+      if (year !== null) {
+        const y = String(year);
+        yearCountMap.set(y, (yearCountMap.get(y) || 0) + 1);
+      }
     });
 
     const periodMap = new Map<string, { year: string; count: number }[]>();

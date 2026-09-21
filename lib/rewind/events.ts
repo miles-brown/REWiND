@@ -472,9 +472,10 @@ async function hydrateEventRows(
       const to = from + batchSize - 1;
       const { data, error } = await supabase
         .from("event_sources")
-        .select("event_id, source_id")
+        .select("event_id, source_id, is_primary")
         .in("event_id", eventIdChunk)
         .order("event_id", { ascending: true })
+        .order("is_primary", { ascending: false })
         .order("source_id", { ascending: true })
         .range(from, to);
       if (error) {
@@ -491,10 +492,15 @@ async function hydrateEventRows(
       }
     }
   }
-  (sourceRows as { event_id: string; source_id: string }[]).forEach((s) => {
+  (sourceRows as { event_id: string; source_id: string; is_primary?: boolean | null }[]).forEach((s) => {
     const list = sourcesMap.get(s.event_id) || [];
-    list.push(s.source_id);
-    sourcesMap.set(s.event_id, list);
+    if (s.is_primary) {
+      list.unshift(s.source_id);
+    } else {
+      list.push(s.source_id);
+    }
+    const deduped = Array.from(new Set(list));
+    sourcesMap.set(s.event_id, deduped);
     allSourceIds.add(s.source_id);
   });
 

@@ -3,6 +3,24 @@ import { sources as fallbackSources } from "@/archive/legacy-data/rewind";
 import { isStandardIsoDate, normalizeIsoDate } from "./dates";
 import type { EventRecord, SourceRecord } from "./types";
 
+const VALID_SOURCE_LEVELS = new Set<SourceRecord["sourceLevel"]>([
+  "primary",
+  "near-primary",
+  "secondary",
+  "tertiary",
+  "discovery-only",
+]);
+
+const VALID_INDEPENDENCE_STATUSES = new Set<SourceRecord["independenceStatus"]>([
+  "independent",
+  "partially independent",
+  "syndicated",
+  "derived from another source",
+  "same organisation",
+  "official self-report",
+  "unknown",
+]);
+
 export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
   const pubDateNorm = s.publication_date ? normalizeIsoDate(s.publication_date) : undefined;
   const accDateNorm = s.accessed_date
@@ -11,13 +29,23 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     ? normalizeIsoDate(s.accessedDate)
     : undefined;
 
+  const rawLevel = typeof s.source_level === "string" ? s.source_level : undefined;
+  const sourceLevel = rawLevel && VALID_SOURCE_LEVELS.has(rawLevel as SourceRecord["sourceLevel"])
+    ? (rawLevel as SourceRecord["sourceLevel"])
+    : undefined;
+
+  const rawIndep = typeof s.independence_status === "string" ? s.independence_status : undefined;
+  const independenceStatus = rawIndep && VALID_INDEPENDENCE_STATUSES.has(rawIndep as SourceRecord["independenceStatus"])
+    ? (rawIndep as SourceRecord["independenceStatus"])
+    : undefined;
+
   return {
     id: String(s.id || ""),
     title: String(s.title || ""),
     publisher: String(s.publisher || ""),
     sourceType: (s.source_type as SourceRecord["sourceType"]) || "official-record",
     classification: s.tier === "tier-a" || s.tier === "tier-b" ? "primary" : "secondary",
-    sourceLevel: (s.source_level as SourceRecord["sourceLevel"]) || undefined,
+    sourceLevel,
     tier: s.tier as SourceRecord["tier"],
     url: s.url ? String(s.url) : undefined,
     archiveUrl: s.archive_url ? String(s.archive_url) : undefined,
@@ -26,7 +54,7 @@ export function mapDatabaseSource(s: Record<string, unknown>): SourceRecord {
     accessedDate: accDateNorm && isStandardIsoDate(accDateNorm) ? accDateNorm : undefined,
     language: s.language ? String(s.language) : undefined,
     trustScore: typeof s.trust_score === "number" ? s.trust_score : undefined,
-    independenceStatus: (s.independence_status as SourceRecord["independenceStatus"]) || undefined,
+    independenceStatus,
     derivedFromSourceId: s.derived_from_source_id ? String(s.derived_from_source_id) : undefined,
     sourceQuality: s.source_quality ? String(s.source_quality) : undefined,
   };
