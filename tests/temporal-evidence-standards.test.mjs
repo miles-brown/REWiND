@@ -1628,6 +1628,25 @@ test("verifies round-23 Codex review fixes: supporting excerpts preservation, sc
   );
 });
 
+test("verifies round-24 Codex review fixes: cutover migration polymorphic claims RLS and quotes query resilience", async () => {
+  const cutoverSql = fs.readFileSync(path.join(root, "supabase/migrations/20240904000000_supabase_architecture_cutover.sql"), "utf-8");
+  const quotesTs = fs.readFileSync(path.join(root, "lib/rewind/quotes.ts"), "utf-8");
+
+  // 1. Cutover migration claims policy supports polymorphic subjects
+  assert.ok(
+    cutoverSql.includes("subject_entity_type = 'person' AND subject_entity_id IS NOT NULL"),
+    "20240904000000_supabase_architecture_cutover.sql claims policy must authorize polymorphic person subjects"
+  );
+
+  // 2. Quotes query uses clean select and filters null IDs
+  assert.ok(
+    quotesTs.includes('.from("quotes")\n        .select("*")') &&
+    quotesTs.includes("filter(Boolean)"),
+    "lib/rewind/quotes.ts must query quotes cleanly without fragile inner join filters and filter IDs safely"
+  );
+});
+
+
 
 
 

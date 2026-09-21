@@ -690,8 +690,11 @@ BEGIN
         OR
         (
           event_id IS NULL
-          AND subject_id IS NOT NULL
-          AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published')
+          AND (
+            (subject_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.people p WHERE p.id = claims.subject_id AND p.publication_status = 'published'))
+            OR
+            (subject_entity_type = 'person' AND subject_entity_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.people p WHERE (p.id = claims.subject_entity_id OR p.slug = claims.subject_entity_id) AND p.publication_status = 'published'))
+          )
         )
       );
   END IF;

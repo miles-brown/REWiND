@@ -28,9 +28,7 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
     while (hasMore) {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, people!inner(publication_status), events!inner(publication_status)")
-        .eq("people.publication_status", "published")
-        .eq("events.publication_status", "published")
+        .select("*")
         .order("created_at", { ascending: false })
         .order("id", { ascending: true })
         .range(from, from + pageSize - 1);
@@ -54,8 +52,8 @@ export async function getQuotesWithStatus(): Promise<{ data: QuoteRecord[]; erro
       return { data: [], error: null };
     }
 
-    const speakerIds = Array.from(new Set(quotesData.map((q) => q.speaker_id)));
-    const eventIds = Array.from(new Set(quotesData.map((q) => q.event_id)));
+    const speakerIds = Array.from(new Set(quotesData.map((q) => q.speaker_id ? String(q.speaker_id) : "").filter(Boolean)));
+    const eventIds = Array.from(new Set(quotesData.map((q) => q.event_id ? String(q.event_id) : "").filter(Boolean)));
 
     const CHUNK_SIZE = 500;
     const speakerMap = new Map<string, string>();
