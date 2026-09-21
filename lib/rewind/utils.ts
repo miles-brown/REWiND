@@ -131,15 +131,16 @@ export function findTopCoAttendee(
   }
 
   if (coCounts.size > 0) {
+    const personLookup = new Map<string, PersonRecord>();
+    for (const p of people) {
+      if (p.slug && !personLookup.has(p.slug)) personLookup.set(p.slug, p);
+      if (p.id && !personLookup.has(p.id)) personLookup.set(p.id, p);
+    }
+
     const sortedCoAttendees = Array.from(coCounts.entries()).sort((a, b) => b[1] - a[1]);
     for (const [candidateKey] of sortedCoAttendees) {
-      const matched = people.find(
-        (p) =>
-          (p.slug === candidateKey || p.id === candidateKey) &&
-          p.slug !== targetSlug &&
-          p.id !== targetId
-      );
-      if (matched) {
+      const matched = personLookup.get(candidateKey);
+      if (matched && matched.slug !== targetSlug && matched.id !== targetId) {
         return matched.slug;
       }
     }

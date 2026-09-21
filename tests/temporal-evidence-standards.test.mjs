@@ -1473,6 +1473,47 @@ test("validates admin evidence console tab accessibility, API error typing, and 
   );
 });
 
+test("verifies round-21 Codex and Gemini review fixes: EventCard aria-describedby, CommandPalette spinner, multi-day formatDuration, and findTopCoAttendee map indexing", async () => {
+  const eventCardTs = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
+  const commandPaletteTs = fs.readFileSync(path.join(root, "components/rewind/CommandPalette.tsx"), "utf-8");
+  const utilsTs = fs.readFileSync(path.join(root, "lib/rewind/utils.ts"), "utf-8");
+
+  // 1. EventCard aria-describedby and status ID
+  assert.ok(
+    eventCardTs.includes("aria-describedby={statusDescId}") &&
+    eventCardTs.includes("id={statusDescId}"),
+    "EventCard.tsx must link link title and status descriptor via aria-describedby and id"
+  );
+
+  // 2. CommandPalette visual loading spinner
+  assert.ok(
+    commandPaletteTs.includes("<Loader2 size={13} className=\"animate-spin\" />") &&
+    commandPaletteTs.includes("search-loading-indicator"),
+    "CommandPalette.tsx must render Loader2 visual spinner in search-loading-indicator"
+  );
+
+  // 3. Multi-day formatDuration scaling
+  const temporal = await vite.ssrLoadModule("/lib/rewind/temporal.ts");
+  assert.equal(temporal.formatDuration(86400), "1d");
+  assert.equal(temporal.formatDuration(90000), "1d 1h");
+  assert.equal(temporal.formatDuration(90060), "1d 1h 1m");
+  assert.equal(temporal.formatDuration(172800), "2d");
+  assert.equal(temporal.formatDuration(604800), "7d");
+  // Sub-day durations remain exact
+  assert.equal(temporal.formatDuration(1421), "23m 41s");
+  assert.equal(temporal.formatDuration(3240), "54m");
+  assert.equal(temporal.formatDuration(3665), "1h 1m 5s");
+  assert.equal(temporal.formatDuration(45), "45s");
+
+  // 4. findTopCoAttendee personLookup Map indexing
+  assert.ok(
+    utilsTs.includes("const personLookup = new Map<string, PersonRecord>();") &&
+    utilsTs.includes("const matched = personLookup.get(candidateKey);"),
+    "lib/rewind/utils.ts must use O(1) personLookup Map in findTopCoAttendee"
+  );
+});
+
+
 
 
 

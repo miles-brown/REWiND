@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Calendar, Database, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import { AlertCircle, Calendar, Database, Loader2, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
 import type { SearchResultItem } from "@/lib/rewind/types";
 
 const DEFAULT_ACTIONS: SearchResultItem[] = [
@@ -196,8 +196,21 @@ export function CommandPalette({
             aria-label="Search query"
           />
           {isLoading && (
-            <span className="search-loading-indicator" style={{ fontSize: "11px", opacity: 0.6, margin: "0 0.5rem" }}>
-              Searching…
+            <span
+              className="search-loading-indicator"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "11px",
+                opacity: 0.75,
+                margin: "0 0.5rem",
+                whiteSpace: "nowrap",
+              }}
+              aria-hidden="true"
+            >
+              <Loader2 size={13} className="animate-spin" />
+              <span>Searching…</span>
             </span>
           )}
           {query ? (

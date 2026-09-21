@@ -57,13 +57,23 @@ export function isValidISODate(dateStr: string): boolean {
 
 /**
  * Formats duration seconds into human-readable duration notation.
+ * Supports seconds (s), minutes (m), hours (h), and multi-day durations (d).
  */
 export function formatDuration(seconds?: number | null): string | null {
   if (seconds == null || isNaN(seconds) || seconds <= 0) return null;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
+  const days = Math.floor(seconds / 86400);
+  const remainingAfterDays = seconds % 86400;
+  const hours = Math.floor(remainingAfterDays / 3600);
+  const minutes = Math.floor((remainingAfterDays % 3600) / 60);
+  const remainingSeconds = remainingAfterDays % 60;
 
+  if (days > 0) {
+    let result = `${days}d`;
+    if (hours > 0) result += ` ${hours}h`;
+    if (minutes > 0) result += ` ${minutes}m`;
+    if (remainingSeconds > 0 && hours === 0 && minutes === 0) result += ` ${remainingSeconds}s`;
+    return result;
+  }
   if (hours > 0) {
     return `${hours}h ${minutes}m${remainingSeconds > 0 ? ` ${remainingSeconds}s` : ""}`;
   }

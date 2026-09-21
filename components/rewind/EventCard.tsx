@@ -16,11 +16,14 @@ export const EventCard = memo(function EventCard({
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
   const isStandard = isStandardIsoDate(event.startDate);
 
+  const statusDescId = `event-status-${event.id}`;
+
   return (
     <Link
       className={`event-card ${compact ? "compact" : ""}`}
       href={`/event/${event.slug}`}
       title={`${event.eventName} (${confidence} · ${temporalPrecision} precision)`}
+      aria-describedby={statusDescId}
     >
       <div className="event-card-top">
         <time
@@ -39,11 +42,13 @@ export const EventCard = memo(function EventCard({
           )}
         </time>
         <span
+          id={statusDescId}
           className={verified ? "status verified" : "status provisional"}
           title={`Verification: ${verified ? "Verified" : "Provisional"} · Confidence: ${confidence}`}
         >
           {verified ? <CheckCircle2 /> : <CircleDashed />}
           {verified ? "Verified" : "Provisional"}
+          <span className="sr-only"> (Confidence: {confidence})</span>
         </span>
       </div>
       <h3>{event.eventName}</h3>
