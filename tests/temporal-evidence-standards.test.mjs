@@ -1456,6 +1456,12 @@ test("validates admin evidence console tab accessibility, API error typing, and 
     coderabbitYaml.includes("CANONICAL INVARIANTS: Path instructions below directly reflect and enforce the authoritative standards defined in AGENTS.md."),
     ".coderabbit.yaml must explicitly declare AGENTS.md as the canonical source of truth"
   );
+
+  // 8. TimelineComparison isParticipantMatch checking both personId and slug
+  assert.ok(
+    comparisonTs.includes("Boolean(p.slug) && (p.slug === person.slug || p.slug === person.id)"),
+    "components/rewind/TimelineComparison.tsx must check participant slug against person id and slug"
+  );
 });
 
 

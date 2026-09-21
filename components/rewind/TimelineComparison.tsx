@@ -22,9 +22,13 @@ import { findTopCoAttendee, isPhysicalConfirmedParticipant } from "@/lib/rewind/
 import { MapGraphic } from "./MapGraphic";
 import { EventCard } from "./EventCard";
 
-function isParticipantMatch(p: { personId: string }, person?: PersonRecord): boolean {
+function isParticipantMatch(p: { personId: string; slug?: string }, person?: PersonRecord | null): boolean {
   if (!person) return false;
-  return p.personId === person.id || p.personId === person.slug;
+  return (
+    p.personId === person.id ||
+    p.personId === person.slug ||
+    (Boolean(p.slug) && (p.slug === person.slug || p.slug === person.id))
+  );
 }
 
 function formatDate(dateStr: string, precision?: string): string {
