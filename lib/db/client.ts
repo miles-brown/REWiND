@@ -91,12 +91,16 @@ export function getDb() {
   return null;
 }
 
+export type RelationalEventRecord = typeof schema.events.$inferSelect & {
+  participants?: Array<{ personId?: string | null; name?: string; role?: string; presenceMode?: string }>;
+};
+
 // In-memory relational state cache used when a live PostgreSQL instance is not configured
 export interface MemoryRelationalStore {
   people: (typeof schema.people.$inferSelect)[];
   personAliases: (typeof schema.personAliases.$inferSelect)[];
   places: (typeof schema.places.$inferSelect)[];
-  events: (typeof schema.events.$inferSelect)[];
+  events: RelationalEventRecord[];
   sources: (typeof schema.sources.$inferSelect)[];
   claims: (typeof schema.claims.$inferSelect)[];
   candidateEvents: (typeof schema.candidateEvents.$inferSelect)[];
@@ -293,7 +297,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     trustScore: s.classification === "primary" ? 1.0 : 0.8,
   }));
 
-  const seedEvents: (typeof schema.events.$inferSelect)[] = (events || []).map((e) => {
+  const seedEvents: RelationalEventRecord[] = (events || []).map((e) => {
     const placeSlug = `${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${(e.venueName || "general").toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}`;
     const canonicalType = mapToCanonicalEventType(e.categories, e.eventTypes);
     return {
@@ -316,6 +320,12 @@ function initializeSeedStore(): MemoryRelationalStore {
       publicationStatus: "published",
       publicationLane: "auto-publish",
       significanceScore: 80,
+      participants: (e.participants || []).map((p) => ({
+        personId: personIdToSlug.get(p.personId) || p.personId,
+        name: p.name,
+        role: p.role,
+        presenceMode: p.attendanceMode || "physical",
+      })),
       createdAt: new Date(),
       updatedAt: new Date(),
     };

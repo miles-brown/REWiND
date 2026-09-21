@@ -106,6 +106,9 @@ export async function getAuditTrail(): Promise<AuditRecord[]> {
         recordedAt: r.recordedAt,
       }));
     } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(`Failed to query audit trail from database: ${err instanceof Error ? err.message : String(err)}`);
+      }
       console.warn("Failed to query live audit trail, falling back to store:", err);
     }
   }

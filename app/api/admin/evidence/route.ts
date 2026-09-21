@@ -83,25 +83,35 @@ function authenticateAdminRequest(req: Request): { isAuthorized: boolean; editor
 import type { ApiErrorResponse } from "@/lib/rewind";
 
 export async function GET(req: Request) {
-  const auth = authenticateAdminRequest(req);
-  if (!auth.isAuthorized) {
+  try {
+    const auth = authenticateAdminRequest(req);
+    if (!auth.isAuthorized) {
+      const errorBody: ApiErrorResponse = {
+        success: false,
+        error: "Unauthorized: Valid admin credentials required for evidence data",
+        code: "UNAUTHORIZED",
+      };
+      return NextResponse.json(errorBody, { status: 401 });
+    }
+
+    const stats = await getEvidentiaryStats();
+    const queue = await getCandidateQueue();
+    const audit = await getAuditTrail();
+
+    return NextResponse.json({
+      stats,
+      queue,
+      audit,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal Server Error";
     const errorBody: ApiErrorResponse = {
       success: false,
-      error: "Unauthorized: Valid admin credentials required for evidence data",
-      code: "UNAUTHORIZED",
+      error: message,
+      code: "INTERNAL_SERVER_ERROR",
     };
-    return NextResponse.json(errorBody, { status: 401 });
+    return NextResponse.json(errorBody, { status: 500 });
   }
-
-  const stats = await getEvidentiaryStats();
-  const queue = await getCandidateQueue();
-  const audit = await getAuditTrail();
-
-  return NextResponse.json({
-    stats,
-    queue,
-    audit,
-  });
 }
 
 export async function POST(req: Request) {

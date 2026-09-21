@@ -1513,6 +1513,63 @@ test("verifies round-21 Codex and Gemini review fixes: EventCard aria-describedb
   );
 });
 
+test("verifies round-22 Codex and CodeRabbit review fixes: claims person polymorphic constraint, EventCard useId, evidence query error propagation, and fallback participants deduplication", async () => {
+  const claimsTs = fs.readFileSync(path.join(root, "lib/rewind/claims.ts"), "utf-8");
+  const eventCardTs = fs.readFileSync(path.join(root, "components/rewind/EventCard.tsx"), "utf-8");
+  const evidenceServiceTs = fs.readFileSync(path.join(root, "lib/evidence-service.ts"), "utf-8");
+  const auditTs = fs.readFileSync(path.join(root, "lib/ingestion/audit.ts"), "utf-8");
+  const clientTs = fs.readFileSync(path.join(root, "lib/db/client.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");
+  const adminApiTs = fs.readFileSync(path.join(root, "app/api/admin/evidence/route.ts"), "utf-8");
+
+  // 1. Claims polymorphic subject constraint for person
+  assert.ok(
+    claimsTs.includes(".or(`subject_id.eq.${personId},and(subject_entity_type.eq.person,subject_entity_id.eq.${personId})`)"),
+    "lib/rewind/claims.ts must constrain subject_entity_id lookups with subject_entity_type.eq.person"
+  );
+
+  // 2. EventCard useId unique DOM descriptor
+  assert.ok(
+    eventCardTs.includes("const reactId = useId();") &&
+    eventCardTs.includes("const statusDescId = `event-status-${event.id}-${reactId}`;"),
+    "components/rewind/EventCard.tsx must use useId() to generate instance-unique statusDescId"
+  );
+
+  // 3. Evidence service and audit log error propagation in production
+  assert.ok(
+    evidenceServiceTs.includes("Failed to query evidentiary stats from database") &&
+    evidenceServiceTs.includes("Failed to query review queue from database"),
+    "lib/evidence-service.ts must propagate live database failures in production"
+  );
+  assert.ok(
+    auditTs.includes("Failed to query audit trail from database"),
+    "lib/ingestion/audit.ts must propagate live database failures in production"
+  );
+  assert.ok(
+    adminApiTs.includes("try {") &&
+    adminApiTs.includes('code: "INTERNAL_SERVER_ERROR"'),
+    "app/api/admin/evidence/route.ts GET must handle and return 500 on database error"
+  );
+
+  // 4. Fallback participant retention in memory relational store
+  assert.ok(
+    clientTs.includes("RelationalEventRecord") &&
+    clientTs.includes("participants: (e.participants || []).map"),
+    "lib/db/client.ts must initialize seedEvents with participants"
+  );
+  assert.ok(
+    pipelineTs.includes("participants: candidate.participants.map") &&
+    pipelineTs.includes("targetEvent.participants"),
+    "lib/ingestion/pipeline.ts must retain and merge participants on in-memory store events"
+  );
+  assert.ok(
+    evidenceServiceTs.includes("participants: (Array.isArray(data.participants) ? data.participants : []).map") &&
+    evidenceServiceTs.includes("memTargetEvent.participants"),
+    "lib/evidence-service.ts must retain and merge participants on in-memory store events"
+  );
+});
+
+
 
 
 

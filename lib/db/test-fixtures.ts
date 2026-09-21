@@ -43,6 +43,8 @@ export interface TestEvent {
   participants?: Array<{
     personId: string;
     name: string;
+    role?: string;
+    attendanceMode?: string;
     presenceConfidence?: "confirmed" | "strong" | "moderate" | "limited" | "disputed";
   }>;
 }

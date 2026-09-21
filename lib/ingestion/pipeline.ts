@@ -170,6 +170,25 @@ export function processCandidateEvent(
           });
         });
 
+        // Merge participant identity into existing in-memory event if present
+        const targetEvent = store.events.find((e) => e.id === publishedEventId);
+        if (targetEvent) {
+          if (!Array.isArray(targetEvent.participants)) {
+            targetEvent.participants = [];
+          }
+          candidate.participants.forEach((p, idx) => {
+            const pId = resolvedParticipantIds[idx] || resolveEntity(p.name).personId;
+            if (!targetEvent.participants!.some((ep) => ep.personId === pId || (ep.name && ep.name.toLowerCase() === p.name.toLowerCase()))) {
+              targetEvent.participants!.push({
+                personId: pId,
+                name: p.name,
+                role: p.role,
+                presenceMode: p.presenceMode || "physical",
+              });
+            }
+          });
+        }
+
         auditPromise = recordAuditEvent(
           "merged",
           policy.ruleId,
@@ -234,6 +253,12 @@ export function processCandidateEvent(
           publicationStatus: "published",
           publicationLane: policy.lane,
           significanceScore: 85,
+          participants: candidate.participants.map((p, idx) => ({
+            personId: resolvedParticipantIds[idx] || resolveEntity(p.name).personId,
+            name: p.name,
+            role: p.role,
+            presenceMode: p.presenceMode || "physical",
+          })),
           createdAt: new Date(),
           updatedAt: new Date(),
         });

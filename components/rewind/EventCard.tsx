@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useId } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
 import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
@@ -11,12 +11,13 @@ export const EventCard = memo(function EventCard({
   event: EventRecord;
   compact?: boolean;
 }) {
+  const reactId = useId();
   const verified = event.verificationStatus === "verified";
   const confidence = event.confidence || "limited";
   const temporalPrecision = event.datePrecision || event.timePrecision || "exact-day";
   const isStandard = isStandardIsoDate(event.startDate);
 
-  const statusDescId = `event-status-${event.id}`;
+  const statusDescId = `event-status-${event.id}-${reactId}`;
 
   return (
     <Link

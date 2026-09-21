@@ -140,7 +140,7 @@ export async function getClaimsByPerson(personId: string, supabaseClient?: unkno
   const { data: claimsData, error } = await supabase
     .from("claims")
     .select("*")
-    .or(`subject_id.eq.${personId},subject_entity_id.eq.${personId}`);
+    .or(`subject_id.eq.${personId},and(subject_entity_type.eq.person,subject_entity_id.eq.${personId})`);
 
   if (error) {
     console.error(`Error querying claims for person ${personId}:`, error);

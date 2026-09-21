@@ -49,6 +49,9 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
         autoPublishedCount: Number(autoPublished?.val ?? 0),
       };
     } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(`Failed to query evidentiary stats from database: ${err instanceof Error ? err.message : String(err)}`);
+      }
       console.warn("Failed to query live evidentiary stats, falling back to store:", err);
     }
   }
@@ -81,6 +84,9 @@ export async function getCandidateQueue() {
         .orderBy(desc(schema.candidateEvents.createdAt));
       return rows;
     } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(`Failed to query review queue from database: ${err instanceof Error ? err.message : String(err)}`);
+      }
       console.warn("Failed to query live candidate queue, falling back to store:", err);
     }
   }
@@ -568,6 +574,12 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,
+      participants: (Array.isArray(data.participants) ? data.participants : []).map((p: { name: string; role?: string; presenceMode?: string }) => ({
+        personId: resolveEntity(p.name).personId,
+        name: p.name,
+        role: p.role,
+        presenceMode: p.presenceMode || "physical",
+      })),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -1061,6 +1073,23 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
         mergedParticipants.forEach((p) => {
           if (!peopleList.includes(p)) {
             peopleList.push(p);
+          }
+        });
+      }
+      if (!Array.isArray(memTargetEvent.participants)) {
+        memTargetEvent.participants = [];
+      }
+      if (Array.isArray(data.participants)) {
+        data.participants.forEach((p: { name: string; role?: string; presenceMode?: string }) => {
+          const resolved = resolveEntity(p.name);
+          const pId = resolved.personId || createParticipantStubId(p.name);
+          if (!memTargetEvent.participants!.some((ep) => ep.personId === pId || (ep.name && ep.name.toLowerCase() === p.name.toLowerCase()))) {
+            memTargetEvent.participants!.push({
+              personId: pId,
+              name: p.name,
+              role: p.role,
+              presenceMode: p.presenceMode || "physical",
+            });
           }
         });
       }
