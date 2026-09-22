@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, and, sql, ilike } from "drizzle-orm";
+import { eq, and, or, sql, ilike } from "drizzle-orm";
 import {
   ExtractedCandidateEventSchema,
   type ExtractedCandidateEvent,
@@ -734,21 +734,10 @@ export function processCandidateEvent(
             candidate.city,
             candidate.title
           );
-          let targetSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
+          const basePlaceSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-place:' + basePlaceSlug}))`);
 
-          const [matchingPlaceById] = await tx
-            .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
-            .from(schema.places)
-            .where(eq(schema.places.id, livePlaceResolution.placeId));
-
-          const isMatchingPlaceByIdSame = matchingPlaceById
-            ? (!livePlaceResolution.city || (matchingPlaceById.city || "").toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
-              (!livePlaceResolution.venue || (matchingPlaceById.venue || "").toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
-              (!livePlaceResolution.country || livePlaceResolution.country === "International" || (matchingPlaceById.country || "").toLowerCase() === livePlaceResolution.country.toLowerCase())
-            : false;
-
-          const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;
-
+          // 1. Query exact place by venue and city
           const placeConditions = [
             ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
             ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue)),
@@ -757,51 +746,62 @@ export function processCandidateEvent(
             placeConditions.push(ilike(schema.places.country, escapeIlikePattern(livePlaceResolution.country)));
           }
 
-          const matchingPlacesByVenueCity = !verifiedMatchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
+          const matchingPlacesByVenueCity = livePlaceResolution.city && livePlaceResolution.venue
             ? await tx
                 .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
                 .from(schema.places)
                 .where(and(...placeConditions))
             : [];
 
-          const matchingPlaceByVenueCity = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
-
-          const existingDbPlace = verifiedMatchingPlaceById || matchingPlaceByVenueCity;
+          const existingDbPlace = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
 
           let effectivePlaceId = livePlaceResolution.placeId;
           if (existingDbPlace) {
             effectivePlaceId = existingDbPlace.id;
           } else {
-            const [slugOccupier] = await tx
-              .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
+            // 2. Query all existing places with matching base ID or slug prefix
+            const existingPlaces = await tx
+              .select({ id: schema.places.id, slug: schema.places.slug, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
               .from(schema.places)
-              .where(eq(schema.places.slug, targetSlug));
+              .where(
+                or(
+                  eq(schema.places.id, livePlaceResolution.placeId),
+                  ilike(schema.places.id, `${escapeIlikePattern(livePlaceResolution.placeId)}-%`),
+                  eq(schema.places.slug, basePlaceSlug),
+                  ilike(schema.places.slug, `${escapeIlikePattern(basePlaceSlug)}-%`)
+                )
+              );
 
-            if (slugOccupier) {
-              const isSamePlace =
-                (!livePlaceResolution.city || slugOccupier.city?.toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
-                (!livePlaceResolution.venue || slugOccupier.venue?.toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
-                (!livePlaceResolution.country || slugOccupier.country?.toLowerCase() === livePlaceResolution.country.toLowerCase());
+            const samePlace = existingPlaces.find(
+              (p) =>
+                (!livePlaceResolution.city || (p.city || "").toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
+                (!livePlaceResolution.venue || (p.venue || "").toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
+                (!livePlaceResolution.country || livePlaceResolution.country === "International" || (p.country || "").toLowerCase() === livePlaceResolution.country.toLowerCase())
+            );
 
-              if (isSamePlace) {
-                effectivePlaceId = slugOccupier.id;
-              } else {
-                const suffix = livePlaceResolution.placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
-                targetSlug = `${targetSlug}-${suffix || "2"}`;
-                effectivePlaceId = `plc-${targetSlug}`;
+            if (samePlace) {
+              effectivePlaceId = samePlace.id;
+            } else {
+              const usedIds = new Set(existingPlaces.map((p) => p.id));
+              const usedSlugs = new Set(existingPlaces.map((p) => p.slug));
+
+              let candidateSlug = basePlaceSlug;
+              let candidateId = livePlaceResolution.placeId;
+              let suffixIdx = 2;
+
+              while (usedIds.has(candidateId) || usedSlugs.has(candidateSlug)) {
+                candidateSlug = `${basePlaceSlug}-${suffixIdx}`;
+                candidateId = `plc-${candidateSlug}`;
+                suffixIdx++;
               }
-            } else if (matchingPlaceById && !isMatchingPlaceByIdSame) {
-              const suffix = livePlaceResolution.placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
-              targetSlug = `${targetSlug}-${suffix || "2"}`;
-              effectivePlaceId = `plc-${targetSlug}`;
-            }
 
-            if (!existingDbPlace && (!slugOccupier || effectivePlaceId !== slugOccupier.id)) {
+              effectivePlaceId = candidateId;
+
               await tx
                 .insert(schema.places)
                 .values({
                   id: effectivePlaceId,
-                  slug: targetSlug,
+                  slug: candidateSlug,
                   venue: livePlaceResolution.venue,
                   city: livePlaceResolution.city,
                   country: livePlaceResolution.country,

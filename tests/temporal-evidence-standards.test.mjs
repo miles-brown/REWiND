@@ -1884,8 +1884,8 @@ test("verifies round-28 Codex & CodeRabbit review fixes: dated events count, pla
 
   // 2. Place resolution collision suffixing
   assert.ok(
-    evidenceTs.includes("targetSlug = `${targetSlug}-${suffix || \"2\"}`;") &&
-    pipelineTs.includes("targetSlug = `${targetSlug}-${suffix || \"2\"}`;"),
+    evidenceTs.includes("candidateSlug = `${basePlaceSlug}-${suffixIdx}`;") &&
+    pipelineTs.includes("candidateSlug = `${basePlaceSlug}-${suffixIdx}`;"),
     "evidence-service.ts and pipeline.ts must derive collision suffixes when targetSlug is occupied by another place"
   );
 
@@ -2027,15 +2027,15 @@ test("verifies round-30 Codex & CodeRabbit review fixes: slug advisory locking, 
     "evidence-service.ts must acquire advisory transaction lock on targetEventId in mergeCandidate"
   );
 
-  // 2. Place identity verification on matchingPlaceById in pipeline.ts and evidence-service.ts
+  // 2. Place identity verification in pipeline.ts and evidence-service.ts
   assert.ok(
-    pipelineTs.includes("const isMatchingPlaceByIdSame = matchingPlaceById") &&
-    pipelineTs.includes("const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;"),
+    pipelineTs.includes("const samePlace = existingPlaces.find(") &&
+    pipelineTs.includes("(!livePlaceResolution.city || (p.city || \"\").toLowerCase() === livePlaceResolution.city.toLowerCase())"),
     "pipeline.ts must verify place identity before reusing matchingPlaceById"
   );
   assert.ok(
-    evidenceServiceTs.includes("const isMatchingPlaceByIdSame = matchingPlaceById") &&
-    evidenceServiceTs.includes("const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;"),
+    evidenceServiceTs.includes("const samePlace = existingPlaces.find(") &&
+    evidenceServiceTs.includes("(!extractedCity || (p.city || \"\").toLowerCase() === extractedCity.toLowerCase())"),
     "evidence-service.ts must verify place identity before reusing matchingPlaceById"
   );
 
@@ -2077,6 +2077,54 @@ test("verifies round-30 Codex & CodeRabbit review fixes: slug advisory locking, 
   const statusResult = await placesModule.getPlacesWithStatus(null);
   assert.deepEqual(statusResult, { data: [], error: "Supabase client is unavailable" });
 });
+
+test("verifies round-31 Codex & CodeRabbit review fixes: place allocator numeric suffixing, country consistency, person normalization, and claims query error propagation", async () => {
+  const pipelineTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/pipeline.ts"), "utf-8");
+  const evidenceServiceTs = fs.readFileSync(path.join(process.cwd(), "lib/evidence-service.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/resolve.ts"), "utf-8");
+  const claimsTs = fs.readFileSync(path.join(process.cwd(), "lib/rewind/claims.ts"), "utf-8");
+
+  // 1. Collision-safe place allocator with numeric suffixing in pipeline.ts and evidence-service.ts
+  assert.ok(
+    pipelineTs.includes("await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-place:' + basePlaceSlug}))`);") &&
+    pipelineTs.includes("candidateSlug = `${basePlaceSlug}-${suffixIdx}`;") &&
+    pipelineTs.includes("candidateId = `plc-${candidateSlug}`;"),
+    "pipeline.ts must lock basePlaceSlug and iterate numeric suffixes upon collision"
+  );
+  assert.ok(
+    evidenceServiceTs.includes("await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-place:' + basePlaceSlug}))`);") &&
+    evidenceServiceTs.includes("candidateSlug = `${basePlaceSlug}-${suffixIdx}`;") &&
+    evidenceServiceTs.includes("candidateId = `plc-${candidateSlug}`;"),
+    "evidence-service.ts must lock basePlaceSlug and iterate numeric suffixes upon collision"
+  );
+
+  // 2. Consistent country verification for general place matches
+  assert.ok(
+    resolveTs.includes("const matchingCountries = Array.from(") &&
+    resolveTs.includes("if (matchingCountries.length <= 1)"),
+    "resolve.ts must ensure all matching city rows share a single non-conflicting country"
+  );
+
+  // 3. Person entity resolution with normalized name check and draft status default
+  assert.ok(
+    resolveTs.includes("ilike(schema.people.canonicalName, escapedNormalizedName)") &&
+    resolveTs.includes("ilike(schema.people.displayName, escapedNormalizedName)") &&
+    resolveTs.includes('publicationStatus: "draft"'),
+    "resolve.ts must normalize person names and default new stubs to draft"
+  );
+
+  // 4. Claims query error propagation
+  assert.ok(
+    claimsTs.includes("if (evidenceError) {") &&
+    claimsTs.includes("throw new Error(`Failed to query claim evidence for event"),
+    "claims.ts getClaimsByEvent must propagate evidence query errors"
+  );
+  assert.ok(
+    claimsTs.includes("throw new Error(`Failed to query claim evidence for person"),
+    "claims.ts getClaimsByPerson must propagate evidence query errors"
+  );
+});
+
 
 
 
