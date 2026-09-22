@@ -138,15 +138,15 @@ async function runIngestion() {
 
   for (let i = 0; i < events.length; i++) {
     const rawEvt = events[i];
-    const primarySourceId = rawEvt.sourceIds?.[0] || "un-credentials-1984";
-    const src = sourcesMap.get(primarySourceId) || {
-      id: primarySourceId,
-      title: "Archival Record",
-      publisher: "Official Archives",
-      url: "https://rewind.online",
-      sourceType: "official-record",
-      classification: "primary",
-    };
+    const primarySourceId = rawEvt.sourceIds?.[0];
+    if (!primarySourceId || !sourcesMap.has(primarySourceId)) {
+      console.warn(
+        `⚠️ Skipping event "${rawEvt.eventName}" (${rawEvt.startDate}): sourceId "${primarySourceId || "none"}" is missing from sources dataset.`
+      );
+      failedCount++;
+      continue;
+    }
+    const src = sourcesMap.get(primarySourceId)!;
 
     let sourceTier: "tier-a" | "tier-b" | "tier-c" | "tier-d" = "tier-c";
     if (

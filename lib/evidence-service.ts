@@ -1,6 +1,6 @@
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
-import { eq, desc, count, or, and, ilike, inArray } from "drizzle-orm";
+import { eq, desc, count, or, and, ilike, inArray, sql } from "drizzle-orm";
 import { recordAuditEvent, recordAuditEventInTransaction, recordAuditEventStoreOnly } from "@/lib/ingestion/audit";
 import { resolveEntity, createParticipantStubId, resolvePersonEntityInTransaction } from "@/lib/ingestion/resolve";
 import { deriveEventSlug } from "@/lib/ingestion/pipeline";
@@ -270,6 +270,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           }
 
           // 1b. Determine deterministic collision-safe event slug under transaction
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-slug:' + baseSlug}))`);
+
           const existingSlugs = new Set<string>();
           const matchingEvents = await tx
             .select({ id: schema.events.id })
@@ -305,9 +307,17 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
           // 3. Resolve or insert canonical place
           const [matchingPlaceById] = await tx
-            .select()
+            .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
             .from(schema.places)
             .where(eq(schema.places.id, placeId));
+
+          const isMatchingPlaceByIdSame = matchingPlaceById
+            ? (!extractedCity || (matchingPlaceById.city || "").toLowerCase() === extractedCity.toLowerCase()) &&
+              (!extractedVenue || (matchingPlaceById.venue || "").toLowerCase() === extractedVenue.toLowerCase()) &&
+              (!extractedCountry || extractedCountry === "International" || (matchingPlaceById.country || "").toLowerCase() === extractedCountry.toLowerCase())
+            : false;
+
+          const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;
 
           const placeConditions = [
             ilike(schema.places.city, escapeIlikePattern(extractedCity)),
@@ -317,16 +327,16 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             placeConditions.push(ilike(schema.places.country, escapeIlikePattern(extractedCountry)));
           }
 
-          const matchingPlacesByVenueCity = !matchingPlaceById && extractedCity && extractedVenue
+          const matchingPlacesByVenueCity = !verifiedMatchingPlaceById && extractedCity && extractedVenue
             ? await tx
-                .select()
+                .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
                 .from(schema.places)
                 .where(and(...placeConditions))
             : [];
 
           const matchingPlaceByVenueCity = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
 
-          const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
+          const existingDbPlace = verifiedMatchingPlaceById || matchingPlaceByVenueCity;
 
           if (existingDbPlace) {
             resolvedPlaceId = existingDbPlace.id;
@@ -348,14 +358,19 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
               } else {
                 const suffix = placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
                 targetSlug = `${targetSlug}-${suffix || "2"}`;
+                resolvedPlaceId = `plc-${targetSlug}`;
               }
+            } else if (matchingPlaceById && !isMatchingPlaceByIdSame) {
+              const suffix = placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
+              targetSlug = `${targetSlug}-${suffix || "2"}`;
+              resolvedPlaceId = `plc-${targetSlug}`;
             }
 
-            if (!existingDbPlace && (!slugOccupier || resolvedPlaceId === placeId)) {
+            if (!existingDbPlace && (!slugOccupier || resolvedPlaceId !== slugOccupier.id)) {
               await tx
                 .insert(schema.places)
                 .values({
-                  id: placeId,
+                  id: resolvedPlaceId,
                   slug: targetSlug,
                   venue: extractedVenue,
                   city: extractedCity,
@@ -369,7 +384,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
               const [persistedPlace] = await tx
                 .select({ id: schema.places.id })
                 .from(schema.places)
-                .where(eq(schema.places.id, placeId));
+                .where(eq(schema.places.id, resolvedPlaceId));
 
               if (persistedPlace) {
                 resolvedPlaceId = persistedPlace.id;
@@ -886,6 +901,9 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
           if (updateResult.length === 0) {
             throw new Error("Candidate was already reviewed or claimed by another editor");
           }
+
+          // Lock target event under transaction to serialize concurrent candidate merges
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`);
 
           // 1. Ensure Source exists in DB
           if (sourceId) {

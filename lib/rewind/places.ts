@@ -8,7 +8,9 @@ import type { EventRecord, PlaceRecord } from "./types";
 export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRecord[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
-  if (!supabase) return [];
+  if (!supabase) {
+    throw new Error("Supabase client is unavailable");
+  }
 
   const results: PlaceRecord[] = [];
   const seenIds = new Set<string>();
@@ -133,10 +135,14 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
 }
 
 /**
- * Retrieves all gazetteer places and venues from Supabase.
+ * Retrieves all gazetteer places and venues from Supabase with graceful fallback.
  */
 export async function getPlaces(supabaseClient?: unknown): Promise<PlaceRecord[]> {
-  return await getPlacesStrict(supabaseClient);
+  try {
+    return await getPlacesStrict(supabaseClient);
+  } catch {
+    return [];
+  }
 }
 
 /**

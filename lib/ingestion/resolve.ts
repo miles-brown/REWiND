@@ -417,6 +417,9 @@ export function resolvePlace(
   }
 
   // Match against existing gazetteer
+  const venueCityMatches: typeof store.places = [];
+  const cityOnlyMatches: typeof store.places = [];
+
   for (const pl of store.places) {
     const plCity = (pl.city || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
     const plVenue = (pl.venue || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
@@ -432,19 +435,31 @@ export function resolvePlace(
       (plVenue === normVenue || plVenue.includes(normVenue) || normVenue.includes(plVenue));
 
     if (cityMatches && venueMatches) {
-      const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
-      return {
-        placeId: pl.id,
-        venue: pl.venue,
-        city: pl.city,
-        country: pl.country,
-        latitude: resolvedCoords.latitude,
-        longitude: resolvedCoords.longitude,
-        confidence: 0.98,
-      };
+      venueCityMatches.push(pl);
+    } else if (cityMatches && !safeVenue) {
+      cityOnlyMatches.push(pl);
     }
+  }
 
-    if (cityMatches && !safeVenue) {
+  const distinctVenueCityIds = Array.from(new Set(venueCityMatches.map((pl) => pl.id)));
+  if (distinctVenueCityIds.length === 1) {
+    const pl = venueCityMatches.find((p) => p.id === distinctVenueCityIds[0])!;
+    const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
+    return {
+      placeId: pl.id,
+      venue: pl.venue,
+      city: pl.city,
+      country: pl.country,
+      latitude: resolvedCoords.latitude,
+      longitude: resolvedCoords.longitude,
+      confidence: 0.98,
+    };
+  }
+
+  if (!safeVenue) {
+    const distinctCityIds = Array.from(new Set(cityOnlyMatches.map((pl) => pl.id)));
+    if (distinctCityIds.length === 1) {
+      const pl = cityOnlyMatches.find((p) => p.id === distinctCityIds[0])!;
       const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
       return {
         placeId: pl.id,
@@ -455,6 +470,26 @@ export function resolvePlace(
         longitude: resolvedCoords.longitude,
         confidence: 0.92,
       };
+    } else if (cityOnlyMatches.length > 1) {
+      const generalMatches = cityOnlyMatches.filter(
+        (pl) =>
+          pl.venue.toLowerCase() === "general" ||
+          pl.venue.toLowerCase() === normCity
+      );
+      const distinctGeneralIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
+      if (distinctGeneralIds.length === 1) {
+        const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralIds[0])!;
+        const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
+        return {
+          placeId: generalMatch.id,
+          venue: generalMatch.venue,
+          city: generalMatch.city,
+          country: generalMatch.country,
+          latitude: resolvedCoords.latitude,
+          longitude: resolvedCoords.longitude,
+          confidence: 0.92,
+        };
+      }
     }
   }
 
@@ -613,12 +648,14 @@ export async function resolvePlaceAsync(
           };
         } else if (cityMatches.length > 1) {
           // If multiple places exist in the city, check for a general city marker
-          const generalMatch = cityMatches.find(
+          const generalMatches = cityMatches.filter(
             (pl) =>
               pl.venue.toLowerCase() === "general" ||
               pl.venue.toLowerCase() === normCity
           );
-          if (generalMatch) {
+          const distinctGeneralPlaceIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
+          if (distinctGeneralPlaceIds.length === 1) {
+            const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralPlaceIds[0])!;
             const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
             return {
               placeId: generalMatch.id,

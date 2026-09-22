@@ -737,9 +737,17 @@ export function processCandidateEvent(
           let targetSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
 
           const [matchingPlaceById] = await tx
-            .select({ id: schema.places.id })
+            .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
             .from(schema.places)
             .where(eq(schema.places.id, livePlaceResolution.placeId));
+
+          const isMatchingPlaceByIdSame = matchingPlaceById
+            ? (!livePlaceResolution.city || (matchingPlaceById.city || "").toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
+              (!livePlaceResolution.venue || (matchingPlaceById.venue || "").toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
+              (!livePlaceResolution.country || livePlaceResolution.country === "International" || (matchingPlaceById.country || "").toLowerCase() === livePlaceResolution.country.toLowerCase())
+            : false;
+
+          const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;
 
           const placeConditions = [
             ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
@@ -749,16 +757,16 @@ export function processCandidateEvent(
             placeConditions.push(ilike(schema.places.country, escapeIlikePattern(livePlaceResolution.country)));
           }
 
-          const matchingPlacesByVenueCity = !matchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
+          const matchingPlacesByVenueCity = !verifiedMatchingPlaceById && livePlaceResolution.city && livePlaceResolution.venue
             ? await tx
-                .select({ id: schema.places.id })
+                .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
                 .from(schema.places)
                 .where(and(...placeConditions))
             : [];
 
           const matchingPlaceByVenueCity = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
 
-          const existingDbPlace = matchingPlaceById || matchingPlaceByVenueCity;
+          const existingDbPlace = verifiedMatchingPlaceById || matchingPlaceByVenueCity;
 
           let effectivePlaceId = livePlaceResolution.placeId;
           if (existingDbPlace) {
@@ -780,14 +788,19 @@ export function processCandidateEvent(
               } else {
                 const suffix = livePlaceResolution.placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
                 targetSlug = `${targetSlug}-${suffix || "2"}`;
+                effectivePlaceId = `plc-${targetSlug}`;
               }
+            } else if (matchingPlaceById && !isMatchingPlaceByIdSame) {
+              const suffix = livePlaceResolution.placeId.slice(-6).replace(/[^a-z0-9]/gi, "");
+              targetSlug = `${targetSlug}-${suffix || "2"}`;
+              effectivePlaceId = `plc-${targetSlug}`;
             }
 
-            if (!existingDbPlace && (!slugOccupier || effectivePlaceId === livePlaceResolution.placeId)) {
+            if (!existingDbPlace && (!slugOccupier || effectivePlaceId !== slugOccupier.id)) {
               await tx
                 .insert(schema.places)
                 .values({
-                  id: livePlaceResolution.placeId,
+                  id: effectivePlaceId,
                   slug: targetSlug,
                   venue: livePlaceResolution.venue,
                   city: livePlaceResolution.city,
@@ -801,7 +814,7 @@ export function processCandidateEvent(
               const [persistedPlace] = await tx
                 .select({ id: schema.places.id })
                 .from(schema.places)
-                .where(eq(schema.places.id, livePlaceResolution.placeId));
+                .where(eq(schema.places.id, effectivePlaceId));
 
               if (persistedPlace) {
                 effectivePlaceId = persistedPlace.id;

@@ -2010,6 +2010,75 @@ test("verifies round-29 Codex & CodeRabbit review fixes: country-aware place mat
   );
 });
 
+test("verifies round-30 Codex & CodeRabbit review fixes: slug advisory locking, place truncation verification, unique general places, unmapped source rejection, and place DB client unavailability", async () => {
+  const evidenceServiceTs = fs.readFileSync(path.join(process.cwd(), "lib/evidence-service.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/pipeline.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/resolve.ts"), "utf-8");
+  const runIngestionTs = fs.readFileSync(path.join(process.cwd(), "scripts/run-forensic-ingestion.ts"), "utf-8");
+  const placesTs = fs.readFileSync(path.join(process.cwd(), "lib/rewind/places.ts"), "utf-8");
+
+  // 1. PostgreSQL advisory transaction locking on baseSlug in approveCandidate and targetEventId in mergeCandidate
+  assert.ok(
+    evidenceServiceTs.includes("await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-slug:' + baseSlug}))`);"),
+    "evidence-service.ts must acquire advisory transaction lock on baseSlug in approveCandidate"
+  );
+  assert.ok(
+    evidenceServiceTs.includes("await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${targetEventId}))`);"),
+    "evidence-service.ts must acquire advisory transaction lock on targetEventId in mergeCandidate"
+  );
+
+  // 2. Place identity verification on matchingPlaceById in pipeline.ts and evidence-service.ts
+  assert.ok(
+    pipelineTs.includes("const isMatchingPlaceByIdSame = matchingPlaceById") &&
+    pipelineTs.includes("const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;"),
+    "pipeline.ts must verify place identity before reusing matchingPlaceById"
+  );
+  assert.ok(
+    evidenceServiceTs.includes("const isMatchingPlaceByIdSame = matchingPlaceById") &&
+    evidenceServiceTs.includes("const verifiedMatchingPlaceById = isMatchingPlaceByIdSame ? matchingPlaceById : null;"),
+    "evidence-service.ts must verify place identity before reusing matchingPlaceById"
+  );
+
+  // 3. Collection and unique resolution of general places in resolve.ts
+  assert.ok(
+    resolveTs.includes("const distinctGeneralPlaceIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));") &&
+    resolveTs.includes("if (distinctGeneralPlaceIds.length === 1)"),
+    "resolve.ts resolvePlaceAsync must require exactly one distinct general place match"
+  );
+  assert.ok(
+    resolveTs.includes("const distinctGeneralIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));") &&
+    resolveTs.includes("if (distinctGeneralIds.length === 1)"),
+    "resolve.ts resolvePlace must require exactly one distinct general place match in-memory"
+  );
+
+  // 4. Rejection of unmapped sources in run-forensic-ingestion.ts
+  assert.ok(
+    runIngestionTs.includes("if (!primarySourceId || !sourcesMap.has(primarySourceId))") &&
+    runIngestionTs.includes("is missing from sources dataset") &&
+    runIngestionTs.includes("failedCount++;"),
+    "run-forensic-ingestion.ts must reject events whose primarySourceId is absent from sourcesMap"
+  );
+
+  // 5. Database client unavailability in places.ts
+  assert.ok(
+    placesTs.includes('throw new Error("Supabase client is unavailable");'),
+    "places.ts getPlacesStrict must throw when Supabase client is unavailable"
+  );
+
+  // 6. Runtime behavior of getPlacesStrict and getPlacesWithStatus when client is unavailable
+  const placesModule = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  await assert.rejects(
+    async () => {
+      await placesModule.getPlacesStrict(null);
+    },
+    /Supabase client is unavailable/
+  );
+
+  const statusResult = await placesModule.getPlacesWithStatus(null);
+  assert.deepEqual(statusResult, { data: [], error: "Supabase client is unavailable" });
+});
+
+
 
 
 

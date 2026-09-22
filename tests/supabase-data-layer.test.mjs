@@ -505,13 +505,9 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
     },
   };
 
-  // getPlaces propagates error from Supabase
-  await assert.rejects(
-    async () => {
-      await getPlaces(failingClient);
-    },
-    /PG Connection Timeout/
-  );
+  // getPlaces catches error and returns []
+  const placesTolerant = await getPlaces(failingClient);
+  assert.deepEqual(placesTolerant, []);
 
   // getPlacesStrict throws error
   await assert.rejects(
