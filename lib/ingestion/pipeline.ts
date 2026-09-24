@@ -753,7 +753,14 @@ export function processCandidateEvent(
                 .where(and(...placeConditions))
             : [];
 
-          const existingDbPlace = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
+          const existingDbPlaceCandidate = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
+          const existingDbPlace =
+            existingDbPlaceCandidate &&
+            (existingDbPlaceCandidate.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
+            (existingDbPlaceCandidate.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
+            (existingDbPlaceCandidate.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
+              ? existingDbPlaceCandidate
+              : null;
 
           let effectivePlaceId = livePlaceResolution.placeId;
           if (existingDbPlace) {
@@ -774,9 +781,9 @@ export function processCandidateEvent(
 
             const samePlace = existingPlaces.find(
               (p) =>
-                (!livePlaceResolution.city || (p.city || "").toLowerCase() === livePlaceResolution.city.toLowerCase()) &&
-                (!livePlaceResolution.venue || (p.venue || "").toLowerCase() === livePlaceResolution.venue.toLowerCase()) &&
-                (!livePlaceResolution.country || livePlaceResolution.country === "International" || (p.country || "").toLowerCase() === livePlaceResolution.country.toLowerCase())
+                (p.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
+                (p.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
+                (p.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
             );
 
             if (samePlace) {

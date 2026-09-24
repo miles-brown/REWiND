@@ -2030,12 +2030,12 @@ test("verifies round-30 Codex & CodeRabbit review fixes: slug advisory locking, 
   // 2. Place identity verification in pipeline.ts and evidence-service.ts
   assert.ok(
     pipelineTs.includes("const samePlace = existingPlaces.find(") &&
-    pipelineTs.includes("(!livePlaceResolution.city || (p.city || \"\").toLowerCase() === livePlaceResolution.city.toLowerCase())"),
+    pipelineTs.includes('(p.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase()'),
     "pipeline.ts must verify place identity before reusing matchingPlaceById"
   );
   assert.ok(
     evidenceServiceTs.includes("const samePlace = existingPlaces.find(") &&
-    evidenceServiceTs.includes("(!extractedCity || (p.city || \"\").toLowerCase() === extractedCity.toLowerCase())"),
+    evidenceServiceTs.includes('(p.city || "unknown").toLowerCase() === (extractedCity || "unknown").toLowerCase()'),
     "evidence-service.ts must verify place identity before reusing matchingPlaceById"
   );
 
@@ -2101,8 +2101,8 @@ test("verifies round-31 Codex & CodeRabbit review fixes: place allocator numeric
   // 2. Consistent country verification for general place matches
   assert.ok(
     resolveTs.includes("const matchingCountries = Array.from(") &&
-    resolveTs.includes("if (matchingCountries.length <= 1)"),
-    "resolve.ts must ensure all matching city rows share a single non-conflicting country"
+    resolveTs.includes('matchingCountries.length === 1 &&\n          matchingCountries[0] !== "" &&\n          matchingCountries[0] !== "international"'),
+    "resolve.ts must ensure all matching city rows share a single non-conflicting non-international country"
   );
 
   // 3. Person entity resolution with normalized name check and draft status default
@@ -2123,6 +2123,59 @@ test("verifies round-31 Codex & CodeRabbit review fixes: place allocator numeric
     claimsTs.includes("throw new Error(`Failed to query claim evidence for person"),
     "claims.ts getClaimsByPerson must propagate evidence query errors"
   );
+});
+
+test("verifies round-32 Codex & CodeRabbit review fixes: strict general place country validation, exact place identity resolution, and robust archival/BCE date sorting", async () => {
+  const resolveTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/resolve.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/pipeline.ts"), "utf-8");
+  const evidenceServiceTs = fs.readFileSync(path.join(process.cwd(), "lib/evidence-service.ts"), "utf-8");
+  const datesModule = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+
+  // 1. Strict general place country validation (CodeRabbit Issue 1)
+  assert.ok(
+    resolveTs.includes('matchingCountries.length === 1 &&\n          matchingCountries[0] !== "" &&\n          matchingCountries[0] !== "international"') &&
+    resolveTs.includes('matchingCountries.length === 1 &&\n              matchingCountries[0] !== "" &&\n              matchingCountries[0] !== "international"'),
+    "resolve.ts must validate that matching city rows share exactly one non-empty, non-international country"
+  );
+
+  // 2. Strict place identity matching without general/empty fallback contamination (Codex Issue 1)
+  assert.ok(
+    evidenceServiceTs.includes('(existingDbPlaceCandidate.venue || "general").toLowerCase() === (extractedVenue || "general").toLowerCase()') &&
+    evidenceServiceTs.includes('(p.venue || "general").toLowerCase() === (extractedVenue || "general").toLowerCase()'),
+    "evidence-service.ts must strictly verify place venue, city, and country identity"
+  );
+  assert.ok(
+    pipelineTs.includes('(existingDbPlaceCandidate.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase()') &&
+    pipelineTs.includes('(p.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase()'),
+    "pipeline.ts must strictly verify place venue, city, and country identity"
+  );
+
+  // 3. Robust archival date extraction, BCE, negative year, and multi-year span support (Codex Issue 2)
+  const { extractYearFromDate, deriveChronologicalSortKey, compareTimelineDates } = datesModule;
+  assert.equal(extractYearFromDate("753 BCE"), -753);
+  assert.equal(extractYearFromDate("44 BC"), -44);
+  assert.equal(extractYearFromDate("-0500"), -500);
+  assert.equal(extractYearFromDate("1993-1995"), 1993);
+  assert.equal(extractYearFromDate("1993–1995"), 1993);
+  assert.equal(extractYearFromDate("1993/1995"), 1993);
+  assert.equal(extractYearFromDate("AD 70"), 70);
+  assert.equal(extractYearFromDate("70 CE"), 70);
+  assert.equal(extractYearFromDate("c. 800"), 800);
+  assert.equal(extractYearFromDate("Spring 1999"), 1999);
+  assert.equal(extractYearFromDate("2023-10-07"), 2023);
+  assert.equal(extractYearFromDate("unknown"), null);
+
+  assert.equal(deriveChronologicalSortKey("753 BCE"), "-09247-00-00:753 BCE");
+  assert.equal(deriveChronologicalSortKey("44 BC"), "-09956-00-00:44 BC");
+  assert.equal(deriveChronologicalSortKey("AD 70"), "0070-00-00:AD 70");
+  assert.equal(deriveChronologicalSortKey("c. 800"), "0800-00-00:c. 800");
+  assert.equal(deriveChronologicalSortKey("1993-1995"), "1993-00-00:1993-1995");
+  assert.equal(deriveChronologicalSortKey("2023-10-07"), "2023-10-07");
+  assert.equal(deriveChronologicalSortKey("undated"), "9999-99-99:undated");
+
+  const datesToSort = ["1993-09-13", "44 BC", "c. 800", "753 BCE", "1993-1995", "AD 70", "undated"];
+  const sorted = [...datesToSort].sort(compareTimelineDates);
+  assert.deepEqual(sorted, ["753 BCE", "44 BC", "AD 70", "c. 800", "1993-1995", "1993-09-13", "undated"]);
 });
 
 

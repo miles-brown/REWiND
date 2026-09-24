@@ -238,21 +238,62 @@ export function formatTimelineDate(
 }
 
 /**
- * Extracts a 4-digit calendar year from an ISO or archival date string (e.g. "c. 1963", "Spring 1999", "1993-09-13").
- * Returns null if no valid 4-digit year can be extracted.
+ * Extracts a calendar year (including archival dates, negative years, BCE, multi-year spans) from an ISO or archival date string.
+ * Returns null if no valid calendar year can be extracted.
  */
 export function extractYearFromDate(dateStr?: string | null): number | null {
   if (!dateStr || typeof dateStr !== "string") return null;
-  const match = dateStr.match(/\b(\d{4})\b/);
-  if (!match) return null;
-  const year = parseInt(match[1], 10);
-  return isNaN(year) ? null : year;
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+
+  // Check for negative year prefix (e.g. "-0500", "-44", "-1200")
+  const negativeMatch = trimmed.match(/^-(\d{1,6})\b/);
+  if (negativeMatch) {
+    const y = parseInt(negativeMatch[1], 10);
+    return isNaN(y) ? null : -y;
+  }
+
+  // Check for BCE / BC notation (e.g. "753 BCE", "44 BC", "500 B.C.E.", "c. 300 BC")
+  const isBce = /\b(bce|bc|b\.c\.e\.|b\.c\.)\b/i.test(trimmed);
+  if (isBce) {
+    const numMatch = trimmed.match(/\b(\d{1,6})\b/);
+    if (numMatch) {
+      const y = parseInt(numMatch[1], 10);
+      return isNaN(y) ? null : -y;
+    }
+  }
+
+  // Check for standard 4-digit year or multi-year span (e.g. "1993-1995", "1993–1995", "1993/1995", "1993-09-13", "c. 1963")
+  const fourDigitMatch = trimmed.match(/\b(\d{4})\b/);
+  if (fourDigitMatch) {
+    const y = parseInt(fourDigitMatch[1], 10);
+    return isNaN(y) ? null : y;
+  }
+
+  // Check for 1-3 digit years with CE/AD or circa prefix (e.g. "AD 70", "70 CE", "c. 800", "800 AD")
+  const eraMatch =
+    trimmed.match(/\b(?:ce|ad|a\.d\.|c\.e\.|c\.|circa)\s*(\d{1,4})\b/i) ||
+    trimmed.match(/\b(\d{1,4})\s*(?:ce|ad|a\.d\.|c\.e\.)\b/i);
+  if (eraMatch) {
+    const y = parseInt(eraMatch[1], 10);
+    return isNaN(y) ? null : y;
+  }
+
+  // Standalone 1-3 digit year
+  const standaloneMatch = trimmed.match(/^(\d{1,4})$/);
+  if (standaloneMatch) {
+    const y = parseInt(standaloneMatch[1], 10);
+    return isNaN(y) ? null : y;
+  }
+
+  return null;
 }
 
 /**
  * Derives a normalized chronological sort key from an ISO or archival date string.
  * Standard ISO dates: returns "1993-09-13" etc.
  * Archival dates with year (e.g. "c. 1963", "Spring 1999"): returns "1963-00-00:c. 1963"
+ * BCE / negative dates: returns "-09247-00-00:753 BCE" etc.
  * Yearless / empty dates: returns "9999-99-99:<raw>"
  */
 export function deriveChronologicalSortKey(dateStr?: string | null): string {
@@ -266,6 +307,12 @@ export function deriveChronologicalSortKey(dateStr?: string | null): string {
 
   const year = extractYearFromDate(trimmed);
   if (year !== null) {
+    if (year < 0) {
+      // Map negative years into sortable string: 10000 + year (e.g. -753 -> "-09247", -44 -> "-09956")
+      const invertedOffset = 10000 + year;
+      const safeOffset = invertedOffset >= 0 ? invertedOffset : 0;
+      return `-${String(safeOffset).padStart(5, "0")}-00-00:${trimmed}`;
+    }
     return `${String(year).padStart(4, "0")}-00-00:${trimmed}`;
   }
 
@@ -274,8 +321,12 @@ export function deriveChronologicalSortKey(dateStr?: string | null): string {
 
 /**
  * Chronological comparator for sorting historical events by startDate.
- * Correctly orders both ISO-8601 dates and non-standard archival dates (e.g. "c. 1948" before "1993-09-13").
+ * Correctly orders ISO-8601 dates, non-standard archival dates, BCE dates, and year spans.
  */
 export function compareTimelineDates(dateA?: string | null, dateB?: string | null): number {
-  return deriveChronologicalSortKey(dateA).localeCompare(deriveChronologicalSortKey(dateB));
+  const keyA = deriveChronologicalSortKey(dateA);
+  const keyB = deriveChronologicalSortKey(dateB);
+  if (keyA < keyB) return -1;
+  if (keyA > keyB) return 1;
+  return 0;
 }

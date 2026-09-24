@@ -324,7 +324,14 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 .where(and(...placeConditions))
             : [];
 
-          const existingDbPlace = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
+          const existingDbPlaceCandidate = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
+          const existingDbPlace =
+            existingDbPlaceCandidate &&
+            (existingDbPlaceCandidate.city || "unknown").toLowerCase() === (extractedCity || "unknown").toLowerCase() &&
+            (existingDbPlaceCandidate.venue || "general").toLowerCase() === (extractedVenue || "general").toLowerCase() &&
+            (existingDbPlaceCandidate.country || "international").toLowerCase() === (extractedCountry || "international").toLowerCase()
+              ? existingDbPlaceCandidate
+              : null;
 
           if (existingDbPlace) {
             resolvedPlaceId = existingDbPlace.id;
@@ -343,9 +350,9 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
 
             const samePlace = existingPlaces.find(
               (p) =>
-                (!extractedCity || (p.city || "").toLowerCase() === extractedCity.toLowerCase()) &&
-                (!extractedVenue || (p.venue || "").toLowerCase() === extractedVenue.toLowerCase()) &&
-                (!extractedCountry || extractedCountry === "International" || (p.country || "").toLowerCase() === extractedCountry.toLowerCase())
+                (p.city || "unknown").toLowerCase() === (extractedCity || "unknown").toLowerCase() &&
+                (p.venue || "general").toLowerCase() === (extractedVenue || "general").toLowerCase() &&
+                (p.country || "international").toLowerCase() === (extractedCountry || "international").toLowerCase()
             );
 
             if (samePlace) {

@@ -479,13 +479,13 @@ export function resolvePlace(
       const distinctGeneralIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
       if (distinctGeneralIds.length === 1) {
         const matchingCountries = Array.from(
-          new Set(
-            cityOnlyMatches
-              .map((c) => (c.country || "").trim().toLowerCase())
-              .filter((c) => c && c !== "international")
-          )
+          new Set(cityOnlyMatches.map((c) => (c.country || "").trim().toLowerCase()))
         );
-        if (matchingCountries.length <= 1) {
+        if (
+          matchingCountries.length === 1 &&
+          matchingCountries[0] !== "" &&
+          matchingCountries[0] !== "international"
+        ) {
           const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralIds[0])!;
           const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
           return {
@@ -665,13 +665,13 @@ export async function resolvePlaceAsync(
           const distinctGeneralPlaceIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
           if (distinctGeneralPlaceIds.length === 1) {
             const matchingCountries = Array.from(
-              new Set(
-                cityMatches
-                  .map((c) => (c.country || "").trim().toLowerCase())
-                  .filter((c) => c && c !== "international")
-              )
+              new Set(cityMatches.map((c) => (c.country || "").trim().toLowerCase()))
             );
-            if (matchingCountries.length <= 1) {
+            if (
+              matchingCountries.length === 1 &&
+              matchingCountries[0] !== "" &&
+              matchingCountries[0] !== "international"
+            ) {
               const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralPlaceIds[0])!;
               const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
               return {
