@@ -10,5 +10,8 @@ export * from "./search";
 export * from "./stats";
 export * from "./temporal";
 export * from "./claims";
+export * from "./roles";
+export * from "./milestones";
+export * from "./topics";
 export { getMonogram, findTopCoAttendee, isPhysicalConfirmedParticipant } from "./utils";
 

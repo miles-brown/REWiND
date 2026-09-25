@@ -728,4 +728,35 @@ test("verifies getPersonBySlugWithStatus and getPersonTimelineWithStatus dual sl
   assert.equal(invalidYearRes.error, "Invalid year parameter");
 });
 
+test("retrieves person roles, personal milestones, and continuous topic timelines", async () => {
+  const { getPersonRoles, getPersonMilestones, getTopics, getTopicBySlug, getEventsByTopic } =
+    await vite.ssrLoadModule("/lib/rewind/index.ts");
+
+  // Verify roles retrieval
+  const roles = await getPersonRoles("benjamin-netanyahu");
+  assert.ok(Array.isArray(roles));
+  assert.ok(roles.length > 0, "Must return official roles for Netanyahu");
+  const pmRole = roles.find((r) => r.title.includes("Prime Minister"));
+  assert.ok(pmRole, "Must include Prime Minister role");
+
+  // Verify milestones retrieval
+  const milestones = await getPersonMilestones("benjamin-netanyahu");
+  assert.ok(Array.isArray(milestones));
+  assert.ok(milestones.length > 0, "Must return milestones for Netanyahu");
+  assert.equal(typeof milestones[0].year, "number");
+
+  // Verify topics retrieval
+  const allTopics = await getTopics();
+  assert.ok(Array.isArray(allTopics));
+  assert.ok(allTopics.length >= 5, "Must return canonical topics");
+
+  const topic911 = await getTopicBySlug("september-11-attacks-and-aftermath");
+  assert.ok(topic911, "Must find 9/11 topic by slug");
+  assert.equal(topic911.category, "conflict");
+
+  const topicEvents = await getEventsByTopic(topic911.id);
+  assert.ok(Array.isArray(topicEvents));
+});
+
+
 

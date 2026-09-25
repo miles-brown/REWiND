@@ -6,6 +6,10 @@ import { mediaPeopleSeed } from "./media-people";
 import { techPeopleSeed } from "./tech-people";
 import { epsteinNetworkPeopleSeed } from "./epstein-network-people";
 
+import { officialRolesSeed } from "./roles-seed";
+import { milestonesSeed } from "./milestones-seed";
+import { topicsSeed } from "./topics-seed";
+
 export type { CanonicalPersonSeed };
 export {
   group1PeopleSeed,
@@ -14,6 +18,9 @@ export {
   mediaPeopleSeed,
   techPeopleSeed,
   epsteinNetworkPeopleSeed,
+  officialRolesSeed,
+  milestonesSeed,
+  topicsSeed,
 };
 
 export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [
