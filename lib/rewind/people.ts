@@ -142,7 +142,7 @@ export async function getPersonBySlugWithStatus(
       const { data: p, error } = await supabase
         .from("people")
         .select("*")
-        .eq("slug", slug)
+        .or(`slug.eq.${slug},id.eq.${slug}`)
         .eq("publication_status", "published")
         .maybeSingle();
 
@@ -162,10 +162,10 @@ export async function getPersonBySlugWithStatus(
 
         try {
           const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
-            Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_year", { ascending: true }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_career")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
-            Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("year_received", { ascending: false }) ?? { data: [] }),
-            Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("publication_year", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("award_year", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("release_date", { ascending: false }) ?? { data: [] }),
           ]);
 
           const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error;
