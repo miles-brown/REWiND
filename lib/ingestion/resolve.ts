@@ -46,9 +46,10 @@ export async function resolvePersonEntityInTransaction(
     personId: string;
     rawName: string;
     roleLabel?: string;
+    promoteToPublished?: boolean;
   }
 ): Promise<string> {
-  const { personId, rawName } = options;
+  const { personId, rawName, promoteToPublished = false } = options;
   const effectivePersonId = personId;
 
   // 1. Exact ID match
@@ -58,6 +59,12 @@ export async function resolvePersonEntityInTransaction(
     .where(eq(schema.people.id, effectivePersonId));
 
   if (existingPerson) {
+    if (promoteToPublished && existingPerson.publicationStatus !== "published") {
+      await tx
+        .update(schema.people)
+        .set({ publicationStatus: "published" })
+        .where(eq(schema.people.id, existingPerson.id));
+    }
     return existingPerson.id;
   }
 
@@ -75,7 +82,17 @@ export async function resolvePersonEntityInTransaction(
 
   const distinctSlugIds = Array.from(new Set(bySlugMatches.map((p) => p.id)));
   if (distinctSlugIds.length === 1) {
-    return distinctSlugIds[0];
+    const matchedId = distinctSlugIds[0];
+    if (promoteToPublished) {
+      const match = bySlugMatches.find((p) => p.id === matchedId);
+      if (match && match.publicationStatus !== "published") {
+        await tx
+          .update(schema.people)
+          .set({ publicationStatus: "published" })
+          .where(eq(schema.people.id, matchedId));
+      }
+    }
+    return matchedId;
   }
   if (distinctSlugIds.length > 1) {
     throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match slug candidates (${distinctSlugIds.join(", ")})`);
@@ -98,7 +115,17 @@ export async function resolvePersonEntityInTransaction(
 
   const distinctNameMatches: string[] = Array.from(new Set(matchingByName.map((p: { id: string }) => p.id)));
   if (distinctNameMatches.length === 1) {
-    return distinctNameMatches[0];
+    const matchedId = distinctNameMatches[0];
+    if (promoteToPublished) {
+      const match = matchingByName.find((p) => p.id === matchedId);
+      if (match && match.publicationStatus !== "published") {
+        await tx
+          .update(schema.people)
+          .set({ publicationStatus: "published" })
+          .where(eq(schema.people.id, matchedId));
+      }
+    }
+    return matchedId;
   }
   if (distinctNameMatches.length > 1) {
     throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match name candidates (${distinctNameMatches.join(", ")})`);
@@ -118,14 +145,21 @@ export async function resolvePersonEntityInTransaction(
       );
     const distinctPersonIds: string[] = Array.from(new Set(aliasRows.map((r: { personId: string }) => r.personId)));
     if (distinctPersonIds.length === 1) {
-      return distinctPersonIds[0];
+      const matchedId = distinctPersonIds[0];
+      if (promoteToPublished) {
+        await tx
+          .update(schema.people)
+          .set({ publicationStatus: "published" })
+          .where(eq(schema.people.id, matchedId));
+      }
+      return matchedId;
     }
     if (distinctPersonIds.length > 1) {
       throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match alias candidates (${distinctPersonIds.join(", ")})`);
     }
   }
 
-  // 5. Insert new person record as draft (idempotent for concurrent inserts)
+  // 5. Insert new person record as published or draft (idempotent for concurrent inserts)
   await tx
     .insert(schema.people)
     .values({
@@ -136,9 +170,16 @@ export async function resolvePersonEntityInTransaction(
       nationality: "International",
       classification: "historical-figure",
       notabilityBasis: "Documented participant in verified historical event",
-      publicationStatus: "draft",
+      publicationStatus: promoteToPublished ? "published" : "draft",
     })
     .onConflictDoNothing();
+
+  if (promoteToPublished) {
+    await tx
+      .update(schema.people)
+      .set({ publicationStatus: "published" })
+      .where(or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)));
+  }
 
   const [canonicalPerson] = await tx
     .select({ id: schema.people.id })
@@ -402,6 +443,7 @@ export function resolvePlace(
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const normCountry = safeCountry.toLowerCase().replace(/[^\w\s]/g, "").trim();
 
   // If both city and venue are empty, do not fabricate gazetteer matches
   if (!normCity && !normVenue) {
@@ -421,6 +463,11 @@ export function resolvePlace(
   const cityOnlyMatches: typeof store.places = [];
 
   for (const pl of store.places) {
+    const plCountry = (pl.country || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
+    if (normCountry && normCountry !== "international" && plCountry && plCountry !== normCountry) {
+      continue;
+    }
+
     const plCity = (pl.city || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
     const plVenue = (pl.venue || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
 

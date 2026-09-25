@@ -556,6 +556,7 @@ export function processCandidateEvent(
               personId: stubId,
               rawName: p.name,
               roleLabel: p.role,
+              promoteToPublished: livePolicy.lane === "auto-publish",
             });
 
             const [existingEp] = await tx
@@ -679,6 +680,7 @@ export function processCandidateEvent(
               const speakerId = await resolvePersonEntityInTransaction(tx, {
                 personId: speakerStubId,
                 rawName: q.speaker,
+                promoteToPublished: livePolicy.lane === "auto-publish",
               });
 
               const normQuoteText = q.quote.trim().toLowerCase();
@@ -910,6 +912,7 @@ export function processCandidateEvent(
               personId: stubId,
               rawName: p.name,
               roleLabel: p.role,
+              promoteToPublished: livePolicy.lane === "auto-publish",
             });
 
             const [existingEp] = await tx
@@ -1024,6 +1027,7 @@ export function processCandidateEvent(
               const speakerId = await resolvePersonEntityInTransaction(tx, {
                 personId: speakerStubId,
                 rawName: q.speaker,
+                promoteToPublished: livePolicy.lane === "auto-publish",
               });
 
               const normQuoteText = q.quote.trim().toLowerCase();

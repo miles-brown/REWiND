@@ -839,6 +839,7 @@ test("verifies round-8 Codex review fixes: participant confidence, merge seriali
   // 4. Ingestion resolve sets new person stubs to draft (Finding #2 & CodeRabbit)
   const resolveTs = fs.readFileSync(path.join(root, "lib/ingestion/resolve.ts"), "utf-8");
   assert.ok(
+    resolveTs.includes('publicationStatus: promoteToPublished ? "published" : "draft"') ||
     resolveTs.includes('publicationStatus: "draft"'),
     "resolve.ts must register new unapproved person stubs as draft"
   );
@@ -1349,6 +1350,7 @@ test("verifies round-20 Codex and CodeRabbit review fixes: biography arrow keys,
 
   // 8. Draft publication status for new person stubs
   assert.ok(
+    resolveTs.includes('publicationStatus: promoteToPublished ? "published" : "draft"') ||
     resolveTs.includes('publicationStatus: "draft"'),
     "lib/ingestion/resolve.ts must default newly inserted person stubs to draft"
   );
@@ -2109,7 +2111,7 @@ test("verifies round-31 Codex & CodeRabbit review fixes: place allocator numeric
   assert.ok(
     resolveTs.includes("ilike(schema.people.canonicalName, escapedNormalizedName)") &&
     resolveTs.includes("ilike(schema.people.displayName, escapedNormalizedName)") &&
-    resolveTs.includes('publicationStatus: "draft"'),
+    (resolveTs.includes('publicationStatus: promoteToPublished ? "published" : "draft"') || resolveTs.includes('publicationStatus: "draft"')),
     "resolve.ts must normalize person names and default new stubs to draft"
   );
 
@@ -2176,6 +2178,69 @@ test("verifies round-32 Codex & CodeRabbit review fixes: strict general place co
   const datesToSort = ["1993-09-13", "44 BC", "c. 800", "753 BCE", "1993-1995", "AD 70", "undated"];
   const sorted = [...datesToSort].sort(compareTimelineDates);
   assert.deepEqual(sorted, ["753 BCE", "44 BC", "AD 70", "c. 800", "1993-1995", "1993-09-13", "undated"]);
+});
+
+test("verifies round-33 Codex & CodeRabbit review fixes: detail source ordering, participant approval publication, resolvePlace country filtering, and dotted era date matching", async () => {
+  const eventsTs = fs.readFileSync(path.join(process.cwd(), "lib/rewind/events.ts"), "utf-8");
+  const resolveTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/resolve.ts"), "utf-8");
+  const pipelineTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/pipeline.ts"), "utf-8");
+  const evidenceServiceTs = fs.readFileSync(path.join(process.cwd(), "lib/evidence-service.ts"), "utf-8");
+  const datesModule = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const resolveModule = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  // 1. Single-event detail page source ordering by is_primary (Codex Issue 1)
+  assert.ok(
+    eventsTs.includes('.select("source_id, is_primary")') &&
+    eventsTs.includes('.order("is_primary", { ascending: false })') &&
+    eventsTs.includes('.order("id", { ascending: true })'),
+    "events.ts single-event loader must query and order event_sources by is_primary descending"
+  );
+  assert.ok(
+    eventsTs.includes("const primarySourceIds: string[] = [];") &&
+    eventsTs.includes("const secondarySourceIds: string[] = [];"),
+    "events.ts single-event loader must order primary sources first in sourceIds"
+  );
+
+  // 2. Participant entity publication upon approval and auto-publish (Codex Issue 2)
+  assert.ok(
+    resolveTs.includes("promoteToPublished?: boolean;") &&
+    resolveTs.includes('publicationStatus: promoteToPublished ? "published" : "draft"'),
+    "resolve.ts resolvePersonEntityInTransaction must support promoteToPublished"
+  );
+  assert.ok(
+    evidenceServiceTs.includes("promoteToPublished: true,"),
+    "evidence-service.ts approveCandidate must pass promoteToPublished: true"
+  );
+  assert.ok(
+    pipelineTs.includes('promoteToPublished: livePolicy.lane === "auto-publish"'),
+    "pipeline.ts processCandidateEventAsync must promote participants on auto-publish"
+  );
+
+  // 3. Country filtering in synchronous resolvePlace (CodeRabbit Issue 1)
+  assert.ok(
+    resolveTs.includes('if (normCountry && normCountry !== "international" && plCountry && plCountry !== normCountry) {') &&
+    resolveTs.includes("continue;"),
+    "resolve.ts resolvePlace must filter out mismatching store place countries during match loop"
+  );
+  const foreignPlace = resolveModule.resolvePlace("General", "Paris", "United States");
+  assert.equal(foreignPlace.country, "United States");
+  assert.ok(!foreignPlace.placeId.includes("france"), "resolvePlace must not match Paris, France for a US candidate");
+
+  // 4. Dotted era notation date extraction and sorting (CodeRabbit Issue 2)
+  const { extractYearFromDate, deriveChronologicalSortKey, compareTimelineDates } = datesModule;
+  assert.equal(extractYearFromDate("500 B.C.E."), -500);
+  assert.equal(extractYearFromDate("1200 B.C."), -1200);
+  assert.equal(extractYearFromDate("70 A.D."), 70);
+  assert.equal(extractYearFromDate("70 C.E."), 70);
+  assert.equal(extractYearFromDate("c. 300 BC"), -300);
+
+  assert.equal(deriveChronologicalSortKey("500 B.C.E."), "-09500-00-00:500 B.C.E.");
+  assert.equal(deriveChronologicalSortKey("1200 B.C."), "-08800-00-00:1200 B.C.");
+  assert.equal(deriveChronologicalSortKey("70 A.D."), "0070-00-00:70 A.D.");
+
+  const dottedEraDates = ["1993-09-13", "70 A.D.", "1200 B.C.", "500 B.C.E.", "undated"];
+  const sorted = [...dottedEraDates].sort(compareTimelineDates);
+  assert.deepEqual(sorted, ["1200 B.C.", "500 B.C.E.", "70 A.D.", "1993-09-13", "undated"]);
 });
 
 

@@ -1053,8 +1053,8 @@ export async function getEventBySlug(
         };
       });
 
-      // Fetch sources
-      let eventSourcesRows: Array<{ source_id: string }> = [];
+      // Fetch sources ordered by is_primary descending, then id ascending
+      let eventSourcesRows: Array<{ source_id: string; is_primary?: boolean | null }> = [];
       {
         const batchSize = 1000;
         let page = 0;
@@ -1064,8 +1064,9 @@ export async function getEventBySlug(
           const to = from + batchSize - 1;
           const { data, error: esError } = await supabase
             .from("event_sources")
-            .select("source_id")
+            .select("source_id, is_primary")
             .eq("event_id", eventId)
+            .order("is_primary", { ascending: false })
             .order("id", { ascending: true })
             .range(from, to);
           if (esError) {
@@ -1085,7 +1086,20 @@ export async function getEventBySlug(
         }
       }
 
-      const sourceIds = Array.from(new Set((eventSourcesRows || []).map((s) => s.source_id)));
+      const primarySourceIds: string[] = [];
+      const secondarySourceIds: string[] = [];
+      (eventSourcesRows || []).forEach((s) => {
+        if (s.is_primary) {
+          if (!primarySourceIds.includes(s.source_id)) {
+            primarySourceIds.push(s.source_id);
+          }
+        } else {
+          if (!secondarySourceIds.includes(s.source_id)) {
+            secondarySourceIds.push(s.source_id);
+          }
+        }
+      });
+      const sourceIds = Array.from(new Set([...primarySourceIds, ...secondarySourceIds]));
       const sourceEntitiesMap = new Map<string, SourceRecord>();
       if (sourceIds.length > 0) {
         for (let i = 0; i < sourceIds.length; i += 500) {

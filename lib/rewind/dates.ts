@@ -253,8 +253,8 @@ export function extractYearFromDate(dateStr?: string | null): number | null {
     return isNaN(y) ? null : -y;
   }
 
-  // Check for BCE / BC notation (e.g. "753 BCE", "44 BC", "500 B.C.E.", "c. 300 BC")
-  const isBce = /\b(bce|bc|b\.c\.e\.|b\.c\.)\b/i.test(trimmed);
+  // Check for BCE / BC notation (e.g. "753 BCE", "44 BC", "500 B.C.E.", "1200 B.C.", "c. 300 BC")
+  const isBce = /\b(?:b\.c\.e\.|b\.c\.|bce|bc)(?![a-z0-9])/i.test(trimmed);
   if (isBce) {
     const numMatch = trimmed.match(/\b(\d{1,6})\b/);
     if (numMatch) {
@@ -270,10 +270,10 @@ export function extractYearFromDate(dateStr?: string | null): number | null {
     return isNaN(y) ? null : y;
   }
 
-  // Check for 1-3 digit years with CE/AD or circa prefix (e.g. "AD 70", "70 CE", "c. 800", "800 AD")
+  // Check for 1-3 digit years with CE/AD or circa prefix (e.g. "AD 70", "70 A.D.", "70 CE", "70 C.E.", "c. 800", "800 AD")
   const eraMatch =
-    trimmed.match(/\b(?:ce|ad|a\.d\.|c\.e\.|c\.|circa)\s*(\d{1,4})\b/i) ||
-    trimmed.match(/\b(\d{1,4})\s*(?:ce|ad|a\.d\.|c\.e\.)\b/i);
+    trimmed.match(/\b(?:circa|c\.|a\.d\.|c\.e\.|ad|ce)\s*(\d{1,4})(?![a-z0-9])/i) ||
+    trimmed.match(/\b(\d{1,4})\s*(?:a\.d\.|c\.e\.|ad|ce)(?![a-z0-9])/i);
   if (eraMatch) {
     const y = parseInt(eraMatch[1], 10);
     return isNaN(y) ? null : y;

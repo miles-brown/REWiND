@@ -435,6 +435,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
                 personId: ep.personId,
                 rawName: ep.rawName || ep.personId.replace(/^p-/, ""),
                 roleLabel: ep.roleLabel,
+                promoteToPublished: true,
               });
               ep.personId = canonicalPersonId;
               if (ep.rawName) {
