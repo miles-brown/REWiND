@@ -38,7 +38,7 @@ const MAPBOX_DARK_STYLE =
   (MAPBOX_TOKEN
     ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
     : CARTO_API_KEY
-      ? `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?api_key=${CARTO_API_KEY}`
+      ? `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_API_KEY}`
       : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
 
 const MAPBOX_SATELLITE_STYLE =
@@ -55,16 +55,16 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
       type: "raster",
       tiles: [
         CARTO_API_KEY
-          ? `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
+          ? `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
           : "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
         CARTO_API_KEY
-          ? `https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
+          ? `https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
           : "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
         CARTO_API_KEY
-          ? `https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
+          ? `https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
           : "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
         CARTO_API_KEY
-          ? `https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?api_key=${CARTO_API_KEY}`
+          ? `https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
           : "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
@@ -235,7 +235,8 @@ export function MapGraphic({
     }, "");
   }, [coords]);
 
-  // Transform Request to attach Mapbox access token or CARTO API key to resource requests
+  // Transform Request to attach Mapbox access token or CARTO key to resource requests
+  // Ensures key= is added to every style, vector tile, raster tile, glyph (.pbf), and sprite under basemaps.cartocdn.com
   const transformRequest = useCallback((url: string) => {
     if (MAPBOX_TOKEN && (url.startsWith("mapbox://") || url.includes("mapbox.com"))) {
       if (!url.includes("access_token=")) {
@@ -244,9 +245,9 @@ export function MapGraphic({
       }
     }
     if (CARTO_API_KEY && (url.includes("cartocdn.com") || url.includes("carto.com"))) {
-      if (!url.includes("api_key=")) {
+      if (!url.includes("key=") && !url.includes("api_key=")) {
         const separator = url.includes("?") ? "&" : "?";
-        return { url: `${url}${separator}api_key=${CARTO_API_KEY}` };
+        return { url: `${url}${separator}key=${CARTO_API_KEY}` };
       }
     }
     return { url };

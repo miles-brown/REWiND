@@ -994,9 +994,9 @@ test("verifies CARTO Basemaps API key integration across MapGraphic and environm
   );
 
   assert.ok(
-    mapGraphicContent.includes("api_key=") &&
+    mapGraphicContent.includes("key=") &&
     mapGraphicContent.includes("cartocdn.com"),
-    "MapGraphic must propagate CARTO API key to raster and vector requests"
+    "MapGraphic must propagate CARTO API key to raster and vector requests with key= parameter"
   );
 
   // 2. .env.example declaration
