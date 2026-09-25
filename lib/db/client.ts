@@ -1,7 +1,22 @@
+import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import { people, events, sources } from "@/data/rewind";
+import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
+
+export function isLocalDatabaseHost(connStr: string): boolean {
+  try {
+    const url = new URL(connStr);
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
@@ -12,29 +27,88 @@ export const isLiveDbConnected = Boolean(
 // Global Drizzle ORM client connected to live PostgreSQL / Supabase
 let liveDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
+// Trusted Root CA certificate for Supabase managed PostgreSQL instances (prod-ca-2021)
+export const SUPABASE_PROD_ROOT_CA = `-----BEGIN CERTIFICATE-----
+MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
+BQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l
+dyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh
+c2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow
+azELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD
+YXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJhc2Ug
+Um9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqQXW
+QyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4Dkx1Q
+DmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3ePS2t2
+GtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnCJLUi
+cvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+Gyb4
+O4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32Uclt
+NaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFKjX
+uXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4yJNUt
+aUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn+4VU
+tVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7oneL2b
+VW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgBm5y+6
+jB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnSuv/Qx
+Cea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDVDB9Y2
+CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P
+o/bKiIz+Fq8=
+-----END CERTIFICATE-----`;
+
+export function getPostgresSslConfig(isLocal: boolean): boolean | { ca?: string; rejectUnauthorized: boolean } {
+  if (isLocal) return false;
+  const ca = process.env.DATABASE_SSL_CA || process.env.SUPABASE_SSL_CA || SUPABASE_PROD_ROOT_CA;
+  return {
+    ca,
+    rejectUnauthorized: true,
+  };
+}
+
+/**
+ * Returns the singleton Drizzle ORM client connected to live PostgreSQL.
+ *
+ * Security & Forensic Data Integrity Note:
+ * - Production / Remote Environments (Supabase, AWS RDS, etc.): Strict TLS certificate
+ *   verification (`rejectUnauthorized: true` with trusted Supabase Root CA) is enforced to
+ *   prevent man-in-the-middle (MITM) eavesdropping and ensure evidentiary integrity of historical records.
+ * - Local Development: `ssl: false` is conditionally allowed ONLY for local loopback hosts
+ *   (`localhost`, `127.0.0.1`, `::1`) where local PostgreSQL instances operate without TLS.
+ *   Non-local environments MUST never disable SSL.
+ */
 export function getDb() {
   if (liveDb) return liveDb;
-  if (isLiveDbConnected && connectionString) {
-    const client = postgres(connectionString, { max: 10, prepare: false });
+  const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL || connectionString;
+  const isConnected = Boolean(
+    connStr && (connStr.startsWith("postgres://") || connStr.startsWith("postgresql://"))
+  );
+  if (isConnected && connStr) {
+    const isLocal = isLocalDatabaseHost(connStr);
+    const client = postgres(connStr, {
+      max: 10,
+      prepare: false,
+      ssl: getPostgresSslConfig(isLocal),
+    });
     liveDb = drizzle(client, { schema });
     return liveDb;
   }
   return null;
 }
 
+export type RelationalEventRecord = typeof schema.events.$inferSelect & {
+  participants?: Array<{ personId?: string | null; name?: string; role?: string; presenceMode?: string }>;
+};
+
 // In-memory relational state cache used when a live PostgreSQL instance is not configured
 export interface MemoryRelationalStore {
   people: (typeof schema.people.$inferSelect)[];
   personAliases: (typeof schema.personAliases.$inferSelect)[];
   places: (typeof schema.places.$inferSelect)[];
-  events: (typeof schema.events.$inferSelect)[];
+  events: RelationalEventRecord[];
   sources: (typeof schema.sources.$inferSelect)[];
   claims: (typeof schema.claims.$inferSelect)[];
   candidateEvents: (typeof schema.candidateEvents.$inferSelect)[];
   auditLog: (typeof schema.auditLog.$inferSelect)[];
+  quotes: (typeof schema.quotes.$inferSelect)[];
 }
 
-function resolvePersonMetadata(p: (typeof people)[0]): {
+function resolvePersonMetadata(p: TestPerson): {
   nationality: string;
   classification: string;
   programmeId: string;
@@ -117,6 +191,32 @@ function mapToCanonicalEventType(categories: string[], types: string[]): "bilate
 }
 
 function initializeSeedStore(): MemoryRelationalStore {
+  // In production, fallback in-memory store is empty to ensure no prototype records enter the production path
+  if (process.env.NODE_ENV === "production") {
+    return {
+      people: [],
+      personAliases: [],
+      places: [],
+      events: [],
+      sources: [],
+      claims: [],
+      candidateEvents: [],
+      auditLog: [],
+      quotes: [],
+    };
+  }
+
+  // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
+  const nodeRequire = createRequire(import.meta.url);
+  const fixtures = nodeRequire("./test-fixtures.json") as {
+    testPeople: TestPerson[];
+    testEvents: TestEvent[];
+    testSources: TestSource[];
+  };
+  const people = fixtures.testPeople;
+  const events = fixtures.testEvents;
+  const sources = fixtures.testSources;
+
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 
   const seedPeople: (typeof schema.people.$inferSelect)[] = (people || []).map((p) => {
@@ -197,7 +297,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     trustScore: s.classification === "primary" ? 1.0 : 0.8,
   }));
 
-  const seedEvents: (typeof schema.events.$inferSelect)[] = (events || []).map((e) => {
+  const seedEvents: RelationalEventRecord[] = (events || []).map((e) => {
     const placeSlug = `${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${(e.venueName || "general").toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}`;
     const canonicalType = mapToCanonicalEventType(e.categories, e.eventTypes);
     return {
@@ -212,29 +312,45 @@ function initializeSeedStore(): MemoryRelationalStore {
       endDate: e.endDate || null,
       temporalPrecision: "exact-day",
       placeId: `plc-${placeSlug}`,
+      seriesId: null,
+      venueId: null,
+      addressId: null,
       verificationStatus: e.verificationStatus,
       confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,
       publicationStatus: "published",
       publicationLane: "auto-publish",
       significanceScore: 80,
+      participants: (e.participants || []).map((p) => ({
+        personId: personIdToSlug.get(p.personId) || p.personId,
+        name: p.name,
+        role: p.role,
+        presenceMode: p.attendanceMode || "physical",
+      })),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
   });
 
   const seedClaims: (typeof schema.claims.$inferSelect)[] = (events || []).flatMap((e) =>
-    (e.participants || []).map((p, idx) => ({
-      id: `clm-${e.id}-${idx}`,
-      eventId: e.id,
-      subjectId: personIdToSlug.get(p.personId) || p.personId,
-      claimType: "presence",
-      statement: `${p.name} was present at ${e.eventName} in ${e.city}`,
-      claimedTime: e.startDate,
-      claimedVenue: e.venueName || e.city,
-      sourceId: e.sourceIds[0] || null,
-      confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "reported",
-      supportingExcerpt: e.summary,
-    }))
+    (e.participants || []).map((p, idx) => {
+      const subjectPersonId = personIdToSlug.get(p.personId) || p.personId;
+      return {
+        id: `clm-${e.id}-${idx}`,
+        eventId: e.id,
+        subjectId: subjectPersonId,
+        subjectEntityType: "person",
+        subjectEntityId: subjectPersonId,
+        claimType: "presence",
+        statement: `${p.name} was present at ${e.eventName} in ${e.city}`,
+        claimedTime: e.startDate,
+        claimedVenue: e.venueName || e.city,
+        sourceId: e.sourceIds[0] || null,
+        confidence: p.presenceConfidence === "confirmed" ? "confirmed" : "limited",
+        claimStatus: p.presenceConfidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL",
+        epistemicClass: p.presenceConfidence === "confirmed" ? "documented fact" : "attributed assertion",
+        supportingExcerpt: e.summary,
+      };
+    })
   );
 
   return {
@@ -246,6 +362,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     claims: seedClaims,
     candidateEvents: [],
     auditLog: [],
+    quotes: [],
   };
 }
 

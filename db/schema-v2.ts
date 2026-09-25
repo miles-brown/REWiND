@@ -109,8 +109,8 @@ export const eventPeople = pgTable("event_people", {
   presenceExtent: text("presence_extent").default("entire-event").notNull(),
   arrivalTime: text("arrival_time"),
   departureTime: text("departure_time"),
-  presenceConfidence: text("presence_confidence").default("confirmed").notNull(),
-  roleConfidence: text("role_confidence").default("confirmed").notNull(),
+  presenceConfidence: text("presence_confidence").default("limited").notNull(),
+  roleConfidence: text("role_confidence").default("limited").notNull(),
   notes: text("notes"),
 });
 
@@ -133,8 +133,8 @@ export const eventPersonLocations = pgTable(
     localEndTime: text("local_end_time"),
     isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
     locationBasis: text("location_basis").default("archival-record").notNull(),
-    confidence: text("confidence").default("confirmed").notNull(),
-    publicVisibility: text("public_visibility").default("public-exact").notNull(),
+    confidence: text("confidence").default("limited").notNull(),
+    publicVisibility: text("public_visibility").default("approximate").notNull(),
   },
   (table) => [
     check(
@@ -157,7 +157,7 @@ export const eventPersonLocationSources = pgTable("event_person_location_sources
   sourceId: text("source_id")
     .references(() => sources.id, { onDelete: "cascade" })
     .notNull(),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // Person Representation within Specific Event
@@ -171,7 +171,7 @@ export const eventPersonOrganisations = pgTable("event_person_organisations", {
     .notNull(),
   relationshipType: text("relationship_type").notNull(), // represents, delegation-of, employed-by
   roleLabel: text("role_label"),
-  confidence: text("confidence").default("confirmed").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
 });
 
 // ==========================================
@@ -220,3 +220,82 @@ export const eventLocationSequences = pgTable("event_location_sequences", {
   timestamp: text("timestamp"),
   precision: text("precision").default("building").notNull(),
 });
+
+// ==========================================
+// 5. Claim Evidence & Biographical Relations
+// ==========================================
+
+export const claimEvidence = pgTable("claim_evidence", {
+  id: text("id").primaryKey(),
+  claimId: text("claim_id").notNull(),
+  sourceId: text("source_id")
+    .references(() => sources.id, { onDelete: "cascade" })
+    .notNull(),
+  evidenceForm: text("evidence_form").notNull(),
+  evidenceStrength: text("evidence_strength"),
+  directness: text("directness"),
+  citationLocator: text("citation_locator"),
+  supportingExcerpt: text("supporting_excerpt"),
+  contradictsClaim: boolean("contradicts_claim").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personEducation = pgTable("person_education", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  institution: text("institution").notNull(),
+  degree: text("degree"),
+  fieldOfStudy: text("field_of_study"),
+  startYear: text("start_year"),
+  endYear: text("end_year"),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personCareer = pgTable("person_career", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  organisationId: text("organisation_id").references(() => organisations.id),
+  organisationName: text("organisation_name"),
+  roleTitle: text("role_title").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  isCurrent: boolean("is_current").default(false),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personAwards = pgTable("person_awards", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  awardName: text("award_name").notNull(),
+  awardingBody: text("awarding_body"),
+  yearReceived: text("year_received"),
+  citation: text("citation"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personWorks = pgTable("person_works", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  title: text("title").notNull(),
+  workType: text("work_type").notNull(),
+  publicationYear: text("publication_year"),
+  publisher: text("publisher"),
+  url: text("url"),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+

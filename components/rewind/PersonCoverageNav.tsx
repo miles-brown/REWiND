@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Clock } from "lucide-react";
-import type { EventRecord } from "@/data/rewind";
+import type { EventRecord } from "@/lib/rewind";
+import { extractYearFromDate } from "@/lib/rewind/dates";
 
 interface PeriodGroup {
   period: string; // e.g., "1990s"
@@ -25,8 +26,11 @@ export function PersonCoverageNav({
   const periods = useMemo<PeriodGroup[]>(() => {
     const yearCountMap = new Map<string, number>();
     records.forEach((r) => {
-      const y = r.startDate.slice(0, 4);
-      yearCountMap.set(y, (yearCountMap.get(y) || 0) + 1);
+      const year = extractYearFromDate(r.startDate);
+      if (year !== null) {
+        const y = String(year);
+        yearCountMap.set(y, (yearCountMap.get(y) || 0) + 1);
+      }
     });
 
     const periodMap = new Map<string, { year: string; count: number }[]>();
@@ -54,6 +58,11 @@ export function PersonCoverageNav({
     return { [lastPeriod]: true };
   });
 
+  const totalDatedEvents = useMemo(
+    () => periods.reduce((acc, curr) => acc + curr.totalEvents, 0),
+    [periods]
+  );
+
   const togglePeriod = (period: string) => {
     setExpandedPeriods((prev) => ({
       ...prev,
@@ -70,7 +79,7 @@ export function PersonCoverageNav({
           <Clock size={14} className="coverage-icon" />
           <span>INDEXED COVERAGE</span>
         </div>
-        <small className="coverage-count">{records.length} dated events</small>
+        <small className="coverage-count">{totalDatedEvents} dated events</small>
       </div>
 
       <div className="coverage-nav-scroll-container">

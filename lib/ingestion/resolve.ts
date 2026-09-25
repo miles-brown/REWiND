@@ -1,4 +1,11 @@
-import { getRelationalStore } from "@/lib/db/client";
+import { createHash } from "node:crypto";
+import { getRelationalStore, getDb } from "@/lib/db/client";
+import * as schema from "@/db/schema";
+import { eq, or, ilike, and } from "drizzle-orm";
+
+function escapeIlikePattern(str: string): string {
+  return str.replace(/[%_\\]/g, "\\$&");
+}
 
 // Normalize names by removing punctuation, titles, and extra whitespace
 function normalizeName(name: string): string {
@@ -10,11 +17,344 @@ function normalizeName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
+/**
+ * Derives a collision-resistant participant ID for unresolved names.
+ * Ensures non-ASCII names, long names with identical prefixes, and symbolic names
+ * produce unique, stable IDs.
+ */
+export function createParticipantStubId(name: string, resolvedPersonId?: string | null): string {
+  if (resolvedPersonId) return resolvedPersonId;
+  const nameKey = name.toLowerCase().trim();
+  const nameDigest = createHash("sha256").update(nameKey).digest("hex").slice(0, 8);
+  const normalizedBase =
+    nameKey.replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 16) || "unknown";
+  return `p-${normalizedBase}-${nameDigest}`;
+}
+
+type TransactionClient = Parameters<Parameters<NonNullable<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
+
+/**
+ * Resolves or registers a person entity within a PostgreSQL transaction:
+ * 1. Checks if a person row exists by canonical ID; promotes to published if draft.
+ * 2. Checks if a person row exists by slug, returning its canonical ID.
+ * 3. Checks exact canonical/display name and alias matches.
+ * 4. Creates a new published person record if no match exists.
+ */
+export async function resolvePersonEntityInTransaction(
+  tx: TransactionClient,
+  options: {
+    personId: string;
+    rawName: string;
+    roleLabel?: string;
+    promoteToPublished?: boolean;
+  }
+): Promise<string> {
+  const { personId, rawName, promoteToPublished = false } = options;
+  const effectivePersonId = personId;
+
+  // 1. Exact ID match
+  const [existingPerson] = await tx
+    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
+    .from(schema.people)
+    .where(eq(schema.people.id, effectivePersonId));
+
+  if (existingPerson) {
+    if (promoteToPublished && existingPerson.publicationStatus === "draft") {
+      await tx
+        .update(schema.people)
+        .set({ publicationStatus: "published" })
+        .where(
+          and(
+            eq(schema.people.id, existingPerson.id),
+            eq(schema.people.publicationStatus, "draft")
+          )
+        );
+    }
+    return existingPerson.id;
+  }
+
+  // 2. Slug match (reusing existing canonical ID if different from generated ID)
+  const pSlug = effectivePersonId.replace(/^p-/, "");
+  const normalizedNameSlug = normalizeName(rawName).replace(/[^\w]/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  const slugConditions = [eq(schema.people.slug, pSlug)];
+  if (normalizedNameSlug && normalizedNameSlug !== pSlug) {
+    slugConditions.push(eq(schema.people.slug, normalizedNameSlug));
+  }
+  const bySlugMatches = await tx
+    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
+    .from(schema.people)
+    .where(or(...slugConditions));
+
+  const distinctSlugIds = Array.from(new Set(bySlugMatches.map((p) => p.id)));
+  if (distinctSlugIds.length === 1) {
+    const matchedId = distinctSlugIds[0];
+    if (promoteToPublished) {
+      const match = bySlugMatches.find((p) => p.id === matchedId);
+      if (match && match.publicationStatus === "draft") {
+        await tx
+          .update(schema.people)
+          .set({ publicationStatus: "published" })
+          .where(
+            and(
+              eq(schema.people.id, matchedId),
+              eq(schema.people.publicationStatus, "draft")
+            )
+          );
+      }
+    }
+    return matchedId;
+  }
+  if (distinctSlugIds.length > 1) {
+    throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match slug candidates (${distinctSlugIds.join(", ")})`);
+  }
+
+  // 3. Name match via canonicalName or displayName (exact or normalized)
+  const escapedName = escapeIlikePattern(rawName);
+  const escapedNormalizedName = escapeIlikePattern(normalizeName(rawName));
+  const matchingByName = await tx
+    .select({ id: schema.people.id, publicationStatus: schema.people.publicationStatus })
+    .from(schema.people)
+    .where(
+      or(
+        ilike(schema.people.canonicalName, escapedName),
+        ilike(schema.people.displayName, escapedName),
+        ilike(schema.people.canonicalName, escapedNormalizedName),
+        ilike(schema.people.displayName, escapedNormalizedName)
+      )
+    );
+
+  const distinctNameMatches: string[] = Array.from(new Set(matchingByName.map((p: { id: string }) => p.id)));
+  if (distinctNameMatches.length === 1) {
+    const matchedId = distinctNameMatches[0];
+    if (promoteToPublished) {
+      const match = matchingByName.find((p) => p.id === matchedId);
+      if (match && match.publicationStatus === "draft") {
+        await tx
+          .update(schema.people)
+          .set({ publicationStatus: "published" })
+          .where(
+            and(
+              eq(schema.people.id, matchedId),
+              eq(schema.people.publicationStatus, "draft")
+            )
+          );
+      }
+    }
+    return matchedId;
+  }
+  if (distinctNameMatches.length > 1) {
+    throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match name candidates (${distinctNameMatches.join(", ")})`);
+  }
+
+  // 4. Alias match
+  if (distinctNameMatches.length === 0) {
+    const aliasRows = await tx
+      .select({
+        personId: schema.personAliases.personId,
+        publicationStatus: schema.people.publicationStatus,
+      })
+      .from(schema.personAliases)
+      .innerJoin(schema.people, eq(schema.personAliases.personId, schema.people.id))
+      .where(
+        or(
+          ilike(schema.personAliases.alias, escapedName),
+          ilike(schema.personAliases.alias, escapedNormalizedName),
+          eq(schema.personAliases.alias, rawName)
+        )
+      );
+    const distinctPersonIds: string[] = Array.from(new Set(aliasRows.map((r: { personId: string }) => r.personId)));
+    if (distinctPersonIds.length === 1) {
+      const matchedId = distinctPersonIds[0];
+      if (promoteToPublished) {
+        const match = aliasRows.find((r) => r.personId === matchedId);
+        if (match && match.publicationStatus === "draft") {
+          await tx
+            .update(schema.people)
+            .set({ publicationStatus: "published" })
+            .where(
+              and(
+                eq(schema.people.id, matchedId),
+                eq(schema.people.publicationStatus, "draft")
+              )
+            );
+        }
+      }
+      return matchedId;
+    }
+    if (distinctPersonIds.length > 1) {
+      throw new Error(`Ambiguous person resolution for "${rawName}": multiple people match alias candidates (${distinctPersonIds.join(", ")})`);
+    }
+  }
+
+  // 5. Insert new person record as published or draft (idempotent for concurrent inserts)
+  await tx
+    .insert(schema.people)
+    .values({
+      id: effectivePersonId,
+      slug: pSlug,
+      displayName: rawName,
+      canonicalName: rawName,
+      nationality: "International",
+      classification: "historical-figure",
+      notabilityBasis: "Documented participant in verified historical event",
+      publicationStatus: promoteToPublished ? "published" : "draft",
+    })
+    .onConflictDoNothing();
+
+  if (promoteToPublished) {
+    await tx
+      .update(schema.people)
+      .set({ publicationStatus: "published" })
+      .where(
+        and(
+          or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)),
+          eq(schema.people.publicationStatus, "draft")
+        )
+      );
+  }
+
+  const [canonicalPerson] = await tx
+    .select({ id: schema.people.id })
+    .from(schema.people)
+    .where(or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)));
+
+  return canonicalPerson ? canonicalPerson.id : effectivePersonId;
+}
+
 export interface EntityResolution {
   personId: string | null;
   canonicalName: string | null;
   confidence: number;
   isApprovedSubject: boolean;
+}
+
+export async function resolveEntityAsync(
+  rawName: string,
+  dbInstance?: NonNullable<ReturnType<typeof getDb>> | TransactionClient | null
+): Promise<EntityResolution> {
+  const db = dbInstance === undefined ? getDb() : dbInstance;
+  const normalized = normalizeName(rawName);
+  if (!normalized) {
+    return { personId: null, canonicalName: null, confidence: 0.0, isApprovedSubject: false };
+  }
+
+  if (db) {
+    try {
+      const escapedRaw = escapeIlikePattern(rawName);
+      const escapedNorm = escapeIlikePattern(normalized);
+
+      // 1. Exact ID, slug, canonical name, or display name match in live DB
+      const peopleMatches = await db
+        .select({
+          id: schema.people.id,
+          slug: schema.people.slug,
+          canonicalName: schema.people.canonicalName,
+          displayName: schema.people.displayName,
+          publicationStatus: schema.people.publicationStatus,
+        })
+        .from(schema.people)
+        .where(
+          or(
+            eq(schema.people.id, normalized),
+            eq(schema.people.slug, normalized),
+            ilike(schema.people.canonicalName, escapedRaw),
+            ilike(schema.people.displayName, escapedRaw),
+            ilike(schema.people.canonicalName, escapedNorm),
+            ilike(schema.people.displayName, escapedNorm)
+          )
+        );
+
+      if (peopleMatches.length === 1) {
+        const p = peopleMatches[0];
+        return {
+          personId: p.id,
+          canonicalName: p.canonicalName,
+          confidence: 1.0,
+          isApprovedSubject: p.publicationStatus === "published",
+        };
+      }
+
+      if (peopleMatches.length > 1) {
+        const exactMatch = peopleMatches.find(
+          (p) =>
+            p.id.toLowerCase() === normalized ||
+            p.slug.toLowerCase() === normalized ||
+            p.canonicalName.toLowerCase() === rawName.toLowerCase() ||
+            normalizeName(p.canonicalName) === normalized
+        );
+        if (exactMatch) {
+          return {
+            personId: exactMatch.id,
+            canonicalName: exactMatch.canonicalName,
+            confidence: 1.0,
+            isApprovedSubject: exactMatch.publicationStatus === "published",
+          };
+        }
+      }
+
+      // 2. Alias match in live DB
+      const aliasMatches = await db
+        .select({
+          personId: schema.personAliases.personId,
+          alias: schema.personAliases.alias,
+          canonicalName: schema.people.canonicalName,
+          publicationStatus: schema.people.publicationStatus,
+        })
+        .from(schema.personAliases)
+        .innerJoin(schema.people, eq(schema.personAliases.personId, schema.people.id))
+        .where(
+          or(
+            eq(schema.personAliases.alias, rawName),
+            eq(schema.personAliases.alias, normalized),
+            ilike(schema.personAliases.alias, escapedRaw),
+            ilike(schema.personAliases.alias, escapedNorm)
+          )
+        );
+
+      const distinctAliasPersons = Array.from(
+        new Map(aliasMatches.map((a) => [a.personId, a])).values()
+      );
+
+      if (distinctAliasPersons.length === 1) {
+        const a = distinctAliasPersons[0];
+        return {
+          personId: a.personId,
+          canonicalName: a.canonicalName,
+          confidence: 0.95,
+          isApprovedSubject: a.publicationStatus === "published",
+        };
+      }
+
+      // 3. Surname match in live DB (single-token surname)
+      const parts = normalized.split(" ").filter(Boolean);
+      if (parts.length === 1 && parts[0].length > 3) {
+        const surname = parts[0];
+        const surnamePattern = `% ${escapeIlikePattern(surname)}`;
+        const surnameMatches = await db
+          .select({
+            id: schema.people.id,
+            canonicalName: schema.people.canonicalName,
+            publicationStatus: schema.people.publicationStatus,
+          })
+          .from(schema.people)
+          .where(ilike(schema.people.canonicalName, surnamePattern));
+
+        if (surnameMatches.length === 1) {
+          const p = surnameMatches[0];
+          return {
+            personId: p.id,
+            canonicalName: p.canonicalName,
+            confidence: 0.80,
+            isApprovedSubject: p.publicationStatus === "published",
+          };
+        }
+      }
+    } catch {
+      // Fallback to store on DB query error
+    }
+  }
+
+  return resolveEntity(rawName);
 }
 
 export function resolveEntity(rawName: string): EntityResolution {
@@ -92,14 +432,50 @@ export interface PlaceResolution {
   confidence: number;
 }
 
-export function resolvePlace(venue?: string, city?: string, country?: string): PlaceResolution {
+function sanitizeCoordinates(lat?: number, lng?: number): { latitude?: number; longitude?: number } {
+  if (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    !Number.isNaN(lat) &&
+    !Number.isNaN(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  ) {
+    return { latitude: lat, longitude: lng };
+  }
+  return { latitude: undefined, longitude: undefined };
+}
+
+function resolveMatchedCoordinates(
+  storedLat: number | null | undefined,
+  storedLng: number | null | undefined,
+  candidateCoords: { latitude?: number; longitude?: number }
+): { latitude?: number; longitude?: number } {
+  const sanitizedStored = sanitizeCoordinates(storedLat ?? undefined, storedLng ?? undefined);
+  if (sanitizedStored.latitude !== undefined && sanitizedStored.longitude !== undefined) {
+    return sanitizedStored;
+  }
+  return { latitude: candidateCoords.latitude, longitude: candidateCoords.longitude };
+}
+
+export function resolvePlace(
+  venue?: string,
+  city?: string,
+  country?: string,
+  latitude?: number,
+  longitude?: number
+): PlaceResolution {
   const store = getRelationalStore();
   const safeCity = city || "";
   const safeVenue = venue || "";
   const safeCountry = country || "";
+  const coords = sanitizeCoordinates(latitude, longitude);
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const normCountry = safeCountry.toLowerCase().replace(/[^\w\s]/g, "").trim();
 
   // If both city and venue are empty, do not fabricate gazetteer matches
   if (!normCity && !normVenue) {
@@ -108,12 +484,22 @@ export function resolvePlace(venue?: string, city?: string, country?: string): P
       venue: "General",
       city: "Unknown",
       country: safeCountry || "International",
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       confidence: 0.5,
     };
   }
 
   // Match against existing gazetteer
+  const venueCityMatches: typeof store.places = [];
+  const cityOnlyMatches: typeof store.places = [];
+
   for (const pl of store.places) {
+    const plCountry = (pl.country || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
+    if (normCountry && normCountry !== "international" && plCountry && plCountry !== normCountry) {
+      continue;
+    }
+
     const plCity = (pl.city || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
     const plVenue = (pl.venue || "").toLowerCase().replace(/[^\w\s]/g, "").trim();
 
@@ -128,27 +514,70 @@ export function resolvePlace(venue?: string, city?: string, country?: string): P
       (plVenue === normVenue || plVenue.includes(normVenue) || normVenue.includes(plVenue));
 
     if (cityMatches && venueMatches) {
+      venueCityMatches.push(pl);
+    } else if (cityMatches && !safeVenue) {
+      cityOnlyMatches.push(pl);
+    }
+  }
+
+  const distinctVenueCityIds = Array.from(new Set(venueCityMatches.map((pl) => pl.id)));
+  if (distinctVenueCityIds.length === 1) {
+    const pl = venueCityMatches.find((p) => p.id === distinctVenueCityIds[0])!;
+    const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
+    return {
+      placeId: pl.id,
+      venue: pl.venue,
+      city: pl.city,
+      country: pl.country,
+      latitude: resolvedCoords.latitude,
+      longitude: resolvedCoords.longitude,
+      confidence: 0.98,
+    };
+  }
+
+  if (!safeVenue) {
+    const distinctCityIds = Array.from(new Set(cityOnlyMatches.map((pl) => pl.id)));
+    if (distinctCityIds.length === 1) {
+      const pl = cityOnlyMatches.find((p) => p.id === distinctCityIds[0])!;
+      const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
       return {
         placeId: pl.id,
         venue: pl.venue,
         city: pl.city,
         country: pl.country,
-        latitude: pl.latitude ?? undefined,
-        longitude: pl.longitude ?? undefined,
-        confidence: 0.98,
-      };
-    }
-
-    if (cityMatches) {
-      return {
-        placeId: pl.id,
-        venue: safeVenue || pl.venue,
-        city: pl.city,
-        country: pl.country,
-        latitude: pl.latitude ?? undefined,
-        longitude: pl.longitude ?? undefined,
+        latitude: resolvedCoords.latitude,
+        longitude: resolvedCoords.longitude,
         confidence: 0.92,
       };
+    } else if (cityOnlyMatches.length > 1) {
+      const generalMatches = cityOnlyMatches.filter(
+        (pl) =>
+          pl.venue.toLowerCase() === "general" ||
+          pl.venue.toLowerCase() === normCity
+      );
+      const distinctGeneralIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
+      if (distinctGeneralIds.length === 1) {
+        const matchingCountries = Array.from(
+          new Set(cityOnlyMatches.map((c) => (c.country || "").trim().toLowerCase()))
+        );
+        if (
+          matchingCountries.length === 1 &&
+          matchingCountries[0] !== "" &&
+          matchingCountries[0] !== "international"
+        ) {
+          const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralIds[0])!;
+          const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
+          return {
+            placeId: generalMatch.id,
+            venue: generalMatch.venue,
+            city: generalMatch.city,
+            country: generalMatch.country,
+            latitude: resolvedCoords.latitude,
+            longitude: resolvedCoords.longitude,
+            confidence: 0.92,
+          };
+        }
+      }
     }
   }
 
@@ -162,6 +591,185 @@ export function resolvePlace(venue?: string, city?: string, country?: string): P
     venue: safeVenue || "General",
     city: safeCity || "Unknown",
     country: safeCountry,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
     confidence: 0.85,
   };
+}
+
+export async function resolvePlaceAsync(
+  venue?: string,
+  city?: string,
+  country?: string,
+  latitude?: number,
+  longitude?: number,
+  dbInstance?: ReturnType<typeof getDb>
+): Promise<PlaceResolution> {
+  const db = dbInstance !== undefined ? dbInstance : getDb();
+  const safeCity = city || "";
+  const safeVenue = venue || "";
+  const safeCountry = country || "";
+  const coords = sanitizeCoordinates(latitude, longitude);
+
+  const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
+
+  // If both city and venue are empty, do not fabricate gazetteer matches
+  if (!normCity && !normVenue) {
+    return {
+      placeId: "plc-unknown-general",
+      venue: "General",
+      city: "Unknown",
+      country: safeCountry || "International",
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      confidence: 0.5,
+    };
+  }
+
+  if (db) {
+    try {
+      const escapedVenue = escapeIlikePattern(safeVenue);
+      const escapedCity = escapeIlikePattern(safeCity);
+      const escapedCountry = escapeIlikePattern(safeCountry);
+
+      // 1. Exact match on both venue and city
+      if (safeVenue && safeCity) {
+        const bothConditions = [
+          ilike(schema.places.venue, escapedVenue),
+          ilike(schema.places.city, escapedCity),
+        ];
+        if (safeCountry) {
+          bothConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
+        const bothMatches = await db
+          .select()
+          .from(schema.places)
+          .where(and(...bothConditions));
+
+        const distinctPlaceIds = Array.from(new Set(bothMatches.map((pl) => pl.id)));
+        if (distinctPlaceIds.length === 1) {
+          const pl = bothMatches.find((p) => p.id === distinctPlaceIds[0])!;
+          const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
+          return {
+            placeId: pl.id,
+            venue: pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: resolvedCoords.latitude,
+            longitude: resolvedCoords.longitude,
+            confidence: 0.98,
+          };
+        }
+      }
+
+      // 2. Place alias match (venue alias lookup)
+      if (safeVenue) {
+        const aliasConditions = [
+          or(
+            ilike(schema.placeAliases.alias, escapedVenue),
+            eq(schema.placeAliases.alias, safeVenue)
+          ),
+        ];
+        if (safeCity) {
+          aliasConditions.push(ilike(schema.places.city, escapedCity));
+        }
+        if (safeCountry) {
+          aliasConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
+        const aliasMatches = await db
+          .select({
+            placeId: schema.placeAliases.placeId,
+            alias: schema.placeAliases.alias,
+            venue: schema.places.venue,
+            city: schema.places.city,
+            country: schema.places.country,
+            latitude: schema.places.latitude,
+            longitude: schema.places.longitude,
+          })
+          .from(schema.placeAliases)
+          .innerJoin(schema.places, eq(schema.placeAliases.placeId, schema.places.id))
+          .where(and(...aliasConditions));
+
+        const distinctAliasPlaceIds = Array.from(new Set(aliasMatches.map((pl) => pl.placeId)));
+        if (distinctAliasPlaceIds.length === 1) {
+          const pl = aliasMatches.find((p) => p.placeId === distinctAliasPlaceIds[0])!;
+          const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
+          return {
+            placeId: pl.placeId,
+            venue: pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: resolvedCoords.latitude,
+            longitude: resolvedCoords.longitude,
+            confidence: 0.95,
+          };
+        }
+      }
+
+      // 3. Match city only (only when no specific venue was supplied)
+      if (safeCity && !safeVenue) {
+        const cityConditions = [ilike(schema.places.city, escapedCity)];
+        if (safeCountry) {
+          cityConditions.push(ilike(schema.places.country, escapedCountry));
+        }
+
+        const cityMatches = await db
+          .select()
+          .from(schema.places)
+          .where(and(...cityConditions));
+
+        const distinctCityPlaceIds = Array.from(new Set(cityMatches.map((pl) => pl.id)));
+        if (distinctCityPlaceIds.length === 1) {
+          const pl = cityMatches[0];
+          const resolvedCoords = resolveMatchedCoordinates(pl.latitude, pl.longitude, coords);
+          return {
+            placeId: pl.id,
+            venue: pl.venue,
+            city: pl.city,
+            country: pl.country,
+            latitude: resolvedCoords.latitude,
+            longitude: resolvedCoords.longitude,
+            confidence: 0.92,
+          };
+        } else if (cityMatches.length > 1) {
+          // If multiple places exist in the city, check for a general city marker
+          const generalMatches = cityMatches.filter(
+            (pl) =>
+              pl.venue.toLowerCase() === "general" ||
+              pl.venue.toLowerCase() === normCity
+          );
+          const distinctGeneralPlaceIds = Array.from(new Set(generalMatches.map((pl) => pl.id)));
+          if (distinctGeneralPlaceIds.length === 1) {
+            const matchingCountries = Array.from(
+              new Set(cityMatches.map((c) => (c.country || "").trim().toLowerCase()))
+            );
+            if (
+              matchingCountries.length === 1 &&
+              matchingCountries[0] !== "" &&
+              matchingCountries[0] !== "international"
+            ) {
+              const generalMatch = generalMatches.find((pl) => pl.id === distinctGeneralPlaceIds[0])!;
+              const resolvedCoords = resolveMatchedCoordinates(generalMatch.latitude, generalMatch.longitude, coords);
+              return {
+                placeId: generalMatch.id,
+                venue: generalMatch.venue,
+                city: generalMatch.city,
+                country: generalMatch.country,
+                latitude: resolvedCoords.latitude,
+                longitude: resolvedCoords.longitude,
+                confidence: 0.92,
+              };
+            }
+          }
+        }
+      }
+    } catch {
+      // Fallback to in-memory store on DB query error
+    }
+  }
+
+  return resolvePlace(venue, city, country, latitude, longitude);
 }

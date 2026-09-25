@@ -14,7 +14,7 @@ export const RawEvidenceItemSchema = z.object({
   ]),
   sourceTier: z.enum(["tier-a", "tier-b", "tier-c", "tier-d"]),
   url: z.string().url().optional(),
-  rawText: z.string().min(10),
+  rawText: z.string().min(10).optional(),
   fetchedAt: z.string().optional(),
 });
 
@@ -89,8 +89,8 @@ export const ExtractedCandidateEventSchema = z
     venue: z.string(),
     city: z.string(),
     country: z.string(),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
     participants: z.array(
       z.object({
         name: z.string().min(1),
@@ -110,6 +110,17 @@ export const ExtractedCandidateEventSchema = z
     involvesLivingPersonPrivateMovement: z.boolean().default(false),
     involvesMinors: z.boolean().default(false),
   })
+  .refine(
+    (data) => {
+      const hasLat = data.latitude !== undefined && data.latitude !== null;
+      const hasLng = data.longitude !== undefined && data.longitude !== null;
+      return hasLat === hasLng;
+    },
+    {
+      message: "Both latitude and longitude must be provided together, or both omitted",
+      path: ["latitude"],
+    }
+  )
   .refine(
     (data) => {
       if (!data.endDate) return true;

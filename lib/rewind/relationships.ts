@@ -1,0 +1,360 @@
+import { createClient } from "@/lib/supabase/server";
+import { events as fallbackEvents, people as fallbackPeople } from "@/archive/legacy-data/rewind";
+import { getPersonBySlugWithStatus } from "./people";
+import type { EventRecord, PersonRecord } from "./types";
+import { getEventsByIds, getAllEvents } from "./events";
+
+export interface RelationshipItem {
+  id: string;
+  source: string;
+  target: string;
+  sourceName: string;
+  targetName: string;
+  sharedEventsCount: number;
+  latestEventDate?: string;
+  types: string[];
+}
+
+export interface PairwiseRelationshipData {
+  personA: PersonRecord;
+  personB: PersonRecord;
+  sharedEvents: EventRecord[];
+}
+
+function getFallbackRelationships(): RelationshipItem[] {
+  const personSlugToName = new Map(fallbackPeople.map((p) => [p.slug, p.name]));
+  const personIdToSlug = new Map(fallbackPeople.map((p) => [p.id, p.slug]));
+
+  const pairCounts = new Map<string, number>();
+  for (const e of fallbackEvents) {
+    if (e.verificationStatus !== "verified") continue;
+    const pSlugs = Array.from(
+      new Set(
+        (e.participants || [])
+          .map((p) => personIdToSlug.get(p.personId) || p.personId)
+          .filter((s) => personSlugToName.has(s))
+      )
+    );
+    if (pSlugs.length < 2) continue;
+    for (let i = 0; i < pSlugs.length; i++) {
+      for (let j = i + 1; j < pSlugs.length; j++) {
+        const [a, b] = [pSlugs[i], pSlugs[j]].sort();
+        const key = `${a}::${b}`;
+        pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  const relationships: RelationshipItem[] = [];
+  for (const [key, count] of pairCounts.entries()) {
+    const [slugA, slugB] = key.split("::");
+    relationships.push({
+      id: `${slugA}-${slugB}`,
+      source: slugA,
+      target: slugB,
+      sourceName: personSlugToName.get(slugA) || slugA,
+      targetName: personSlugToName.get(slugB) || slugB,
+      sharedEventsCount: count,
+      types: ["diplomatic-meeting"],
+    });
+  }
+
+  return relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount);
+}
+
+/**
+ * Retrieves the diplomatic co-appearance network across all monitored individuals,
+ * restricted strictly to verified and published events.
+ */
+export async function getRelationshipsWithStatus(): Promise<{ data: RelationshipItem[]; error: string | null }> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) {
+      if (process.env.NODE_ENV === "production") {
+        return { data: [], error: "Supabase connection is not configured." };
+      }
+      return { data: getFallbackRelationships(), error: null };
+    }
+
+    // Filter participations by verified and published events with robust pagination
+    const participations: { event_id: string; person_id: string; role_label: string | null }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("event_people")
+        .select("event_id, person_id, role_label, attendance_mode, involvement_type, presence_confidence, events!inner(id, verification_status, publication_status)")
+        .eq("events.verification_status", "verified")
+        .eq("events.publication_status", "published")
+        .eq("attendance_mode", "physical")
+        .neq("presence_confidence", "disputed")
+        .order("event_id", { ascending: true })
+        .order("person_id", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        if (process.env.NODE_ENV === "production") {
+          return { data: [], error: error.message };
+        }
+        return { data: getFallbackRelationships(), error: null };
+      }
+
+      if (data) {
+        participations.push(...(data as typeof participations));
+      }
+
+      if (!data || data.length < pageSize) {
+        hasMore = false;
+      } else {
+        from += pageSize;
+      }
+    }
+
+    if (participations.length > 0) {
+      // Group persons by event
+      const eventPersons = new Map<string, string[]>();
+      participations.forEach((p) => {
+        const list = eventPersons.get(p.event_id) || [];
+        if (!list.includes(p.person_id)) list.push(p.person_id);
+        eventPersons.set(p.event_id, list);
+      });
+
+      // Pairwise counts
+      const pairCounts = new Map<string, number>();
+      for (const persons of eventPersons.values()) {
+        if (persons.length < 2) continue;
+        for (let i = 0; i < persons.length; i++) {
+          for (let j = i + 1; j < persons.length; j++) {
+            const [a, b] = [persons[i], persons[j]].sort();
+            const key = `${a}::${b}`;
+            pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+          }
+        }
+      }
+
+      if (pairCounts.size === 0) {
+        return { data: [], error: null };
+      }
+
+      // Fetch person names in 500-ID chunks
+      const allPersonIds = Array.from(
+        new Set(
+          Array.from(pairCounts.keys()).flatMap((k) => k.split("::"))
+        )
+      );
+      const CHUNK_SIZE = 500;
+      const people: Array<{ id: string; slug: string; display_name: string | null; canonical_name: string }> = [];
+      for (let i = 0; i < allPersonIds.length; i += CHUNK_SIZE) {
+        const chunk = allPersonIds.slice(i, i + CHUNK_SIZE);
+        const { data: chunkPeople, error: peopleError } = await supabase
+          .from("people")
+          .select("id, slug, display_name, canonical_name")
+          .in("id", chunk);
+        if (peopleError) {
+          if (process.env.NODE_ENV === "production") {
+            return { data: [], error: peopleError.message };
+          }
+          return { data: getFallbackRelationships(), error: null };
+        }
+        if (chunkPeople) {
+          people.push(...chunkPeople);
+        }
+      }
+
+      const personMap = new Map<string, { slug: string; name: string }>();
+      (people || []).forEach((p) => {
+        personMap.set(p.id, {
+          slug: p.slug,
+          name: p.display_name || p.canonical_name,
+        });
+      });
+
+      const relationships: RelationshipItem[] = [];
+      for (const [key, count] of pairCounts.entries()) {
+        const [idA, idB] = key.split("::");
+        const personA = personMap.get(idA);
+        const personB = personMap.get(idB);
+        if (!personA || !personB) continue;
+
+        relationships.push({
+          id: `${personA.slug}-${personB.slug}`,
+          source: personA.slug,
+          target: personB.slug,
+          sourceName: personA.name,
+          targetName: personB.name,
+          sharedEventsCount: count,
+          types: ["diplomatic-meeting"],
+        });
+      }
+
+      return { data: relationships.sort((a, b) => b.sharedEventsCount - a.sharedEventsCount), error: null };
+    }
+
+    return { data: [], error: null };
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      return { data: [], error: err instanceof Error ? err.message : "Database error" };
+    }
+    return { data: getFallbackRelationships(), error: null };
+  }
+}
+
+export async function getRelationships(): Promise<RelationshipItem[]> {
+  const res = await getRelationshipsWithStatus();
+  return res.data;
+}
+
+/**
+ * Retrieves the pairwise bilateral relationship and shared events between two individuals, returning status.
+ */
+export async function getRelationshipBetweenWithStatus(
+  slugA: string,
+  slugB: string,
+  supabaseClient?: unknown
+): Promise<{ data: PairwiseRelationshipData | null; error: string | null }> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
+    const [personARes, personBRes] = await Promise.all([
+      getPersonBySlugWithStatus(slugA, supabase),
+      getPersonBySlugWithStatus(slugB, supabase),
+    ]);
+
+    if (personARes.error) {
+      return { data: null, error: `Person A lookup failed: ${personARes.error}` };
+    }
+    if (personBRes.error) {
+      return { data: null, error: `Person B lookup failed: ${personBRes.error}` };
+    }
+
+    const personA = personARes.data;
+    const personB = personBRes.data;
+
+    if (!personA || !personB) {
+      return { data: null, error: null };
+    }
+
+    if (supabase) {
+      // Find events where both personA.id and personB.id participate with robust pagination
+      const fetchParticipations = async (personId: string) => {
+        const participations: { event_id: string }[] = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = supabase
+            .from("event_people")
+            .select("event_id, attendance_mode, involvement_type, presence_confidence")
+            .eq("person_id", personId);
+
+          if (typeof query.neq === "function") {
+            query = query.neq("presence_confidence", "disputed");
+          }
+          if (typeof query.order === "function") {
+            query = query.order("event_id", { ascending: true });
+          }
+
+          const { data, error } = await query.range(from, from + pageSize - 1);
+
+          if (error) {
+            return { data: null, error };
+          }
+
+          if (data) {
+            const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
+              if (p.attendance_mode && p.attendance_mode !== "physical") return false;
+              if (p.presence_confidence && p.presence_confidence === "disputed") return false;
+              return true;
+            });
+            participations.push(...qualifying);
+          }
+
+          if (!data || data.length < pageSize) {
+            hasMore = false;
+          } else {
+            from += pageSize;
+          }
+        }
+        return { data: participations, error: null };
+      };
+
+      const [resA, resB] = await Promise.all([
+        fetchParticipations(personA.id),
+        fetchParticipations(personB.id),
+      ]);
+
+      if (resA.error || resB.error) {
+        if (process.env.NODE_ENV === "production") {
+          const err = resA.error || resB.error;
+          return { data: null, error: `Participation query failed: ${err?.message || "Unknown error"}` };
+        }
+        return { data: null, error: null };
+      }
+
+      const eventsA = new Set((resA.data || []).map((p) => p.event_id));
+      const sharedIds = (resB.data || [])
+        .map((p) => p.event_id)
+        .filter((id) => eventsA.has(id));
+
+      if (sharedIds.length > 0) {
+        const CHUNK_SIZE = 500;
+        const fetchedEvents: EventRecord[] = [];
+        for (let i = 0; i < sharedIds.length; i += CHUNK_SIZE) {
+          const chunk = sharedIds.slice(i, i + CHUNK_SIZE);
+          const chunkEvents = await getEventsByIds(chunk, supabase);
+          fetchedEvents.push(...chunkEvents);
+        }
+        const sharedEvents: EventRecord[] = fetchedEvents.filter(
+          (e) => e.verificationStatus === "verified"
+        );
+        return { data: { personA, personB, sharedEvents }, error: null };
+      }
+
+      return { data: { personA, personB, sharedEvents: [] }, error: null };
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      return { data: null, error: "Database client unavailable" };
+    }
+    // Fallback: check shared events across all events
+    const all = await getAllEvents();
+    const shared = all.filter(
+      (e) =>
+        e.verificationStatus === "verified" &&
+        (e.participants || []).some((p) => p.personId === personA.id || p.personId === personA.slug) &&
+        (e.participants || []).some((p) => p.personId === personB.id || p.personId === personB.slug)
+    );
+
+    return {
+      data: {
+        personA,
+        personB,
+        sharedEvents: shared,
+      },
+      error: null,
+    };
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      return { data: null, error: err instanceof Error ? err.message : "Database error" };
+    }
+    return { data: null, error: null };
+  }
+}
+
+/**
+ * Retrieves the pairwise bilateral relationship and shared events between two individuals.
+ */
+export async function getRelationshipBetween(
+  slugA: string,
+  slugB: string,
+  supabaseClient?: unknown
+): Promise<PairwiseRelationshipData | null> {
+  const res = await getRelationshipBetweenWithStatus(slugA, slugB, supabaseClient);
+  if (res.error && process.env.NODE_ENV === "production") {
+    throw new Error(res.error);
+  }
+  return res.data;
+}

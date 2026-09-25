@@ -7,9 +7,12 @@ import {
   CircleDashed,
   MapPin,
 } from "lucide-react";
-import { events, personBySlug } from "@/data/rewind";
+import { getPersonTimelineWithStatus } from "@/lib/rewind";
 import { PersonTimeline } from "@/components/rewind/PersonTimeline";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
+import { InclusionBadge } from "@/components/rewind/InclusionBadge";
+import { BiographicalSection } from "@/components/rewind/BiographicalSection";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default async function PersonPage({
   params,
@@ -17,13 +20,42 @@ export default async function PersonPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const person = personBySlug(slug);
-  if (!person) notFound();
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    notFound();
+  }
 
-  const linked = events.filter((e) =>
-    e.participants.some((p) => p.personId === person.id)
-  );
-  const years = Array.from(new Set(linked.map((e) => e.startDate.slice(0, 4)))).sort();
+  const { data: timelineData, error } = await getPersonTimelineWithStatus(slug);
+  if (error) {
+    return (
+      <div className="page-shell person-page">
+        <header className="page-hero">
+          <span className="eyebrow">TEMPORAL PROFILE</span>
+          <h1>Dossier Unavailable</h1>
+          <p>The timeline records could not be retrieved from the database at this time.</p>
+        </header>
+        <div
+          className="zero-state"
+          style={{
+            padding: "4rem 2rem",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle, #333)",
+            borderRadius: "8px",
+            margin: "2rem auto",
+            maxWidth: "600px",
+          }}
+        >
+          <CalendarRange size={36} style={{ margin: "0 auto 1rem", opacity: 0.5 }} />
+          <h2>Database unavailable</h2>
+          <p style={{ color: "var(--text-muted, #888)", marginTop: "0.5rem" }}>
+            The chronology for this figure could not be loaded. Please try again later.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (!timelineData) notFound();
+
+  const { person, events: linked, years } = timelineData;
   const cities = new Set(linked.map((e) => e.city));
 
   return (
@@ -62,7 +94,15 @@ export default async function PersonPage({
         <PersonCoverageNav slug={person.slug} records={linked} />
       </header>
 
-      <PersonTimeline person={person} records={linked} />
+      <InclusionBadge person={person} />
+
+      <ErrorBoundary sectionName="Person Timeline">
+        <PersonTimeline person={person} records={linked} />
+      </ErrorBoundary>
+
+      <ErrorBoundary sectionName="Biographical Section">
+        <BiographicalSection person={person} />
+      </ErrorBoundary>
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">
@@ -74,7 +114,7 @@ export default async function PersonPage({
         </div>
         <div className="year-grid">
           {years.map((y) => {
-            const n = linked.filter((e) => e.startDate.startsWith(y)).length;
+            const n = linked.filter((e) => e.startDate.startsWith(String(y))).length;
             return (
               <Link href={`/person/${slug}/${y}`} key={y}>
                 <b>{y}</b>
