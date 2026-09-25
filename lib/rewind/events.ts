@@ -652,7 +652,7 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       const { data: personData, error: personError } = await supabase
         .from("people")
         .select("id")
-        .eq("slug", params.personSlug)
+        .or(`slug.eq.${params.personSlug},id.eq.${params.personSlug}`)
         .maybeSingle();
 
       if (personError) {
@@ -1284,7 +1284,7 @@ export async function getEventsByPersonWithStatus(
       const { data: person, error: personError } = await supabase
         .from("people")
         .select("id")
-        .eq("slug", personSlug)
+        .or(`slug.eq.${personSlug},id.eq.${personSlug}`)
         .maybeSingle();
 
       if (personError) {

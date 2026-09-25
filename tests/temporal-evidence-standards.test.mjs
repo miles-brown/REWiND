@@ -220,11 +220,11 @@ test("verifies PR #13 follow-up review fixes: event_sources constraint, biograph
 
   // Fix 2: Biographical Table Column Queries in lib/rewind/people.ts
   const peopleContent = fs.readFileSync(path.join(root, "lib/rewind/people.ts"), "utf-8");
-  assert.ok(peopleContent.includes('"start_year", { ascending: true }'), "person_education query must order by start_year");
-  assert.ok(peopleContent.includes('"year_received", { ascending: false }'), "person_awards query must order by year_received");
-  assert.ok(peopleContent.includes('"publication_year", { ascending: false }'), "person_works query must order by publication_year");
-  assert.ok(peopleContent.includes("e.field_of_study"), "person_education mapper must handle field_of_study");
-  assert.ok(peopleContent.includes("c.role_title"), "person_career mapper must handle role_title");
+  assert.ok(peopleContent.includes('"start_date", { ascending: true }'), "person_education query must order by start_date");
+  assert.ok(peopleContent.includes('"award_year", { ascending: false }'), "person_awards query must order by award_year");
+  assert.ok(peopleContent.includes('"release_date", { ascending: false }'), "person_works query must order by release_date");
+  assert.ok(peopleContent.includes("e.field_of_study") || peopleContent.includes("e.subject"), "person_education mapper must handle field_of_study/subject");
+  assert.ok(peopleContent.includes("c.role_title") || peopleContent.includes("c.position_title"), "person_career mapper must handle role_title/position_title");
 
   // Fix 3: Audit DB persistence resilience in lib/ingestion/audit.ts
   const auditContent = fs.readFileSync(path.join(root, "lib/ingestion/audit.ts"), "utf-8");

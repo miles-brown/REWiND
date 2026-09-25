@@ -180,9 +180,15 @@ test("behaviorally verifies pagination and chunking patterns in lib/rewind/event
     from(table) {
       if (table === "people") {
         let inPersonIds = [];
+        let currentSlug = "";
         const handler = {
           select() { return handler; },
-          eq() { return handler; },
+          eq(col, val) { if (col === "slug" || col === "id") currentSlug = val; return handler; },
+          or(condition) {
+            const match = condition.match(/slug\.eq\.([^,]+)/);
+            if (match) currentSlug = match[1];
+            return handler;
+          },
           in(_col, ids) {
             inPersonIds = ids;
             return handler;
@@ -191,7 +197,7 @@ test("behaviorally verifies pagination and chunking patterns in lib/rewind/event
             return {
               data: {
                 id: "p-custom",
-                slug: "benjamin-netanyahu",
+                slug: currentSlug || "benjamin-netanyahu",
                 canonical_name: "Benjamin Netanyahu",
                 display_name: "Benjamin Netanyahu",
               },
@@ -313,7 +319,12 @@ test("behaviorally verifies relationship lookup and error handling via getRelati
           let currentSlug = "";
           const handler = {
             select() { return handler; },
-            eq(col, val) { if (col === "slug") currentSlug = val; return handler; },
+            eq(col, val) { if (col === "slug" || col === "id") currentSlug = val; return handler; },
+            or(condition) {
+              const match = condition.match(/slug\.eq\.([^,]+)/);
+              if (match) currentSlug = match[1];
+              return handler;
+            },
             async maybeSingle() {
               return {
                 data: {
@@ -590,4 +601,131 @@ test("verifies getPlacesStrict and getEventYearsStrict fail-fast behavior and er
   assert.equal(sourcesErrRes.data, null);
   assert.equal(sourcesErrRes.error, "The requested event record could not be loaded. Please try again later.");
 });
+
+test("verifies getPersonBySlugWithStatus and getPersonTimelineWithStatus dual slug/ID resolution and biographical relation ordering", async () => {
+  const { getPersonBySlugWithStatus, getPersonTimelineWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
+
+  const recordedQueries = [];
+  const mockPersonClient = {
+    from(tableName) {
+      const q = {
+        tableName,
+        filters: [],
+        orderBy: [],
+        select() { return this; },
+        or(condition) {
+          this.filters.push({ type: "or", condition });
+          return this;
+        },
+        eq(col, val) {
+          this.filters.push({ type: "eq", col, val });
+          return this;
+        },
+        order(col, opts) {
+          this.orderBy.push({ col, opts });
+          return this;
+        },
+        maybeSingle() {
+          recordedQueries.push({ table: this.tableName, filters: this.filters, orderBy: this.orderBy });
+          if (this.tableName === "people") {
+            return Promise.resolve({
+              data: {
+                id: "p-benjamin-netanyahu",
+                slug: "benjamin-netanyahu",
+                canonical_name: "Benjamin Netanyahu",
+                display_name: "Benjamin Netanyahu",
+                publication_status: "published",
+              },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+
+      // For bio queries which use await Promise.all([...])
+      // return a thenable object that also has select, eq, order
+      const bioHandler = {
+        ...q,
+        then(resolve) {
+          recordedQueries.push({ table: q.tableName, filters: q.filters, orderBy: q.orderBy });
+          if (q.tableName === "person_education") {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "edu-1",
+                  person_id: "p-benjamin-netanyahu",
+                  institution: "MIT",
+                  start_date: "1972",
+                  degree: "BSc",
+                },
+              ],
+              error: null,
+            }).then(resolve);
+          }
+          if (q.tableName === "person_awards") {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "awd-1",
+                  person_id: "p-benjamin-netanyahu",
+                  award_name: "Medal of Honor",
+                  award_year: 2000,
+                },
+              ],
+              error: null,
+            }).then(resolve);
+          }
+          if (q.tableName === "person_works") {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "wrk-1",
+                  person_id: "p-benjamin-netanyahu",
+                  work_title: "A Durable Peace",
+                  release_date: "1993",
+                },
+              ],
+              error: null,
+            }).then(resolve);
+          }
+          return Promise.resolve({ data: [], error: null }).then(resolve);
+        },
+      };
+
+      return bioHandler;
+    },
+  };
+
+  const res = await getPersonBySlugWithStatus("benjamin-netanyahu", mockPersonClient);
+  assert.equal(res.error, null);
+  assert.ok(res.data !== null);
+  assert.equal(res.data.id, "p-benjamin-netanyahu");
+  assert.equal(res.data.canonicalName, "Benjamin Netanyahu");
+  assert.equal(res.data.education?.length, 1);
+  assert.equal(res.data.education?.[0].institution, "MIT");
+  assert.equal(res.data.awards?.length, 1);
+  assert.equal(res.data.awards?.[0].awardName, "Medal of Honor");
+  assert.equal(res.data.works?.length, 1);
+  assert.equal(res.data.works?.[0].workTitle, "A Durable Peace");
+
+  // Verify that bio queries order by valid Postgres schema columns
+  const eduQuery = recordedQueries.find((q) => q.table === "person_education");
+  assert.ok(eduQuery, "Must query person_education");
+  assert.equal(eduQuery.orderBy[0]?.col, "start_date", "person_education must order by start_date");
+
+  const awardsQuery = recordedQueries.find((q) => q.table === "person_awards");
+  assert.ok(awardsQuery, "Must query person_awards");
+  assert.equal(awardsQuery.orderBy[0]?.col, "award_year", "person_awards must order by award_year");
+
+  const worksQuery = recordedQueries.find((q) => q.table === "person_works");
+  assert.ok(worksQuery, "Must query person_works");
+  assert.equal(worksQuery.orderBy[0]?.col, "release_date", "person_works must order by release_date");
+
+  // Verify invalid year rejection in getPersonTimelineWithStatus
+  const invalidYearRes = await getPersonTimelineWithStatus("benjamin-netanyahu", { year: "invalid-year" });
+  assert.equal(invalidYearRes.data, null);
+  assert.equal(invalidYearRes.error, "Invalid year parameter");
+});
+
 
