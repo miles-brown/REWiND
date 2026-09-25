@@ -27,13 +27,19 @@ function isWebGLAvailable() {
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+const CARTO_API_KEY =
+  process.env.NEXT_PUBLIC_CARTO_API_KEY ||
+  process.env.NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY ||
+  "";
 
 // Mapbox Vector Styles (when token is provided or environment override set)
 const MAPBOX_DARK_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
   (MAPBOX_TOKEN
     ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
-    : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
+    : CARTO_API_KEY
+      ? `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_API_KEY}`
+      : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
 
 const MAPBOX_SATELLITE_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE ||
@@ -48,10 +54,18 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
     "carto-dark-raster": {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        CARTO_API_KEY
+          ? `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
+          : "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        CARTO_API_KEY
+          ? `https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
+          : "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        CARTO_API_KEY
+          ? `https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
+          : "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        CARTO_API_KEY
+          ? `https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=${CARTO_API_KEY}`
+          : "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
       attribution: "© OpenStreetMap contributors, © CARTO",
@@ -221,12 +235,19 @@ export function MapGraphic({
     }, "");
   }, [coords]);
 
-  // Transform Request to attach Mapbox access token to all resource requests
+  // Transform Request to attach Mapbox access token or CARTO key to resource requests
+  // Ensures key= is added to every style, vector tile, raster tile, glyph (.pbf), and sprite under basemaps.cartocdn.com
   const transformRequest = useCallback((url: string) => {
     if (MAPBOX_TOKEN && (url.startsWith("mapbox://") || url.includes("mapbox.com"))) {
       if (!url.includes("access_token=")) {
         const separator = url.includes("?") ? "&" : "?";
         return { url: `${url}${separator}access_token=${MAPBOX_TOKEN}` };
+      }
+    }
+    if (CARTO_API_KEY && (url.includes("cartocdn.com") || url.includes("carto.com"))) {
+      if (!url.includes("key=") && !url.includes("api_key=")) {
+        const separator = url.includes("?") ? "&" : "?";
+        return { url: `${url}${separator}key=${CARTO_API_KEY}` };
       }
     }
     return { url };

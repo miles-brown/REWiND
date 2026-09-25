@@ -980,3 +980,28 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
     "TimelineComparison must validate requested primary slug against peopleMap with fallback"
   );
 });
+
+test("verifies CARTO Basemaps API key integration across MapGraphic and environment templates", () => {
+  const root = process.cwd();
+  const mapGraphicContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  const envExampleContent = fs.readFileSync(path.join(root, ".env.example"), "utf-8");
+
+  // 1. MapGraphic CARTO_API_KEY support
+  assert.ok(
+    mapGraphicContent.includes("process.env.NEXT_PUBLIC_CARTO_API_KEY") &&
+    mapGraphicContent.includes("process.env.NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY"),
+    "MapGraphic must check NEXT_PUBLIC_CARTO_API_KEY and NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY"
+  );
+
+  assert.ok(
+    mapGraphicContent.includes("key=") &&
+    mapGraphicContent.includes("cartocdn.com"),
+    "MapGraphic must propagate CARTO API key to raster and vector requests with key= parameter"
+  );
+
+  // 2. .env.example declaration
+  assert.ok(
+    envExampleContent.includes("NEXT_PUBLIC_CARTO_API_KEY="),
+    ".env.example must declare NEXT_PUBLIC_CARTO_API_KEY"
+  );
+});
