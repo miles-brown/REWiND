@@ -46,6 +46,8 @@ Populate `.env.local` with optional credentials if integrating cloud database or
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase public anonymous API key | `""` |
 | `DATABASE_URL` | PostgreSQL direct connection URI (Drizzle ORM) | `postgresql://...` |
 | `GEMINI_API_KEY` | Optional AI forensic verification & transcription key | `""` |
+| `NEXT_PUBLIC_CARTO_API_KEY` | Optional CARTO Basemaps API key for vector & raster tiles | `""` |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Optional Mapbox API token for vector & satellite tiles | `""` |
 
 ---
 
