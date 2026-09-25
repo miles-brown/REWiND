@@ -120,6 +120,24 @@ const auditDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZoneName: "short",
 });
 
+function formatAuditDetailsPreview(action: string, parsed: Record<string, unknown>): string {
+  if (action === "reviewed-approved" && parsed.approvedBy) {
+    return `Approved by ${parsed.approvedBy}${parsed.publishedEventId ? ` · Event: ${parsed.publishedEventId}` : ""}`;
+  }
+  if (action === "reviewed-rejected" && parsed.rejectedBy) {
+    return `Rejected by ${parsed.rejectedBy}${parsed.reason ? ` · Reason: ${parsed.reason}` : ""}`;
+  }
+  if (action === "merged" && parsed.targetEventId) {
+    return `Merged into ${parsed.targetEventId}${parsed.claimsAddedCount ? ` (${parsed.claimsAddedCount} claims added)` : ""}`;
+  }
+  if (action === "discovered" && parsed.trigger) {
+    return `Ingested via ${parsed.trigger}${parsed.injectedBy ? ` (${parsed.injectedBy})` : ""}`;
+  }
+  const entries = Object.entries(parsed).slice(0, 2);
+  if (entries.length === 0) return "No extra telemetry metadata";
+  return entries.map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
+}
+
 function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
   try {
     const json = JSON.parse(raw);
@@ -157,7 +175,10 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
       claims: safeClaims,
       participants: safeParticipants,
     };
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Failed to parse candidate extraction payload:", err);
+    }
     return {
       claims: [],
       participants: [],
@@ -1153,10 +1174,7 @@ export default function EvidenceControlConsole() {
 
                             <td className="details-col">
                               <span className="details-preview">
-                                {Object.entries(parsed)
-                                  .slice(0, 2)
-                                  .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
-                                  .join(" · ")}
+                                {formatAuditDetailsPreview(entry.action, parsed)}
                               </span>
                             </td>
 
