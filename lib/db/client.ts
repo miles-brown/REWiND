@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
-import { group1PeopleSeed } from "@/data/seeds/group1-people";
+import { masterPeopleSeed } from "@/data/seeds";
 
 export function isLocalDatabaseHost(connStr: string): boolean {
   try {
@@ -250,8 +250,8 @@ function initializeSeedStore(): MemoryRelationalStore {
     });
   });
 
-  // Overlay Group 1 canonical records (overwrites or adds all 40 figures)
-  (group1PeopleSeed || []).forEach((p) => {
+  // Overlay Master Canonical Expansion Figures
+  (masterPeopleSeed || []).forEach((p) => {
     legacyPeopleMap.set(p.slug, {
       id: p.id,
       slug: p.slug,
@@ -305,7 +305,7 @@ function initializeSeedStore(): MemoryRelationalStore {
     });
   });
 
-  (group1PeopleSeed || []).forEach((p) => {
+  (masterPeopleSeed || []).forEach((p) => {
     (p.aliases || []).forEach((alias) => {
       seedAliases.push({
         id: aliasCounter++,
