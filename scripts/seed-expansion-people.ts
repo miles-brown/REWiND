@@ -22,7 +22,38 @@ async function main() {
   const db = drizzle(client, { schema });
 
   try {
-    console.log(`👤 Ingesting ${masterPeopleSeed.length} Master Public Figure Records...`);
+    console.log("📦 1. Ensuring Coverage Programmes exist...");
+    const programmeValues = [
+      {
+        id: "prog-heads-of-government",
+        name: "Heads of Government & Prime Ministers",
+        description: "Official public timeline coverage of recognized national Prime Ministers and Heads of Government.",
+        criteria: "Hold recognized national Head of Government mandate",
+        autoQualify: true,
+        isActive: true,
+      },
+      {
+        id: "prog-senior-diplomats",
+        name: "Foreign Ministers & Senior Diplomats",
+        description: "Coverage of bilateral treaties, multilateral summits, and diplomatic envoys.",
+        criteria: "Credentialed treaty signatory or special envoy",
+        autoQualify: false,
+        isActive: true,
+      },
+      {
+        id: "prog-religious-leaders",
+        name: "Major Religious Authorities",
+        description: "Coverage of Chief Rabbis, Papal delegations, and major denominational heads.",
+        criteria: "Recognized titular leader of major denomination",
+        autoQualify: false,
+        isActive: true,
+      },
+    ];
+    for (const prog of programmeValues) {
+      await db.insert(schema.coverageProgrammes).values(prog).onConflictDoNothing();
+    }
+
+    console.log(`👤 2. Ingesting ${masterPeopleSeed.length} Master Public Figure Records...`);
     for (const p of masterPeopleSeed) {
       await db.insert(schema.people).values({
         id: p.id,
