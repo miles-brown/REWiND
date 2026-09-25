@@ -61,9 +61,14 @@ test("resolves known entities and gazetteer places with high confidence and avoi
   assert.equal(netanyahuRes.isApprovedSubject, true);
   assert.ok(netanyahuRes.confidence >= 0.95);
 
-  // Surname collision protection: "Hillary Clinton" should not match "Bill Clinton"
+  // Registered figure match
   const hillaryRes = resolveEntity("Hillary Clinton");
-  assert.equal(hillaryRes.personId, null);
+  assert.equal(hillaryRes.personId, "hillary-clinton");
+  assert.equal(hillaryRes.isApprovedSubject, true);
+
+  // Surname collision protection: "Chelsea Clinton" should not match "Bill Clinton" or "Hillary Clinton"
+  const chelseaRes = resolveEntity("Chelsea Clinton");
+  assert.equal(chelseaRes.personId, null);
 
   const placeRes = resolvePlace("White House", "Washington, D.C.", "United States");
   assert.ok(placeRes.city.includes("Washington"));
