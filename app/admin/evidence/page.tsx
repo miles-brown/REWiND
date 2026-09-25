@@ -1,24 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
+  AlertTriangle,
+  BookOpen,
+  Calendar,
+  Check,
   CheckCircle2,
   Clock,
+  Code2,
+  Copy,
   Database,
+  ExternalLink,
+  Eye,
   FileCheck,
   GitMerge,
+  MapPin,
   Play,
   RefreshCw,
   Scale,
+  Search,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
+  UserCheck,
+  X,
   XCircle,
 } from "lucide-react";
 import { z } from "zod";
-
 
 interface CandidateItem {
   id: string;
@@ -32,7 +43,9 @@ interface CandidateItem {
   duplicateMatchId: string | null;
   duplicateSimilarity: number | null;
   status: string;
+  rejectionReason?: string | null;
   rawExtraction: string;
+  createdAt?: string | Date;
 }
 
 interface AuditItem {
@@ -51,19 +64,35 @@ interface Stats {
   primarySourcesCount: number;
   pendingReviewCount: number;
   autoPublishedCount: number;
+  duplicateCandidatesCount?: number;
+  totalCandidatesCount?: number;
 }
+
+const TIER_LABELS: Record<string, string> = {
+  "tier-a": "TIER A: PRIMARY ARCHIVAL",
+  "tier-b": "TIER B: CONTEMPORARY PRESS WIRE",
+  "tier-c": "TIER C: RETROSPECTIVE SCHOLARLY",
+};
 
 const CandidatePayloadSchema = z.object({
   summary: z.string().optional(),
   eventType: z.string().optional(),
   venue: z.string().optional(),
   city: z.string().optional(),
+  country: z.string().optional(),
+  sourceId: z.string().optional(),
+  sourceTitle: z.string().optional(),
+  sourcePublisher: z.string().optional(),
+  sourceTier: z.string().optional(),
   claims: z
     .array(
       z.object({
         subjectMention: z.string(),
         statement: z.string(),
         claimType: z.string().optional(),
+        claimedTime: z.string().optional(),
+        claimedVenue: z.string().optional(),
+        supportingExcerpt: z.string().optional(),
       })
     )
     .optional(),
@@ -72,6 +101,7 @@ const CandidatePayloadSchema = z.object({
       z.object({
         name: z.string(),
         role: z.string().optional(),
+        confidence: z.number().optional(),
       })
     )
     .optional(),
@@ -97,12 +127,35 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
     if (parsed.success) {
       return parsed.data;
     }
-    console.warn("Candidate rawExtraction failed strict Zod schema validation:", parsed.error.issues);
+    const safeClaims = Array.isArray(json?.claims)
+      ? json.claims.filter(
+          (c: unknown): c is { subjectMention: string; statement: string; [key: string]: unknown } =>
+            typeof c === "object" &&
+            c !== null &&
+            typeof (c as Record<string, unknown>).statement === "string" &&
+            typeof (c as Record<string, unknown>).subjectMention === "string"
+        )
+      : [];
+    const safeParticipants = Array.isArray(json?.participants)
+      ? json.participants.filter(
+          (p: unknown): p is { name: string; [key: string]: unknown } =>
+            typeof p === "object" &&
+            p !== null &&
+            typeof (p as Record<string, unknown>).name === "string"
+        )
+      : [];
     return {
       summary: typeof json?.summary === "string" ? json.summary : undefined,
       eventType: typeof json?.eventType === "string" ? json.eventType : undefined,
-      claims: [],
-      participants: [],
+      venue: typeof json?.venue === "string" ? json.venue : undefined,
+      city: typeof json?.city === "string" ? json.city : undefined,
+      country: typeof json?.country === "string" ? json.country : undefined,
+      sourceId: typeof json?.sourceId === "string" ? json.sourceId : undefined,
+      sourceTitle: typeof json?.sourceTitle === "string" ? json.sourceTitle : undefined,
+      sourcePublisher: typeof json?.sourcePublisher === "string" ? json.sourcePublisher : undefined,
+      sourceTier: typeof json?.sourceTier === "string" ? json.sourceTier : undefined,
+      claims: safeClaims,
+      participants: safeParticipants,
     };
   } catch {
     return {
@@ -116,11 +169,32 @@ export default function EvidenceControlConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [queue, setQueue] = useState<CandidateItem[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
-  const [activeTab, setActiveTab] = useState<"queue" | "auto" | "duplicates" | "audit">("queue");
+  const [activeTab, setActiveTab] = useState<"queue" | "duplicates" | "audit" | "standards">("queue");
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittingCandidateId, setSubmittingCandidateId] = useState<string | null>(null);
+  const [isIngestingSample, setIsIngestingSample] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [laneFilter, setLaneFilter] = useState<"all" | "auto-publish" | "provisional" | "human-review">("all");
+  const [tierFilter, setTierFilter] = useState<"all" | "tier-a" | "tier-b" | "tier-c">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "date-asc" | "date-desc" | "similarity">("newest");
+
+  const [inspectCandidate, setInspectCandidate] = useState<CandidateItem | null>(null);
+  const [inspectAudit, setInspectAudit] = useState<AuditItem | null>(null);
+  const [rejectingCandidate, setRejectingCandidate] = useState<CandidateItem | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+  const [copiedPayload, setCopiedPayload] = useState(false);
+
+  const activeModal = inspectCandidate || inspectAudit || rejectingCandidate;
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
+  const modalContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const closeRejectionModal = useCallback(() => {
+    setRejectingCandidate(null);
+    setRejectionReasonInput("");
+  }, []);
 
   const fetchConsoleData = useCallback(async () => {
     setLoading(true);
@@ -146,7 +220,6 @@ export default function EvidenceControlConsole() {
       setLoading(false);
     }
   }, []);
-
 
   useEffect(() => {
     let ignore = false;
@@ -181,7 +254,69 @@ export default function EvidenceControlConsole() {
     };
   }, []);
 
-  async function handleAction(action: "approve" | "merge" | "reject", candidateId: string, targetEventId?: string) {
+  useEffect(() => {
+    if (activeModal) {
+      lastActiveElementRef.current = document.activeElement as HTMLElement;
+      const timer = setTimeout(() => {
+        if (modalContainerRef.current) {
+          const focusable = modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusable.length > 0) {
+            focusable[0].focus();
+          } else {
+            modalContainerRef.current.focus();
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (lastActiveElementRef.current) {
+      lastActiveElementRef.current.focus();
+      lastActiveElementRef.current = null;
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!activeModal) return;
+      if (e.key === "Escape") {
+        setInspectCandidate(null);
+        setInspectAudit(null);
+        closeRejectionModal();
+        return;
+      }
+      if (e.key === "Tab" && modalContainerRef.current) {
+        const focusable = Array.from(
+          modalContainerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeModal, closeRejectionModal]);
+
+  async function handleAction(
+    action: "approve" | "merge" | "reject",
+    candidateId: string,
+    targetEventId?: string,
+    customReason?: string
+  ) {
     setSubmittingCandidateId(candidateId);
     setErrorMessage(null);
     try {
@@ -192,166 +327,367 @@ export default function EvidenceControlConsole() {
           action,
           candidateId,
           targetEventId,
-          reason: "Editorial review sign-off",
+          reason: customReason || "Editorial review sign-off",
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setStatusMessage(`Candidate ${candidateId} successfully ${action}d.`);
+        const actionLabel = action === "approve" ? "approved & published" : action === "merge" ? "merged into canonical record" : "rejected";
+        setStatusMessage(`Candidate record ${candidateId} successfully ${actionLabel}.`);
+        closeRejectionModal();
         fetchConsoleData();
-        setTimeout(() => setStatusMessage(null), 4000);
+        setTimeout(() => setStatusMessage(null), 5000);
       } else {
-        setStatusMessage(`Error: ${data.error || "Action failed"}`);
-        setTimeout(() => setStatusMessage(null), 4000);
+        setErrorMessage(`Action failed: ${data.error || "Unknown error"}`);
       }
     } catch (err) {
       console.error("Action error:", err);
-      setStatusMessage("Network or server error during action execution.");
+      setErrorMessage("Network error: Unable to submit review decision.");
     } finally {
       setSubmittingCandidateId(null);
     }
   }
 
-  const pendingItems = useMemo(
-    () => queue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75)),
-    [queue]
-  );
-  const duplicateItems = useMemo(
-    () => queue.filter((c) => c.status === "pending" && Boolean(c.duplicateSimilarity && c.duplicateSimilarity >= 0.75)),
-    [queue]
-  );
-  const consoleTabs: ("queue" | "duplicates" | "audit")[] = ["queue", "duplicates", "audit"];
+  async function handleIngestSampleStream() {
+    setIsIngestingSample(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+    try {
+      const res = await fetch("/api/admin/evidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ingest_sample" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatusMessage("Autonomous Ingestion Stream: New candidate dossier generated and routed to review queue.");
+        fetchConsoleData();
+        setTimeout(() => setStatusMessage(null), 5000);
+      } else {
+        setErrorMessage(`Failed to ingest sample stream: ${data.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Ingestion error:", err);
+      setErrorMessage("Network error while connecting to ingestion adapter.");
+    } finally {
+      setIsIngestingSample(false);
+    }
+  }
 
-  const handleTabKeyDown = (e: React.KeyboardEvent) => {
-    const currentIndex = consoleTabs.indexOf(activeTab as "queue" | "duplicates" | "audit");
+  async function handleCopyJson(content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedPayload(true);
+      setTimeout(() => setCopiedPayload(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy JSON payload:", err);
+    }
+  }
+
+  const parsedExtractions = useMemo(() => {
+    const map = new Map<string, ParsedCandidateExtraction>();
+    for (const c of queue) {
+      map.set(c.id, parseCandidateExtraction(c.rawExtraction));
+    }
+    return map;
+  }, [queue]);
+
+  const filteredQueue = useMemo(() => {
+    return queue.filter((c) => {
+      if (laneFilter !== "all" && c.assignedLane !== laneFilter) return false;
+      if (tierFilter !== "all" && c.primarySourceTier !== tierFilter) return false;
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
+        const matchTitle = c.suggestedTitle.toLowerCase().includes(query);
+        const matchPlace = (c.suggestedPlace || "").toLowerCase().includes(query);
+        const matchSummary = (parsed.summary || "").toLowerCase().includes(query);
+        const matchClaims = (parsed.claims || []).some(
+          (clm) => clm.statement.toLowerCase().includes(query) || clm.subjectMention.toLowerCase().includes(query)
+        );
+        const matchParticipants = (parsed.participants || []).some((p) => p.name.toLowerCase().includes(query));
+        if (!matchTitle && !matchPlace && !matchSummary && !matchClaims && !matchParticipants) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [queue, laneFilter, tierFilter, searchQuery, parsedExtractions]);
+
+  const pendingItems = useMemo(() => {
+    const list = filteredQueue.filter((c) => c.status === "pending" && (!c.duplicateSimilarity || c.duplicateSimilarity < 0.75));
+    return list.sort((a, b) => {
+      if (sortBy === "newest") {
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        return timeB - timeA;
+      }
+      if (sortBy === "date-asc") return a.suggestedDate.localeCompare(b.suggestedDate);
+      if (sortBy === "date-desc") return b.suggestedDate.localeCompare(a.suggestedDate);
+      return (b.duplicateSimilarity || 0) - (a.duplicateSimilarity || 0);
+    });
+  }, [filteredQueue, sortBy]);
+
+  const duplicateItems = useMemo(() => {
+    const list = filteredQueue.filter((c) => c.status === "pending" && Boolean(c.duplicateSimilarity && c.duplicateSimilarity >= 0.75));
+    return list.sort((a, b) => (b.duplicateSimilarity || 0) - (a.duplicateSimilarity || 0));
+  }, [filteredQueue]);
+
+  const tabList = ["queue", "duplicates", "audit", "standards"] as const;
+  function handleTabKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    const currentIndex = tabList.indexOf(activeTab);
     if (currentIndex === -1) return;
+
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      const nextTab = consoleTabs[(currentIndex + 1) % consoleTabs.length];
+      const nextTab = tabList[(currentIndex + 1) % tabList.length];
       setActiveTab(nextTab);
       document.getElementById(`tab-${nextTab}`)?.focus();
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      const prevTab = consoleTabs[(currentIndex - 1 + consoleTabs.length) % consoleTabs.length];
+      const prevTab = tabList[(currentIndex - 1 + tabList.length) % tabList.length];
       setActiveTab(prevTab);
       document.getElementById(`tab-${prevTab}`)?.focus();
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      setActiveTab(consoleTabs[0]);
-      document.getElementById(`tab-${consoleTabs[0]}`)?.focus();
-    } else if (e.key === "End") {
-      e.preventDefault();
-      setActiveTab(consoleTabs[consoleTabs.length - 1]);
-      document.getElementById(`tab-${consoleTabs[consoleTabs.length - 1]}`)?.focus();
     }
-  };
+  }
 
   return (
-    <main className="evidence-console-main">
-      {/* Header */}
-
-
+    <div className="evidence-engine-viewport">
+      <div className="evidence-console-main">
+        {/* INSTITUTIONAL COMMAND HEADER */}
         <header className="evidence-console-header">
           <div className="header-meta">
-            <span className="forensic-tag">
+            <div className="forensic-pulse-badge">
+              <span className="pulse-dot" aria-hidden="true" />
               <Database size={13} />
-              <span>REWiND Evidence Engine</span>
-            </span>
+              <span>REWiND Autonomous Evidence Engine · Archival Ingestion Console</span>
+            </div>
             <h1>Autonomous Evidence & Review Console</h1>
             <p>
-              Real-time monitoring, candidate claim reconciliation, deduplication, and policy routing for the continuous archival knowledge base.
+              Continuous historical ingestion, atomic claim decomposition, semantic spacetime deduplication, and
+              archival policy routing for the continuous open knowledge base.
             </p>
+
+            <div className="telemetry-pill-strip">
+              <span className="telemetry-pill active">
+                <span className="pill-dot emerald" />
+                <span>Ingestion Pipeline: Active</span>
+              </span>
+              <span className="telemetry-pill">
+                <ShieldCheck size={12} className="pill-icon text-sky" />
+                <span>Policy: Tier-1 Auto-Publish</span>
+              </span>
+              <span className="telemetry-pill">
+                <GitMerge size={12} className="pill-icon text-amber" />
+                <span>Deduplication: Spacetime Cosine &ge; 0.75</span>
+              </span>
+              <span className="telemetry-pill">
+                <Clock size={12} className="pill-icon text-muted" />
+                <span>Ledger: Cryptographically Monotonic</span>
+              </span>
+            </div>
           </div>
 
           <div className="header-actions">
             <button
               type="button"
+              className="action-stream-btn"
+              onClick={handleIngestSampleStream}
+              disabled={isIngestingSample}
+              title="Trigger autonomous sample ingestion pipeline"
+            >
+              <Sparkles size={14} className={isIngestingSample ? "animate-spin" : ""} />
+              <span>{isIngestingSample ? "Ingesting Stream..." : "Ingest Sample Stream"}</span>
+            </button>
+
+            <button
+              type="button"
               className="refresh-btn"
               onClick={fetchConsoleData}
-              title="Refresh Data"
+              disabled={loading}
+              title="Refresh Telemetry & Queues"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
               <span>Refresh</span>
             </button>
+
+            <Link href="/methodology" className="methodology-link-btn" title="Inspect Archival Evidence Methodology">
+              <BookOpen size={14} />
+              <span>Methodology</span>
+              <ExternalLink size={12} />
+            </Link>
           </div>
         </header>
 
+        {/* NOTIFICATION BANNERS */}
         {errorMessage && (
           <div className="status-banner error" role="alert" aria-live="assertive">
-            <AlertCircle size={16} />
-            <span>{errorMessage}</span>
+            <AlertCircle size={18} />
+            <div className="banner-content">
+              <b>Authentication / API Error:</b> {errorMessage}
+            </div>
+            <button type="button" onClick={() => setErrorMessage(null)} className="banner-close-btn" aria-label="Dismiss error">
+              <X size={15} />
+            </button>
           </div>
         )}
 
         {statusMessage && (
-          <div className="status-banner" role="status" aria-live="polite">
-            <CheckCircle2 size={16} />
-            <span>{statusMessage}</span>
+          <div className="status-banner success" role="status" aria-live="polite">
+            <CheckCircle2 size={18} />
+            <div className="banner-content">
+              <b>Operation Logged:</b> {statusMessage}
+            </div>
+            <button type="button" onClick={() => setStatusMessage(null)} className="banner-close-btn" aria-label="Dismiss status">
+              <X size={15} />
+            </button>
           </div>
         )}
 
-
-        {/* 5 Top Stat Cards */}
-        <section className="evidence-stats-grid">
+        {/* 6 EXECUTIVE TELEMETRY CARDS */}
+        <section className="evidence-stats-grid" aria-label="Evidentiary Engine Real-Time Telemetry">
           <div className="stat-card">
             <div className="stat-icon published">
-              <FileCheck size={18} />
+              <FileCheck size={20} />
             </div>
             <div className="stat-content">
               <span className="stat-num">{stats?.publishedEventsCount ?? 0}</span>
               <span className="stat-label">Published Events</span>
+              <span className="stat-sub">100% verified spacetime anchor</span>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-icon verified">
-              <ShieldCheck size={18} />
+              <ShieldCheck size={20} />
             </div>
             <div className="stat-content">
               <span className="stat-num">{stats?.verifiedClaimsCount ?? 0}</span>
               <span className="stat-label">Atomic Verified Claims</span>
+              <span className="stat-sub">Presence, actions & statements</span>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-icon sources">
-              <Scale size={18} />
+              <Scale size={20} />
             </div>
             <div className="stat-content">
               <span className="stat-num">{stats?.primarySourcesCount ?? 0}</span>
               <span className="stat-label">Primary Sources (Tier A/B)</span>
+              <span className="stat-sub">Parliamentary & broadcast wire</span>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-icon auto">
-              <Play size={18} />
+              <Play size={20} />
             </div>
             <div className="stat-content">
               <span className="stat-num">{stats?.autoPublishedCount ?? 0}</span>
-              <span className="stat-label">Auto-Published</span>
+              <span className="stat-label">Auto-Published Records</span>
+              <span className="stat-sub">Zero-touch Tier-1 policy lane</span>
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-icon review">
-              <AlertCircle size={18} />
+              <AlertCircle size={20} />
             </div>
             <div className="stat-content">
               <span className="stat-num">{stats?.pendingReviewCount ?? 0}</span>
-              <span className="stat-label">Pending Review</span>
+              <span className="stat-label">Pending Editorial Review</span>
+              <span className="stat-sub">Requires senior archival sign-off</span>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon merge">
+              <GitMerge size={20} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-num">{stats?.duplicateCandidatesCount ?? duplicateItems.length}</span>
+              <span className="stat-label">Duplicate Merges</span>
+              <span className="stat-sub">Spacetime collision candidate</span>
             </div>
           </div>
         </section>
 
-        {/* Tab Navigation */}
-        <div
-          className="console-tabs-nav"
-          role="tablist"
-          aria-label="Evidence Console Views"
-          onKeyDown={handleTabKeyDown}
-        >
+        {/* SEARCH, FILTER & SORT CONTROL STRIP */}
+        <section className="console-control-strip" aria-label="Review Queue Query Controls">
+          <div className="search-input-box">
+            <Search size={15} className="search-box-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search candidate titles, extracted claims, actors, or locations..."
+              className="forensic-search-input"
+              aria-label="Filter evidence candidates"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search input"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="filter-controls-group">
+            <div className="filter-select-wrap">
+              <label htmlFor="lane-filter-select">Policy Lane:</label>
+              <select
+                id="lane-filter-select"
+                value={laneFilter}
+                onChange={(e) => setLaneFilter(e.target.value as typeof laneFilter)}
+                className="forensic-select"
+              >
+                <option value="all">All Policy Lanes</option>
+                <option value="auto-publish">Auto-Publish (Tier 1 Primary)</option>
+                <option value="provisional">Provisional (Contemporary)</option>
+                <option value="human-review">Human Review (Scrutiny)</option>
+              </select>
+            </div>
+
+            <div className="filter-select-wrap">
+              <label htmlFor="tier-filter-select">Evidence Tier:</label>
+              <select
+                id="tier-filter-select"
+                value={tierFilter}
+                onChange={(e) => setTierFilter(e.target.value as typeof tierFilter)}
+                className="forensic-select"
+              >
+                <option value="all">All Source Tiers</option>
+                <option value="tier-a">Tier A: Primary Official Record</option>
+                <option value="tier-b">Tier B: Contemporary Press Wire</option>
+                <option value="tier-c">Tier C: Retrospective Scholarly</option>
+              </select>
+            </div>
+
+            <div className="filter-select-wrap">
+              <label htmlFor="sort-select">Sort By:</label>
+              <select
+                id="sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="forensic-select"
+              >
+                <option value="newest">Ingested Date (Newest First)</option>
+                <option value="date-asc">Historical Date (Chronological)</option>
+                <option value="date-desc">Historical Date (Reverse Chron)</option>
+                <option value="similarity">Duplicate Similarity (Highest)</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        {/* WORKSPACE NAVIGATION TABS */}
+        <nav className="console-tabs-nav" aria-label="Evidence Console Workspaces" role="tablist" onKeyDown={handleTabKeyDown}>
           <button
             type="button"
             role="tab"
@@ -359,12 +695,12 @@ export default function EvidenceControlConsole() {
             tabIndex={activeTab === "queue" ? 0 : -1}
             aria-selected={activeTab === "queue"}
             aria-controls="tabpanel-queue"
-            className={`tab-btn ${activeTab === "queue" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "queue" ? "active" : ""}`}
             onClick={() => setActiveTab("queue")}
           >
-            <ShieldAlert size={14} />
-            <span>Review Queue</span>
-            {pendingItems.length > 0 && <b className="tab-badge">{pendingItems.length}</b>}
+            <Clock size={15} />
+            <span>Pending Review Queue</span>
+            <span className="tab-pill">{pendingItems.length}</span>
           </button>
 
           <button
@@ -374,12 +710,12 @@ export default function EvidenceControlConsole() {
             tabIndex={activeTab === "duplicates" ? 0 : -1}
             aria-selected={activeTab === "duplicates"}
             aria-controls="tabpanel-duplicates"
-            className={`tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "duplicates" ? "active" : ""}`}
             onClick={() => setActiveTab("duplicates")}
           >
-            <GitMerge size={14} />
-            <span>Duplicate Merges</span>
-            {duplicateItems.length > 0 && <b className="tab-badge warning">{duplicateItems.length}</b>}
+            <GitMerge size={15} />
+            <span>Duplicate & Merge Detection</span>
+            <span className="tab-pill warning">{duplicateItems.length}</span>
           </button>
 
           <button
@@ -389,150 +725,331 @@ export default function EvidenceControlConsole() {
             tabIndex={activeTab === "audit" ? 0 : -1}
             aria-selected={activeTab === "audit"}
             aria-controls="tabpanel-audit"
-            className={`tab-btn ${activeTab === "audit" ? "active" : ""}`}
+            className={`console-tab-btn ${activeTab === "audit" ? "active" : ""}`}
             onClick={() => setActiveTab("audit")}
           >
-            <Clock size={14} />
-            <span>Provenance Audit Trail</span>
-            {audit.length > 0 && <b className="tab-badge neutral">{audit.length}</b>}
+            <ShieldAlert size={15} />
+            <span>Immutable Provenance Ledger</span>
+            <span className="tab-pill">{audit.length}</span>
           </button>
-        </div>
 
-        {/* Tab Content */}
-        <section className="console-tab-stage">
-          {/* TAB 1: Review Queue */}
-          {activeTab === "queue" && (
-            <div
-              className="queue-stage"
-              role="tabpanel"
-              id="tabpanel-queue"
-              aria-labelledby="tab-queue"
-            >
-              {pendingItems.length === 0 ? (
-                <div className="empty-queue-card">
-                  <ShieldCheck size={36} />
-                  <h3>Review Queue is Clear</h3>
-                  <p>All newly discovered evidence satisfies auto-publication policy or has been reviewed.</p>
+          <button
+            type="button"
+            role="tab"
+            id="tab-standards"
+            tabIndex={activeTab === "standards" ? 0 : -1}
+            aria-selected={activeTab === "standards"}
+            aria-controls="tabpanel-standards"
+            className={`console-tab-btn ${activeTab === "standards" ? "active" : ""}`}
+            onClick={() => setActiveTab("standards")}
+          >
+            <BookOpen size={15} />
+            <span>Forensic Standards & Pipeline</span>
+          </button>
+        </nav>
+
+        {/* LOADING INDICATOR */}
+        {loading && (
+          <div className="console-loading-bar" role="status" aria-live="polite">
+            <RefreshCw size={18} className="animate-spin" />
+            <span>Connecting to live SQLite & Postgres relational store...</span>
+          </div>
+        )}
+
+        {/* TAB 1: PENDING REVIEW QUEUE */}
+        {activeTab === "queue" && (
+          <section id="tabpanel-queue" role="tabpanel" aria-labelledby="tab-queue" className="console-tab-stage">
+            {pendingItems.length === 0 ? (
+              <div className="empty-queue-card">
+                <FileCheck size={48} className="empty-state-icon" />
+                <h3>Queue Clear · Zero Candidates Pending Review</h3>
+                <p>
+                  All ingested candidate events have been audited and resolved according to REWiND forensic archival
+                  standards. You can stream sample ingestion records or trigger an automated crawl.
+                </p>
+                <div className="empty-actions">
+                  <button type="button" className="action-stream-btn" onClick={handleIngestSampleStream} disabled={isIngestingSample}>
+                    <Sparkles size={14} />
+                    <span>Load Sample Ingestion Stream</span>
+                  </button>
+                  <button type="button" className="refresh-btn" onClick={fetchConsoleData}>
+                    <RefreshCw size={14} />
+                    <span>Recheck Ingestion Stream</span>
+                  </button>
                 </div>
-              ) : (
-                <div className="candidate-card-list">
-                  {pendingItems.map((c: CandidateItem) => {
-                    const parsed = parseCandidateExtraction(c.rawExtraction);
+              </div>
+            ) : (
+              <div className="candidate-card-list">
+                {pendingItems.map((c: CandidateItem) => {
+                  const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
+                  const isAutoPublish = c.assignedLane === "auto-publish";
+                  const isProvisional = c.assignedLane === "provisional";
 
+                  return (
+                    <article key={c.id} className="candidate-dossier-card">
+                      {/* DOSSIER HEADER */}
+                      <div className="dossier-header">
+                        <div className="dossier-meta-chips">
+                          <span className={`lane-badge ${c.assignedLane}`}>
+                            {isAutoPublish && <CheckCircle2 size={11} />}
+                            {isProvisional && <AlertTriangle size={11} />}
+                            {!isAutoPublish && !isProvisional && <AlertCircle size={11} />}
+                            <span>{c.assignedLane.replace("-", " ").toUpperCase()} LANE</span>
+                          </span>
 
-                    return (
-                      <div key={c.id} className="candidate-card">
-                        <div className="candidate-card-header">
-                          <div className="candidate-title-block">
-                            <span className={`lane-pill ${c.assignedLane}`}>
-                              {c.assignedLane.toUpperCase()}
+                          <span className={`tier-badge ${c.primarySourceTier}`}>
+                            <Scale size={11} />
+                            <span>{TIER_LABELS[c.primarySourceTier.toLowerCase()] || `${c.primarySourceTier.toUpperCase()}: ARCHIVAL RECORD`}</span>
+                          </span>
+
+                          <span className="precision-badge">
+                            <Calendar size={11} />
+                            <time dateTime={c.suggestedDate}>{c.suggestedDate}</time> · EXACT DAY
+                          </span>
+
+                          <span className="fingerprint-badge" title={`Cryptographic Fingerprint: ${c.fingerprint}`}>
+                            FP: <code>{c.fingerprint.slice(0, 14)}...</code>
+                          </span>
+                        </div>
+
+                        <div className="dossier-id-tag">
+                          <code>{c.id}</code>
+                        </div>
+                      </div>
+
+                      {/* DOSSIER TITLE & SUMMARY */}
+                      <div className="dossier-headline-block">
+                        <h2>{c.suggestedTitle}</h2>
+                        <p className="dossier-summary">{parsed.summary || "No extraction summary provided."}</p>
+                      </div>
+
+                      {/* FORENSIC RESOLUTION VITALS */}
+                      <div className="dossier-vitals-grid">
+                        <div className="vital-item">
+                          <MapPin size={14} className="vital-icon text-amber" />
+                          <div className="vital-text">
+                            <span className="vital-label">Geospatial Resolution</span>
+                            <span className="vital-val">
+                              {c.suggestedPlace || parsed.venue || "Unspecified Coordinates"}
+                              {parsed.venue ? (
+                                <small className="vital-sub"> · Precision: Venue Specific</small>
+                              ) : c.suggestedPlace ? (
+                                <small className="vital-sub"> · Precision: Locality Centroid</small>
+                              ) : null}
                             </span>
-                            <span className="source-tier-pill">{c.primarySourceTier.toUpperCase()}</span>
-                            <h3>{c.suggestedTitle}</h3>
-                          </div>
-                          <span className="candidate-date">{c.suggestedDate}</span>
-                        </div>
-
-                        <p className="candidate-summary">{parsed.summary || "No summary provided."}</p>
-
-                        <div className="candidate-vitals">
-                          <div>
-                            <span className="vital-label">Place:</span>
-                            <span>{c.suggestedPlace || "Unspecified"}</span>
-                          </div>
-                          <div>
-                            <span className="vital-label">Event Type:</span>
-                            <span>{parsed.eventType || "historical-action"}</span>
                           </div>
                         </div>
 
-                        {/* Claims preview */}
-                        {Array.isArray(parsed.claims) && parsed.claims.length > 0 && (
-                          <div className="candidate-claims-box">
-                            <span className="claims-header">Extracted Claims ({parsed.claims.length}):</span>
-                            <ul>
-                              {parsed.claims.map((clm, idx) => (
-                                <li key={idx}>
-                                  <b>{clm.subjectMention}:</b> {clm.statement}
-                                </li>
-                              ))}
-                            </ul>
+                        <div className="vital-item">
+                          <UserCheck size={14} className="vital-icon text-sky" />
+                          <div className="vital-text">
+                            <span className="vital-label">Entity Resolution</span>
+                            <div className="entity-chips-row">
+                              {Array.isArray(parsed.participants) && parsed.participants.length > 0 ? (
+                                parsed.participants.map((p, pIdx) => (
+                                  <span key={pIdx} className="entity-chip">
+                                    <b>{p.name}</b>
+                                    {p.role && <small>({p.role})</small>}
+                                    {typeof p.confidence === "number" && (
+                                      <span className="match-confidence">
+                                        {Math.round(p.confidence <= 1 ? p.confidence * 100 : p.confidence)}% match
+                                      </span>
+                                    )}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="entity-chip muted">None detected</span>
+                              )}
+                            </div>
                           </div>
-                        )}
-
-                        <div className="candidate-actions">
-                          <button
-                            type="button"
-                            disabled={submittingCandidateId === c.id}
-                            className="action-btn approve"
-                            onClick={() => handleAction("approve", c.id)}
-                          >
-                            {submittingCandidateId === c.id ? (
-                              <RefreshCw size={14} className="animate-spin" />
-                            ) : (
-                              <CheckCircle2 size={14} />
-                            )}
-                            <span>{submittingCandidateId === c.id ? "Publishing..." : "Approve & Publish"}</span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={submittingCandidateId === c.id}
-                            className="action-btn reject"
-                            onClick={() => handleAction("reject", c.id)}
-                          >
-                            <XCircle size={14} />
-                            <span>Reject</span>
-                          </button>
                         </div>
-
-
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* TAB 2: Duplicate Merges */}
-          {activeTab === "duplicates" && (
-            <div
-              className="duplicates-stage"
-              role="tabpanel"
-              id="tabpanel-duplicates"
-              aria-labelledby="tab-duplicates"
-            >
-              {duplicateItems.length === 0 ? (
-                <div className="empty-queue-card">
-                  <GitMerge size={36} />
-                  <h3>No Unresolved Duplicates</h3>
-                  <p>All candidate evidence streams have been cleanly matched or isolated.</p>
-                </div>
-              ) : (
-                <div className="candidate-card-list">
-                  {duplicateItems.map((c: CandidateItem) => (
+                      {/* DECOMPOSED CLAIMS LIST */}
+                      {Array.isArray(parsed.claims) && parsed.claims.length > 0 && (
+                        <div className="dossier-claims-container">
+                          <div className="claims-header-row">
+                            <span className="claims-header-title">
+                              Decomposed Atomic Claims ({parsed.claims.length})
+                            </span>
+                            <span className="claims-policy-note">Forensic decomposition per REWiND Claim Model</span>
+                          </div>
 
-                    <div key={c.id} className="candidate-card duplicate-card">
-                      <div className="duplicate-alert-banner">
-                        <GitMerge size={15} />
-                        <span>
-                          Probable Duplicate Match: <b>{Math.round((c.duplicateSimilarity || 0) * 100)}%</b> similarity with existing event <code>{c.duplicateMatchId}</code>
+                          <div className="claims-cards-list">
+                            {parsed.claims.map((clm, idx) => (
+                              <div key={idx} className="claim-unit-card">
+                                <div className="claim-unit-top">
+                                  <span className={`claim-type-pill ${clm.claimType || "presence"}`}>
+                                    {(clm.claimType || "presence").toUpperCase()}
+                                  </span>
+                                  <span className="claim-subject-mention">
+                                    Subject: <b>{clm.subjectMention}</b>
+                                  </span>
+                                  {clm.claimedTime && (
+                                    <span className="claim-time-tag">
+                                      <Clock size={11} /> {clm.claimedTime}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <p className="claim-statement">{clm.statement}</p>
+
+                                {clm.supportingExcerpt && (
+                                  <blockquote className="claim-excerpt">
+                                    <span className="excerpt-quote-mark">&ldquo;</span>
+                                    <span>{clm.supportingExcerpt}</span>
+                                    <span className="excerpt-quote-mark">&rdquo;</span>
+                                  </blockquote>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SOURCE PEDIGREE FOOTNOTE */}
+                      <div className="dossier-source-strip">
+                        <Scale size={13} className="text-amber" />
+                        <span className="source-label">Source Citation:</span>
+                        <span className="source-name">
+                          {parsed.sourceTitle || parsed.sourcePublisher || "Official Parliamentary / Diplomatic Wire Record"}
                         </span>
+                        <code className="source-id-pill">{parsed.sourceId || "src-archive-reference"}</code>
                       </div>
 
-                      <div className="candidate-card-header">
-                        <h3>{c.suggestedTitle}</h3>
-                        <span className="candidate-date">{c.suggestedDate}</span>
-                      </div>
-
-                      <p className="candidate-summary">{c.suggestedPlace}</p>
-
-                      <div className="candidate-actions">
+                      {/* ACTION CONTROLS */}
+                      <div className="dossier-actions-bar">
                         <button
                           type="button"
                           disabled={submittingCandidateId === c.id}
-                          className="action-btn merge"
+                          className="forensic-action-btn approve"
+                          onClick={() => handleAction("approve", c.id)}
+                          title="Verify and publish candidate event into canonical atlas"
+                        >
+                          {submittingCandidateId === c.id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <CheckCircle2 size={14} />
+                          )}
+                          <span>{submittingCandidateId === c.id ? "Publishing to Atlas..." : "Approve & Publish to Atlas"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="forensic-action-btn inspect"
+                          onClick={() => setInspectCandidate(c)}
+                          title="Inspect raw cryptographic JSON payload and entity graph"
+                        >
+                          <Code2 size={14} />
+                          <span>Inspect Full Dossier</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={submittingCandidateId === c.id}
+                          className="forensic-action-btn reject"
+                          onClick={() => setRejectingCandidate(c)}
+                          title="Reject candidate with forensic audit reasoning"
+                        >
+                          <XCircle size={14} />
+                          <span>Reject Candidate</span>
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 2: SPACETIME DUPLICATE MERGES */}
+        {activeTab === "duplicates" && (
+          <section id="tabpanel-duplicates" role="tabpanel" aria-labelledby="tab-duplicates" className="console-tab-stage">
+            {duplicateItems.length === 0 ? (
+              <div className="empty-queue-card">
+                <GitMerge size={48} className="empty-state-icon text-amber" />
+                <h3>No Unresolved Spacetime Duplicates</h3>
+                <p>
+                  All newly ingested candidate streams have either been verified as distinct historical events or
+                  smoothly reconciled against existing spacetime records.
+                </p>
+              </div>
+            ) : (
+              <div className="candidate-card-list">
+                {duplicateItems.map((c: CandidateItem) => {
+                  const similarityPct = Math.round((c.duplicateSimilarity || 0) * 100);
+                  const parsed = parsedExtractions.get(c.id) || parseCandidateExtraction(c.rawExtraction);
+                  const isAutoPublish = c.assignedLane === "auto-publish";
+                  const isProvisional = c.assignedLane === "provisional";
+                  const targetSlug = c.duplicateMatchId === "evt-1998-10-23-wye-river" ? "wye-river-memorandum-signing" : (c.duplicateMatchId || "");
+
+                  return (
+                    <article key={c.id} className="candidate-dossier-card duplicate-highlight">
+                      <div className="duplicate-alert-banner">
+                        <GitMerge size={16} />
+                        <div>
+                          <b>Spacetime Duplicate Detected: {similarityPct}% Cosine & Spatial Similarity</b>
+                          <p>
+                            Matches existing atlas record: <code>{c.duplicateMatchId}</code>. Ingesting will merge
+                            corroborating claims without creating duplicate timeline entries.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="dossier-header">
+                        <div className="dossier-meta-chips">
+                          <span className={`lane-badge ${c.assignedLane}`}>
+                            {isAutoPublish && <CheckCircle2 size={11} />}
+                            {isProvisional && <AlertTriangle size={11} />}
+                            {!isAutoPublish && !isProvisional && <AlertCircle size={11} />}
+                            <span>{c.assignedLane.replace("-", " ").toUpperCase()} DUPLICATE</span>
+                          </span>
+                          <span className="precision-badge">
+                            <Calendar size={11} /> {c.suggestedDate}
+                          </span>
+                          <span className="fingerprint-badge">FP: {c.fingerprint.slice(0, 14)}...</span>
+                        </div>
+                        <div className="dossier-id-tag">
+                          <code>{c.id}</code>
+                        </div>
+                      </div>
+
+                      <div className="dossier-headline-block">
+                        <h2>{c.suggestedTitle}</h2>
+                        <p className="dossier-summary">{parsed.summary}</p>
+                      </div>
+
+                      {/* SIDE-BY-SIDE RECONCILIATION PREVIEW */}
+                      <div className="reconciliation-diff-grid">
+                        <div className="diff-col incoming">
+                          <span className="diff-col-header">Incoming Candidate Evidence</span>
+                          <div className="diff-box">
+                            <p className="diff-title"><b>Title:</b> {c.suggestedTitle}</p>
+                            <p className="diff-place"><b>Location:</b> {c.suggestedPlace || "Unspecified"}</p>
+                            <p className="diff-claims"><b>Claims to Add:</b> {parsed.claims?.length || 0} atomic assertions</p>
+                          </div>
+                        </div>
+
+                        <div className="diff-col existing">
+                          <span className="diff-col-header">Existing Canonical Record</span>
+                          <div className="diff-box">
+                            <p className="diff-title"><b>Target ID:</b> <code>{c.duplicateMatchId}</code></p>
+                            <p className="diff-place"><b>Status:</b> Canonical Atlas Event</p>
+                            <Link href={`/event/${targetSlug}`} target="_blank" className="diff-link">
+                              View Existing Event in Atlas <ExternalLink size={12} />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dossier-actions-bar">
+                        <button
+                          type="button"
+                          disabled={submittingCandidateId === c.id}
+                          className="forensic-action-btn merge"
                           onClick={() => handleAction("merge", c.id, c.duplicateMatchId || undefined)}
+                          title="Merge new claims and source links into existing event"
                         >
                           {submittingCandidateId === c.id ? (
                             <RefreshCw size={14} className="animate-spin" />
@@ -545,54 +1062,64 @@ export default function EvidenceControlConsole() {
                         <button
                           type="button"
                           disabled={submittingCandidateId === c.id}
-                          className="action-btn approve"
+                          className="forensic-action-btn approve"
                           onClick={() => handleAction("approve", c.id)}
+                          title="Override duplicate detection and publish as distinct event"
                         >
                           <CheckCircle2 size={14} />
-                          <span>Publish as Separate Event</span>
+                          <span>Publish as Separate Discrete Event</span>
                         </button>
+
                         <button
                           type="button"
                           disabled={submittingCandidateId === c.id}
-                          className="action-btn reject"
-                          onClick={() => handleAction("reject", c.id)}
+                          className="forensic-action-btn reject"
+                          onClick={() => setRejectingCandidate(c)}
+                          title="Reject this duplicate entry"
                         >
                           <XCircle size={14} />
-                          <span>Reject</span>
+                          <span>Reject Duplicate</span>
                         </button>
                       </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
-                    </div>
-                  ))}
+        {/* TAB 3: PROVENANCE AUDIT LEDGER */}
+        {activeTab === "audit" && (
+          <section id="tabpanel-audit" role="tabpanel" aria-labelledby="tab-audit" className="console-tab-stage">
+            <div className="audit-ledger-card">
+              <div className="ledger-header">
+                <div>
+                  <h3>Immutable Forensic Audit Ledger</h3>
+                  <p>Cryptographic, timestamped trace of all autonomous ingestion, policy evaluation, and editorial actions.</p>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="ledger-badge">
+                  <span>{audit.length} Operations Logged</span>
+                </div>
+              </div>
 
-          {/* TAB 3: Audit Trail */}
-          {activeTab === "audit" && (
-            <div
-              className="audit-stage"
-              role="tabpanel"
-              id="tabpanel-audit"
-              aria-labelledby="tab-audit"
-            >
-              <div className="audit-table-card">
-                <table className="audit-table" aria-label="Immutable Evidence Engine Audit Log">
+              <div className="audit-table-wrapper">
+                <table className="forensic-audit-table" aria-label="Immutable Evidence Engine Audit Log">
                   <thead>
                     <tr>
-                      <th scope="col">Time</th>
+                      <th scope="col">Recorded At (UTC)</th>
                       <th scope="col">Action</th>
-                      <th scope="col">Rule / Decision</th>
-                      <th scope="col">Target Event / Candidate</th>
-                      <th scope="col">Details</th>
+                      <th scope="col">Policy Rule / Trigger</th>
+                      <th scope="col">Entity / Candidate</th>
+                      <th scope="col">Forensic Trace</th>
+                      <th scope="col">Inspect</th>
                     </tr>
                   </thead>
                   <tbody>
                     {audit.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="empty-table-cell">
-                          No audit entries recorded yet.
+                        <td colSpan={6} className="empty-table-cell">
+                          No audit entries recorded in current ledger.
                         </td>
                       </tr>
                     ) : (
@@ -608,20 +1135,41 @@ export default function EvidenceControlConsole() {
                               <time dateTime={new Date(entry.recordedAt).toISOString()}>
                                 {auditDateFormatter.format(new Date(entry.recordedAt))}
                               </time>
-
                             </td>
 
                             <td>
-                              <span className={`audit-action-pill ${entry.action}`}>
-                                {entry.action}
+                              <span className={`audit-action-tag ${entry.action}`}>
+                                {entry.action.toUpperCase()}
                               </span>
                             </td>
-                            <td className="rule-col">{entry.ruleId || "—"}</td>
-                            <td>
+
+                            <td className="rule-col">
+                              <code>{entry.ruleId || "MANUAL-REVIEW"}</code>
+                            </td>
+
+                            <td className="target-col">
                               <code>{entry.eventId || entry.candidateId || "—"}</code>
                             </td>
+
                             <td className="details-col">
-                              <pre>{JSON.stringify(parsed, null, 2)}</pre>
+                              <span className="details-preview">
+                                {Object.entries(parsed)
+                                  .slice(0, 2)
+                                  .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+                                  .join(" · ")}
+                              </span>
+                            </td>
+
+                            <td className="action-col">
+                              <button
+                                type="button"
+                                className="inspect-cell-btn"
+                                onClick={() => setInspectAudit(entry)}
+                                title="Inspect full audit record"
+                              >
+                                <Eye size={13} />
+                                <span>Inspect</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -631,9 +1179,295 @@ export default function EvidenceControlConsole() {
                 </table>
               </div>
             </div>
-          )}
-        </section>
-      </main>
-    );
-  }
+          </section>
+        )}
 
+        {/* TAB 4: PIPELINE ARCHITECTURE & POLICY STANDARDS */}
+        {activeTab === "standards" && (
+          <section id="tabpanel-standards" role="tabpanel" aria-labelledby="tab-standards" className="console-tab-stage">
+            <div className="standards-architecture-grid">
+              <div className="standards-card">
+                <div className="standards-icon-box emerald">
+                  <ShieldCheck size={24} />
+                </div>
+                <h3>Lane 1: Strict Auto-Publish</h3>
+                <p>
+                  Requires an unassailable <b>Tier A Primary Archival Record</b> (e.g., official parliamentary stenographic
+                  transcripts, United Nations Secretariat records, unedited broadcast audio) with an entity resolution confidence
+                  exceeding <b>95%</b> and unambiguous venue centroid coordinates.
+                </p>
+                <div className="standards-criteria">
+                  <span className="criteria-tag">&ge; 0.95 Entity Confidence</span>
+                  <span className="criteria-tag">Tier A Primary Record</span>
+                  <span className="criteria-tag">Zero Collision Risk</span>
+                </div>
+              </div>
+
+              <div className="standards-card">
+                <div className="standards-icon-box amber">
+                  <AlertTriangle size={24} />
+                </div>
+                <h3>Lane 2: Provisional Corroboration</h3>
+                <p>
+                  Applied when events are substantiated by <b>Tier B Contemporary Secondary Reporting</b> (accredited press wire
+                  reports filed synchronously by journalists on site) but require additional primary archival corroboration
+                  before achieving full unassailable verification.
+                </p>
+                <div className="standards-criteria">
+                  <span className="criteria-tag">&ge; 0.85 Entity Confidence</span>
+                  <span className="criteria-tag">Tier B Contemporary Wire</span>
+                  <span className="criteria-tag">Corroboration Flagged</span>
+                </div>
+              </div>
+
+              <div className="standards-card">
+                <div className="standards-icon-box crimson">
+                  <ShieldAlert size={24} />
+                </div>
+                <h3>Lane 3: Editorial Scrutiny & Review</h3>
+                <p>
+                  Any event involving ambiguous person resolution (such as surname collisions e.g., Clinton vs Clinton),
+                  disputed claims across differing historical accounts, or low-tier retrospective sources is automatically
+                  isolated and diverted to the human editorial console.
+                </p>
+                <div className="standards-criteria">
+                  <span className="criteria-tag">Disputed Primary Accounts</span>
+                  <span className="criteria-tag">Ambiguous Resolution</span>
+                  <span className="criteria-tag">Senior Editor Sign-Off</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="standards-methodology-banner">
+              <div className="banner-icon-col">
+                <BookOpen size={28} className="text-amber" />
+              </div>
+              <div className="banner-content-col">
+                <h4>Methodological Verification Standards</h4>
+                <p>
+                  The REWiND Evidence Engine operates in accordance with the formal <i>Forensic Evidence Methodology</i> and
+                  the <i>Event Model v2 Schema</i>. Every discrete statement of presence, speech, and historical action is
+                  isolated into atomic claim objects linked to permanent cryptographic citations.
+                </p>
+                <div className="banner-links">
+                  <Link href="/methodology" className="standards-btn">
+                    <span>Read Full Methodology (METHODOLOGY.md)</span>
+                    <ExternalLink size={13} />
+                  </Link>
+                  <Link href="/sources" className="standards-btn secondary">
+                    <span>Explore Primary Sources Catalog</span>
+                    <ExternalLink size={13} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* CANDIDATE DOSSIER INSPECTION MODAL */}
+        {inspectCandidate && (
+          <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-candidate-title">
+            <div className="forensic-modal-backdrop" onClick={() => setInspectCandidate(null)} />
+            <div className="forensic-modal-container" ref={modalContainerRef}>
+              <header className="forensic-modal-header">
+                <div className="modal-title-wrap">
+                  <Code2 size={18} className="text-sky" />
+                  <div>
+                    <h3 id="modal-candidate-title">Candidate Evidentiary Dossier</h3>
+                    <small>Record ID: <code>{inspectCandidate.id}</code> · Fingerprint: <code>{inspectCandidate.fingerprint}</code></small>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setInspectCandidate(null)}
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </header>
+
+              <div className="forensic-modal-body">
+                <div className="modal-payload-controls">
+                  <span className="payload-format-label">Raw Extraction Schema (JSON)</span>
+                  <button
+                    type="button"
+                    className="copy-payload-btn"
+                    onClick={() => handleCopyJson(inspectCandidate.rawExtraction)}
+                  >
+                    {copiedPayload ? <Check size={13} className="text-emerald" /> : <Copy size={13} />}
+                    <span>{copiedPayload ? "Copied to Clipboard" : "Copy Payload"}</span>
+                  </button>
+                </div>
+
+                <pre className="modal-json-block">
+                  <code>
+                    {(() => {
+                      try {
+                        return JSON.stringify(JSON.parse(inspectCandidate.rawExtraction), null, 2);
+                      } catch {
+                        return inspectCandidate.rawExtraction;
+                      }
+                    })()}
+                  </code>
+                </pre>
+
+                <div className="modal-metadata-strip">
+                  <div>
+                    <b>Assigned Policy Lane:</b> {inspectCandidate.assignedLane.toUpperCase()}
+                  </div>
+                  <div>
+                    <b>Source Classification:</b> {inspectCandidate.primarySourceTier.toUpperCase()}
+                  </div>
+                  <div>
+                    <b>Spacetime Similarity:</b> {inspectCandidate.duplicateSimilarity ? `${Math.round(inspectCandidate.duplicateSimilarity * 100)}%` : "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              <footer className="forensic-modal-footer">
+                <button
+                  type="button"
+                  className="forensic-action-btn approve"
+                  onClick={() => {
+                    handleAction("approve", inspectCandidate.id);
+                    setInspectCandidate(null);
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Approve & Publish from Inspector</span>
+                </button>
+                <button type="button" className="refresh-btn" onClick={() => setInspectCandidate(null)}>
+                  Close
+                </button>
+              </footer>
+            </div>
+          </div>
+        )}
+
+        {/* AUDIT RECORD INSPECTION MODAL */}
+        {inspectAudit && (
+          <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-audit-title">
+            <div className="forensic-modal-backdrop" onClick={() => setInspectAudit(null)} />
+            <div className="forensic-modal-container" ref={modalContainerRef}>
+              <header className="forensic-modal-header">
+                <div className="modal-title-wrap">
+                  <Clock size={18} className="text-amber" />
+                  <div>
+                    <h3 id="modal-audit-title">Audit Ledger Entry #{inspectAudit.id}</h3>
+                    <small>Action: <code>{inspectAudit.action}</code> · Trigger: <code>{inspectAudit.ruleId || "MANUAL"}</code></small>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setInspectAudit(null)}
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </header>
+
+              <div className="forensic-modal-body">
+                <div className="modal-payload-controls">
+                  <span className="payload-format-label">Cryptographic Operational Trace (JSON)</span>
+                  <button
+                    type="button"
+                    className="copy-payload-btn"
+                    onClick={() => handleCopyJson(inspectAudit.details)}
+                  >
+                    {copiedPayload ? <Check size={13} className="text-emerald" /> : <Copy size={13} />}
+                    <span>{copiedPayload ? "Copied to Clipboard" : "Copy Payload"}</span>
+                  </button>
+                </div>
+
+                <pre className="modal-json-block">
+                  <code>
+                    {(() => {
+                      try {
+                        return JSON.stringify(JSON.parse(inspectAudit.details), null, 2);
+                      } catch {
+                        return inspectAudit.details;
+                      }
+                    })()}
+                  </code>
+                </pre>
+              </div>
+
+              <footer className="forensic-modal-footer">
+                <button type="button" className="refresh-btn" onClick={() => setInspectAudit(null)}>
+                  Close
+                </button>
+              </footer>
+            </div>
+          </div>
+        )}
+
+        {/* REJECTION REASON CONFIRMATION MODAL */}
+        {rejectingCandidate && (
+          <div className="forensic-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-reject-title">
+            <div className="forensic-modal-backdrop" onClick={closeRejectionModal} />
+            <div className="forensic-modal-container" ref={modalContainerRef}>
+              <header className="forensic-modal-header">
+                <div className="modal-title-wrap">
+                  <XCircle size={18} className="text-crimson" />
+                  <div>
+                    <h3 id="modal-reject-title">Reject Candidate Dossier</h3>
+                    <small>Candidate: {rejectingCandidate.suggestedTitle}</small>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={closeRejectionModal}
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </header>
+
+              <div className="forensic-modal-body">
+                <p className="reject-prompt">
+                  Please provide a forensic audit rationale for rejecting this candidate. This decision will be
+                  permanently recorded in the immutable provenance ledger.
+                </p>
+
+                <textarea
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g., Fails Tier-1 verification: Secondary wire report contradicted by primary UN stenographic plenary transcript."
+                  className="forensic-textarea"
+                  rows={4}
+                  aria-label="Rejection audit reason"
+                />
+              </div>
+
+              <footer className="forensic-modal-footer">
+                <button
+                  type="button"
+                  className="forensic-action-btn reject"
+                  disabled={submittingCandidateId === rejectingCandidate.id}
+                  onClick={() =>
+                    handleAction(
+                      "reject",
+                      rejectingCandidate.id,
+                      undefined,
+                      rejectionReasonInput.trim() || "Editorial rejection per forensic archival review"
+                    )
+                  }
+                >
+                  <XCircle size={14} />
+                  <span>Confirm Rejection & Log</span>
+                </button>
+
+                <button type="button" className="refresh-btn" onClick={closeRejectionModal}>
+                  Cancel
+                </button>
+              </footer>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

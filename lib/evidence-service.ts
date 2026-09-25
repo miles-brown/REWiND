@@ -11,6 +11,8 @@ export interface EvidenceStats {
   primarySourcesCount: number;
   pendingReviewCount: number;
   autoPublishedCount: number;
+  duplicateCandidatesCount?: number;
+  totalCandidatesCount?: number;
 }
 
 interface CandidateClaimInput {
@@ -44,6 +46,11 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
         .from(schema.sources)
         .where(or(eq(schema.sources.tier, "tier-a"), eq(schema.sources.tier, "tier-b")));
       const [pending] = await db.select({ val: count() }).from(schema.candidateEvents).where(eq(schema.candidateEvents.status, "pending"));
+      const [duplicates] = await db
+        .select({ val: count() })
+        .from(schema.candidateEvents)
+        .where(and(eq(schema.candidateEvents.status, "pending"), sql`${schema.candidateEvents.duplicateSimilarity} >= 0.75`));
+      const [totalCandidates] = await db.select({ val: count() }).from(schema.candidateEvents);
 
       return {
         publishedEventsCount: Number(published?.val ?? 0),
@@ -51,6 +58,8 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
         primarySourcesCount: Number(sources?.val ?? 0),
         pendingReviewCount: Number(pending?.val ?? 0),
         autoPublishedCount: Number(autoPublished?.val ?? 0),
+        duplicateCandidatesCount: Number(duplicates?.val ?? 0),
+        totalCandidatesCount: Number(totalCandidates?.val ?? 0),
       };
     } catch (err) {
       if (process.env.NODE_ENV === "production") {
@@ -66,6 +75,7 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
   const primarySources = store.sources.filter((s) => s.tier === "tier-a" || s.tier === "tier-b");
   const pending = store.candidateEvents.filter((c) => c.status === "pending");
   const verifiedClaims = store.claims.filter((c) => c.confidence === "confirmed" || c.claimStatus === "ESTABLISHED");
+  const duplicates = store.candidateEvents.filter((c) => c.status === "pending" && (c.duplicateSimilarity ?? 0) >= 0.75);
 
   return {
     publishedEventsCount: published.length,
@@ -73,6 +83,8 @@ export async function getEvidentiaryStats(): Promise<EvidenceStats> {
     primarySourcesCount: primarySources.length,
     pendingReviewCount: pending.length,
     autoPublishedCount: autoPublished.length,
+    duplicateCandidatesCount: duplicates.length,
+    totalCandidatesCount: store.candidateEvents.length,
   };
 }
 
@@ -1377,3 +1389,81 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
 
   return asAsyncResult(executionPromise, syncFallback);
 }
+
+export function ingestSampleCandidateStream(editorActor = "Autonomous Ingestion Adapter") {
+  const store = getRelationalStore();
+  const timestamp = Date.now();
+  const candidateId = `cand-stream-${timestamp.toString(36)}`;
+
+  const sampleCandidate = {
+    id: candidateId,
+    fingerprint: `fp_geneva_arms_control_${timestamp}`,
+    suggestedTitle: "Trilateral Diplomatic Consultations on Regional Security Framework",
+    suggestedDate: "2013-11-14",
+    suggestedPlace: "Palais des Nations, Geneva",
+    suggestedParticipants: JSON.stringify([
+      { name: "Benjamin Netanyahu", role: "Prime Minister" },
+      { name: "John Kerry", role: "U.S. Secretary of State" },
+    ]),
+    primarySourceTier: "tier-a",
+    assignedLane: "auto-publish",
+    duplicateMatchId: null,
+    duplicateSimilarity: 0.11,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date(),
+    rawExtraction: JSON.stringify({
+      summary: "High-level bilateral diplomatic consultation convened at the UN European Headquarters to review compliance parameters, regional security guarantees, and telemetry verification.",
+      eventType: "bilateral-meeting",
+      venue: "Palais des Nations",
+      city: "Geneva",
+      country: "Switzerland",
+      sourceId: "src-un-geneva-press-2013",
+      sourceTitle: "United Nations Information Service Geneva Press Record",
+      sourcePublisher: "United Nations Secretariat",
+      sourceTier: "tier-a",
+      claims: [
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "presence",
+          statement: "Convened with international delegation members at the Palais des Nations diplomatic hall.",
+          claimedTime: "2013-11-14T14:00:00Z",
+          claimedVenue: "Palais des Nations",
+          supportingExcerpt: "Official protocol communique issued by the UN Information Service in Geneva.",
+        },
+        {
+          subjectMention: "Benjamin Netanyahu",
+          claimType: "statement",
+          statement: "Emphasized strict verification benchmarks for regional non-proliferation enforcement.",
+          supportingExcerpt: "'Any credible agreement must require complete dismantlement of enrichment centrifuges.'",
+        },
+      ],
+      participants: [
+        { name: "Benjamin Netanyahu", role: "Prime Minister of Israel" },
+        { name: "John Kerry", role: "U.S. Secretary of State" },
+      ],
+    }),
+  };
+
+  store.candidateEvents.unshift(sampleCandidate);
+
+  recordAuditEvent(
+    "discovered",
+    "INGEST-STREAM-SAMPLE",
+    {
+      candidateId,
+      trigger: "stream_demonstration",
+      injectedBy: editorActor,
+      timestamp: new Date().toISOString(),
+    },
+    undefined,
+    candidateId
+  );
+
+  return {
+    success: true,
+    candidateId,
+    sampleCandidate,
+  };
+}
+
