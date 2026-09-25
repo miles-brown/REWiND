@@ -59,11 +59,16 @@ export async function resolvePersonEntityInTransaction(
     .where(eq(schema.people.id, effectivePersonId));
 
   if (existingPerson) {
-    if (promoteToPublished && existingPerson.publicationStatus !== "published") {
+    if (promoteToPublished && existingPerson.publicationStatus === "draft") {
       await tx
         .update(schema.people)
         .set({ publicationStatus: "published" })
-        .where(eq(schema.people.id, existingPerson.id));
+        .where(
+          and(
+            eq(schema.people.id, existingPerson.id),
+            eq(schema.people.publicationStatus, "draft")
+          )
+        );
     }
     return existingPerson.id;
   }
@@ -85,11 +90,16 @@ export async function resolvePersonEntityInTransaction(
     const matchedId = distinctSlugIds[0];
     if (promoteToPublished) {
       const match = bySlugMatches.find((p) => p.id === matchedId);
-      if (match && match.publicationStatus !== "published") {
+      if (match && match.publicationStatus === "draft") {
         await tx
           .update(schema.people)
           .set({ publicationStatus: "published" })
-          .where(eq(schema.people.id, matchedId));
+          .where(
+            and(
+              eq(schema.people.id, matchedId),
+              eq(schema.people.publicationStatus, "draft")
+            )
+          );
       }
     }
     return matchedId;
@@ -118,11 +128,16 @@ export async function resolvePersonEntityInTransaction(
     const matchedId = distinctNameMatches[0];
     if (promoteToPublished) {
       const match = matchingByName.find((p) => p.id === matchedId);
-      if (match && match.publicationStatus !== "published") {
+      if (match && match.publicationStatus === "draft") {
         await tx
           .update(schema.people)
           .set({ publicationStatus: "published" })
-          .where(eq(schema.people.id, matchedId));
+          .where(
+            and(
+              eq(schema.people.id, matchedId),
+              eq(schema.people.publicationStatus, "draft")
+            )
+          );
       }
     }
     return matchedId;
@@ -134,8 +149,12 @@ export async function resolvePersonEntityInTransaction(
   // 4. Alias match
   if (distinctNameMatches.length === 0) {
     const aliasRows = await tx
-      .select({ personId: schema.personAliases.personId })
+      .select({
+        personId: schema.personAliases.personId,
+        publicationStatus: schema.people.publicationStatus,
+      })
       .from(schema.personAliases)
+      .innerJoin(schema.people, eq(schema.personAliases.personId, schema.people.id))
       .where(
         or(
           ilike(schema.personAliases.alias, escapedName),
@@ -147,10 +166,18 @@ export async function resolvePersonEntityInTransaction(
     if (distinctPersonIds.length === 1) {
       const matchedId = distinctPersonIds[0];
       if (promoteToPublished) {
-        await tx
-          .update(schema.people)
-          .set({ publicationStatus: "published" })
-          .where(eq(schema.people.id, matchedId));
+        const match = aliasRows.find((r) => r.personId === matchedId);
+        if (match && match.publicationStatus === "draft") {
+          await tx
+            .update(schema.people)
+            .set({ publicationStatus: "published" })
+            .where(
+              and(
+                eq(schema.people.id, matchedId),
+                eq(schema.people.publicationStatus, "draft")
+              )
+            );
+        }
       }
       return matchedId;
     }
@@ -178,7 +205,12 @@ export async function resolvePersonEntityInTransaction(
     await tx
       .update(schema.people)
       .set({ publicationStatus: "published" })
-      .where(or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)));
+      .where(
+        and(
+          or(eq(schema.people.id, effectivePersonId), eq(schema.people.slug, pSlug)),
+          eq(schema.people.publicationStatus, "draft")
+        )
+      );
   }
 
   const [canonicalPerson] = await tx

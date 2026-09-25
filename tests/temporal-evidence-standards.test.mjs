@@ -2243,6 +2243,29 @@ test("verifies round-33 Codex & CodeRabbit review fixes: detail source ordering,
   assert.deepEqual(sorted, ["1200 B.C.", "500 B.C.E.", "70 A.D.", "1993-09-13", "undated"]);
 });
 
+test("verifies round-34 CodeRabbit review fixes: draft-only person promotion guards and database predicates", async () => {
+  const resolveTs = fs.readFileSync(path.join(process.cwd(), "lib/ingestion/resolve.ts"), "utf-8");
+
+  // 1. Guard against non-draft promotion in memory
+  assert.ok(
+    resolveTs.includes('if (promoteToPublished && existingPerson.publicationStatus === "draft")'),
+    "resolve.ts must only promote existingPerson when publicationStatus === 'draft'"
+  );
+  assert.ok(
+    resolveTs.includes('if (match && match.publicationStatus === "draft")'),
+    "resolve.ts must only promote slug, name, and alias matched records when publicationStatus === 'draft'"
+  );
+
+  // 2. Draft-status predicate in all DB update statements
+  const draftUpdatePredicate = 'eq(schema.people.publicationStatus, "draft")';
+  const matches = resolveTs.split(draftUpdatePredicate).length - 1;
+  assert.ok(
+    matches >= 5,
+    `resolve.ts must include draft status predicate in all update queries (found ${matches})`
+  );
+});
+
+
 
 
 
