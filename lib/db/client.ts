@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
+import { group1PeopleSeed } from "@/data/seeds/group1-people";
 
 export function isLocalDatabaseHost(connStr: string): boolean {
   try {
@@ -219,9 +220,11 @@ function initializeSeedStore(): MemoryRelationalStore {
 
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 
-  const seedPeople: (typeof schema.people.$inferSelect)[] = (people || []).map((p) => {
+  const legacyPeopleMap = new Map<string, typeof schema.people.$inferSelect>();
+
+  (people || []).forEach((p) => {
     const meta = resolvePersonMetadata(p);
-    return {
+    legacyPeopleMap.set(p.slug, {
       id: p.slug,
       slug: p.slug,
       canonicalName: p.name,
@@ -244,24 +247,74 @@ function initializeSeedStore(): MemoryRelationalStore {
       summary: p.description,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    });
   });
 
+  // Overlay Group 1 canonical records (overwrites or adds all 40 figures)
+  (group1PeopleSeed || []).forEach((p) => {
+    legacyPeopleMap.set(p.slug, {
+      id: p.id,
+      slug: p.slug,
+      canonicalName: p.canonicalName,
+      displayName: p.displayName,
+      nativeName: p.nativeName,
+      birthDate: p.birthDate,
+      deathDate: p.deathDate,
+      datePrecision: p.datePrecision,
+      nationality: p.nationality,
+      primaryRole: p.primaryRole,
+      classification: p.classification,
+      notabilityBasis: p.notabilityBasis,
+      programmeId: p.programmeId,
+      isLiving: p.isLiving,
+      monitoringPriority: p.monitoringPriority,
+      publicationStatus: p.publicationStatus,
+      wikidataId: p.wikidataId,
+      viafId: p.viafId,
+      avatarUrl: p.avatarUrl,
+      summary: p.summary,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  const seedPeople = Array.from(legacyPeopleMap.values());
+
   let aliasCounter = 1;
-  const seedAliases: (typeof schema.personAliases.$inferSelect)[] = (people || []).flatMap((p) => [
-    {
+  const seedAliases: (typeof schema.personAliases.$inferSelect)[] = [];
+  seedPeople.forEach((p) => {
+    seedAliases.push({
       id: aliasCounter++,
       personId: p.slug,
-      alias: p.name,
+      alias: p.canonicalName,
       aliasType: "name",
-    },
-    {
+    });
+    if (p.displayName && p.displayName !== p.canonicalName) {
+      seedAliases.push({
+        id: aliasCounter++,
+        personId: p.slug,
+        alias: p.displayName,
+        aliasType: "display_name",
+      });
+    }
+    seedAliases.push({
       id: aliasCounter++,
       personId: p.slug,
       alias: p.id,
       aliasType: "id",
-    },
-  ]);
+    });
+  });
+
+  (group1PeopleSeed || []).forEach((p) => {
+    (p.aliases || []).forEach((alias) => {
+      seedAliases.push({
+        id: aliasCounter++,
+        personId: p.slug,
+        alias,
+        aliasType: "transliteration",
+      });
+    });
+  });
 
   const seedPlaces: (typeof schema.places.$inferSelect)[] = Array.from(
     new Map(
