@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
 import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
-import { masterPeopleSeed } from "@/data/seeds";
+import { masterPeopleSeed, officialRolesSeed, milestonesSeed, topicsSeed } from "@/data/seeds";
 
 export function isLocalDatabaseHost(connStr: string): boolean {
   try {
@@ -100,6 +100,10 @@ export type RelationalEventRecord = typeof schema.events.$inferSelect & {
 export interface MemoryRelationalStore {
   people: (typeof schema.people.$inferSelect)[];
   personAliases: (typeof schema.personAliases.$inferSelect)[];
+  personRoles: (typeof schema.personRoles.$inferSelect)[];
+  personMilestones: (typeof schema.personMilestones.$inferSelect)[];
+  topics: (typeof schema.topics.$inferSelect)[];
+  eventTopics: (typeof schema.eventTopics.$inferSelect)[];
   places: (typeof schema.places.$inferSelect)[];
   events: RelationalEventRecord[];
   sources: (typeof schema.sources.$inferSelect)[];
@@ -197,6 +201,10 @@ function initializeSeedStore(): MemoryRelationalStore {
     return {
       people: [],
       personAliases: [],
+      personRoles: [],
+      personMilestones: [],
+      topics: [],
+      eventTopics: [],
       places: [],
       events: [],
       sources: [],
@@ -406,9 +414,77 @@ function initializeSeedStore(): MemoryRelationalStore {
     })
   );
 
+  const seedRoles: (typeof schema.personRoles.$inferSelect)[] = (officialRolesSeed || []).map((r) => ({
+    id: r.id,
+    personId: r.personId,
+    title: r.title,
+    organisationId: null,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    isCurrent: r.isCurrent,
+  }));
+
+  const seedMilestones: (typeof schema.personMilestones.$inferSelect)[] = (milestonesSeed || []).map((m) => ({
+    id: m.id,
+    personId: m.personId,
+    title: m.title,
+    category: m.category,
+    date: m.date,
+    year: m.year,
+    description: m.description,
+    metricOrStat: m.metricOrStat,
+    sourceId: m.sourceId || null,
+    createdAt: new Date(),
+  }));
+
+  const seedTopics: (typeof schema.topics.$inferSelect)[] = (topicsSeed || []).map((t) => ({
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    category: t.category,
+    summary: t.summary,
+    startedDate: t.startedDate,
+    endedDate: t.endedDate,
+    createdAt: new Date(),
+  }));
+
+  const topicRules = [
+    { id: "topic-911", keywords: ["9/11", "september 11", "world trade center", "pentagon", "flight 93", "war on terror"] },
+    { id: "topic-iraq-war", keywords: ["iraq", "baghdad", "saddam", "wmd", "weapons of mass destruction", "unsc 1441"] },
+    { id: "topic-financial-crisis-2008", keywords: ["financial crisis", "lehman", "bailout", "subprime", "tarp", "g20 summit"] },
+    { id: "topic-ukraine-war-2022", keywords: ["ukraine", "kyiv", "crimea", "donbas", "minsk", "zelensky"] },
+    { id: "topic-oslo-accords", keywords: ["oslo", "declaration of principles", "peace process", "gaza-jericho", "rabin arafat"] },
+    { id: "topic-abraham-accords", keywords: ["abraham accord", "normalization", "uae israel", "bahrain israel", "morocco israel"] },
+    { id: "topic-epstein-inquiries", keywords: ["epstein", "maxwell", "little st james", "palm beach", "southern district of new york"] },
+    { id: "topic-covid-response", keywords: ["covid", "coronavirus", "pandemic", "lockdown", "vaccine", "who emergency"] },
+  ];
+
+  let eventTopicCounter = 1;
+  const seedEventTopics: (typeof schema.eventTopics.$inferSelect)[] = (events || []).flatMap((e) => {
+    const orgs = (e as unknown as { organisations?: string[] }).organisations || [];
+    const fullText = `${e.eventName} ${e.summary} ${(e.categories || []).join(" ")} ${(e.eventTypes || []).join(" ")} ${orgs.join(" ")}`.toLowerCase();
+    const matchedTopics = new Set<string>();
+
+    for (const rule of topicRules) {
+      if (rule.keywords.some((kw) => fullText.includes(kw))) {
+        matchedTopics.add(rule.id);
+      }
+    }
+
+    return Array.from(matchedTopics).map((topicId) => ({
+      id: eventTopicCounter++,
+      eventId: e.id,
+      topicId,
+    }));
+  });
+
   return {
     people: seedPeople,
     personAliases: seedAliases,
+    personRoles: seedRoles,
+    personMilestones: seedMilestones,
+    topics: seedTopics,
+    eventTopics: seedEventTopics,
     places: seedPlaces,
     events: seedEvents,
     sources: seedSources,

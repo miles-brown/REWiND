@@ -363,3 +363,43 @@ export const auditLog = pgTable("audit_log", {
   details: text("details").notNull(), // JSON string
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
 });
+
+// ==========================================
+// 6. Milestones, Achievements & Topics
+// ==========================================
+
+export const personMilestones = pgTable("person_milestones", {
+  id: text("id").primaryKey(), // e.g. "mlst-netanyahu-longest-pm"
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  title: text("title").notNull(),
+  category: text("category").notNull(), // achievement, record, statistic, honor, landmark-fact
+  date: text("date").notNull(),
+  year: integer("year").notNull(),
+  description: text("description"),
+  metricOrStat: text("metric_or_stat"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const topics = pgTable("topics", {
+  id: text("id").primaryKey(), // e.g. "topic-911", "topic-iraq-war"
+  slug: text("slug").unique().notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // geopolitics, conflict, economy, diplomacy, technology, investigation
+  summary: text("summary"),
+  startedDate: text("started_date"),
+  endedDate: text("ended_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const eventTopics = pgTable("event_topics", {
+  id: serial("id").primaryKey(),
+  eventId: text("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  topicId: text("topic_id")
+    .references(() => topics.id, { onDelete: "cascade" })
+    .notNull(),
+});

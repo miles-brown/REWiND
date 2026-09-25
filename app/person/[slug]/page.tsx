@@ -7,8 +7,8 @@ import {
   CircleDashed,
   MapPin,
 } from "lucide-react";
-import { getPersonTimelineWithStatus } from "@/lib/rewind";
-import { PersonTimeline } from "@/components/rewind/PersonTimeline";
+import { getPersonTimelineWithStatus, getPersonRoles, getPersonMilestones } from "@/lib/rewind";
+import { PersonWorkspaceTabs } from "@/components/rewind/PersonWorkspaceTabs";
 import { PersonCoverageNav } from "@/components/rewind/PersonCoverageNav";
 import { InclusionBadge } from "@/components/rewind/InclusionBadge";
 import { BiographicalSection } from "@/components/rewind/BiographicalSection";
@@ -58,6 +58,9 @@ export default async function PersonPage({
   const { person, events: linked, years } = timelineData;
   const cities = new Set(linked.map((e) => e.city));
 
+  const roles = await getPersonRoles(person.slug);
+  const milestones = await getPersonMilestones(person.slug);
+
   return (
     <div className="page-shell person-page">
       <header className="person-hero">
@@ -96,8 +99,13 @@ export default async function PersonPage({
 
       <InclusionBadge person={person} />
 
-      <ErrorBoundary sectionName="Person Timeline">
-        <PersonTimeline person={person} records={linked} />
+      <ErrorBoundary sectionName="Person Workspace">
+        <PersonWorkspaceTabs
+          person={person}
+          records={linked}
+          roles={roles}
+          milestones={milestones}
+        />
       </ErrorBoundary>
 
       <ErrorBoundary sectionName="Biographical Section">
