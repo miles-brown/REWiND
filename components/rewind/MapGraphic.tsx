@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Globe, Layers, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/lib/rewind";
+import { resolveJourneyTransport } from "@/lib/rewind/transport";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
@@ -172,9 +173,23 @@ export function MapGraphic({
     [points]
   );
 
+  const selectedIndex = useMemo(() => {
+    if (!points.length) return -1;
+    const found = points.findIndex((p) => p.id === selected);
+    return found >= 0 ? found : points.length - 1;
+  }, [points, selected]);
+
   const selectedEvent = useMemo(
-    () => points.find((e) => e.id === selected) || points[points.length - 1],
-    [points, selected]
+    () => (selectedIndex >= 0 ? points[selectedIndex] : points[points.length - 1]),
+    [points, selectedIndex]
+  );
+
+  const prevEvent = selectedIndex > 0 ? points[selectedIndex - 1] : null;
+  const currEvent = selectedIndex >= 0 ? points[selectedIndex] : null;
+
+  const activeJourney = useMemo(
+    () => resolveJourneyTransport(prevEvent, currEvent),
+    [prevEvent, currEvent]
   );
 
   const pointsRef = useRef(points);
@@ -403,7 +418,7 @@ export function MapGraphic({
 
         const el = document.createElement("button");
         el.type = "button";
-        el.className = `webgl-map-marker ${isSelected ? "selected" : ""} ${
+        el.className = `webgl-map-marker forensic-pin ${isSelected ? "selected" : ""} ${
           isVerified ? "verified" : "provisional"
         } ${mapTheme === "satellite" ? "satellite-theme" : ""}`;
         const tooltipText = `${rep.city} · ${eventList.length > 1 ? `${eventList.length} events` : rep.eventName}`;
@@ -414,24 +429,65 @@ export function MapGraphic({
         el.setAttribute("aria-label", ariaLabelText);
         el.setAttribute("aria-pressed", isSelected ? "true" : "false");
 
+        const pinWrap = document.createElement("div");
+        pinWrap.className = "pin-visual-wrapper";
+
+        // Forensic Pin SVG teardrop with center dot
+        const pinSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        pinSvg.setAttribute("class", "forensic-pin-svg");
+        pinSvg.setAttribute("viewBox", "0 0 24 32");
+        pinSvg.setAttribute("width", isSelected ? "26" : "22");
+        pinSvg.setAttribute("height", isSelected ? "34" : "30");
+        pinSvg.setAttribute("fill", "none");
+        pinSvg.setAttribute("aria-hidden", "true");
+
+        const pinPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pinPath.setAttribute("d", "M12 0C5.373 0 0 5.373 0 12c0 8.5 10.5 18.5 11.4 19.4.3.3.9.3 1.2 0C13.5 30.5 24 20.5 24 12c0-6.627-5.373-12-12-12z");
+        pinPath.setAttribute("class", "pin-drop-body");
+
+        const pinCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        pinCircle.setAttribute("cx", "12");
+        pinCircle.setAttribute("cy", "11.5");
+        pinCircle.setAttribute("r", "4");
+        pinCircle.setAttribute("class", "pin-center-dot");
+
+        pinSvg.appendChild(pinPath);
+        pinSvg.appendChild(pinCircle);
+        pinWrap.appendChild(pinSvg);
+
+        if (isSelected) {
+          const pulseRing = document.createElement("span");
+          pulseRing.className = "pin-pulse-wave";
+          pulseRing.setAttribute("aria-hidden", "true");
+          pinWrap.appendChild(pulseRing);
+        }
+
         const dot = document.createElement("span");
         dot.className = "marker-dot";
         dot.setAttribute("aria-hidden", "true");
-        el.appendChild(dot);
+        pinWrap.appendChild(dot);
 
         if (eventList.length > 1) {
           const countBadge = document.createElement("span");
           countBadge.className = "marker-count";
           countBadge.textContent = String(eventList.length);
           countBadge.setAttribute("aria-hidden", "true");
-          el.appendChild(countBadge);
+          pinWrap.appendChild(countBadge);
         }
+
+        el.appendChild(pinWrap);
 
         const tooltip = document.createElement("span");
         tooltip.className = "marker-tooltip";
         tooltip.textContent = tooltipText;
         tooltip.setAttribute("aria-hidden", "true");
         el.appendChild(tooltip);
+
+        const cityLabel = document.createElement("span");
+        cityLabel.className = "marker-city-pill";
+        cityLabel.textContent = rep.city;
+        cityLabel.setAttribute("aria-hidden", "true");
+        el.appendChild(cityLabel);
 
         const handleActivate = () => {
           onSelect?.(rep.id);
@@ -445,12 +501,61 @@ export function MapGraphic({
           }
         });
 
-        const marker = new Marker({ element: el })
+        const marker = new Marker({ element: el, anchor: "bottom" })
           .setLngLat([longitude, latitude])
           .addTo(map);
 
         markersRef.current.push(marker);
       });
+
+      // Add dynamic moving transport vehicle marker along active trajectory leg
+      if (
+        activeJourney.isJourney &&
+        prevEvent &&
+        currEvent &&
+        prevEvent.longitude != null &&
+        prevEvent.latitude != null &&
+        currEvent.longitude != null &&
+        currEvent.latitude != null
+      ) {
+        const vehicleEl = document.createElement("div");
+        vehicleEl.className = `moving-vehicle-marker mode-${activeJourney.iconName}`;
+        vehicleEl.setAttribute("aria-label", activeJourney.description);
+        vehicleEl.title = activeJourney.description;
+
+        const midLng = (prevEvent.longitude + currEvent.longitude) / 2;
+        const midLat = (prevEvent.latitude + currEvent.latitude) / 2;
+
+        const iconWrap = document.createElement("div");
+        iconWrap.className = "vehicle-icon-bubble";
+        iconWrap.style.transform = `rotate(${activeJourney.bearing}deg)`;
+        iconWrap.setAttribute("aria-hidden", "true");
+
+        const symbol = document.createElement("span");
+        symbol.className = "vehicle-symbol";
+        symbol.textContent = activeJourney.emoji;
+        iconWrap.appendChild(symbol);
+        vehicleEl.appendChild(iconWrap);
+
+        const tag = document.createElement("div");
+        tag.className = "vehicle-journey-tag";
+        tag.setAttribute("aria-hidden", "true");
+
+        const modeSpan = document.createElement("span");
+        modeSpan.textContent = activeJourney.label;
+        const distSmall = document.createElement("small");
+        distSmall.textContent = activeJourney.formattedDistance;
+
+        tag.appendChild(modeSpan);
+        tag.appendChild(distSmall);
+        vehicleEl.appendChild(tag);
+
+        const vehicleMarker = new Marker({ element: vehicleEl, anchor: "center" })
+          .setLngLat([midLng, midLat])
+          .addTo(map);
+
+        markersRef.current.push(vehicleMarker);
+      }
 
       // Update trajectory line coordinates
       const source = map.getSource("trajectories") as GeoJSONSource | undefined;
@@ -470,7 +575,7 @@ export function MapGraphic({
         });
       }
     });
-  }, [points, selected, mapLoaded, mapMode, mapTheme, onSelect]);
+  }, [points, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
 
   // Smooth fly-to camera movement on selection change
   useEffect(() => {
@@ -638,6 +743,29 @@ export function MapGraphic({
           <span className="map-label asia">WEST ASIA / LEVANT</span>
           <span className="map-label atlantic">NORTH ATLANTIC</span>
 
+          {/* SVG Trajectory Moving Vehicle */}
+          {activeJourney.isJourney && prevEvent && currEvent && prevEvent.latitude != null && prevEvent.longitude != null && currEvent.latitude != null && currEvent.longitude != null && (
+            <div
+              className="svg-moving-vehicle"
+              style={{
+                left: `${(project(prevEvent.latitude, prevEvent.longitude).x + project(currEvent.latitude, currEvent.longitude).x) / 2}%`,
+                top: `${(project(prevEvent.latitude, prevEvent.longitude).y + project(currEvent.latitude, currEvent.longitude).y) / 2}%`,
+              }}
+              title={activeJourney.description}
+              aria-hidden="true"
+            >
+              <div
+                className="svg-vehicle-icon-wrap"
+                style={{ transform: `rotate(${activeJourney.bearing}deg)` }}
+              >
+                <span>{activeJourney.emoji}</span>
+              </div>
+              <span className="svg-vehicle-badge">
+                {activeJourney.label} · {activeJourney.formattedDistance}
+              </span>
+            </div>
+          )}
+
           {clusters.map((cluster) => {
             const isSelected = cluster.hasSelected;
             return (
@@ -646,16 +774,23 @@ export function MapGraphic({
                 key={cluster.event.id}
                 onClick={() => onSelect?.(cluster.event.id)}
                 style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
-                className={`map-point ${isSelected ? "selected" : ""} ${
+                className={`map-point forensic-svg-pin ${isSelected ? "selected" : ""} ${
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
                 aria-pressed={isSelected}
                 aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city} (${cluster.count} documented event${cluster.count > 1 ? "s" : ""})`}
               >
                 <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>
+                <div className="svg-pin-wrapper">
+                  <svg viewBox="0 0 24 32" width="20" height="26" fill="none" aria-hidden="true" className="svg-pin-graphic">
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 8.5 10.5 18.5 11.4 19.4.3.3.9.3 1.2 0C13.5 30.5 24 20.5 24 12c0-6.627-5.373-12-12-12z" className="pin-body-shape" />
+                    <circle cx="12" cy="11.5" r="4" className="pin-dot-shape" />
+                  </svg>
+                  {isSelected && <span className="svg-pulse-wave" />}
+                </div>
                 <i />
                 {cluster.count > 1 && <b className="cluster-badge">{cluster.count}</b>}
-                <span>
+                <span className="svg-pin-city">
                   {isSelected
                     ? `${cluster.event.city} (${cluster.count})`
                     : cluster.count > 3

@@ -1005,3 +1005,60 @@ test("verifies CARTO Basemaps API key integration across MapGraphic and environm
     ".env.example must declare NEXT_PUBLIC_CARTO_API_KEY"
   );
 });
+
+test("verifies transport calculation, forensic map pins, and compact timeline console", () => {
+  const root = process.cwd();
+  const transportPath = path.join(root, "lib/rewind/transport.ts");
+  assert.ok(fs.existsSync(transportPath), "lib/rewind/transport.ts must exist");
+  const transportContent = fs.readFileSync(transportPath, "utf-8");
+
+  // 1. Transport calculations and heuristics
+  assert.ok(
+    transportContent.includes("calculateDistanceKm") &&
+    transportContent.includes("calculateBearing") &&
+    transportContent.includes("resolveJourneyTransport"),
+    "transport.ts must export calculateDistanceKm, calculateBearing, and resolveJourneyTransport"
+  );
+
+  assert.ok(
+    transportContent.includes('"air-force-one"') &&
+    transportContent.includes('"private-jet"') &&
+    transportContent.includes('"flight"') &&
+    transportContent.includes('"helicopter"') &&
+    transportContent.includes('"train"') &&
+    transportContent.includes('"car"') &&
+    transportContent.includes('"bus"') &&
+    transportContent.includes('"boat"') &&
+    transportContent.includes('"local"'),
+    "transport.ts must support all required forensic transport modes"
+  );
+
+  // 2. MapGraphic forensic pins & moving vehicle marker
+  const mapGraphicContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  assert.ok(
+    mapGraphicContent.includes("forensic-pin") &&
+    mapGraphicContent.includes("moving-vehicle-marker") &&
+    mapGraphicContent.includes("resolveJourneyTransport"),
+    "MapGraphic must render forensic-pin markers and moving-vehicle-marker along trajectory"
+  );
+
+  // 3. PersonTimeline journey banner & compact console
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    timelineContent.includes("event-journey-banner") &&
+    timelineContent.includes("console-journey-chip") &&
+    timelineContent.includes("stage-journey-pill"),
+    "PersonTimeline must render event-journey-banner and compact console journey chips"
+  );
+
+  // 4. Globals.css styling for compact console and pins
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+  assert.ok(
+    cssContent.includes(".forensic-pin") &&
+    cssContent.includes(".moving-vehicle-marker") &&
+    cssContent.includes(".event-journey-banner") &&
+    cssContent.includes(".person-time-console"),
+    "globals.css must style forensic-pin, moving-vehicle-marker, and event-journey-banner"
+  );
+});
+

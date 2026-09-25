@@ -1,8 +1,7 @@
-import { createRequire } from "node:module";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/db/schema";
-import type { TestPerson, TestEvent, TestSource } from "./test-fixtures";
+import { testPeople, testEvents, testSources, type TestPerson } from "./test-fixtures";
 import { masterPeopleSeed, officialRolesSeed, milestonesSeed, topicsSeed } from "@/data/seeds";
 
 export function isLocalDatabaseHost(connStr: string): boolean {
@@ -215,16 +214,10 @@ function initializeSeedStore(): MemoryRelationalStore {
     };
   }
 
-  // Load test fixtures dynamically in non-production environments to avoid polluting production bundles
-  const nodeRequire = createRequire(import.meta.url);
-  const fixtures = nodeRequire("./test-fixtures.json") as {
-    testPeople: TestPerson[];
-    testEvents: TestEvent[];
-    testSources: TestSource[];
-  };
-  const people = fixtures.testPeople;
-  const events = fixtures.testEvents;
-  const sources = fixtures.testSources;
+  // Load test fixtures in non-production environments to populate in-memory store
+  const people = testPeople;
+  const events = testEvents;
+  const sources = testSources;
 
   const personIdToSlug = new Map((people || []).map((p) => [p.id, p.slug]));
 

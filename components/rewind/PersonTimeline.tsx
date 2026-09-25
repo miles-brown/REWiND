@@ -23,6 +23,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
+import { resolveJourneyTransport } from "@/lib/rewind/transport";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -172,6 +173,13 @@ export function PersonTimeline({
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
+  const currentEvent = ordered[safeIndex] ?? null;
+  const prevEvent = safeIndex > 0 ? ordered[safeIndex - 1] : null;
+  const activeJourney = useMemo(
+    () => resolveJourneyTransport(prevEvent, currentEvent),
+    [prevEvent, currentEvent]
+  );
+
   if (!ordered.length) {
     return (
       <div className="zero-state">
@@ -182,6 +190,7 @@ export function PersonTimeline({
   }
 
   const event = ordered[safeIndex];
+
   const source =
     event.sources?.[0] ||
     (event.sourceIds?.[0]
@@ -252,7 +261,6 @@ export function PersonTimeline({
         </div>
       </div>
 
-
       {showHelp && (
         <div className="shortcuts-bar" role="region" aria-label="Timeline keyboard shortcuts">
           <span><kbd>←</kbd> / <kbd>→</kbd> Prev/Next</span>
@@ -305,6 +313,19 @@ export function PersonTimeline({
               {event.city}, {event.country} · {event.locationPrecision || "unestablished"} precision
             </small>
           </p>
+
+          {/* Forensic Transit & Journey Details */}
+          {activeJourney.isJourney && (
+            <div className="event-journey-banner" role="status" aria-label={activeJourney.description}>
+              <span className="journey-mode-icon" aria-hidden="true">{activeJourney.emoji}</span>
+              <div className="journey-mode-copy">
+                <small>TRANSIT & JOURNEY METHOD</small>
+                <b>{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</b>
+                <span>Distance: {activeJourney.formattedDistance} · Compass Heading: {activeJourney.bearing}°</span>
+              </div>
+            </div>
+          )}
+
           <div className="detail-tags">
             {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
               <span key={type}>{type}</span>
@@ -390,9 +411,19 @@ export function PersonTimeline({
         </article>
         <div className="person-map-stage">
           <div className="map-stage-label">
-            <span>DOCUMENTED POSITION</span>
-            <b>{event.city}</b>
-            <small>{progress}% through indexed chronology</small>
+            <div className="stage-label-top">
+              <span>DOCUMENTED POSITION</span>
+              <b>{event.city}</b>
+            </div>
+            {activeJourney.isJourney ? (
+              <div className="stage-journey-pill" title={activeJourney.description}>
+                <span className="journey-emoji">{activeJourney.emoji}</span>
+                <span className="journey-text">{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</span>
+                <span className="journey-distance">{activeJourney.formattedDistance}</span>
+              </div>
+            ) : (
+              <small>{progress}% through indexed chronology</small>
+            )}
           </div>
           <MapGraphic
             events={ordered.slice(0, safeIndex + 1)}
@@ -497,7 +528,6 @@ export function PersonTimeline({
             <span>{ordered.at(-1)?.startDate || "—"}</span>
           </div>
 
-
           <Slider
             aria-label={`${person.name} timeline position`}
             aria-valuemin={0}
@@ -528,18 +558,26 @@ export function PersonTimeline({
           </div>
         </div>
 
-        <label className="speed">
-          <Gauge />
-          <span className="sr-only">Playback speed</span>
-          <select
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-          >
-            <option value="2600">0.5×</option>
-            <option value="1600">1×</option>
-            <option value="850">2×</option>
-          </select>
-        </label>
+        <div className="console-meta-tools">
+          {activeJourney.isJourney && (
+            <div className="console-journey-chip" title={activeJourney.description}>
+              <span>{activeJourney.emoji}</span>
+              <small>{activeJourney.formattedDistance}</small>
+            </div>
+          )}
+          <label className="speed">
+            <Gauge size={14} />
+            <span className="sr-only">Playback speed</span>
+            <select
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+            >
+              <option value="2600">0.5×</option>
+              <option value="1600">1×</option>
+              <option value="850">2×</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {source && (
