@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { getRelationalStore, getDb } from "@/lib/db/client";
 import * as schema from "@/db/schema";
 import { eq, desc, count, or, and, ilike, inArray, sql } from "drizzle-orm";
@@ -1392,12 +1393,14 @@ export function rejectCandidate(candidateId: string, reason: string, editorName 
 
 export function ingestSampleCandidateStream(editorActor = "Autonomous Ingestion Adapter") {
   const store = getRelationalStore();
-  const timestamp = Date.now();
-  const candidateId = `cand-stream-${timestamp.toString(36)}`;
+  const db = getDb();
+  const uniqueSuffix = crypto.randomUUID();
+  const candidateId = `cand-stream-${uniqueSuffix}`;
+  const fingerprint = `fp_geneva_arms_control_${crypto.createHash("sha256").update(uniqueSuffix).digest("hex").slice(0, 16)}`;
 
   const sampleCandidate = {
     id: candidateId,
-    fingerprint: `fp_geneva_arms_control_${timestamp}`,
+    fingerprint,
     suggestedTitle: "Trilateral Diplomatic Consultations on Regional Security Framework",
     suggestedDate: "2013-11-14",
     suggestedPlace: "Palais des Nations, Geneva",
@@ -1445,25 +1448,82 @@ export function ingestSampleCandidateStream(editorActor = "Autonomous Ingestion 
     }),
   };
 
-  store.candidateEvents.unshift(sampleCandidate);
-
-  recordAuditEvent(
-    "discovered",
-    "INGEST-STREAM-SAMPLE",
-    {
-      candidateId,
-      trigger: "stream_demonstration",
-      injectedBy: editorActor,
-      timestamp: new Date().toISOString(),
-    },
-    undefined,
-    candidateId
-  );
-
-  return {
+  const syncFallback: { success: boolean; candidateId: string; sampleCandidate: typeof sampleCandidate; error?: string } = {
     success: true,
     candidateId,
     sampleCandidate,
   };
+
+  const executionPromise = (async () => {
+    if (db) {
+      try {
+        await db.insert(schema.candidateEvents).values({
+          id: sampleCandidate.id,
+          fingerprint: sampleCandidate.fingerprint,
+          suggestedTitle: sampleCandidate.suggestedTitle,
+          suggestedDate: sampleCandidate.suggestedDate,
+          suggestedPlace: sampleCandidate.suggestedPlace,
+          suggestedParticipants: sampleCandidate.suggestedParticipants,
+          primarySourceTier: sampleCandidate.primarySourceTier,
+          assignedLane: sampleCandidate.assignedLane,
+          duplicateMatchId: sampleCandidate.duplicateMatchId,
+          duplicateSimilarity: sampleCandidate.duplicateSimilarity,
+          status: sampleCandidate.status,
+          rejectionReason: sampleCandidate.rejectionReason,
+          rawExtraction: sampleCandidate.rawExtraction,
+          createdAt: sampleCandidate.createdAt,
+        });
+
+        await recordAuditEvent(
+          "discovered",
+          "INGEST-STREAM-SAMPLE",
+          {
+            candidateId,
+            trigger: "stream_demonstration",
+            injectedBy: editorActor,
+            timestamp: new Date().toISOString(),
+          },
+          undefined,
+          candidateId
+        );
+      } catch (err) {
+        console.error("Live DB insertion failed on ingestSampleCandidateStream:", err);
+        if (process.env.NODE_ENV === "production") {
+          return {
+            success: false,
+            candidateId,
+            sampleCandidate,
+            error: `Failed to persist sample candidate stream to database: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
+      }
+    }
+
+    store.candidateEvents.unshift(sampleCandidate);
+
+    if (!db) {
+      await recordAuditEvent(
+        "discovered",
+        "INGEST-STREAM-SAMPLE",
+        {
+          candidateId,
+          trigger: "stream_demonstration",
+          injectedBy: editorActor,
+          timestamp: new Date().toISOString(),
+        },
+        undefined,
+        candidateId
+      );
+    }
+
+    return {
+      success: true,
+      candidateId,
+      sampleCandidate,
+    };
+  })();
+
+  return asAsyncResult(executionPromise, syncFallback);
 }
+
 

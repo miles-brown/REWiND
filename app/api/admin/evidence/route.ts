@@ -206,7 +206,10 @@ export async function POST(req: Request) {
     }
 
     if (data.action === "ingest_sample") {
-      const res = ingestSampleCandidateStream(editorActor);
+      const res = await ingestSampleCandidateStream(editorActor);
+      if (!res.success) {
+        return NextResponse.json(res, { status: 400 });
+      }
       return NextResponse.json(res, { status: 200 });
     }
 

@@ -74,6 +74,21 @@ const TIER_LABELS: Record<string, string> = {
   "tier-c": "TIER C: RETROSPECTIVE SCHOLARLY",
 };
 
+const ClaimItemSchema = z.object({
+  subjectMention: z.string(),
+  statement: z.string(),
+  claimType: z.string().optional(),
+  claimedTime: z.string().optional(),
+  claimedVenue: z.string().optional(),
+  supportingExcerpt: z.string().optional(),
+});
+
+const ParticipantItemSchema = z.object({
+  name: z.string(),
+  role: z.string().optional(),
+  confidence: z.number().optional(),
+});
+
 const CandidatePayloadSchema = z.object({
   summary: z.string().optional(),
   eventType: z.string().optional(),
@@ -84,27 +99,8 @@ const CandidatePayloadSchema = z.object({
   sourceTitle: z.string().optional(),
   sourcePublisher: z.string().optional(),
   sourceTier: z.string().optional(),
-  claims: z
-    .array(
-      z.object({
-        subjectMention: z.string(),
-        statement: z.string(),
-        claimType: z.string().optional(),
-        claimedTime: z.string().optional(),
-        claimedVenue: z.string().optional(),
-        supportingExcerpt: z.string().optional(),
-      })
-    )
-    .optional(),
-  participants: z
-    .array(
-      z.object({
-        name: z.string(),
-        role: z.string().optional(),
-        confidence: z.number().optional(),
-      })
-    )
-    .optional(),
+  claims: z.array(ClaimItemSchema).optional(),
+  participants: z.array(ParticipantItemSchema).optional(),
 });
 
 type ParsedCandidateExtraction = z.infer<typeof CandidatePayloadSchema>;
@@ -145,23 +141,50 @@ function parseCandidateExtraction(raw: string): ParsedCandidateExtraction {
     if (parsed.success) {
       return parsed.data;
     }
-    const safeClaims = Array.isArray(json?.claims)
-      ? json.claims.filter(
-          (c: unknown): c is { subjectMention: string; statement: string; [key: string]: unknown } =>
-            typeof c === "object" &&
-            c !== null &&
-            typeof (c as Record<string, unknown>).statement === "string" &&
-            typeof (c as Record<string, unknown>).subjectMention === "string"
-        )
-      : [];
-    const safeParticipants = Array.isArray(json?.participants)
-      ? json.participants.filter(
-          (p: unknown): p is { name: string; [key: string]: unknown } =>
-            typeof p === "object" &&
-            p !== null &&
-            typeof (p as Record<string, unknown>).name === "string"
-        )
-      : [];
+    const rawClaims = Array.isArray(json?.claims) ? (json.claims as unknown[]) : [];
+    const safeClaims: z.infer<typeof ClaimItemSchema>[] = [];
+    for (const c of rawClaims) {
+      const parsedClaim = ClaimItemSchema.safeParse(c);
+      if (parsedClaim.success) {
+        safeClaims.push(parsedClaim.data);
+      } else if (
+        typeof c === "object" &&
+        c !== null &&
+        typeof (c as Record<string, unknown>).statement === "string" &&
+        typeof (c as Record<string, unknown>).subjectMention === "string"
+      ) {
+        const rawRec = c as Record<string, unknown>;
+        safeClaims.push({
+          subjectMention: String(rawRec.subjectMention),
+          statement: String(rawRec.statement),
+          claimType: typeof rawRec.claimType === "string" ? rawRec.claimType : undefined,
+          claimedTime: typeof rawRec.claimedTime === "string" ? rawRec.claimedTime : undefined,
+          claimedVenue: typeof rawRec.claimedVenue === "string" ? rawRec.claimedVenue : undefined,
+          supportingExcerpt: typeof rawRec.supportingExcerpt === "string" ? rawRec.supportingExcerpt : undefined,
+        });
+      }
+    }
+
+    const rawParticipants = Array.isArray(json?.participants) ? (json.participants as unknown[]) : [];
+    const safeParticipants: z.infer<typeof ParticipantItemSchema>[] = [];
+    for (const p of rawParticipants) {
+      const parsedParticipant = ParticipantItemSchema.safeParse(p);
+      if (parsedParticipant.success) {
+        safeParticipants.push(parsedParticipant.data);
+      } else if (
+        typeof p === "object" &&
+        p !== null &&
+        typeof (p as Record<string, unknown>).name === "string"
+      ) {
+        const rawRec = p as Record<string, unknown>;
+        safeParticipants.push({
+          name: String(rawRec.name),
+          role: typeof rawRec.role === "string" ? rawRec.role : undefined,
+          confidence: typeof rawRec.confidence === "number" ? rawRec.confidence : undefined,
+        });
+      }
+    }
+
     return {
       summary: typeof json?.summary === "string" ? json.summary : undefined,
       eventType: typeof json?.eventType === "string" ? json.eventType : undefined,
