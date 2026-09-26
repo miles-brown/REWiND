@@ -786,7 +786,7 @@ export function MapGraphic({
                 key={cluster.event.id}
                 onClick={() => onSelect?.(cluster.event.id)}
                 style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
-                className={`map-point forensic-svg-pin ${isSelected ? "selected" : ""} ${
+                className={`forensic-svg-pin ${isSelected ? "selected" : ""} ${
                   cluster.allVerified ? "verified" : "provisional"
                 }`}
                 aria-pressed={isSelected}

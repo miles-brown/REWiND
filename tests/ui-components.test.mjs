@@ -140,3 +140,97 @@ test("generates valid BibTeX, APA, and Chicago citations", async () => {
   assert.equal(json.id, "evt-1996-election");
   assert.equal(json.atlasMetadata.generator, "REWIND Evidence Atlas v1.0");
 });
+
+test("renders PersonWorkspaceTabs with accessible roles, tabs-header-wrap, and active styling", async () => {
+  const { PersonWorkspaceTabs } = await vite.ssrLoadModule(
+    "/components/rewind/PersonWorkspaceTabs.tsx",
+  );
+
+  const samplePerson = {
+    id: "benjamin-netanyahu",
+    slug: "benjamin-netanyahu",
+    name: "Benjamin Netanyahu",
+    description: "Israeli Prime Minister",
+  };
+
+  const html = renderToStaticMarkup(
+    React.createElement(PersonWorkspaceTabs, {
+      person: samplePerson,
+      records: [],
+      roles: [],
+      milestones: [],
+    }),
+  );
+
+  assert.match(html, /class="tabs-header-wrap"/);
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /id="tab-events"/);
+  assert.match(html, /aria-selected="true"/);
+  assert.match(html, /id="tab-roles"/);
+  assert.match(html, /id="tab-milestones"/);
+  assert.match(html, /workspace-tab-btn/);
+});
+
+test("globals.css defines dark container wrappers and timeline tab styles", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+
+  assert.match(globalsCss, /\.person-page\s*\{[^}]*background:\s*#07151c/);
+  assert.match(globalsCss, /\.person-section-wrap\s*\{/);
+  assert.match(globalsCss, /\.person-workspace-tabs\s*\{/);
+  assert.match(globalsCss, /\.workspace-tab-btn\s*\{/);
+  assert.match(globalsCss, /\.workspace-tab-btn\.active/);
+  assert.match(globalsCss, /\.roles-timeline-container\s*\{/);
+  assert.match(globalsCss, /\.milestones-timeline-container\s*\{/);
+  assert.match(globalsCss, /\.topic-timeline-container\s*\{/);
+});
+
+test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+
+  function getLuminance(hex) {
+    const rgb = hex.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
+    const a = rgb.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  }
+
+  function getContrast(hex1, hex2) {
+    const lum1 = getLuminance(hex1);
+    const lum2 = getLuminance(hex2);
+    return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
+  }
+
+  function extractProp(selector, prop) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(?:^|,\\s*)${escaped}\\s*\\{[^}]*?${prop}:\\s*([^;]+);`, "m");
+    const match = globalsCss.match(regex);
+    return match ? match[1].trim() : null;
+  }
+
+  const personPageBg = extractProp(".person-page", "background");
+  const personPageColor = extractProp(".person-page", "color");
+  const activeTabColor = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "color") || extractProp(".workspace-tab-btn.active", "color");
+  const activeTabBg = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "background") || extractProp(".workspace-tab-btn.active", "background");
+  const roleCardBg = extractProp(".role-card", "background");
+  const roleBadgeColor = extractProp(".role-badge-active", "color");
+  const milestoneBadgeColor = extractProp(".milestone-cat-badge", "color");
+  const milestoneStatColor = extractProp(".milestone-stat-pill", "color");
+
+  const contrastPairs = [
+    { fg: personPageColor, bg: personPageBg, name: "Person page text on page background", minContrast: 4.5 },
+    { fg: activeTabColor, bg: activeTabBg, name: "Active tab text on active tab background", minContrast: 4.5 },
+    { fg: roleBadgeColor, bg: roleCardBg, name: "Active role badge on card surface", minContrast: 4.5 },
+    { fg: milestoneBadgeColor, bg: roleCardBg, name: "Milestone category badge on card surface", minContrast: 4.5 },
+    { fg: milestoneStatColor, bg: roleCardBg, name: "Milestone stat pill text on card surface", minContrast: 4.5 },
+  ];
+
+  for (const pair of contrastPairs) {
+    assert.ok(pair.fg && pair.bg, `Could not extract color values for ${pair.name}`);
+    const contrast = getContrast(pair.fg, pair.bg);
+    assert.ok(
+      contrast >= pair.minContrast,
+      `Contrast failure for ${pair.name} (${pair.fg} on ${pair.bg}): ratio is ${contrast.toFixed(2)}:1, expected >= ${pair.minContrast}:1`
+    );
+  }
+});
+
+
