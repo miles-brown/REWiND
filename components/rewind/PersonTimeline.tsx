@@ -321,7 +321,7 @@ export function PersonTimeline({
 
           {/* Forensic Transit & Journey Details */}
           {activeJourney?.isJourney && (
-            <div className="event-journey-banner" role="status" aria-label={activeJourney.description}>
+            <div className="event-journey-banner">
               <span className="journey-mode-icon" aria-hidden="true">{activeJourney.emoji}</span>
               <div className="journey-mode-copy">
                 <small>TRANSIT & JOURNEY METHOD</small>

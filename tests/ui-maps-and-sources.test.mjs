@@ -982,7 +982,6 @@ test("verifies Codex & CodeRabbit review fixes: precision date formatting, quote
 });
 
 test("verifies CARTO Basemaps API key integration across MapGraphic and environment templates", () => {
-  const root = process.cwd();
   const mapGraphicContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
   const envExampleContent = fs.readFileSync(path.join(root, ".env.example"), "utf-8");
 
@@ -1007,7 +1006,6 @@ test("verifies CARTO Basemaps API key integration across MapGraphic and environm
 });
 
 test("verifies transport calculation, forensic map pins, and compact timeline console", () => {
-  const root = process.cwd();
   const transportPath = path.join(root, "lib/rewind/transport.ts");
   assert.ok(fs.existsSync(transportPath), "lib/rewind/transport.ts must exist");
   const transportContent = fs.readFileSync(transportPath, "utf-8");
@@ -1063,8 +1061,6 @@ test("verifies transport calculation, forensic map pins, and compact timeline co
 });
 
 test("verifies round-35 CodeRabbit review fixes: word-boundary transport matching, marker cancellation, and vehicle accessibility", () => {
-  const root = process.cwd();
-
   // 1. transport.ts word-boundary matching
   const transportContent = fs.readFileSync(path.join(root, "lib/rewind/transport.ts"), "utf-8");
   assert.ok(
@@ -1091,5 +1087,33 @@ test("verifies round-35 CodeRabbit review fixes: word-boundary transport matchin
     "PersonTimeline must only resolve journey when coordinates exist and search backwards for coordinate-bearing predecessor"
   );
 });
+
+test("does not classify business meeting as bus transport", async () => {
+  const { resolveJourneyTransport } = await vite.ssrLoadModule("/lib/rewind/transport.ts");
+  const previousEvent = {
+    id: "previous-event",
+    slug: "previous-event",
+    eventName: "Previous event",
+    startDate: "2024-01-01",
+    city: "London",
+    country: "United Kingdom",
+    latitude: 51.5074,
+    longitude: -0.1278,
+  };
+  const businessMeetingEvent = {
+    id: "business-meeting",
+    slug: "business-meeting",
+    eventName: "Business Meeting",
+    startDate: "2024-01-02",
+    city: "London",
+    country: "United Kingdom",
+    latitude: 51.5074,
+    longitude: -0.1278,
+  };
+
+  const result = resolveJourneyTransport(previousEvent, businessMeetingEvent);
+  assert.equal(result.mode, "local");
+});
+
 
 
