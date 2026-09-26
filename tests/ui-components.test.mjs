@@ -184,7 +184,9 @@ test("globals.css defines dark container wrappers and timeline tab styles", asyn
   assert.match(globalsCss, /\.topic-timeline-container\s*\{/);
 });
 
-test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs", () => {
+test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+
   function getLuminance(hex) {
     const rgb = hex.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
     const a = rgb.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
@@ -197,18 +199,32 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
     return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
   }
 
+  function extractProp(selector, prop) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(?:^|,\\s*)${escaped}\\s*\\{[^}]*?${prop}:\\s*([^;]+);`, "m");
+    const match = globalsCss.match(regex);
+    return match ? match[1].trim() : null;
+  }
+
+  const personPageBg = extractProp(".person-page", "background");
+  const personPageColor = extractProp(".person-page", "color");
+  const activeTabColor = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "color") || extractProp(".workspace-tab-btn.active", "color");
+  const activeTabBg = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "background") || extractProp(".workspace-tab-btn.active", "background");
+  const roleCardBg = extractProp(".role-card", "background");
+  const roleBadgeColor = extractProp(".role-badge-active", "color");
+  const milestoneBadgeColor = extractProp(".milestone-cat-badge", "color");
+  const milestoneStatColor = extractProp(".milestone-stat-pill", "color");
+
   const contrastPairs = [
-    { fg: "#f8fafc", bg: "#07151c", name: "Main text on dark page", minContrast: 4.5 },
-    { fg: "#94a3b8", bg: "#07151c", name: "Muted text on dark page", minContrast: 4.5 },
-    { fg: "#94a3b8", bg: "#09131a", name: "Muted text on card surface", minContrast: 4.5 },
-    { fg: "#38bdf8", bg: "#07151c", name: "Sky cyan on dark page", minContrast: 4.5 },
-    { fg: "#0c1820", bg: "#38bdf8", name: "Dark text on active tab", minContrast: 4.5 },
-    { fg: "#fbbf24", bg: "#09131a", name: "Amber on card surface", minContrast: 4.5 },
-    { fg: "#34d399", bg: "#09131a", name: "Emerald on card surface", minContrast: 4.5 },
-    { fg: "#cbd5e1", bg: "#09131a", name: "Light slate on card surface", minContrast: 4.5 },
+    { fg: personPageColor, bg: personPageBg, name: "Person page text on page background", minContrast: 4.5 },
+    { fg: activeTabColor, bg: activeTabBg, name: "Active tab text on active tab background", minContrast: 4.5 },
+    { fg: roleBadgeColor, bg: roleCardBg, name: "Active role badge on card surface", minContrast: 4.5 },
+    { fg: milestoneBadgeColor, bg: roleCardBg, name: "Milestone category badge on card surface", minContrast: 4.5 },
+    { fg: milestoneStatColor, bg: roleCardBg, name: "Milestone stat pill text on card surface", minContrast: 4.5 },
   ];
 
   for (const pair of contrastPairs) {
+    assert.ok(pair.fg && pair.bg, `Could not extract color values for ${pair.name}`);
     const contrast = getContrast(pair.fg, pair.bg);
     assert.ok(
       contrast >= pair.minContrast,

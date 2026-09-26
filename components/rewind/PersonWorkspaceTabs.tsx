@@ -46,7 +46,7 @@ export function PersonWorkspaceTabs({
             role="tab"
             aria-selected={activeTab === "events"}
             aria-controls="tabpanel-events"
-            className={`workspace-tab-btn ${activeTab === "events" ? "active" : ""}`}
+            className="workspace-tab-btn"
             onClick={() => setActiveTab("events")}
           >
             <Calendar size={16} />
@@ -58,7 +58,7 @@ export function PersonWorkspaceTabs({
             role="tab"
             aria-selected={activeTab === "roles"}
             aria-controls="tabpanel-roles"
-            className={`workspace-tab-btn ${activeTab === "roles" ? "active" : ""}`}
+            className="workspace-tab-btn"
             onClick={() => setActiveTab("roles")}
           >
             <Building2 size={16} />
@@ -70,7 +70,7 @@ export function PersonWorkspaceTabs({
             role="tab"
             aria-selected={activeTab === "milestones"}
             aria-controls="tabpanel-milestones"
-            className={`workspace-tab-btn ${activeTab === "milestones" ? "active" : ""}`}
+            className="workspace-tab-btn"
             onClick={() => setActiveTab("milestones")}
           >
             <Trophy size={16} />
