@@ -531,7 +531,7 @@ svg { flex: 0 0 auto; }
 .svg-vehicle-badge { margin-top: 3px; padding: 1px 5px; background: rgba(8,16,26,0.9); border: 1px solid rgba(56,189,248,0.3); border-radius: 3px; font-size: 9px; font-weight: 700; color: #38bdf8; white-space: nowrap; }
 
 /* Sleek Compact Person Timeline Console */
-.person-time-console { position: fixed; z-index: 40; bottom: 0; left: 0; right: 0; min-height: 70px; max-height: 84px; display: grid; grid-template-columns: 180px auto minmax(240px,1fr) auto; align-items: center; gap: 16px; padding: 10px clamp(16px,4vw,56px); background: rgba(8,16,26,.94); border-top: 1px solid rgba(255,255,255,.14); box-shadow: 0 -8px 30px rgba(0,0,0,.55); backdrop-filter: blur(20px); }
+.person-time-console { position: fixed; z-index: 40; bottom: 0; left: 0; right: 0; min-height: 70px; display: grid; grid-template-columns: 180px auto minmax(240px,1fr) auto; align-items: center; gap: 16px; padding: 10px clamp(16px,4vw,56px); background: rgba(8,16,26,.94); border-top: 1px solid rgba(255,255,255,.14); box-shadow: 0 -8px 30px rgba(0,0,0,.55); backdrop-filter: blur(20px); }
 .person-time-console .console-date { display: flex; flex-direction: column; gap: 2px; }
 .person-time-console .console-date small { color: #38bdf8; font: 700 9px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
 .person-time-console .console-date b { color: #f8fafc; font: 700 13px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }

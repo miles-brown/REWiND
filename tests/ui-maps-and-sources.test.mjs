@@ -1062,3 +1062,34 @@ test("verifies transport calculation, forensic map pins, and compact timeline co
   );
 });
 
+test("verifies round-35 CodeRabbit review fixes: word-boundary transport matching, marker cancellation, and vehicle accessibility", () => {
+  const root = process.cwd();
+
+  // 1. transport.ts word-boundary matching
+  const transportContent = fs.readFileSync(path.join(root, "lib/rewind/transport.ts"), "utf-8");
+  assert.ok(
+    transportContent.includes("hasTerm") &&
+    transportContent.includes("\\b") &&
+    transportContent.includes("RegExp"),
+    "transport.ts must use word-boundary regex term matching to avoid substring false matches"
+  );
+
+  // 2. MapGraphic marker cancellation & role="img" accessibility
+  const mapGraphicContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  assert.ok(
+    mapGraphicContent.includes("isCancelled = false") &&
+    mapGraphicContent.includes("isCancelled = true") &&
+    mapGraphicContent.includes('vehicleEl.setAttribute("role", "img")'),
+    "MapGraphic must guard marker creation with isCancelled and set role='img' on vehicle marker"
+  );
+
+  // 3. PersonTimeline coordinate-aware journey resolution
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  assert.ok(
+    timelineContent.includes("event.latitude == null || event.longitude == null") &&
+    timelineContent.includes("candidate.latitude != null && candidate.longitude != null"),
+    "PersonTimeline must only resolve journey when coordinates exist and search backwards for coordinate-bearing predecessor"
+  );
+});
+
+

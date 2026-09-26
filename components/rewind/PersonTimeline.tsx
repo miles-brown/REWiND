@@ -173,13 +173,6 @@ export function PersonTimeline({
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  const currentEvent = ordered[safeIndex] ?? null;
-  const prevEvent = safeIndex > 0 ? ordered[safeIndex - 1] : null;
-  const activeJourney = useMemo(
-    () => resolveJourneyTransport(prevEvent, currentEvent),
-    [prevEvent, currentEvent]
-  );
-
   if (!ordered.length) {
     return (
       <div className="zero-state">
@@ -190,6 +183,18 @@ export function PersonTimeline({
   }
 
   const event = ordered[safeIndex];
+  const activeJourney = (() => {
+    if (!event || event.latitude == null || event.longitude == null) {
+      return null;
+    }
+    for (let i = safeIndex - 1; i >= 0; i--) {
+      const candidate = ordered[i];
+      if (candidate && candidate.latitude != null && candidate.longitude != null) {
+        return resolveJourneyTransport(candidate, event);
+      }
+    }
+    return resolveJourneyTransport(null, event);
+  })();
 
   const source =
     event.sources?.[0] ||
@@ -315,7 +320,7 @@ export function PersonTimeline({
           </p>
 
           {/* Forensic Transit & Journey Details */}
-          {activeJourney.isJourney && (
+          {activeJourney?.isJourney && (
             <div className="event-journey-banner" role="status" aria-label={activeJourney.description}>
               <span className="journey-mode-icon" aria-hidden="true">{activeJourney.emoji}</span>
               <div className="journey-mode-copy">
@@ -415,7 +420,7 @@ export function PersonTimeline({
               <span>DOCUMENTED POSITION</span>
               <b>{event.city}</b>
             </div>
-            {activeJourney.isJourney ? (
+            {activeJourney?.isJourney ? (
               <div className="stage-journey-pill" title={activeJourney.description}>
                 <span className="journey-emoji">{activeJourney.emoji}</span>
                 <span className="journey-text">{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</span>
@@ -559,7 +564,7 @@ export function PersonTimeline({
         </div>
 
         <div className="console-meta-tools">
-          {activeJourney.isJourney && (
+          {activeJourney?.isJourney && (
             <div className="console-journey-chip" title={activeJourney.description}>
               <span>{activeJourney.emoji}</span>
               <small>{activeJourney.formattedDistance}</small>

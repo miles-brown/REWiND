@@ -175,13 +175,13 @@ export function MapGraphic({
 
   const selectedIndex = useMemo(() => {
     if (!points.length) return -1;
-    const found = points.findIndex((p) => p.id === selected);
-    return found >= 0 ? found : points.length - 1;
+    if (!selected) return points.length - 1;
+    return points.findIndex((p) => p.id === selected);
   }, [points, selected]);
 
   const selectedEvent = useMemo(
-    () => (selectedIndex >= 0 ? points[selectedIndex] : points[points.length - 1]),
-    [points, selectedIndex]
+    () => (selectedIndex >= 0 ? points[selectedIndex] : (selected ? null : points[points.length - 1])),
+    [points, selectedIndex, selected]
   );
 
   const prevEvent = selectedIndex > 0 ? points[selectedIndex - 1] : null;
@@ -284,7 +284,9 @@ export function MapGraphic({
         const initialCenter: [number, number] =
           selectedEventRef.current?.longitude != null && selectedEventRef.current?.latitude != null
             ? [selectedEventRef.current.longitude, selectedEventRef.current.latitude]
-            : [35.2137, 31.7683]; // Default Levant coordinates
+            : pointsRef.current.length > 0 && pointsRef.current[pointsRef.current.length - 1].longitude != null && pointsRef.current[pointsRef.current.length - 1].latitude != null
+              ? [pointsRef.current[pointsRef.current.length - 1].longitude!, pointsRef.current[pointsRef.current.length - 1].latitude!]
+              : [35.2137, 31.7683]; // Default Levant coordinates
 
         const initialStyle = mapThemeRef.current === "satellite" && MAPBOX_SATELLITE_STYLE
           ? MAPBOX_SATELLITE_STYLE
@@ -392,6 +394,7 @@ export function MapGraphic({
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !mapLoaded) return;
 
+    let isCancelled = false;
     const map = mapInstanceRef.current;
 
     // Remove existing markers
@@ -399,6 +402,8 @@ export function MapGraphic({
     markersRef.current = [];
 
     import("maplibre-gl").then(({ Marker }) => {
+      if (isCancelled) return;
+
       // Group points by location proximity for clean clustering
       const grouped = new Map<string, typeof points>();
       points.forEach((p) => {
@@ -520,6 +525,7 @@ export function MapGraphic({
       ) {
         const vehicleEl = document.createElement("div");
         vehicleEl.className = `moving-vehicle-marker mode-${activeJourney.iconName}`;
+        vehicleEl.setAttribute("role", "img");
         vehicleEl.setAttribute("aria-label", activeJourney.description);
         vehicleEl.title = activeJourney.description;
 
@@ -575,6 +581,12 @@ export function MapGraphic({
         });
       }
     });
+
+    return () => {
+      isCancelled = true;
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+    };
   }, [points, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
 
   // Smooth fly-to camera movement on selection change

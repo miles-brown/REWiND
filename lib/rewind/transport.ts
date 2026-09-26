@@ -141,79 +141,126 @@ export function resolveJourneyTransport(
   let iconName: "plane" | "jet" | "helicopter" | "car" | "train" | "bus" | "ship" = "car";
   let emoji = "🚗";
 
+  const hasTerm = (text: string, terms: readonly string[]): boolean =>
+    terms.some((t) =>
+      new RegExp(`\\b${t.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "i").test(text)
+    );
+
   if (
-    combinedContext.includes("air force one") ||
-    combinedContext.includes("air force 1") ||
-    combinedContext.includes("sam 28000") ||
-    combinedContext.includes("sam 29000") ||
-    combinedContext.includes("state aircraft") ||
-    combinedContext.includes("presidential flight")
+    hasTerm(combinedContext, [
+      "air force one",
+      "air force 1",
+      "sam 28000",
+      "sam 29000",
+      "state aircraft",
+      "presidential flight",
+    ])
   ) {
     mode = "air-force-one";
     label = "Air Force One / State Aircraft";
     iconName = "plane";
     emoji = "🛫";
   } else if (
-    combinedContext.includes("helicopter") ||
-    combinedContext.includes("marine one") ||
-    combinedContext.includes("chopper") ||
-    combinedContext.includes("helipad")
+    hasTerm(combinedContext, [
+      "helicopter",
+      "helicopters",
+      "marine one",
+      "chopper",
+      "choppers",
+      "helipad",
+    ])
   ) {
     mode = "helicopter";
     label = "Helicopter Transfer";
     iconName = "helicopter";
     emoji = "🚁";
   } else if (
-    combinedContext.includes("private jet") ||
-    combinedContext.includes("lolita express") ||
-    combinedContext.includes("gulfstream") ||
-    combinedContext.includes("flight log") ||
-    combinedContext.includes("charter flight") ||
-    combinedContext.includes("private flight") ||
-    combinedContext.includes("boeing 727-23")
+    hasTerm(combinedContext, [
+      "private jet",
+      "private jets",
+      "lolita express",
+      "gulfstream",
+      "flight log",
+      "charter flight",
+      "charter flights",
+      "private flight",
+      "private flights",
+      "boeing 727-23",
+    ])
   ) {
     mode = "private-jet";
     label = "Private Jet Flight";
     iconName = "jet";
     emoji = "🛩️";
   } else if (
-    combinedContext.includes("train") ||
-    combinedContext.includes("railway") ||
-    combinedContext.includes("eurostar") ||
-    combinedContext.includes("amtrak") ||
-    combinedContext.includes("rail")
+    hasTerm(combinedContext, [
+      "train",
+      "trains",
+      "railway",
+      "railways",
+      "railroad",
+      "railroads",
+      "eurostar",
+      "amtrak",
+      "bullet train",
+      "high-speed rail",
+      "rail",
+    ])
   ) {
     mode = "train";
     label = "High-Speed Rail";
     iconName = "train";
     emoji = "🚆";
   } else if (
-    combinedContext.includes("yacht") ||
-    combinedContext.includes("boat") ||
-    combinedContext.includes("vessel") ||
-    combinedContext.includes("ship") ||
-    combinedContext.includes("ferry") ||
-    combinedContext.includes("cruise") ||
-    combinedContext.includes("maritime")
+    hasTerm(combinedContext, [
+      "yacht",
+      "yachts",
+      "superyacht",
+      "superyachts",
+      "boat",
+      "boats",
+      "vessel",
+      "vessels",
+      "ship",
+      "ships",
+      "ferry",
+      "ferries",
+      "cruise",
+      "cruises",
+      "maritime",
+      "sailboat",
+    ])
   ) {
     mode = "boat";
     label = "Maritime Vessel / Yacht";
     iconName = "ship";
     emoji = "🚢";
   } else if (
-    combinedContext.includes("bus") ||
-    combinedContext.includes("coach") ||
-    combinedContext.includes("transit")
+    hasTerm(combinedContext, [
+      "bus",
+      "buses",
+      "coach",
+      "coaches",
+      "public transit",
+      "bus transit",
+    ])
   ) {
     mode = "bus";
     label = "Ground Transit / Coach";
     iconName = "bus";
     emoji = "🚌";
   } else if (
-    combinedContext.includes("motorcade") ||
-    combinedContext.includes("convoy") ||
-    combinedContext.includes("limousine") ||
-    combinedContext.includes("official vehicle")
+    hasTerm(combinedContext, [
+      "motorcade",
+      "motorcades",
+      "convoy",
+      "convoys",
+      "limousine",
+      "limousines",
+      "official vehicle",
+      "official vehicles",
+      "presidential motorcade",
+    ])
   ) {
     mode = "car";
     label = "Official Motorcade";
