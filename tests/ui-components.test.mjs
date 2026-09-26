@@ -140,3 +140,47 @@ test("generates valid BibTeX, APA, and Chicago citations", async () => {
   assert.equal(json.id, "evt-1996-election");
   assert.equal(json.atlasMetadata.generator, "REWIND Evidence Atlas v1.0");
 });
+
+test("renders PersonWorkspaceTabs with accessible roles, tabs-header-wrap, and active styling", async () => {
+  const { PersonWorkspaceTabs } = await vite.ssrLoadModule(
+    "/components/rewind/PersonWorkspaceTabs.tsx",
+  );
+
+  const samplePerson = {
+    id: "benjamin-netanyahu",
+    slug: "benjamin-netanyahu",
+    name: "Benjamin Netanyahu",
+    description: "Israeli Prime Minister",
+  };
+
+  const html = renderToStaticMarkup(
+    React.createElement(PersonWorkspaceTabs, {
+      person: samplePerson,
+      records: [],
+      roles: [],
+      milestones: [],
+    }),
+  );
+
+  assert.match(html, /class="tabs-header-wrap"/);
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /id="tab-events"/);
+  assert.match(html, /aria-selected="true"/);
+  assert.match(html, /id="tab-roles"/);
+  assert.match(html, /id="tab-milestones"/);
+  assert.match(html, /workspace-tab-btn/);
+});
+
+test("globals.css defines dark container wrappers and timeline tab styles", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+
+  assert.match(globalsCss, /\.person-page\s*\{[^}]*background:\s*#07151c/);
+  assert.match(globalsCss, /\.person-section-wrap\s*\{/);
+  assert.match(globalsCss, /\.person-workspace-tabs\s*\{/);
+  assert.match(globalsCss, /\.workspace-tab-btn\s*\{/);
+  assert.match(globalsCss, /\.workspace-tab-btn\.active/);
+  assert.match(globalsCss, /\.roles-timeline-container\s*\{/);
+  assert.match(globalsCss, /\.milestones-timeline-container\s*\{/);
+  assert.match(globalsCss, /\.topic-timeline-container\s*\{/);
+});
+

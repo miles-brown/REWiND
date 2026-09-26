@@ -35,46 +35,48 @@ export function PersonWorkspaceTabs({
         {tabAnnounceText}
       </div>
 
-      <div
-        className="tabs-header"
-        role="tablist"
-        aria-label={`${person.name} workspace timeline views`}
-      >
-        <button
-          id="tab-events"
-          role="tab"
-          aria-selected={activeTab === "events"}
-          aria-controls="tabpanel-events"
-          className="workspace-tab-btn"
-          onClick={() => setActiveTab("events")}
+      <div className="tabs-header-wrap">
+        <div
+          className="tabs-header"
+          role="tablist"
+          aria-label={`${person.name} workspace timeline views`}
         >
-          <Calendar size={16} />
-          Events Timeline ({records.length})
-        </button>
+          <button
+            id="tab-events"
+            role="tab"
+            aria-selected={activeTab === "events"}
+            aria-controls="tabpanel-events"
+            className={`workspace-tab-btn ${activeTab === "events" ? "active" : ""}`}
+            onClick={() => setActiveTab("events")}
+          >
+            <Calendar size={16} />
+            Events Timeline ({records.length})
+          </button>
 
-        <button
-          id="tab-roles"
-          role="tab"
-          aria-selected={activeTab === "roles"}
-          aria-controls="tabpanel-roles"
-          className="workspace-tab-btn"
-          onClick={() => setActiveTab("roles")}
-        >
-          <Building2 size={16} />
-          Official Roles ({roles.length})
-        </button>
+          <button
+            id="tab-roles"
+            role="tab"
+            aria-selected={activeTab === "roles"}
+            aria-controls="tabpanel-roles"
+            className={`workspace-tab-btn ${activeTab === "roles" ? "active" : ""}`}
+            onClick={() => setActiveTab("roles")}
+          >
+            <Building2 size={16} />
+            Official Roles ({roles.length})
+          </button>
 
-        <button
-          id="tab-milestones"
-          role="tab"
-          aria-selected={activeTab === "milestones"}
-          aria-controls="tabpanel-milestones"
-          className="workspace-tab-btn"
-          onClick={() => setActiveTab("milestones")}
-        >
-          <Trophy size={16} />
-          Milestones & Records ({milestones.length})
-        </button>
+          <button
+            id="tab-milestones"
+            role="tab"
+            aria-selected={activeTab === "milestones"}
+            aria-controls="tabpanel-milestones"
+            className={`workspace-tab-btn ${activeTab === "milestones" ? "active" : ""}`}
+            onClick={() => setActiveTab("milestones")}
+          >
+            <Trophy size={16} />
+            Milestones & Records ({milestones.length})
+          </button>
+        </div>
       </div>
 
       {activeTab === "events" && (
@@ -83,12 +85,12 @@ export function PersonWorkspaceTabs({
         </div>
       )}
       {activeTab === "roles" && (
-        <div id="tabpanel-roles" role="tabpanel" aria-labelledby="tab-roles" className="tab-panel">
+        <div id="tabpanel-roles" role="tabpanel" aria-labelledby="tab-roles" className="tab-panel tab-panel-padded">
           <RolesTimeline roles={roles} />
         </div>
       )}
       {activeTab === "milestones" && (
-        <div id="tabpanel-milestones" role="tabpanel" aria-labelledby="tab-milestones" className="tab-panel">
+        <div id="tabpanel-milestones" role="tabpanel" aria-labelledby="tab-milestones" className="tab-panel tab-panel-padded">
           <MilestonesTimeline milestones={milestones} />
         </div>
       )}
