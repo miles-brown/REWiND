@@ -184,3 +184,37 @@ test("globals.css defines dark container wrappers and timeline tab styles", asyn
   assert.match(globalsCss, /\.topic-timeline-container\s*\{/);
 });
 
+test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs", () => {
+  function getLuminance(hex) {
+    const rgb = hex.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
+    const a = rgb.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  }
+
+  function getContrast(hex1, hex2) {
+    const lum1 = getLuminance(hex1);
+    const lum2 = getLuminance(hex2);
+    return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
+  }
+
+  const contrastPairs = [
+    { fg: "#f8fafc", bg: "#07151c", name: "Main text on dark page", minContrast: 4.5 },
+    { fg: "#94a3b8", bg: "#07151c", name: "Muted text on dark page", minContrast: 4.5 },
+    { fg: "#94a3b8", bg: "#09131a", name: "Muted text on card surface", minContrast: 4.5 },
+    { fg: "#38bdf8", bg: "#07151c", name: "Sky cyan on dark page", minContrast: 4.5 },
+    { fg: "#0c1820", bg: "#38bdf8", name: "Dark text on active tab", minContrast: 4.5 },
+    { fg: "#fbbf24", bg: "#09131a", name: "Amber on card surface", minContrast: 4.5 },
+    { fg: "#34d399", bg: "#09131a", name: "Emerald on card surface", minContrast: 4.5 },
+    { fg: "#cbd5e1", bg: "#09131a", name: "Light slate on card surface", minContrast: 4.5 },
+  ];
+
+  for (const pair of contrastPairs) {
+    const contrast = getContrast(pair.fg, pair.bg);
+    assert.ok(
+      contrast >= pair.minContrast,
+      `Contrast failure for ${pair.name} (${pair.fg} on ${pair.bg}): ratio is ${contrast.toFixed(2)}:1, expected >= ${pair.minContrast}:1`
+    );
+  }
+});
+
+
