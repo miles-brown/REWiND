@@ -13,5 +13,6 @@ export * from "./claims";
 export * from "./roles";
 export * from "./milestones";
 export * from "./topics";
+export * from "./transport";
 export { getMonogram, findTopCoAttendee, isPhysicalConfirmedParticipant } from "./utils";
 
