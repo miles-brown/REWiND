@@ -246,6 +246,10 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
   const yearTileBg = extractProp(".year-grid a", "background");
   const yearTileColor = extractProp(".year-grid a", "color");
   const yearTileIconColor = extractProp(".year-grid svg", "color");
+  const filterBtnBg = extractProp(".category-filter-btn", "background");
+  const filterBtnColor = extractProp(".category-filter-btn", "color");
+  const activeFilterBtnBg = extractProp(".category-filter-btn[aria-pressed=\"true\"]", "background");
+  const activeFilterBtnColor = extractProp(".category-filter-btn[aria-pressed=\"true\"]", "color");
 
   const contrastPairs = [
     { fg: personPageColor, bg: personPageBg, name: "Person page text on page background", minContrast: 4.5 },
@@ -256,6 +260,8 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
     { fg: coverageColor, bg: coverageBg, name: "Coverage section text on light section background", minContrast: 4.5 },
     { fg: yearTileColor, bg: yearTileBg, name: "Year tile text on white card background", minContrast: 4.5 },
     { fg: yearTileIconColor, bg: yearTileBg, name: "Year tile link icon on white card background", minContrast: 4.5 },
+    { fg: filterBtnColor, bg: filterBtnBg, name: "Inactive category filter button text on button background", minContrast: 4.5 },
+    { fg: activeFilterBtnColor, bg: activeFilterBtnBg, name: "Active category filter button text on active button background", minContrast: 4.5 },
   ];
 
   for (const pair of contrastPairs) {
