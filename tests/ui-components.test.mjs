@@ -174,7 +174,7 @@ test("renders PersonWorkspaceTabs with accessible roles, tabs-header-wrap, and a
 test("globals.css defines dark container wrappers and timeline tab styles", async () => {
   const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
 
-  assert.match(globalsCss, /\.person-page\s*\{[^}]*background:\s*#07151c/);
+  assert.match(globalsCss, /\.person-page\s*\{[^}]*background:\s*(?:var\(--rewind-dark-bg-primary\)|#07151c)/);
   assert.match(globalsCss, /\.person-section-wrap\s*\{/);
   assert.match(globalsCss, /\.person-workspace-tabs\s*\{/);
   assert.match(globalsCss, /\.workspace-tab-btn\s*\{/);
@@ -187,8 +187,35 @@ test("globals.css defines dark container wrappers and timeline tab styles", asyn
 test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs", async () => {
   const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
 
+  function resolveColor(val) {
+    if (!val) return val;
+    val = val.trim();
+    if (val.startsWith("var(")) {
+      const varName = val.slice(4, -1).trim();
+      const varRegex = new RegExp(`${varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:\\s*([^;]+);`);
+      const varMatch = globalsCss.match(varRegex);
+      if (varMatch) {
+        return resolveColor(varMatch[1].trim());
+      }
+    }
+    return val;
+  }
+
+  function normalizeHex(hex) {
+    hex = resolveColor(hex);
+    if (!hex) return hex;
+    if (hex.startsWith("#")) {
+      if (hex.length === 4) {
+        return "#" + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+      }
+      return hex;
+    }
+    return hex;
+  }
+
   function getLuminance(hex) {
-    const rgb = hex.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
+    const normalized = normalizeHex(hex);
+    const rgb = normalized.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
     const a = rgb.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
     return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
   }
@@ -201,7 +228,7 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
 
   function extractProp(selector, prop) {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(?:^|,\\s*)${escaped}\\s*\\{[^}]*?${prop}:\\s*([^;]+);`, "m");
+    const regex = new RegExp(`(?:^|[},;\\s])${escaped}\\s*\\{[^}]*?${prop}:\\s*([^;]+);`, "m");
     const match = globalsCss.match(regex);
     return match ? match[1].trim() : null;
   }
@@ -214,6 +241,11 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
   const roleBadgeColor = extractProp(".role-badge-active", "color");
   const milestoneBadgeColor = extractProp(".milestone-cat-badge", "color");
   const milestoneStatColor = extractProp(".milestone-stat-pill", "color");
+  const coverageBg = extractProp(".coverage-section", "background");
+  const coverageColor = extractProp(".coverage-section", "color");
+  const yearTileBg = extractProp(".year-grid a", "background");
+  const yearTileColor = extractProp(".year-grid a", "color");
+  const yearTileIconColor = extractProp(".year-grid svg", "color");
 
   const contrastPairs = [
     { fg: personPageColor, bg: personPageBg, name: "Person page text on page background", minContrast: 4.5 },
@@ -221,14 +253,19 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
     { fg: roleBadgeColor, bg: roleCardBg, name: "Active role badge on card surface", minContrast: 4.5 },
     { fg: milestoneBadgeColor, bg: roleCardBg, name: "Milestone category badge on card surface", minContrast: 4.5 },
     { fg: milestoneStatColor, bg: roleCardBg, name: "Milestone stat pill text on card surface", minContrast: 4.5 },
+    { fg: coverageColor, bg: coverageBg, name: "Coverage section text on light section background", minContrast: 4.5 },
+    { fg: yearTileColor, bg: yearTileBg, name: "Year tile text on white card background", minContrast: 4.5 },
+    { fg: yearTileIconColor, bg: yearTileBg, name: "Year tile link icon on white card background", minContrast: 4.5 },
   ];
 
   for (const pair of contrastPairs) {
     assert.ok(pair.fg && pair.bg, `Could not extract color values for ${pair.name}`);
-    const contrast = getContrast(pair.fg, pair.bg);
+    const resolvedFg = normalizeHex(pair.fg);
+    const resolvedBg = normalizeHex(pair.bg);
+    const contrast = getContrast(resolvedFg, resolvedBg);
     assert.ok(
       contrast >= pair.minContrast,
-      `Contrast failure for ${pair.name} (${pair.fg} on ${pair.bg}): ratio is ${contrast.toFixed(2)}:1, expected >= ${pair.minContrast}:1`
+      `Contrast failure for ${pair.name} (${resolvedFg} [raw: ${pair.fg}] on ${resolvedBg} [raw: ${pair.bg}]): ratio is ${contrast.toFixed(2)}:1, expected >= ${pair.minContrast}:1`
     );
   }
 });
