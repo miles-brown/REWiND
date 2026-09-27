@@ -178,7 +178,7 @@ test("globals.css defines dark container wrappers and timeline tab styles", asyn
   assert.match(globalsCss, /\.person-section-wrap\s*\{/);
   assert.match(globalsCss, /\.person-workspace-tabs\s*\{/);
   assert.match(globalsCss, /\.workspace-tab-btn\s*\{/);
-  assert.match(globalsCss, /\.workspace-tab-btn\.active/);
+  assert.match(globalsCss, /\.workspace-tab-btn\[aria-selected="true"\]/);
   assert.match(globalsCss, /\.roles-timeline-container\s*\{/);
   assert.match(globalsCss, /\.milestones-timeline-container\s*\{/);
   assert.match(globalsCss, /\.topic-timeline-container\s*\{/);
@@ -208,8 +208,8 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
 
   const personPageBg = extractProp(".person-page", "background");
   const personPageColor = extractProp(".person-page", "color");
-  const activeTabColor = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "color") || extractProp(".workspace-tab-btn.active", "color");
-  const activeTabBg = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "background") || extractProp(".workspace-tab-btn.active", "background");
+  const activeTabColor = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "color");
+  const activeTabBg = extractProp(".workspace-tab-btn[aria-selected=\"true\"]", "background");
   const roleCardBg = extractProp(".role-card", "background");
   const roleBadgeColor = extractProp(".role-badge-active", "color");
   const milestoneBadgeColor = extractProp(".milestone-cat-badge", "color");
