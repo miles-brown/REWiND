@@ -97,20 +97,26 @@ export default async function PersonPage({
         <PersonCoverageNav slug={person.slug} records={linked} />
       </header>
 
-      <InclusionBadge person={person} />
+      <div className="person-content-body">
+        <div className="person-section-wrap">
+          <InclusionBadge person={person} />
+        </div>
 
-      <ErrorBoundary sectionName="Person Workspace">
-        <PersonWorkspaceTabs
-          person={person}
-          records={linked}
-          roles={roles}
-          milestones={milestones}
-        />
-      </ErrorBoundary>
+        <ErrorBoundary sectionName="Person Workspace">
+          <PersonWorkspaceTabs
+            person={person}
+            records={linked}
+            roles={roles}
+            milestones={milestones}
+          />
+        </ErrorBoundary>
 
-      <ErrorBoundary sectionName="Biographical Section">
-        <BiographicalSection person={person} />
-      </ErrorBoundary>
+        <div className="person-section-wrap">
+          <ErrorBoundary sectionName="Biographical Section">
+            <BiographicalSection person={person} />
+          </ErrorBoundary>
+        </div>
+      </div>
 
       <section className="coverage-section compact-coverage">
         <div className="section-heading">
