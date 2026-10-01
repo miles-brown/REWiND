@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronLeft,
@@ -115,7 +115,7 @@ export function PersonTimeline({
     ? Math.min(Math.max(index, 0), ordered.length - 1)
     : 0;
 
-  const moveTo = (next: number) => {
+  const moveTo = useCallback((next: number) => {
     setPlaying(false);
     if (!ordered.length) return;
     const clamped = Math.min(Math.max(next, 0), ordered.length - 1);
@@ -125,7 +125,7 @@ export function PersonTimeline({
       url.searchParams.set("evt", ordered[clamped].slug);
       window.history.replaceState(null, "", url.toString());
     }
-  };
+  }, [ordered]);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -171,7 +171,7 @@ export function PersonTimeline({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [ordered, safeIndex, direction, moveTo]);
 
   if (!ordered.length) {
     return (

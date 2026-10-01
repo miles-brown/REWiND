@@ -53,8 +53,21 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
     }
   };
 
+  const tabAnnounceText: Record<typeof activeTab, string> = {
+    career: `Public Mandates & Career selected, showing ${career.length} positions for ${person.name}.`,
+    education: `Education credentials selected, showing ${education.length} records for ${person.name}.`,
+    works: `Documented Works selected, showing ${works.length} items for ${person.name}.`,
+    awards: `Honours & Awards selected, showing ${awards.length} recognitions for ${person.name}.`,
+    identity: `Identity & Origins selected for ${person.name}.`,
+  };
+
   return (
     <section className="biographical-dossier" aria-label="Structured Biographical Dossier">
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {tabAnnounceText[activeTab]}
+      </div>
+
       <div className="section-header">
         <span className="eyebrow">STRUCTURED BIOGRAPHICAL DOSSIER</span>
         <h3>Documented Record & Background</h3>

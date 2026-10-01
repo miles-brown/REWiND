@@ -302,5 +302,27 @@ test("verifies person page code review fixes for focus-visible, tab count sync, 
   assert.match(personPageSource, /if \(p\.personId === person\.id \|\| p\.personId === person\.slug\) return;/);
 });
 
+test("verifies person dossier enhancements for biographical live regions, topic participant slugs, and keyboard listener dependencies", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+  const bioSectionSource = await readFile(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf8");
+  const topicTimelineSource = await readFile(path.join(root, "components/rewind/TopicTimeline.tsx"), "utf8");
+  const personTimelineSource = await readFile(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf8");
+
+  // 1. PersonTimeline useEffect dependency array
+  assert.match(personTimelineSource, /window\.addEventListener\("keydown",\s*handleKeyDown\);\s*return \(\) => window\.removeEventListener\("keydown",\s*handleKeyDown\);\s*\}, \[ordered, safeIndex, direction, moveTo\]\);/);
+
+  // 2. BiographicalSection live region announcement
+  assert.match(bioSectionSource, /<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">/);
+  assert.match(bioSectionSource, /Public Mandates & Career selected, showing/);
+
+  // 3. TopicTimeline participant slug normalization
+  assert.match(topicTimelineSource, /const pSlug = p\.slug \|\| \(p\.personId \? p\.personId\.replace\(\/\^p-\/,\s*""\) : ""\);/);
+
+  // 4. globals.css focus-visible outlines
+  assert.match(globalsCss, /\.back-link:focus-visible,\s*\.record-breadcrumb a:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+  assert.match(globalsCss, /\.bio-tab:focus-visible,\s*\.bio-nav-button:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+  assert.match(globalsCss, /\.person-time-console \.epoch-badge:focus-visible\s*\{[^}]*outline:\s*2px solid #38bdf8/);
+});
+
 
 
