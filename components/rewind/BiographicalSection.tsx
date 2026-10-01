@@ -9,8 +9,6 @@ import {
   UserCheck,
   Building,
   Award,
-  Calendar,
-  ShieldAlert,
 } from "lucide-react";
 import type { PersonRecord } from "@/lib/rewind";
 
@@ -58,9 +56,6 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
       <div className="section-header">
         <span className="eyebrow">STRUCTURED BIOGRAPHICAL DOSSIER</span>
         <h3>Documented Record & Background</h3>
-        <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: "4px 0 16px" }}>
-          Archival academic credentials, published monographs, authored treaties, and verified identity records.
-        </p>
       </div>
 
       {/* Tabs */}
@@ -156,7 +151,6 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                   <div className="bio-card-header">
                     <h4>{c.positionTitle}</h4>
                     <span className="bio-dates">
-                      <Calendar size={13} style={{ display: "inline", marginRight: "4px" }} />
                       {c.startDate || "Date unrecorded"} — {c.endDate || "End date unrecorded"}
                     </span>
                   </div>
@@ -192,7 +186,6 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                   <div className="bio-card-header">
                     <h4>{e.institution}</h4>
                     <span className="bio-dates">
-                      <Calendar size={13} style={{ display: "inline", marginRight: "4px" }} />
                       {e.startDate} — {e.endDate || "End date unrecorded"}
                     </span>
                   </div>
@@ -287,7 +280,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
 
             <div className="identity-item">
               <small>NATIONAL IDENTITY</small>
-              <b>{person.nationalIdentity || person.nationality || "Not documented"}</b>
+              <b>{person.nationalIdentity || "Not documented"}</b>
             </div>
 
             <div className="identity-item">
@@ -306,15 +299,9 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
               <small>LANGUAGES</small>
               <b>{person.languages && person.languages.length > 0 ? person.languages.join(", ") : "Not documented"}</b>
             </div>
-
-            <div className="identity-item">
-              <small>HISTORICAL CLASSIFICATION</small>
-              <b>{person.classification ? person.classification.toUpperCase() : "NOT CLASSIFIED"}</b>
-            </div>
           </div>
 
           <div className="identity-disclaimer">
-            <ShieldAlert size={16} />
             <small>
               <b>Forensic Identity Standard</b>: In accordance with REWiND standards, religion, ethnicity, and national identity are recorded strictly from verifiable public self-identification or official biographies, never inferred from surnames, appearance, or parentage.
             </small>
