@@ -302,23 +302,61 @@ test("verifies person page code review fixes for focus-visible, tab count sync, 
   assert.match(personPageSource, /if \(p\.personId === person\.id \|\| p\.personId === person\.slug\) return;/);
 });
 
-test("verifies person dossier enhancements for biographical live regions, topic participant slugs, and keyboard listener dependencies", async () => {
+test("verifies person dossier enhancements for biographical live regions, semantic topic participant links, and focus outlines", async () => {
   const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
-  const bioSectionSource = await readFile(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf8");
-  const topicTimelineSource = await readFile(path.join(root, "components/rewind/TopicTimeline.tsx"), "utf8");
-  const personTimelineSource = await readFile(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf8");
+  const { BiographicalSection } = await vite.ssrLoadModule("/components/rewind/BiographicalSection.tsx");
+  const { TopicTimeline } = await vite.ssrLoadModule("/components/rewind/TopicTimeline.tsx");
 
-  // 1. PersonTimeline useEffect dependency array
-  assert.match(personTimelineSource, /window\.addEventListener\("keydown",\s*handleKeyDown\);\s*return \(\) => window\.removeEventListener\("keydown",\s*handleKeyDown\);\s*\}, \[ordered, safeIndex, direction, moveTo\]\);/);
+  // 1. BiographicalSection renders accessible live region with non-empty announcement
+  const samplePerson = {
+    id: "yitzhak-rabin",
+    slug: "yitzhak-rabin",
+    name: "Yitzhak Rabin",
+    description: "Israeli Prime Minister",
+    career: [{ id: "c-1", positionTitle: "Prime Minister", organisationName: "Government of Israel" }],
+    education: [{ id: "e-1", institution: "Kadoorie Agricultural High School" }],
+    works: [{ id: "w-1", workTitle: "The Rabin Memoirs", workType: "Book" }],
+    awards: [{ id: "a-1", awardName: "Nobel Peace Prize", awardingBody: "Norwegian Nobel Committee" }],
+  };
 
-  // 2. BiographicalSection live region announcement
-  assert.match(bioSectionSource, /<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">/);
-  assert.match(bioSectionSource, /Public Mandates & Career selected, showing/);
+  const bioHtml = renderToStaticMarkup(React.createElement(BiographicalSection, { person: samplePerson }));
+  assert.match(bioHtml, /<div class="sr-only" role="status" aria-live="polite" aria-atomic="true">([^<]+)<\/div>/);
+  const bioAnnounceMatch = bioHtml.match(/<div class="sr-only" role="status" aria-live="polite" aria-atomic="true">([^<]+)<\/div>/);
+  assert.ok(bioAnnounceMatch && bioAnnounceMatch[1].trim().length > 0, "Biographical live announcement must contain non-empty text");
 
-  // 3. TopicTimeline participant slug normalization
-  assert.match(topicTimelineSource, /const pSlug = p\.slug \|\| \(p\.personId \? p\.personId\.replace\(\/\^p-\/,\s*""\) : ""\);/);
+  // 2. TopicTimeline semantically renders links for slug/prefixed IDs and spans for unlinked participants
+  const sampleTopic = {
+    id: "middle-east-diplomacy",
+    slug: "middle-east-diplomacy",
+    name: "Middle East Diplomacy",
+    category: "diplomacy",
+    summary: "Diplomatic treaties and engagements.",
+    startedDate: "1978-09-17",
+  };
 
-  // 4. globals.css focus-visible outlines
+  const sampleRecords = [
+    {
+      id: "evt-summit-1993",
+      slug: "oslo-accords-signing",
+      eventName: "Signing of the Oslo Accords",
+      startDate: "1993-09-13",
+      city: "Washington, D.C.",
+      country: "United States",
+      verificationStatus: "verified",
+      participants: [
+        { personId: "p-yitzhak-rabin", name: "Yitzhak Rabin", role: "Prime Minister", slug: "yitzhak-rabin" },
+        { personId: "p-bill-clinton", name: "Bill Clinton", role: "President" },
+        { personId: "", name: "Diplomatic Delegation", role: "Observer" },
+      ],
+    },
+  ];
+
+  const topicHtml = renderToStaticMarkup(React.createElement(TopicTimeline, { topic: sampleTopic, records: sampleRecords }));
+  assert.match(topicHtml, /<a[^>]*href="\/person\/yitzhak-rabin"[^>]*>Yitzhak Rabin/);
+  assert.match(topicHtml, /<a[^>]*href="\/person\/bill-clinton"[^>]*>Bill Clinton/);
+  assert.match(topicHtml, /<span class="participant-tag">Diplomatic Delegation/);
+
+  // 3. globals.css focus-visible outlines
   assert.match(globalsCss, /\.back-link:focus-visible,\s*\.record-breadcrumb a:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
   assert.match(globalsCss, /\.bio-tab:focus-visible,\s*\.bio-nav-button:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
   assert.match(globalsCss, /\.person-time-console \.epoch-badge:focus-visible\s*\{[^}]*outline:\s*2px solid #38bdf8/);

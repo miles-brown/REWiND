@@ -53,19 +53,24 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
     }
   };
 
-  const tabAnnounceText: Record<typeof activeTab, string> = {
-    career: `Public Mandates & Career selected, showing ${career.length} positions for ${person.name}.`,
-    education: `Education credentials selected, showing ${education.length} records for ${person.name}.`,
-    works: `Documented Works selected, showing ${works.length} items for ${person.name}.`,
-    awards: `Honours & Awards selected, showing ${awards.length} recognitions for ${person.name}.`,
-    identity: `Identity & Origins selected for ${person.name}.`,
+  const tabMeta: Record<typeof activeTab, { label: string; count?: number; unit?: string }> = {
+    career: { label: "Public Mandates & Career", count: career.length, unit: "position" },
+    education: { label: "Education credentials", count: education.length, unit: "record" },
+    works: { label: "Documented Works", count: works.length, unit: "item" },
+    awards: { label: "Honours & Awards", count: awards.length, unit: "recognition" },
+    identity: { label: "Identity & Origins" },
   };
+
+  const currentMeta = tabMeta[activeTab];
+  const tabAnnounceText = currentMeta.count !== undefined
+    ? `${currentMeta.label} selected, showing ${currentMeta.count} ${currentMeta.unit}${currentMeta.count === 1 ? "" : "s"} for ${person.name}.`
+    : `${currentMeta.label} selected for ${person.name}.`;
 
   return (
     <section className="biographical-dossier" aria-label="Structured Biographical Dossier">
       {/* Live Region for Screen Readers */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {tabAnnounceText[activeTab]}
+        {tabAnnounceText}
       </div>
 
       <div className="section-header">
