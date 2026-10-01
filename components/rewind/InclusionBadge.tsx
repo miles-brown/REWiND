@@ -37,7 +37,7 @@ export function InclusionBadge({ person }: { person: PersonRecord }) {
         <p style={{ margin: 0 }}>
           {person.inclusionRationale ||
             person.notabilityBasis ||
-            "Formal inclusion rationale under REWiND historical indexing standards has been established based on verifiable primary government and diplomatic records."}
+            "Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile."}
         </p>
       </div>
 
@@ -55,16 +55,9 @@ export function InclusionBadge({ person }: { person: PersonRecord }) {
             ))}
           </div>
         ) : (
-          <div className="inclusion-criteria-list">
-            <div className="criterion-item">
-              <CheckCircle2 size={15} />
-              <span>Central nexus to documented historical and diplomatic events</span>
-            </div>
-            <div className="criterion-item">
-              <CheckCircle2 size={15} />
-              <span>Substantial independent archival coverage across multiple decades</span>
-            </div>
-          </div>
+          <p className="inclusion-criteria-empty" style={{ margin: 0, fontSize: "13px", color: "var(--rewind-dark-text-muted, #94a3b8)", fontStyle: "italic" }}>
+            Specific inclusion criteria have not yet been recorded in this edition.
+          </p>
         )}
       </div>
 

@@ -60,10 +60,13 @@ export function PersonWorkspaceTabs({
   });
   const decadeEras = Array.from(decadesMap.entries());
 
+  const rolesCount = roles.length || person.career?.length || 0;
+  const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
+
   const tabs: { id: WorkspaceTab; label: string; icon: typeof Calendar; count?: number }[] = [
     { id: "events", label: "Events Chronology", icon: Calendar, count: records.length },
-    { id: "roles", label: "Official Roles", icon: Building2, count: roles.length || person.career?.length || 0 },
-    { id: "milestones", label: "Milestones & Honors", icon: Trophy, count: (milestones.length || 0) + (person.awards?.length || 0) },
+    { id: "roles", label: "Official Roles", icon: Building2, count: rolesCount },
+    { id: "milestones", label: "Milestones & Honors", icon: Trophy, count: milestonesCount },
     { id: "biography", label: "Biographical Record", icon: BookOpen },
     { id: "standards", label: "Inclusion Basis", icon: ShieldCheck },
     { id: "coverage", label: "Year Coverage", icon: Clock, count: allYears.length },
@@ -98,9 +101,9 @@ export function PersonWorkspaceTabs({
     activeTab === "events"
       ? `Events Chronology selected, showing ${records.length} dated events for ${person.name}.`
       : activeTab === "roles"
-      ? `Official Roles selected, showing ${roles.length} public mandates for ${person.name}.`
+      ? `Official Roles selected, showing ${rolesCount} public mandates for ${person.name}.`
       : activeTab === "milestones"
-      ? `Milestones & Honors selected, showing ${milestones.length} achievements for ${person.name}.`
+      ? `Milestones & Honors selected, showing ${milestonesCount} achievements for ${person.name}.`
       : activeTab === "biography"
       ? `Biographical Record selected for ${person.name}.`
       : activeTab === "standards"
@@ -110,7 +113,7 @@ export function PersonWorkspaceTabs({
   return (
     <div className="person-workspace-tabs">
       {/* Live Region for Screen Readers */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {tabAnnounceText}
       </div>
 

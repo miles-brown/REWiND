@@ -94,6 +94,7 @@ export default async function PersonPage({
   const coCounts = new Map<string, { name: string; slug: string; role?: string; count: number }>();
   linked.forEach((e) => {
     (e.participants || []).forEach((p) => {
+      if (p.personId === person.id || p.personId === person.slug) return;
       const pSlug = p.slug || (p.personId ? p.personId.replace(/^p-/, "") : "");
       if (pSlug && pSlug !== person.slug && pSlug !== person.id) {
         const existing = coCounts.get(pSlug) || { name: p.name, slug: pSlug, role: p.role, count: 0 };

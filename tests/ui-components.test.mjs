@@ -276,4 +276,31 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
   }
 });
 
+test("verifies person page code review fixes for focus-visible, tab count sync, and empty criteria state", async () => {
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+  const inclusionBadgeSource = await readFile(path.join(root, "components/rewind/InclusionBadge.tsx"), "utf8");
+  const workspaceTabsSource = await readFile(path.join(root, "components/rewind/PersonWorkspaceTabs.tsx"), "utf8");
+  const personPageSource = await readFile(path.join(root, "app/person/[slug]/page.tsx"), "utf8");
+
+  // 1. Focus-visible CSS styles
+  assert.match(globalsCss, /\.telemetry-action-btn:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+  assert.match(globalsCss, /\.nexus-co-chip:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+  assert.match(globalsCss, /\.year-matrix-pill:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+  assert.match(globalsCss, /\.inclusion-footer\s+\.methodology-link:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
+
+  // 2. InclusionBadge neutral empty state and fallback rationale
+  assert.match(inclusionBadgeSource, /Specific inclusion criteria have not yet been recorded in this edition/);
+  assert.match(inclusionBadgeSource, /Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile/);
+  assert.doesNotMatch(inclusionBadgeSource, /Central nexus to documented historical and diplomatic events/);
+
+  // 3. PersonWorkspaceTabs rolesCount and milestonesCount reuse and role="status"
+  assert.match(workspaceTabsSource, /const rolesCount = roles\.length \|\| person\.career\?\.length \|\| 0;/);
+  assert.match(workspaceTabsSource, /const milestonesCount = \(milestones\.length \|\| 0\) \+ \(person\.awards\?\.length \|\| 0\);/);
+  assert.match(workspaceTabsSource, /<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">/);
+
+  // 4. PersonPage co-attendee loop skips participant if personId matches person.id before slug derivation
+  assert.match(personPageSource, /if \(p\.personId === person\.id \|\| p\.personId === person\.slug\) return;/);
+});
+
+
 
