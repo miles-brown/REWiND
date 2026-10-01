@@ -692,12 +692,24 @@ svg { flex: 0 0 auto; }
   background: #38bdf8;
   color: #07151c;
 }
+.telemetry-action-btn:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+  background: #38bdf8;
+  color: #07151c;
+}
 .telemetry-action-btn.secondary {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
   color: #cbd5e1;
 }
 .telemetry-action-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+.telemetry-action-btn.secondary:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
   background: rgba(255, 255, 255, 0.12);
   color: #f8fafc;
 }
@@ -753,6 +765,13 @@ svg { flex: 0 0 auto; }
   transition: all 0.15s ease;
 }
 .nexus-co-chip:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+.nexus-co-chip:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
   background: rgba(56, 189, 248, 0.12);
   border-color: rgba(56, 189, 248, 0.35);
   color: #38bdf8;
@@ -974,6 +993,13 @@ svg { flex: 0 0 auto; }
   border-color: rgba(56, 189, 248, 0.35);
   transform: translateY(-2px);
 }
+.year-matrix-pill:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+}
 .year-matrix-pill .year-num {
   font-size: 15px;
   font-weight: 800;
@@ -1002,7 +1028,8 @@ svg { flex: 0 0 auto; }
   right: 10px;
   opacity: 0.4;
 }
-.year-matrix-pill:hover .year-link-arrow {
+.year-matrix-pill:hover .year-link-arrow,
+.year-matrix-pill:focus-visible .year-link-arrow {
   opacity: 1;
   color: #38bdf8;
 }
@@ -1021,6 +1048,12 @@ svg { flex: 0 0 auto; }
 .inclusion-footer .methodology-link:hover {
   color: #7dd3fc;
   text-decoration: underline;
+}
+.inclusion-footer .methodology-link:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+  border-radius: 4px;
+  color: #7dd3fc;
 }
 
 /* Official Roles Timeline */
