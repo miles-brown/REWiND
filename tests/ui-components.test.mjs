@@ -359,7 +359,7 @@ test("verifies person dossier enhancements for biographical live regions, semant
   // 3. globals.css focus-visible outlines
   assert.match(globalsCss, /\.back-link:focus-visible,\s*\.record-breadcrumb a:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
   assert.match(globalsCss, /\.bio-tab:focus-visible,\s*\.bio-nav-button:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
-  assert.match(globalsCss, /\.person-time-console \.epoch-badge:focus-visible\s*\{[^}]*outline:\s*2px solid #38bdf8/);
+  assert.match(globalsCss, /\.person-time-console \.epoch-badge:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
 });
 
 
