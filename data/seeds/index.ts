@@ -5,6 +5,11 @@ import { usUkPoliticsPeopleSeed } from "./us-uk-politics-people";
 import { mediaPeopleSeed } from "./media-people";
 import { techPeopleSeed } from "./tech-people";
 import { epsteinNetworkPeopleSeed } from "./epstein-network-people";
+import { headsOfStatePeopleSeed } from "./heads-of-state-people";
+import { diplomatsAndEnvoysPeopleSeed } from "./diplomats-and-envoys-people";
+import { legalAndIntelligencePeopleSeed } from "./legal-and-intelligence-people";
+import { globalFiguresPeopleSeed } from "./global-figures-people";
+import { middleEastDiplomacyPeopleSeed } from "./middle-east-diplomacy-people";
 
 import { officialRolesSeed } from "./roles-seed";
 import { milestonesSeed } from "./milestones-seed";
@@ -18,6 +23,11 @@ export {
   mediaPeopleSeed,
   techPeopleSeed,
   epsteinNetworkPeopleSeed,
+  headsOfStatePeopleSeed,
+  diplomatsAndEnvoysPeopleSeed,
+  legalAndIntelligencePeopleSeed,
+  globalFiguresPeopleSeed,
+  middleEastDiplomacyPeopleSeed,
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
@@ -30,6 +40,11 @@ export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [
   ...mediaPeopleSeed,
   ...techPeopleSeed,
   ...epsteinNetworkPeopleSeed,
+  ...headsOfStatePeopleSeed,
+  ...diplomatsAndEnvoysPeopleSeed,
+  ...legalAndIntelligencePeopleSeed,
+  ...globalFiguresPeopleSeed,
+  ...middleEastDiplomacyPeopleSeed,
 ];
 
 // Ensure unique deduplicated records by slug

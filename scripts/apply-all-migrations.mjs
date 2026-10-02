@@ -55,6 +55,7 @@ const migrationFiles = [
   "20260904010000_temporal_evidence_people_standards.sql",
   "20260904020000_standards_remediation_and_rls.sql",
   "20260904030000_quote_and_claim_rls_hardening.sql",
+  "20260904040000_schema_perfection_and_travel_corridors.sql",
 ];
 
 async function applyMigrations() {
