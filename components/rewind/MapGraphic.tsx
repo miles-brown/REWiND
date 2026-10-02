@@ -1378,14 +1378,14 @@ export function MapGraphic({
             </g>
 
             {/* Tactical Grid references */}
-            <line x1="0" y1="20" x2="100" y2="20" className="grid-lat arctic" />
-            <line x1="0" y1="35" x2="100" y2="35" className="grid-lat tropic-cancer" />
-            <line x1="0" y1="50" x2="100" y2="50" className="grid-lat equator" />
-            <line x1="0" y1="65" x2="100" y2="65" className="grid-lat tropic-capricorn" />
-            <line x1="0" y1="80" x2="100" y2="80" className="grid-lat antarctic" />
-            <line x1="25" y1="0" x2="25" y2="100" className="grid-lon" />
-            <line x1="50" y1="0" x2="50" y2="100" className="grid-lon prime-meridian" />
-            <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" />
+            <line x1="0" y1="20" x2="100" y2="20" className="grid-lat arctic" aria-hidden="true" />
+            <line x1="0" y1="35" x2="100" y2="35" className="grid-lat tropic-cancer" aria-hidden="true" />
+            <line x1="0" y1="50" x2="100" y2="50" className="grid-lat equator" aria-hidden="true" />
+            <line x1="0" y1="65" x2="100" y2="65" className="grid-lat tropic-capricorn" aria-hidden="true" />
+            <line x1="0" y1="80" x2="100" y2="80" className="grid-lat antarctic" aria-hidden="true" />
+            <line x1="25" y1="0" x2="25" y2="100" className="grid-lon" aria-hidden="true" />
+            <line x1="50" y1="0" x2="50" y2="100" className="grid-lon prime-meridian" aria-hidden="true" />
+            <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" aria-hidden="true" />
 
             {/* Geodesic Flight & Transit Arcs */}
             {arcs && <path d={arcs} className="svg-trajectory-arc" />}
