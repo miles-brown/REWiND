@@ -44,6 +44,9 @@ const CARTO_VOYAGER_STYLE =
       ? `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${CARTO_API_KEY}`
       : "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json");
 
+// Module-level cache for known-missing vehicle asset URLs to avoid duplicate onerror triggers
+const failedVehicleAssets = new Set<string>();
+
 // Mapbox Vector Styles (when token is provided or environment override set)
 const MAPBOX_DARK_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
@@ -317,13 +320,21 @@ export function MapGraphic({
   }, [points, chronologicalPoints, selected]);
 
   const selectedIndex = useMemo(() => {
-    if (typeof currentIndex === "number" && currentIndex >= 0 && chronologicalPoints.length > 0) {
+    if (!chronologicalPoints.length) return -1;
+    if (selected) {
+      const idx = chronologicalPoints.findIndex((p) => p.id === selected || p.slug === selected);
+      if (idx !== -1) return idx;
+    }
+    if (typeof currentIndex === "number" && currentIndex >= 0) {
+      const target = (allEvents && allEvents[currentIndex]) || events[currentIndex];
+      if (target) {
+        const idx = chronologicalPoints.findIndex((p) => p.id === target.id || p.slug === target.slug);
+        if (idx !== -1) return idx;
+      }
       return Math.min(currentIndex, chronologicalPoints.length - 1);
     }
-    if (!chronologicalPoints.length) return -1;
-    if (!selected) return chronologicalPoints.length - 1;
-    return chronologicalPoints.findIndex((p) => p.id === selected);
-  }, [chronologicalPoints, selected, currentIndex]);
+    return chronologicalPoints.length - 1;
+  }, [allEvents, events, chronologicalPoints, selected, currentIndex]);
 
   const prevEvent = selectedIndex > 0 ? chronologicalPoints[selectedIndex - 1] : null;
   const currEvent = selectedIndex >= 0 ? chronologicalPoints[selectedIndex] : null;
@@ -591,13 +602,15 @@ export function MapGraphic({
         grouped.set(key, list);
       });
 
+      const visitedIdSet = new Set(chronologicalPoints.map((cp) => cp.id));
+
       grouped.forEach((eventList) => {
         const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
         if (rep.latitude == null || rep.longitude == null) return;
         const { longitude, latitude } = rep;
 
         const isSelected = eventList.some((e) => e.id === selected);
-        const isVisited = eventList.some((e) => chronologicalPoints.some((cp) => cp.id === e.id));
+        const isVisited = eventList.some((e) => visitedIdSet.has(e.id));
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
         const el = document.createElement("button");
@@ -728,19 +741,31 @@ export function MapGraphic({
         iconWrap.style.transform = `rotate(${curvePoints[0]?.bearing ?? activeJourney.bearing}deg)`;
         iconWrap.setAttribute("aria-hidden", "true");
 
-        // Custom SVG / image asset renderer with emoji fallback
-        const iconImg = document.createElement("img");
-        iconImg.className = "vehicle-icon-asset";
-        iconImg.src = `/assets/vehicles/${activeJourney.iconName}.svg`;
-        iconImg.alt = activeJourney.label;
-        iconImg.onerror = () => {
-          iconImg.remove();
+        // Custom SVG / image asset renderer with emoji fallback and failure caching
+        const iconSrc = `/assets/vehicles/${activeJourney.iconName}.svg`;
+        if (failedVehicleAssets.has(iconSrc)) {
           const symbol = document.createElement("span");
           symbol.className = "vehicle-symbol";
           symbol.textContent = activeJourney.emoji;
           iconWrap.appendChild(symbol);
-        };
-        iconWrap.appendChild(iconImg);
+        } else {
+          const iconImg = document.createElement("img");
+          iconImg.className = "vehicle-icon-asset";
+          iconImg.src = iconSrc;
+          iconImg.alt = activeJourney.label;
+          iconImg.onerror = () => {
+            iconImg.onerror = null;
+            failedVehicleAssets.add(iconSrc);
+            iconImg.remove();
+            if (!iconWrap.querySelector(".vehicle-symbol")) {
+              const symbol = document.createElement("span");
+              symbol.className = "vehicle-symbol";
+              symbol.textContent = activeJourney.emoji;
+              iconWrap.appendChild(symbol);
+            }
+          };
+          iconWrap.appendChild(iconImg);
+        }
         vehicleEl.appendChild(iconWrap);
 
         const tag = document.createElement("div");

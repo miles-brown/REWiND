@@ -207,6 +207,19 @@ export function PersonTimeline({
     return null;
   }, [event, person]);
 
+  const choose = useCallback(
+    (id: string) => {
+      const next = ordered.findIndex((record) => record.id === id);
+      if (next >= 0) moveTo(next);
+    },
+    [ordered, moveTo]
+  );
+
+  const visibleEvents = useMemo(
+    () => ordered.slice(0, safeIndex + 1),
+    [ordered, safeIndex]
+  );
+
   if (!ordered.length || !event) {
     return (
       <div className="zero-state">
@@ -241,11 +254,6 @@ export function PersonTimeline({
       year: "numeric",
     }
   );
-
-  const choose = (id: string) => {
-    const next = ordered.findIndex((record) => record.id === id);
-    if (next >= 0) moveTo(next);
-  };
 
   const progress = Math.round(((safeIndex + 1) / ordered.length) * 100);
   const isPlayDisabled =
@@ -650,7 +658,8 @@ export function PersonTimeline({
                   className="base-of-operations-pill"
                   title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
                 >
-                  🏨 Base: {activeStay.stayName || activeStay.venueName}
+                  <span aria-hidden="true">🏨 </span>
+                  <span>Base: {activeStay.stayName || activeStay.venueName}</span>
                 </span>
               )}
             </div>
@@ -665,7 +674,7 @@ export function PersonTimeline({
             )}
           </div>
           <MapGraphic
-            events={ordered.slice(0, safeIndex + 1)}
+            events={visibleEvents}
             allEvents={ordered}
             currentIndex={safeIndex}
             selected={event.id}

@@ -86,20 +86,24 @@ export function resolveGazetteerCoordinates(location: {
   venue?: string | null;
   city?: string | null;
   country?: string | null;
-}): { latitude: number; longitude: number } | null {
-  if (location.venue) {
+}): { latitude: number; longitude: number; source: "venue" | "city" } | null {
+  if (typeof location.venue === "string" && location.venue.trim()) {
     const venueNorm = location.venue.trim().toLowerCase();
-    if (GLOBAL_GAZETTEER_COORDINATES[venueNorm]) {
-      const [lat, lng] = GLOBAL_GAZETTEER_COORDINATES[venueNorm];
-      return { latitude: lat, longitude: lng };
+    if (Object.prototype.hasOwnProperty.call(GLOBAL_GAZETTEER_COORDINATES, venueNorm)) {
+      const coords = GLOBAL_GAZETTEER_COORDINATES[venueNorm];
+      if (Array.isArray(coords) && typeof coords[0] === "number" && typeof coords[1] === "number") {
+        return { latitude: coords[0], longitude: coords[1], source: "venue" };
+      }
     }
   }
 
-  if (location.city) {
+  if (typeof location.city === "string" && location.city.trim()) {
     const cityNorm = location.city.trim().toLowerCase();
-    if (GLOBAL_GAZETTEER_COORDINATES[cityNorm]) {
-      const [lat, lng] = GLOBAL_GAZETTEER_COORDINATES[cityNorm];
-      return { latitude: lat, longitude: lng };
+    if (Object.prototype.hasOwnProperty.call(GLOBAL_GAZETTEER_COORDINATES, cityNorm)) {
+      const coords = GLOBAL_GAZETTEER_COORDINATES[cityNorm];
+      if (Array.isArray(coords) && typeof coords[0] === "number" && typeof coords[1] === "number") {
+        return { latitude: coords[0], longitude: coords[1], source: "city" };
+      }
     }
   }
 
