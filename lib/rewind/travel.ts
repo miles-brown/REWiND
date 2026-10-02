@@ -189,6 +189,58 @@ export function interpolateGreatCircle(
 }
 
 /**
+ * Calculates a Great Circle route between the origin and destination coordinates,
+ * elevated into a 3D arc using a Bezier curve altitude profile.
+ */
+export function calculate3DGreatCircleArc(
+  lng1: number,
+  lat1: number,
+  lng2: number,
+  lat2: number,
+  mode: TransportMode | string = "flight",
+  numPoints: number = 60
+): TrajectoryPoint[] {
+  const isHeli = (mode || "").toLowerCase() === "helicopter";
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distKm = Math.round(6371 * c);
+
+  // Peak cruising altitude in meters based on vehicle type and transit distance
+  const maxAltitudeMeters = isHeli
+    ? Math.min(1500, Math.max(400, distKm * 6))
+    : Math.min(11500, Math.max(2500, distKm * 10));
+
+  const gcPoints = interpolateGreatCircle(lng1, lat1, lng2, lat2, numPoints);
+
+  return gcPoints.map((pt) => {
+    const t = pt.progress;
+    // Parabolic / Bezier curve elevation: h(t) = 4 * H_max * t * (1 - t)
+    const altitude = Math.round(4 * maxAltitudeMeters * t * (1 - t));
+    // Scale factor between 1.0 (ground) and 1.35 (zenith of 3D arc)
+    const scale = 1.0 + 0.35 * (altitude / Math.max(maxAltitudeMeters, 1));
+    // Climb / descent pitch angle (-10 deg to +12 deg)
+    const pitchAngle = t < 0.25 ? 10 : t > 0.75 ? -8 : 0;
+
+    return {
+      lng: pt.lng,
+      lat: pt.lat,
+      altitudeMeters: altitude,
+      bearing: pt.bearing,
+      progress: pt.progress,
+      pitchAngle,
+      scale,
+    };
+  });
+}
+
+/**
  * Automatically extracts evidentiary inferences (flight logs, radar traces, photographic evidence,
  * social media, witness reports) from an event's text, claims, and media context.
  */
