@@ -58,8 +58,41 @@ CREATE TABLE IF NOT EXISTS public.person_stays (
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- 4. Enable RLS and Configure Read Policy on Person Stays
+-- 3b. Create Topics and Person Milestones Tables
+CREATE TABLE IF NOT EXISTS public.topics (
+  id text PRIMARY KEY,
+  slug text UNIQUE NOT NULL,
+  name text NOT NULL,
+  category text NOT NULL,
+  summary text,
+  started_date text,
+  ended_date text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.person_milestones (
+  id text PRIMARY KEY,
+  person_id text NOT NULL REFERENCES public.people(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  category text NOT NULL,
+  date text,
+  year integer NOT NULL,
+  description text,
+  metric_or_stat text,
+  source_id text REFERENCES public.sources(id),
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- 4. Enable RLS and Configure Read Policies
 ALTER TABLE public.person_stays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_milestones ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read on topics" ON public.topics;
+CREATE POLICY "Allow public read on topics" ON public.topics FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on person_milestones" ON public.person_milestones;
+CREATE POLICY "Allow public read on person_milestones" ON public.person_milestones FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public read person stays" ON public.person_stays;
 DROP POLICY IF EXISTS "Allow public read on person stays" ON public.person_stays;

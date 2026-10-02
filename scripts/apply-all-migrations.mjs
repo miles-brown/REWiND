@@ -85,7 +85,8 @@ async function applyMigrations() {
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
 
-    if (appliedVersions.has(version)) {
+    const forceRun = process.argv.includes("--force");
+    if (appliedVersions.has(version) && !forceRun) {
       console.log(`\n========================================`);
       console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
       console.log(`========================================`);
