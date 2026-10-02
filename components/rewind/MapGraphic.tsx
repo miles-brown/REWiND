@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Globe, Layers, Map as MapIcon, MapPin, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
-import type { EventRecord } from "@/lib/rewind";
+import type { EventRecord, TrajectoryPoint } from "@/lib/rewind";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
-import { resolveRouteTrajectory } from "@/lib/rewind/travel";
+import { calculate3DGreatCircleArc, resolveRouteTrajectory } from "@/lib/rewind/travel";
+import { isAirTransport, fetchTransitRoute } from "@/lib/rewind/routing";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
@@ -132,6 +133,42 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
   ],
 };
 
+function getVehicleAssetPath(iconName: string, mode: string): string {
+  const norm = (iconName || mode || "").toLowerCase();
+  if (
+    norm === "plane" ||
+    norm === "jet" ||
+    norm === "flight" ||
+    norm === "airplane" ||
+    norm === "air-force-one" ||
+    norm === "private-jet"
+  ) {
+    return "/assets/vehicles/airplane.svg";
+  }
+  if (norm === "helicopter") {
+    return "/assets/vehicles/helicopter.svg";
+  }
+  if (norm === "ship" || norm === "boat") {
+    return "/assets/vehicles/boat.svg";
+  }
+  if (norm === "train" || norm === "rail") {
+    return "/assets/vehicles/train.svg";
+  }
+  if (norm === "bus") {
+    return "/assets/vehicles/bus.svg";
+  }
+  if (norm === "walking") {
+    return "/assets/vehicles/walking.svg";
+  }
+  if (norm.includes("motorcade")) {
+    return "/assets/vehicles/motorcade.svg";
+  }
+  if (norm.includes("convoy")) {
+    return "/assets/vehicles/police-convoy.svg";
+  }
+  return "/assets/vehicles/car.svg";
+}
+
 function addTrajectoriesToMap(
   map: MapLibreMap,
   points: EventRecord[],
@@ -148,6 +185,7 @@ function addTrajectoriesToMap(
       : [];
 
   const existingSource = map.getSource("trajectories") as GeoJSONSource | undefined;
+
   if (existingSource && "setData" in existingSource) {
     existingSource.setData({
       type: "Feature",
@@ -202,10 +240,68 @@ function addTrajectoriesToMap(
 function updateActiveLegRoute(
   map: MapLibreMap,
   curvePoints: Array<{ lng: number; lat: number }>,
-  mode: string
+  mode: string,
+  progressIndex?: number
 ) {
   if (!map.isStyleLoaded()) return;
-  const lineCoords = curvePoints.map((p) => [p.lng, p.lat]);
+  const fullLineCoords = curvePoints.map((p) => [p.lng, p.lat]);
+  const isAir = isAirTransport(mode);
+
+  // Progressive coordinates up to current animation point
+  const activeCoords =
+    typeof progressIndex === "number" && progressIndex >= 0 && !isAir
+      ? fullLineCoords.slice(0, Math.max(progressIndex + 1, 2))
+      : fullLineCoords;
+
+  let color = "#38bdf8"; // cyan for air / flight
+  if (mode === "car" || mode === "bus" || mode === "motorcade" || mode === "police-convoy") {
+    color = "#f59e0b"; // gold/amber for road/convoy
+  } else if (mode === "boat" || mode === "ship") {
+    color = "#0284c7"; // deep ocean blue for maritime
+  } else if (mode === "train") {
+    color = "#c084fc"; // purple for rail
+  } else if (mode === "helicopter") {
+    color = "#34d399"; // emerald for helicopter
+  }
+
+  // 1. Planned background network guide layer
+  const plannedSource = map.getSource("active-leg-planned") as GeoJSONSource | undefined;
+  if (plannedSource && "setData" in plannedSource) {
+    plannedSource.setData({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: fullLineCoords },
+    });
+  } else if (!plannedSource && fullLineCoords.length >= 2) {
+    map.addSource("active-leg-planned", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: fullLineCoords },
+      },
+    });
+  }
+
+  if (map.getSource("active-leg-planned") && !map.getLayer("active-leg-planned-line")) {
+    map.addLayer({
+      id: "active-leg-planned-line",
+      type: "line",
+      source: "active-leg-planned",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": color,
+        "line-width": isAir ? 2.5 : 3.0,
+        "line-opacity": isAir ? 0.35 : 0.25,
+        "line-dasharray": isAir ? [2, 2] : [1, 0],
+      },
+    });
+  } else if (map.getLayer("active-leg-planned-line")) {
+    map.setPaintProperty("active-leg-planned-line", "line-color", color);
+    map.setPaintProperty("active-leg-planned-line", "line-opacity", isAir ? 0.35 : 0.25);
+  }
+
+  // 2. Active solid drawn path layer
   const existingSource = map.getSource("active-leg-route") as GeoJSONSource | undefined;
 
   if (existingSource && "setData" in existingSource) {
@@ -214,10 +310,10 @@ function updateActiveLegRoute(
       properties: {},
       geometry: {
         type: "LineString",
-        coordinates: lineCoords,
+        coordinates: activeCoords,
       },
     });
-  } else if (!existingSource && lineCoords.length >= 2) {
+  } else if (!existingSource && activeCoords.length >= 2) {
     map.addSource("active-leg-route", {
       type: "geojson",
       data: {
@@ -225,17 +321,11 @@ function updateActiveLegRoute(
         properties: {},
         geometry: {
           type: "LineString",
-          coordinates: lineCoords,
+          coordinates: activeCoords,
         },
       },
     });
   }
-
-  let color = "#38bdf8"; // cyan for air / flight
-  if (mode === "car" || mode === "bus") color = "#f59e0b"; // gold/amber for road/convoy
-  else if (mode === "boat") color = "#0284c7"; // deep ocean blue for maritime
-  else if (mode === "train") color = "#c084fc"; // purple for rail
-  else if (mode === "helicopter") color = "#34d399"; // emerald for helicopter
 
   if (map.getSource("active-leg-route") && !map.getLayer("active-leg-line")) {
     map.addLayer({
@@ -248,12 +338,13 @@ function updateActiveLegRoute(
       },
       paint: {
         "line-color": color,
-        "line-width": 3.5,
-        "line-opacity": 0.9,
+        "line-width": isAir ? 4.0 : 4.5,
+        "line-opacity": 0.95,
       },
     });
   } else if (map.getLayer("active-leg-line")) {
     map.setPaintProperty("active-leg-line", "line-color", color);
+    map.setPaintProperty("active-leg-line", "line-width", isAir ? 4.0 : 4.5);
   }
 }
 
@@ -574,7 +665,7 @@ export function MapGraphic({
     }
   };
 
-  // Update Map markers and run smooth Great-Circle animated vehicle flight sequence
+  // Update Map markers and run dynamic transit animation based on transport mode
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !mapLoaded) return;
 
@@ -590,7 +681,7 @@ export function MapGraphic({
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    import("maplibre-gl").then(({ Marker }) => {
+    import("maplibre-gl").then(async ({ Marker }) => {
       if (isCancelled) return;
 
       // Group points by location proximity for clean clustering
@@ -712,7 +803,7 @@ export function MapGraphic({
         markersRef.current.push(marker);
       });
 
-      // Add dynamic animated moving transport vehicle along exact route / Great-Circle route
+      // Dynamic Transit Animation: Air/Helicopter 3D Arc vs Ground Progressively Drawn Network Path
       if (
         activeJourney.isJourney &&
         prevEvent &&
@@ -722,19 +813,84 @@ export function MapGraphic({
         currEvent.longitude != null &&
         currEvent.latitude != null
       ) {
-        // Calculate smooth exact trajectory or Great-Circle curve coordinates with heading bearings
-        const curvePoints = resolveRouteTrajectory(currEvent, prevEvent, 60);
+        const isAir = isAirTransport(activeJourney.mode);
+        let curvePoints: TrajectoryPoint[] = [];
+
+        if (isAir) {
+          // Mode 1: Air & Helicopter Transit
+          // Calculate Great Circle route elevated into a 3D arc using Bezier curve
+          curvePoints = calculate3DGreatCircleArc(
+            prevEvent.longitude,
+            prevEvent.latitude,
+            currEvent.longitude,
+            currEvent.latitude,
+            activeJourney.mode,
+            60
+          );
+        } else {
+          // Mode 2: Car, Rail, Boat, & Ground Transit
+          // Fetch actual geographic LineString path from routing service (Mapbox Directions / OSRM)
+          try {
+            curvePoints = await fetchTransitRoute(
+              [prevEvent.longitude, prevEvent.latitude],
+              [currEvent.longitude, currEvent.latitude],
+              activeJourney.mode,
+              { numSamplePoints: 60 }
+            );
+          } catch {
+            curvePoints = resolveRouteTrajectory(currEvent, prevEvent, 60);
+          }
+        }
+
+        if (isCancelled || !curvePoints.length) return;
 
         activeLegRouteRef.current = { curvePoints, mode: activeJourney.iconName };
 
-        // Update active highlighted leg line on map
-        updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
+        // Initialize active leg route layer
+        updateActiveLegRoute(map, curvePoints, activeJourney.iconName, isAir ? undefined : 0);
 
+        // Smooth camera flyTo interpolation between origin and destination, keeping route centered
+        const minLng = Math.min(prevEvent.longitude, currEvent.longitude);
+        const maxLng = Math.max(prevEvent.longitude, currEvent.longitude);
+        const minLat = Math.min(prevEvent.latitude, currEvent.latitude);
+        const maxLat = Math.max(prevEvent.latitude, currEvent.latitude);
+
+        const targetPitch = isAir ? 55 : 40; // 45-60 deg 3D perspective for air, 40 deg for ground
+
+        try {
+          map.fitBounds(
+            [
+              [minLng, minLat],
+              [maxLng, maxLat],
+            ],
+            {
+              padding: { top: 90, bottom: 90, left: 90, right: 90 },
+              pitch: targetPitch,
+              duration: 1200,
+              maxZoom: 13,
+              essential: true,
+            }
+          );
+        } catch {
+          // Ignore if map bounds calculation was interrupted
+        }
+
+        // Create Animated Vehicle Marker
         const vehicleEl = document.createElement("div");
-        vehicleEl.className = `moving-vehicle-marker mode-${activeJourney.iconName} animated-travel`;
+        vehicleEl.className = `moving-vehicle-marker mode-${activeJourney.iconName} mode-${activeJourney.mode} animated-travel ${
+          isAir ? "vehicle-air-3d" : "vehicle-ground"
+        }`;
         vehicleEl.setAttribute("role", "img");
         vehicleEl.setAttribute("aria-label", activeJourney.description);
         vehicleEl.title = activeJourney.description;
+
+        // Dynamic 3D altitude shadow element for air transit
+        if (isAir) {
+          const shadowEl = document.createElement("div");
+          shadowEl.className = "vehicle-altitude-shadow";
+          shadowEl.setAttribute("aria-hidden", "true");
+          vehicleEl.appendChild(shadowEl);
+        }
 
         const iconWrap = document.createElement("div");
         iconWrap.className = "vehicle-icon-bubble";
@@ -742,7 +898,7 @@ export function MapGraphic({
         iconWrap.setAttribute("aria-hidden", "true");
 
         // Custom SVG / image asset renderer with emoji fallback and failure caching
-        const iconSrc = `/assets/vehicles/${activeJourney.iconName}.svg`;
+        const iconSrc = getVehicleAssetPath(activeJourney.iconName, activeJourney.mode);
         if (failedVehicleAssets.has(iconSrc)) {
           const symbol = document.createElement("span");
           symbol.className = "vehicle-symbol";
@@ -806,9 +962,10 @@ export function MapGraphic({
           if (finalPt && vehicleMarker) {
             vehicleMarker.setLngLat([finalPt.lng, finalPt.lat]);
             iconWrap.style.transform = `rotate(${finalPt.bearing}deg)`;
+            updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
           }
         } else {
-          // Smooth Great-Circle animated trajectory sequence
+          // Dynamic Transit Animation Sequence
           let startTimestamp: number | null = null;
           const animDuration = 2600; // ms
 
@@ -831,10 +988,44 @@ export function MapGraphic({
             if (currPt && vehicleMarker) {
               vehicleMarker.setLngLat([currPt.lng, currPt.lat]);
               iconWrap.style.transform = `rotate(${currPt.bearing}deg)`;
+
+              if (isAir) {
+                // 3D Arc elevation visual translation and scaling
+                const maxAlt = activeJourney.mode === "helicopter" ? 1500 : 11500;
+                const alt = currPt.altitudeMeters || 0;
+                const elevFraction = alt / Math.max(maxAlt, 1);
+                const elevationPx = Math.round(28 * elevFraction);
+                const scale = currPt.scale || (1.0 + 0.3 * elevFraction);
+                iconWrap.style.transform = `translateY(-${elevationPx}px) scale(${scale}) rotate(${currPt.bearing}deg)`;
+
+                const shadowEl = vehicleEl.querySelector(".vehicle-altitude-shadow") as HTMLElement | null;
+                if (shadowEl) {
+                  const shadowScale = 1.0 + 0.5 * elevFraction;
+                  const shadowOpacity = Math.max(0.2, 0.7 - 0.4 * elevFraction);
+                  shadowEl.style.transform = `scale(${shadowScale})`;
+                  shadowEl.style.opacity = String(shadowOpacity);
+                }
+              } else {
+                // Progressive solid route line drawing along exact road/rail network
+                updateActiveLegRoute(map, curvePoints, activeJourney.iconName, ptIndex);
+              }
+
+              // Smooth camera panning to follow transit along travel route
+              if (rawProgress < 1.0 && activeJourney.distanceKm > 150) {
+                map.easeTo({
+                  center: [currPt.lng, currPt.lat],
+                  pitch: targetPitch,
+                  duration: 80,
+                  essential: false,
+                });
+              }
             }
 
             if (rawProgress < 1.0) {
               animFrameRef.current = requestAnimationFrame(animateLeg);
+            } else {
+              // Ensure complete solid line is finalized on arrival
+              updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
             }
           };
 
@@ -876,10 +1067,12 @@ export function MapGraphic({
     };
   }, [points, chronologicalPoints, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
 
-  // Smooth fly-to camera movement on selection change
+  // Smooth fly-to camera movement on selection change when not in active multi-city journey
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !selectedEvent) return;
     if (selectedEvent.longitude == null || selectedEvent.latitude == null) return;
+    if (activeJourney.isJourney) return; // Managed by journey camera framing
+
     mapInstanceRef.current.flyTo({
       center: [selectedEvent.longitude, selectedEvent.latitude],
       zoom: 5.5,
@@ -887,7 +1080,7 @@ export function MapGraphic({
       duration: 1100,
       essential: true,
     });
-  }, [selectedEvent, mapMode, mapTheme]);
+  }, [selectedEvent, mapMode, mapTheme, activeJourney.isJourney]);
 
   return (
     <div
@@ -1048,104 +1241,48 @@ export function MapGraphic({
           aria-label="Interactive geospatial map surface"
         />
       ) : (
-        /* SVG Vector Schematic Map Mode with natural blue water bodies */
-        <div className="evidence-map geopolitical-svg">
-          <div className="map-grid" />
-          <svg className="basemap-vectors" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <path
-              className="coastline"
-              d="M 15 22 Q 18 18 24 16 Q 30 20 28 32 Q 25 38 22 45 Q 26 48 24 55 Q 20 52 18 42 Z"
-            />
-            <path
-              className="coastline"
-              d="M 28 55 Q 35 58 34 70 Q 30 82 28 90 Q 25 80 26 62 Z"
-            />
-            <path
-              className="coastline"
-              d="M 48 24 Q 54 22 56 30 Q 52 38 46 36 Q 44 28 48 24 Z"
-            />
-            <path
-              className="coastline focal"
-              d="M 46 36 Q 58 35 62 38 Q 60 44 55 42 Q 48 42 46 36 Z"
-            />
-            <path
-              className="coastline"
-              d="M 46 42 Q 60 42 58 60 Q 55 78 50 82 Q 42 65 44 48 Z"
-            />
-            <path
-              className="coastline focal"
-              d="M 58 32 Q 70 28 85 30 Q 82 45 74 52 Q 64 48 58 40 Z"
-            />
-            {arcs && <path className="travel-path animated-arc" d={arcs} />}
+        /* Schematic SVG Fallback Map View */
+        <div className="svg-map-fallback" role="region" aria-label="Schematic vector map fallback">
+          <svg
+            className="vector-map-canvas"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="xMidYMid slice"
+            aria-hidden="true"
+          >
+            {/* Grid references */}
+            <line x1="0" y1="25" x2="100" y2="25" className="grid-lat" />
+            <line x1="0" y1="50" x2="100" y2="50" className="grid-lat equator" />
+            <line x1="0" y1="75" x2="100" y2="75" className="grid-lat" />
+            <line x1="25" y1="0" x2="25" y2="100" className="grid-lon" />
+            <line x1="50" y1="0" x2="50" y2="100" className="grid-lon prime-meridian" />
+            <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" />
+
+            {/* Geodesic Flight & Transit Arcs */}
+            {arcs && <path d={arcs} className="svg-trajectory-arc" />}
           </svg>
 
-          <span className="map-label north-america">NORTH<br />AMERICA</span>
-          <span className="map-label europe">EUROPE</span>
-          <span className="map-label asia">WEST ASIA / LEVANT</span>
-          <span className="map-label atlantic">NORTH ATLANTIC</span>
-
-          {/* SVG Trajectory Moving Vehicle */}
-          {activeJourney.isJourney &&
-            prevEvent &&
-            currEvent &&
-            prevEvent.latitude != null &&
-            prevEvent.longitude != null &&
-            currEvent.latitude != null &&
-            currEvent.longitude != null && (
-              <div
-                className="svg-moving-vehicle"
-                style={{
-                  left: `${
-                    (project(prevEvent.latitude, prevEvent.longitude).x +
-                      project(currEvent.latitude, currEvent.longitude).x) /
-                    2
-                  }%`,
-                  top: `${
-                    (project(prevEvent.latitude, prevEvent.longitude).y +
-                      project(currEvent.latitude, currEvent.longitude).y) /
-                    2
-                  }%`,
-                }}
-                title={activeJourney.description}
-                aria-hidden="true"
-              >
-                <div
-                  className="svg-vehicle-icon-wrap"
-                  style={{ transform: `rotate(${activeJourney.bearing}deg)` }}
-                >
-                  <span>{activeJourney.emoji}</span>
-                </div>
-                <span className="svg-vehicle-badge">
-                  {activeJourney.label} · {activeJourney.formattedDistance}
-                </span>
-              </div>
-            )}
-
-          {clusters.map((cluster) => {
-            const isSelected = cluster.hasSelected;
+          {/* SVG Cluster Pins */}
+          {clusters.map((c) => {
+            const isSelected = c.hasSelected;
             return (
               <button
+                key={`${c.x}-${c.y}`}
                 type="button"
-                key={cluster.event.id}
-                onClick={() => onSelect?.(cluster.event.id)}
-                style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
                 className={`forensic-svg-pin ${isSelected ? "selected" : ""} ${
-                  cluster.allVerified ? "verified" : "provisional"
+                  c.allVerified ? "verified" : "provisional"
                 }`}
+                style={{ left: `${c.x}%`, top: `${c.y}%` }}
+                onClick={() => onSelect?.(c.event.id)}
+                aria-label={`${isSelected ? "Selected: " : ""}${c.event.city}, ${c.event.eventName} (${c.count} records)`}
                 aria-pressed={isSelected}
-                aria-label={`${cluster.event.startDate}, ${cluster.event.eventName}, ${
-                  cluster.event.city
-                } (${cluster.count} documented event${cluster.count > 1 ? "s" : ""})`}
               >
-                <title>{`${cluster.event.startDate}, ${cluster.event.eventName}, ${cluster.event.city}`}</title>
                 <div className="svg-pin-wrapper">
                   <svg
-                    viewBox="0 0 24 32"
-                    width="20"
-                    height="26"
-                    fill="none"
-                    aria-hidden="true"
                     className="svg-pin-graphic"
+                    viewBox="0 0 24 32"
+                    width={isSelected ? 22 : 16}
+                    height={isSelected ? 28 : 22}
+                    aria-hidden="true"
                   >
                     <path
                       d="M12 0C5.373 0 0 5.373 0 12c0 8.5 10.5 18.5 11.4 19.4.3.3.9.3 1.2 0C13.5 30.5 24 20.5 24 12c0-6.627-5.373-12-12-12z"
@@ -1153,20 +1290,34 @@ export function MapGraphic({
                     />
                     <circle cx="12" cy="11.5" r="4" className="pin-dot-shape" />
                   </svg>
-                  {isSelected && <span className="svg-pulse-wave" />}
+                  {isSelected && <span className="svg-pulse-wave" aria-hidden="true" />}
                 </div>
-                <i />
-                {cluster.count > 1 && <b className="cluster-badge">{cluster.count}</b>}
-                <span className="svg-pin-city">
-                  {isSelected
-                    ? `${cluster.event.city} (${cluster.count})`
-                    : cluster.count > 3
-                    ? cluster.event.city
-                    : ""}
+                <span className="svg-pin-city" aria-hidden="true">
+                  {c.event.city}
                 </span>
               </button>
             );
           })}
+
+          {/* Active SVG Moving Transport Vehicle */}
+          {activeJourney.isJourney && prevEvent && currEvent && (
+            <div
+              className="svg-moving-vehicle"
+              style={{
+                left: `${(project(prevEvent.latitude!, prevEvent.longitude!).x + project(currEvent.latitude!, currEvent.longitude!).x) / 2}%`,
+                top: `${(project(prevEvent.latitude!, prevEvent.longitude!).y + project(currEvent.latitude!, currEvent.longitude!).y) / 2}%`,
+              }}
+              role="img"
+              aria-label={activeJourney.description}
+            >
+              <div className="svg-vehicle-icon-wrap" aria-hidden="true">
+                <span>{activeJourney.emoji}</span>
+              </div>
+              <div className="svg-vehicle-badge" aria-hidden="true">
+                {activeJourney.label}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

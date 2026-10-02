@@ -399,6 +399,8 @@ export interface TrajectoryPoint {
   speedKmh?: number;
   timestamp?: string;
   label?: string;
+  pitchAngle?: number;
+  scale?: number;
 }
 
 /**
