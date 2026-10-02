@@ -307,7 +307,7 @@ export function resolveJourneyTransport(
   const schedule = calculateJourneySchedule(
     distanceKm,
     mode,
-    currEvent.localStartTime || currEvent.startDate
+    currEvent.localStartTime
   );
   const inferences = extractTravelInferences(currEvent);
 

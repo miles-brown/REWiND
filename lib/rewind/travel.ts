@@ -35,8 +35,8 @@ export function calculateJourneySchedule(
   mode: TransportMode,
   baseTime?: string | null
 ): {
-  departureClock: string;
-  arrivalClock: string;
+  departureClock?: string;
+  arrivalClock?: string;
   durationMinutes: number;
   formattedDuration: string;
 } {
@@ -81,25 +81,6 @@ export function calculateJourneySchedule(
   const travelMinutes = Math.round((distanceKm / avgSpeedKmh) * 60);
   const totalMinutes = Math.max(15, travelMinutes + fixedBufferMinutes);
 
-  // Parse or synthesize base departure time (defaulting to 09:30 AM local time if unspecified)
-  let depHour = 9;
-  let depMin = 30;
-
-  if (baseTime && /^\d{1,2}:\d{2}/.test(baseTime)) {
-    const parts = baseTime.split(":");
-    depHour = parseInt(parts[0], 10);
-    depMin = parseInt(parts[1], 10);
-  }
-
-  const depTotalMin = depHour * 60 + depMin;
-  const arrTotalMin = (depTotalMin + totalMinutes) % (24 * 60);
-
-  const formatClock = (mins: number) => {
-    const h = Math.floor(mins / 60) % 24;
-    const m = mins % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-
   const hours = Math.floor(totalMinutes / 60);
   const remMins = totalMinutes % 60;
   const formattedDuration =
@@ -107,9 +88,33 @@ export function calculateJourneySchedule(
       ? `${hours}h ${remMins > 0 ? `${remMins}m` : ""}`
       : `${remMins}m`;
 
+  let departureClock: string | undefined;
+  let arrivalClock: string | undefined;
+
+  if (baseTime && /^\d{1,2}:\d{2}/.test(baseTime)) {
+    const parts = baseTime.split(":");
+    const rawHour = parseInt(parts[0], 10);
+    const rawMin = parseInt(parts[1], 10);
+
+    const depHour = Number.isFinite(rawHour) ? Math.min(Math.max(rawHour, 0), 23) : 9;
+    const depMin = Number.isFinite(rawMin) ? Math.min(Math.max(rawMin, 0), 59) : 30;
+
+    const depTotalMin = depHour * 60 + depMin;
+    const arrTotalMin = (depTotalMin + totalMinutes) % (24 * 60);
+
+    const formatClock = (mins: number) => {
+      const h = Math.floor(mins / 60) % 24;
+      const m = mins % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    };
+
+    departureClock = formatClock(depTotalMin);
+    arrivalClock = formatClock(arrTotalMin);
+  }
+
   return {
-    departureClock: formatClock(depTotalMin),
-    arrivalClock: formatClock(arrTotalMin),
+    departureClock,
+    arrivalClock,
     durationMinutes: totalMinutes,
     formattedDuration: formattedDuration.trim(),
   };
@@ -196,74 +201,74 @@ export function extractTravelInferences(event: EventRecord): TravelInference[] {
   const sourceId = event.sourceIds?.[0];
   const confidence: Confidence = event.confidence || "limited";
 
-  if (text.includes("flight log") || text.includes("manifest") || text.includes("charter")) {
+  if (/\b(?:flight\s+log|manifest|charter)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-manifest`,
       inferenceType: "flight_manifest",
       title: "Passenger Flight Manifest / Logbook",
       description: "Official flight log entry or passenger manifest establishes route and aircraft.",
       directness: "direct",
-      confidence: "confirmed",
+      confidence,
       sourceId,
     });
   }
 
-  if (text.includes("radar") || text.includes("ads-b") || text.includes("transponder") || text.includes("flightradar")) {
+  if (/\b(?:radar|ads-b|transponder|flightradar)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-radar`,
       inferenceType: "adsb_radar",
       title: "ADS-B / FlightRadar Track",
       description: "Transponder beacon telemetry recorded altitude, waypoint fixes, and cruise speed.",
       directness: "direct",
-      confidence: "confirmed",
+      confidence,
       sourceId,
     });
   }
 
-  if (text.includes("photo") || text.includes("photograph") || text.includes("camera") || text.includes("exif")) {
+  if (/\b(?:photo|photograph|camera|exif)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-photo`,
       inferenceType: "photo_metadata",
       title: "Photographic Evidence / Timestamp",
       description: "Timestamped archival photograph at departure or arrival gate.",
       directness: "inferential",
-      confidence: "strong",
+      confidence,
       sourceId,
     });
   }
 
-  if (text.includes("marine") || text.includes("ais") || text.includes("satellite") || text.includes("vessel")) {
+  if (/\b(?:marine|ais|satellite|vessel)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-ais`,
       inferenceType: "ais_marine_radar",
       title: "Satellite AIS Maritime Ping",
       description: "Satellite AIS receiver fix recorded vessel coordinates and port departure.",
       directness: "direct",
-      confidence: "strong",
+      confidence,
       sourceId,
     });
   }
 
-  if (text.includes("witness") || text.includes("testimony") || text.includes("account")) {
+  if (/\b(?:witness|testimony|deposition|account)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-witness`,
       inferenceType: "eyewitness_account",
       title: "Eyewitness / Official Deposition",
       description: "Eyewitness or co-traveler testimony corroborates departure time and method.",
       directness: "inferential",
-      confidence: "moderate",
+      confidence,
       sourceId,
     });
   }
 
-  if (text.includes("schedule") || text.includes("timetable") || text.includes("train") || text.includes("rail")) {
+  if (/\b(?:schedule|timetable|train|rail)\b/i.test(text)) {
     inferences.push({
       id: `inf-${event.id}-schedule`,
       inferenceType: "official_schedule",
       title: "Published Timetable / Line Schedule",
       description: "Scheduled high-speed rail route or published diplomatic motorcade transit plan.",
       directness: "circumstantial",
-      confidence: "moderate",
+      confidence,
       sourceId,
     });
   }
@@ -409,13 +414,13 @@ export function decomposeCompositeJourney(
         stopType: "layover",
       },
       transportMode: flightMode,
-      certainty: "documented_exact",
+      certainty: currEvent.flightDetails ? "documented_exact" : "inferred_likely",
       flightDetails: {
         flightCategory: isPrivateOrState ? "government-state" : "commercial",
         flightClassification: isStateOrMilitary ? "diplomatic" : "vip-private",
-        flightNumber: currEvent.flightDetails?.flightNumber || (flightMode === "air-force-one" ? "SAM 28000" : undefined),
-        aircraftManufacturer: currEvent.flightDetails?.aircraftManufacturer || (flightMode === "air-force-one" ? "Boeing" : "Gulfstream Aerospace"),
-        aircraftModel: currEvent.flightDetails?.aircraftModel || (flightMode === "air-force-one" ? "VC-25A (747-200B)" : "G550"),
+        flightNumber: currEvent.flightDetails?.flightNumber,
+        aircraftManufacturer: currEvent.flightDetails?.aircraftManufacturer,
+        aircraftModel: currEvent.flightDetails?.aircraftModel,
         tailNumber: currEvent.flightDetails?.tailNumber,
         coTravelers: currEvent.participants?.map((p) => ({
           personId: p.personId,
@@ -466,6 +471,10 @@ export function decomposeCompositeJourney(
     });
   } else {
     // Single Direct Leg (Local Transfer / Direct Trip)
+    const isDirectDocumented = isInterCity
+      ? Boolean(currEvent.flightDetails)
+      : Boolean(currEvent.roadDetails);
+
     legs.push({
       id: `leg-${currEvent.id}-direct`,
       legIndex: 1,
@@ -487,7 +496,7 @@ export function decomposeCompositeJourney(
         stopType: "destination",
       },
       transportMode: isInterCity ? "flight" : "car",
-      certainty: "documented_exact",
+      certainty: isDirectDocumented ? "documented_exact" : "inferred_likely",
       inferences: extractTravelInferences(currEvent),
     });
   }

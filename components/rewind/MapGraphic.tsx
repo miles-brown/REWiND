@@ -201,6 +201,7 @@ function updateActiveLegRoute(
   curvePoints: Array<{ lng: number; lat: number }>,
   mode: string
 ) {
+  if (!map.isStyleLoaded()) return;
   const lineCoords = curvePoints.map((p) => [p.lng, p.lat]);
   const existingSource = map.getSource("active-leg-route") as GeoJSONSource | undefined;
 
@@ -266,6 +267,7 @@ export function MapGraphic({
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MapLibreMarker[]>([]);
   const animFrameRef = useRef<number | null>(null);
+  const activeLegRouteRef = useRef<{ curvePoints: Array<{ lng: number; lat: number }>; mode: string } | null>(null);
   const [webGlSupported, setWebGlSupported] = useState<boolean>(false);
   const [mapMode, setMapMode] = useState<"webgl" | "svg">("svg");
   // Default to geopolitical theme for natural blue oceans and crisp political features
@@ -467,6 +469,9 @@ export function MapGraphic({
           if (isCancelled) return;
           setMapLoaded(true);
           addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
+          if (activeLegRouteRef.current) {
+            updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
+          }
           map.resize();
         };
 
@@ -474,6 +479,9 @@ export function MapGraphic({
         map.on("style.load", () => {
           if (!isCancelled) {
             addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
+            if (activeLegRouteRef.current) {
+              updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
+            }
           }
         });
 
@@ -691,6 +699,8 @@ export function MapGraphic({
         // Calculate smooth exact trajectory or Great-Circle curve coordinates with heading bearings
         const curvePoints = resolveRouteTrajectory(currEvent, prevEvent, 60);
 
+        activeLegRouteRef.current = { curvePoints, mode: activeJourney.iconName };
+
         // Update active highlighted leg line on map
         updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
 
@@ -738,37 +748,51 @@ export function MapGraphic({
 
         markersRef.current.push(vehicleMarker);
 
-        // Smooth Great-Circle animated trajectory sequence
-        let startTimestamp: number | null = null;
-        const animDuration = 2600; // ms
+        // Check for user preference for reduced motion
+        const prefersReducedMotion =
+          typeof window !== "undefined" &&
+          window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        const animateLeg = (timestamp: number) => {
-          if (isCancelled) return;
-          if (!startTimestamp) startTimestamp = timestamp;
-          const elapsed = timestamp - startTimestamp;
-          const rawProgress = Math.min(elapsed / animDuration, 1.0);
-          // Smooth easeInOutQuad easing
-          const p =
-            rawProgress < 0.5
-              ? 2 * rawProgress * rawProgress
-              : 1 - Math.pow(-2 * rawProgress + 2, 2) / 2;
-          const ptIndex = Math.min(
-            Math.floor(p * (curvePoints.length - 1)),
-            curvePoints.length - 1
-          );
-          const currPt = curvePoints[ptIndex];
-
-          if (currPt && vehicleMarker) {
-            vehicleMarker.setLngLat([currPt.lng, currPt.lat]);
-            iconWrap.style.transform = `rotate(${currPt.bearing}deg)`;
+        if (prefersReducedMotion) {
+          const finalPt = curvePoints[curvePoints.length - 1];
+          if (finalPt && vehicleMarker) {
+            vehicleMarker.setLngLat([finalPt.lng, finalPt.lat]);
+            iconWrap.style.transform = `rotate(${finalPt.bearing}deg)`;
           }
+        } else {
+          // Smooth Great-Circle animated trajectory sequence
+          let startTimestamp: number | null = null;
+          const animDuration = 2600; // ms
 
-          if (rawProgress < 1.0) {
-            animFrameRef.current = requestAnimationFrame(animateLeg);
-          }
-        };
+          const animateLeg = (timestamp: number) => {
+            if (isCancelled) return;
+            if (!startTimestamp) startTimestamp = timestamp;
+            const elapsed = timestamp - startTimestamp;
+            const rawProgress = Math.min(elapsed / animDuration, 1.0);
+            // Smooth easeInOutQuad easing
+            const p =
+              rawProgress < 0.5
+                ? 2 * rawProgress * rawProgress
+                : 1 - Math.pow(-2 * rawProgress + 2, 2) / 2;
+            const ptIndex = Math.min(
+              Math.floor(p * (curvePoints.length - 1)),
+              curvePoints.length - 1
+            );
+            const currPt = curvePoints[ptIndex];
 
-        animFrameRef.current = requestAnimationFrame(animateLeg);
+            if (currPt && vehicleMarker) {
+              vehicleMarker.setLngLat([currPt.lng, currPt.lat]);
+              iconWrap.style.transform = `rotate(${currPt.bearing}deg)`;
+            }
+
+            if (rawProgress < 1.0) {
+              animFrameRef.current = requestAnimationFrame(animateLeg);
+            }
+          };
+
+          animFrameRef.current = requestAnimationFrame(animateLeg);
+        }
       }
 
       // Update trajectory line coordinates

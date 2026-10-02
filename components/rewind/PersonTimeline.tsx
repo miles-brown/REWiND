@@ -376,7 +376,7 @@ export function PersonTimeline({
                 {event.flightDetails && (
                   <div className="travel-telemetry-box flight-telemetry">
                     <small className="telemetry-header">✈️ AIRCRAFT & FLIGHT METADATA</small>
-                    <div className="telemetry-grid">
+                    <dl className="telemetry-grid">
                       {event.flightDetails.flightNumber && (
                         <div>
                           <dt>Flight No.</dt>
@@ -401,7 +401,7 @@ export function PersonTimeline({
                           <dd>{event.flightDetails.operator}</dd>
                         </div>
                       )}
-                    </div>
+                    </dl>
                   </div>
                 )}
 
@@ -417,7 +417,7 @@ export function PersonTimeline({
                     return (
                       <div className="travel-telemetry-box road-telemetry">
                         <small className="telemetry-header">🚘 MOTOR VEHICLE & CONVOY TELEMETRY</small>
-                        <div className="telemetry-grid">
+                        <dl className="telemetry-grid">
                           {vehicleName && (
                             <div>
                               <dt>Vehicle</dt>
@@ -460,7 +460,7 @@ export function PersonTimeline({
                               <dd>{road.highwayRoute || road.roadRouteName}</dd>
                             </div>
                           )}
-                        </div>
+                        </dl>
                       </div>
                     );
                   })()
@@ -470,7 +470,7 @@ export function PersonTimeline({
                 {event.maritimeDetails && (
                   <div className="travel-telemetry-box maritime-telemetry">
                     <small className="telemetry-header">🚢 MARITIME & VESSEL METADATA</small>
-                    <div className="telemetry-grid">
+                    <dl className="telemetry-grid">
                       {event.maritimeDetails.vesselName && (
                         <div>
                           <dt>Vessel</dt>
@@ -495,7 +495,7 @@ export function PersonTimeline({
                           <dd>{event.maritimeDetails.speedKnots} kn</dd>
                         </div>
                       )}
-                    </div>
+                    </dl>
                   </div>
                 )}
 
@@ -503,7 +503,7 @@ export function PersonTimeline({
                 {event.railDetails && (
                   <div className="travel-telemetry-box rail-telemetry">
                     <small className="telemetry-header">🚆 RAILWAY & TRAIN METADATA</small>
-                    <div className="telemetry-grid">
+                    <dl className="telemetry-grid">
                       {event.railDetails.railOperator && (
                         <div>
                           <dt>Operator</dt>
@@ -528,7 +528,7 @@ export function PersonTimeline({
                           <dd>{event.railDetails.classOfTravel}</dd>
                         </div>
                       )}
-                    </div>
+                    </dl>
                   </div>
                 )}
 
