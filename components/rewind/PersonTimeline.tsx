@@ -659,14 +659,18 @@ export function PersonTimeline({
                   title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
                 >
                   <span aria-hidden="true">🏨 </span>
-                  <span>Base: {activeStay.stayName || activeStay.venueName}</span>
+                  <span title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}>
+                    Base: {activeStay.stayName || activeStay.venueName}
+                  </span>
                 </span>
               )}
             </div>
             {activeJourney?.isJourney ? (
               <div className="stage-journey-pill" title={activeJourney.description}>
                 <span className="journey-emoji">{activeJourney.emoji}</span>
-                <span className="journey-text">{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</span>
+                <span className="journey-text" title={activeJourney.description}>
+                  {activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}
+                </span>
                 <span className="journey-distance">{activeJourney.formattedDistance}</span>
               </div>
             ) : (
