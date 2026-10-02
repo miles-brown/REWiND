@@ -5,7 +5,7 @@ import { Compass, Globe, Layers, Map as MapIcon, MapPin, Maximize2, Minimize2, Z
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord, TrajectoryPoint } from "@/lib/rewind";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
-import { calculate3DGreatCircleArc, resolveRouteTrajectory } from "@/lib/rewind/travel";
+import { resolveFlightCorridorTrajectory, resolveRouteTrajectory } from "@/lib/rewind/travel";
 import { isAirTransport, fetchTransitRoute } from "@/lib/rewind/routing";
 
 // Standard equirectangular projection helper for SVG fallback mode
@@ -901,12 +901,10 @@ export function MapGraphic({
 
         if (isAir) {
           // Mode 1: Air & Helicopter Transit
-          // Calculate Great Circle route elevated into a 3D arc using Bezier curve
-          curvePoints = calculate3DGreatCircleArc(
-            prevEvent.longitude,
-            prevEvent.latitude,
-            currEvent.longitude,
-            currEvent.latitude,
+          // Resolves documented real flight coordinates if available; otherwise auto-defaults to standard Great-Circle 3D airway corridor
+          curvePoints = resolveFlightCorridorTrajectory(
+            currEvent,
+            prevEvent,
             activeJourney.mode,
             60
           );

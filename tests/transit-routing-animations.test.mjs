@@ -109,10 +109,10 @@ test("verifies MapGraphic.tsx integrates 3D Bezier flight arcs and progressive g
   const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
   const content = fs.readFileSync(mapPath, "utf-8");
 
-  // 1. Air 3D arc Bezier curve calculation
+  // 1. Air 3D arc corridor calculation
   assert.ok(
-    content.includes("calculate3DGreatCircleArc"),
-    "MapGraphic.tsx must use calculate3DGreatCircleArc for air/helicopter routes"
+    content.includes("resolveFlightCorridorTrajectory") || content.includes("calculate3DGreatCircleArc"),
+    "MapGraphic.tsx must use resolveFlightCorridorTrajectory for air/helicopter routes"
   );
 
   // 2. 45-60 degree 3D perspective camera pitch
@@ -168,4 +168,76 @@ test("verifies MapGraphic.tsx integrates 3D Bezier flight arcs and progressive g
     content.includes("continent-land"),
     "MapGraphic.tsx must render continent landmass wireframes in schematic mode"
   );
+
+  // 9. Integration of resolveFlightCorridorTrajectory
+  assert.ok(
+    content.includes("resolveFlightCorridorTrajectory"),
+    "MapGraphic.tsx must use resolveFlightCorridorTrajectory for air transit"
+  );
 });
+
+test("verifies resolveFlightCorridorTrajectory enforces Tier 1 (documented) vs Tier 2 (auto-suggested) precedence", async () => {
+  const { resolveFlightCorridorTrajectory } = await vite.ssrLoadModule("/lib/rewind/travel.ts");
+  const { resolveJourneyTransport } = await vite.ssrLoadModule("/lib/rewind/transport.ts");
+
+  const originEvent = {
+    id: "evt-origin",
+    slug: "evt-origin",
+    eventName: "Departure from Washington",
+    city: "Washington, D.C.",
+    country: "United States",
+    startDate: "2024-05-10",
+    latitude: 38.8951,
+    longitude: -77.0364,
+  };
+
+  const unannotatedDestEvent = {
+    id: "evt-dest-unannotated",
+    slug: "evt-dest-unannotated",
+    eventName: "Arrival in London",
+    city: "London",
+    country: "United Kingdom",
+    startDate: "2024-05-11",
+    latitude: 51.5074,
+    longitude: -0.1278,
+  };
+
+  // 1. Tier 2: Unannotated journey auto-defaults to standard Great-Circle 3D airway corridor
+  const autoPoints = resolveFlightCorridorTrajectory(unannotatedDestEvent, originEvent, "flight", 40);
+  assert.equal(autoPoints.length, 41, "Must generate 41 sample points");
+  assert.ok(autoPoints[20].altitudeMeters > 8000, "Auto-suggested route must elevate into 3D Bezier arc");
+
+  const autoTransport = resolveJourneyTransport(originEvent, unannotatedDestEvent);
+  assert.equal(autoTransport.isDocumentedFlight, false);
+  assert.equal(autoTransport.flightIdentifier, "Auto-Suggested Standard Airway");
+  assert.ok(autoTransport.flightCorridor.includes("Great-Circle Standard Airway"));
+
+  // 2. Tier 1: Documented real flight coordinates override auto-suggested corridor
+  const documentedDestEvent = {
+    ...unannotatedDestEvent,
+    id: "evt-dest-documented",
+    flightDetails: {
+      flightNumber: "AF1",
+      tailNumber: "SAM 28000",
+      aircraftModel: "VC-25A",
+      routeCoordinates: [
+        [-77.0364, 38.8951],
+        [-65.0, 45.0],
+        [-30.0, 52.0],
+        [-0.1278, 51.5074],
+      ],
+    },
+  };
+
+  const documentedPoints = resolveFlightCorridorTrajectory(documentedDestEvent, originEvent, "air-force-one", 40);
+  assert.ok(documentedPoints.length >= 40);
+  // Origin and destination should match the documented coordinates
+  assert.equal(documentedPoints[0].lng, -77.0364);
+  assert.equal(documentedPoints[documentedPoints.length - 1].lat, 51.5074);
+
+  const documentedTransport = resolveJourneyTransport(originEvent, documentedDestEvent);
+  assert.equal(documentedTransport.isDocumentedFlight, true);
+  assert.equal(documentedTransport.flightIdentifier, "SAM 28000");
+  assert.ok(documentedTransport.flightCorridor.includes("Documented Flight Log"));
+});
+

@@ -361,6 +361,13 @@ export function PersonTimeline({
                   )}
                 </div>
                 <b>{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</b>
+                {activeJourney.flightCorridor && (
+                  <div className="journey-corridor-row">
+                    <span className={`flight-corridor-badge ${activeJourney.isDocumentedFlight ? "documented" : "auto-suggested"}`}>
+                      {activeJourney.isDocumentedFlight ? "📋 Documented Flight Record" : "🧭 Auto-Suggested Standard Airway"}
+                    </span>
+                  </div>
+                )}
                 <div className="journey-stats-row">
                   <span>Distance: {activeJourney.formattedDistance}</span>
                   <span>Heading: {activeJourney.bearing}°</span>

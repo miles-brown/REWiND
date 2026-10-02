@@ -1305,6 +1305,10 @@ svg { flex: 0 0 auto; }
 .event-journey-banner .journey-mode-copy b { color: #f8fafc; font: 700 14px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .journey-stats-row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #94a3b8; font-weight: 600; flex-wrap: wrap; }
 .journey-stats-row span { font-variant-numeric: tabular-nums; }
+.journey-corridor-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+.flight-corridor-badge { font-family: var(--sans); font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px; }
+.flight-corridor-badge.documented { color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); }
+.flight-corridor-badge.auto-suggested { color: #38bdf8; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); }
 .journey-inferences-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 .inferences-label { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
 .inferences-pills { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }

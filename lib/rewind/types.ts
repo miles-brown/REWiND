@@ -302,6 +302,7 @@ export interface FlightTravelMetadata {
   routeAirways?: string;
   radarTrackUrl?: string; // FlightRadar24 / ADS-B Exchange / FlightAware replay link
   identifyingMarkers?: string[];
+  routeCoordinates?: Array<[number, number] | [number, number, number]>;
 }
 
 export interface MaritimeTravelMetadata {
