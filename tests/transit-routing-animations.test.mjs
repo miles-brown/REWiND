@@ -117,7 +117,7 @@ test("verifies MapGraphic.tsx integrates 3D Bezier flight arcs and progressive g
 
   // 2. 45-60 degree 3D perspective camera pitch
   assert.ok(
-    content.includes("isAir ? 55 : 40") || content.includes("targetPitch"),
+    content.includes("getThemeCameraSettings") && (content.includes("isAir ? 58 : 50") || content.includes("themeCam.pitch")),
     "MapGraphic.tsx must pitch camera to 45-60 deg 3D perspective during air transit"
   );
 
@@ -141,5 +141,31 @@ test("verifies MapGraphic.tsx integrates 3D Bezier flight arcs and progressive g
   assert.ok(
     content.includes("vehicle-altitude-shadow"),
     "MapGraphic.tsx must create vehicle-altitude-shadow for elevated aircraft"
+  );
+
+  // 6. Dedicated High-Resolution Satellite & Dark Matter Tile Configurations
+  assert.ok(
+    content.includes("FALLBACK_RASTER_SATELLITE_STYLE") && content.includes("server.arcgisonline.com"),
+    "MapGraphic.tsx must configure real high-resolution Satellite raster imagery tiles"
+  );
+  assert.ok(
+    content.includes("FALLBACK_RASTER_DARK_STYLE") && content.includes("dark_all"),
+    "MapGraphic.tsx must configure real Dark Matter raster tiles"
+  );
+  assert.ok(
+    content.includes("FALLBACK_RASTER_VOYAGER_STYLE") && content.includes("rastertiles/voyager"),
+    "MapGraphic.tsx must configure Geopolitical Voyager raster tiles"
+  );
+
+  // 7. Distinct Theme Camera Settings & Perspectives
+  assert.ok(
+    content.includes("getThemeCameraSettings"),
+    "MapGraphic.tsx must define getThemeCameraSettings for theme-specific camera angles"
+  );
+
+  // 8. Tactical Continent Wireframes in Schematic View
+  assert.ok(
+    content.includes("continent-land"),
+    "MapGraphic.tsx must render continent landmass wireframes in schematic mode"
   );
 });

@@ -35,35 +35,10 @@ const CARTO_API_KEY =
   process.env.NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY ||
   "";
 
-// Geopolitical Vector Style with natural blue oceans, political borders, relief, and readable city labels (CARTO Voyager / Mapbox Streets)
-const CARTO_VOYAGER_STYLE =
-  process.env.NEXT_PUBLIC_MAPBOX_VOYAGER_STYLE ||
-  process.env.NEXT_PUBLIC_MAPBOX_STREETS_STYLE ||
-  (MAPBOX_TOKEN
-    ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_TOKEN}`
-    : CARTO_API_KEY
-      ? `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${CARTO_API_KEY}`
-      : "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json");
-
 // Module-level cache for known-missing vehicle asset URLs to avoid duplicate onerror triggers
 const failedVehicleAssets = new Set<string>();
 
-// Mapbox Vector Styles (when token is provided or environment override set)
-const MAPBOX_DARK_STYLE =
-  process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
-  (MAPBOX_TOKEN
-    ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
-    : CARTO_API_KEY
-      ? `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_API_KEY}`
-      : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
-
-const MAPBOX_SATELLITE_STYLE =
-  process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE ||
-  (MAPBOX_TOKEN
-    ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
-    : "");
-
-// Fallback raster tile style specification for Geopolitical Voyager (natural blue oceans & clear labels)
+// 1. Fallback raster tile style specification for Geopolitical Voyager (natural blue oceans & clear labels)
 const FALLBACK_RASTER_VOYAGER_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -98,7 +73,7 @@ const FALLBACK_RASTER_VOYAGER_STYLE: StyleSpecification = {
   ],
 };
 
-// Fallback raster tile style specification if vector GL JSON fails or is offline
+// 2. Fallback raster tile style specification for Dark Matter basemap (obsidian dark)
 const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -132,6 +107,57 @@ const FALLBACK_RASTER_DARK_STYLE: StyleSpecification = {
     },
   ],
 };
+
+// 3. Fallback high-resolution Satellite Imagery style specification
+const FALLBACK_RASTER_SATELLITE_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "satellite-raster": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "© Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community",
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: "satellite-base",
+      type: "raster",
+      source: "satellite-raster",
+      minzoom: 0,
+      maxzoom: 20,
+    },
+  ],
+};
+
+// Primary Geopolitical Voyager Style (vector or fallback raster)
+const CARTO_VOYAGER_STYLE =
+  process.env.NEXT_PUBLIC_MAPBOX_VOYAGER_STYLE ||
+  process.env.NEXT_PUBLIC_MAPBOX_STREETS_STYLE ||
+  (MAPBOX_TOKEN
+    ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_TOKEN}`
+    : CARTO_API_KEY
+      ? `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${CARTO_API_KEY}`
+      : "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json");
+
+// Primary Dark Matter Style (vector or fallback raster)
+const MAPBOX_DARK_STYLE =
+  process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
+  (MAPBOX_TOKEN
+    ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_TOKEN}`
+    : CARTO_API_KEY
+      ? `https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json?key=${CARTO_API_KEY}`
+      : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
+
+// Primary Satellite Style (Mapbox or high-res Esri satellite raster)
+const MAPBOX_SATELLITE_STYLE =
+  process.env.NEXT_PUBLIC_MAPBOX_SATELLITE_STYLE ||
+  (MAPBOX_TOKEN
+    ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`
+    : "satellite-raster");
 
 function getVehicleAssetPath(iconName: string, mode: string): string {
   const norm = (iconName || mode || "").toLowerCase();
@@ -167,6 +193,39 @@ function getVehicleAssetPath(iconName: string, mode: string): string {
     return "/assets/vehicles/police-convoy.svg";
   }
   return "/assets/vehicles/car.svg";
+}
+
+/**
+ * Returns distinct cinematic camera parameters (pitch, bearing, duration)
+ * tailored for each specific basemap theme and transit modality.
+ */
+function getThemeCameraSettings(
+  theme: "geopolitical" | "dark" | "satellite",
+  isAir: boolean,
+  bearing: number = 0
+): { pitch: number; bearing: number; duration: number } {
+  if (theme === "satellite") {
+    // Cinematic 3D chase camera angle showcasing earth horizon, photorealistic terrain, and mountains
+    return {
+      pitch: isAir ? 58 : 50,
+      bearing: isAir ? (bearing ? (bearing + 18) % 360 : 25) : 15,
+      duration: 1200,
+    };
+  }
+  if (theme === "dark") {
+    // Isometric surveillance perspective highlighting glowing neon vectors against pitch-black terrain
+    return {
+      pitch: isAir ? 52 : 44,
+      bearing: 18,
+      duration: 1000,
+    };
+  }
+  // Geopolitical: Strategic North-up perspective for crisp border, territorial, and label legibility
+  return {
+    pitch: isAir ? 46 : 36,
+    bearing: 0,
+    duration: 1000,
+  };
 }
 
 function addTrajectoriesToMap(
@@ -438,12 +497,14 @@ export function MapGraphic({
   const pointsRef = useRef(points);
   const mapThemeRef = useRef(mapTheme);
   const selectedEventRef = useRef(selectedEvent);
+  const activeJourneyRef = useRef(activeJourney);
 
   useEffect(() => {
     pointsRef.current = points;
     mapThemeRef.current = mapTheme;
     selectedEventRef.current = selectedEvent;
-  }, [points, mapTheme, selectedEvent]);
+    activeJourneyRef.current = activeJourney;
+  }, [points, mapTheme, selectedEvent, activeJourney]);
 
   // Escape key collapses expanded map view
   useEffect(() => {
@@ -493,6 +554,18 @@ export function MapGraphic({
     }, "");
   }, [coords]);
 
+  // Active Journey SVG arc path
+  const activeSvgArc = useMemo(() => {
+    if (!activeJourney.isJourney || !prevEvent || !currEvent || prevEvent.latitude == null || prevEvent.longitude == null || currEvent.latitude == null || currEvent.longitude == null) {
+      return "";
+    }
+    const p1 = project(prevEvent.latitude, prevEvent.longitude);
+    const p2 = project(currEvent.latitude, currEvent.longitude);
+    const mx = (p1.x + p2.x) / 2;
+    const my = Math.min(p1.y, p2.y) - 8;
+    return `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`;
+  }, [activeJourney.isJourney, prevEvent, currEvent]);
+
   // Transform Request to attach Mapbox access token or CARTO key to resource requests
   const transformRequest = useCallback((url: string) => {
     if (MAPBOX_TOKEN && (url.startsWith("mapbox://") || url.includes("mapbox.com"))) {
@@ -536,18 +609,24 @@ export function MapGraphic({
             : [35.2137, 31.7683]; // Default Levant coordinates
 
         const initialStyle =
-          mapThemeRef.current === "satellite" && MAPBOX_SATELLITE_STYLE
-            ? MAPBOX_SATELLITE_STYLE
+          mapThemeRef.current === "satellite"
+            ? (MAPBOX_TOKEN && !MAPBOX_SATELLITE_STYLE.includes("satellite-raster")
+                ? MAPBOX_SATELLITE_STYLE
+                : FALLBACK_RASTER_SATELLITE_STYLE)
             : mapThemeRef.current === "dark"
-            ? MAPBOX_DARK_STYLE
-            : CARTO_VOYAGER_STYLE;
+            ? (MAPBOX_TOKEN ? MAPBOX_DARK_STYLE : FALLBACK_RASTER_DARK_STYLE)
+            : (MAPBOX_TOKEN ? CARTO_VOYAGER_STYLE : FALLBACK_RASTER_VOYAGER_STYLE);
+
+        const isAir = isAirTransport(activeJourneyRef.current.mode);
+        const cam = getThemeCameraSettings(mapThemeRef.current, isAir, activeJourneyRef.current.bearing);
 
         const map = new Map({
           container: mapContainerRef.current,
           style: initialStyle,
           center: initialCenter,
           zoom: 4.2,
-          pitch: mapThemeRef.current === "satellite" ? 42 : 20,
+          pitch: cam.pitch,
+          bearing: cam.bearing,
           attributionControl: { compact: true },
           transformRequest,
         });
@@ -562,15 +641,16 @@ export function MapGraphic({
           ) {
             fallbackAttempted = true;
             console.warn(
-              "Switching map to resilient fallback raster style due to remote style error:",
+              `Switching map to resilient fallback raster style for theme '${mapThemeRef.current}' due to style loading notice:`,
               e.error
             );
             try {
               if (mapThemeRef.current === "dark") {
                 map.setStyle(FALLBACK_RASTER_DARK_STYLE);
+              } else if (mapThemeRef.current === "satellite") {
+                map.setStyle(FALLBACK_RASTER_SATELLITE_STYLE);
               } else {
                 map.setStyle(FALLBACK_RASTER_VOYAGER_STYLE);
-                setMapTheme("geopolitical");
               }
             } catch {
               setWebGlSupported(false);
@@ -642,27 +722,30 @@ export function MapGraphic({
     return () => observer.disconnect();
   }, [isExpanded]);
 
-  // Switch map themes with smooth camera adjustment
+  // Switch map themes with distinct cinematic camera angles & positions
   const handleThemeChange = (nextTheme: "geopolitical" | "dark" | "satellite") => {
     if (!mapInstanceRef.current) return;
     setMapTheme(nextTheme);
 
     const targetStyle =
-      nextTheme === "satellite" && MAPBOX_SATELLITE_STYLE
-        ? MAPBOX_SATELLITE_STYLE
+      nextTheme === "satellite"
+        ? (MAPBOX_TOKEN && !MAPBOX_SATELLITE_STYLE.includes("satellite-raster")
+            ? MAPBOX_SATELLITE_STYLE
+            : FALLBACK_RASTER_SATELLITE_STYLE)
         : nextTheme === "dark"
-        ? MAPBOX_DARK_STYLE
-        : CARTO_VOYAGER_STYLE;
+        ? (MAPBOX_TOKEN ? MAPBOX_DARK_STYLE : FALLBACK_RASTER_DARK_STYLE)
+        : (MAPBOX_TOKEN ? CARTO_VOYAGER_STYLE : FALLBACK_RASTER_VOYAGER_STYLE);
 
-    if (targetStyle) {
-      mapInstanceRef.current.setStyle(targetStyle);
-    }
+    mapInstanceRef.current.setStyle(targetStyle);
 
-    if (nextTheme === "satellite") {
-      mapInstanceRef.current.easeTo({ pitch: 45, duration: 800 });
-    } else {
-      mapInstanceRef.current.easeTo({ pitch: 20, duration: 800 });
-    }
+    // Apply distinct camera perspective tailored for each theme
+    const isAir = isAirTransport(activeJourney.mode);
+    const cam = getThemeCameraSettings(nextTheme, isAir, activeJourney.bearing);
+    mapInstanceRef.current.easeTo({
+      pitch: cam.pitch,
+      bearing: cam.bearing,
+      duration: cam.duration,
+    });
   };
 
   // Update Map markers and run dynamic transit animation based on transport mode
@@ -849,13 +932,13 @@ export function MapGraphic({
         // Initialize active leg route layer
         updateActiveLegRoute(map, curvePoints, activeJourney.iconName, isAir ? undefined : 0);
 
-        // Smooth camera flyTo interpolation between origin and destination, keeping route centered
+        // Calculate theme-specific 3D camera angles and positions
         const minLng = Math.min(prevEvent.longitude, currEvent.longitude);
         const maxLng = Math.max(prevEvent.longitude, currEvent.longitude);
         const minLat = Math.min(prevEvent.latitude, currEvent.latitude);
         const maxLat = Math.max(prevEvent.latitude, currEvent.latitude);
 
-        const targetPitch = isAir ? 55 : 40; // 45-60 deg 3D perspective for air, 40 deg for ground
+        const themeCam = getThemeCameraSettings(mapTheme, isAir, activeJourney.bearing);
 
         try {
           map.fitBounds(
@@ -865,8 +948,9 @@ export function MapGraphic({
             ],
             {
               padding: { top: 90, bottom: 90, left: 90, right: 90 },
-              pitch: targetPitch,
-              duration: 1200,
+              pitch: themeCam.pitch,
+              bearing: themeCam.bearing,
+              duration: themeCam.duration,
               maxZoom: 13,
               essential: true,
             }
@@ -1014,7 +1098,8 @@ export function MapGraphic({
               if (rawProgress < 1.0 && activeJourney.distanceKm > 150) {
                 map.easeTo({
                   center: [currPt.lng, currPt.lat],
-                  pitch: targetPitch,
+                  pitch: themeCam.pitch,
+                  bearing: themeCam.bearing,
                   duration: 80,
                   essential: false,
                 });
@@ -1073,14 +1158,18 @@ export function MapGraphic({
     if (selectedEvent.longitude == null || selectedEvent.latitude == null) return;
     if (activeJourney.isJourney) return; // Managed by journey camera framing
 
+    const isAir = isAirTransport(activeJourney.mode);
+    const cam = getThemeCameraSettings(mapTheme, isAir, 0);
+
     mapInstanceRef.current.flyTo({
       center: [selectedEvent.longitude, selectedEvent.latitude],
       zoom: 5.5,
-      pitch: mapTheme === "satellite" ? 45 : 25,
+      pitch: cam.pitch,
+      bearing: cam.bearing,
       duration: 1100,
       essential: true,
     });
-  }, [selectedEvent, mapMode, mapTheme, activeJourney.isJourney]);
+  }, [selectedEvent, mapMode, mapTheme, activeJourney.isJourney, activeJourney.mode]);
 
   return (
     <div
@@ -1154,7 +1243,7 @@ export function MapGraphic({
             className={`map-tool-btn ${mapMode === "svg" ? "active" : ""}`}
             onClick={() => setMapMode(mapMode === "webgl" ? "svg" : "webgl")}
             aria-pressed={mapMode === "svg"}
-            title={mapMode === "webgl" ? "Switch to Schematic Outline" : "Switch to Interactive Map View"}
+            title={mapMode === "webgl" ? "Switch to Schematic Tactical Wireframe" : "Switch to Interactive Map View"}
             aria-label="Schematic vector map mode"
           >
             <MapPin size={13} />
@@ -1204,14 +1293,16 @@ export function MapGraphic({
               className="map-float-btn"
               onClick={() => {
                 if (!mapInstanceRef.current) return;
+                const isAir = isAirTransport(activeJourney.mode);
+                const cam = getThemeCameraSettings(mapTheme, isAir, 0);
                 const flyOptions: {
                   pitch: number;
                   bearing: number;
                   center?: [number, number];
                   zoom?: number;
                 } = {
-                  pitch: mapTheme === "satellite" ? 45 : 20,
-                  bearing: 0,
+                  pitch: cam.pitch,
+                  bearing: cam.bearing,
                 };
                 if (
                   selectedEvent &&
@@ -1241,7 +1332,7 @@ export function MapGraphic({
           aria-label="Interactive geospatial map surface"
         />
       ) : (
-        /* Schematic SVG Fallback Map View */
+        /* Schematic SVG Tactical Situation Room Wireframe Map View */
         <div className="svg-map-fallback" role="region" aria-label="Schematic vector map fallback">
           <svg
             className="vector-map-canvas"
@@ -1249,16 +1340,62 @@ export function MapGraphic({
             preserveAspectRatio="xMidYMid slice"
             aria-hidden="true"
           >
-            {/* Grid references */}
-            <line x1="0" y1="25" x2="100" y2="25" className="grid-lat" />
+            {/* World Continent Tactical Landmass Outlines (Equirectangular Projection) */}
+            <g className="continent-group">
+              {/* North America */}
+              <path
+                className="continent-land"
+                d="M 12 18 Q 18 12 30 14 Q 38 10 44 18 Q 42 28 35 34 Q 30 38 28 46 Q 24 48 20 44 Q 16 38 12 32 Z"
+              />
+              {/* South America */}
+              <path
+                className="continent-land"
+                d="M 28 50 Q 38 48 42 58 Q 38 72 34 82 Q 30 84 28 76 Q 26 62 28 50 Z"
+              />
+              {/* Europe */}
+              <path
+                className="continent-land"
+                d="M 46 22 Q 54 18 58 24 Q 56 32 50 36 Q 44 34 46 22 Z"
+              />
+              {/* Africa */}
+              <path
+                className="continent-land"
+                d="M 46 38 Q 58 36 62 48 Q 60 64 54 72 Q 48 70 46 56 Q 44 46 46 38 Z"
+              />
+              {/* Asia */}
+              <path
+                className="continent-land"
+                d="M 56 16 Q 74 12 88 20 Q 86 36 78 44 Q 68 46 62 38 Q 58 28 56 16 Z"
+              />
+              {/* Australia */}
+              <path
+                className="continent-land"
+                d="M 80 66 Q 92 64 92 76 Q 86 82 78 78 Q 76 70 80 66 Z"
+              />
+              {/* Antarctica */}
+              <path
+                className="continent-land"
+                d="M 6 92 Q 50 88 94 92 Q 80 97 20 97 Z"
+              />
+            </g>
+
+            {/* Tactical Grid references */}
+            <line x1="0" y1="20" x2="100" y2="20" className="grid-lat arctic" />
+            <line x1="0" y1="35" x2="100" y2="35" className="grid-lat tropic-cancer" />
             <line x1="0" y1="50" x2="100" y2="50" className="grid-lat equator" />
-            <line x1="0" y1="75" x2="100" y2="75" className="grid-lat" />
+            <line x1="0" y1="65" x2="100" y2="65" className="grid-lat tropic-capricorn" />
+            <line x1="0" y1="80" x2="100" y2="80" className="grid-lat antarctic" />
             <line x1="25" y1="0" x2="25" y2="100" className="grid-lon" />
             <line x1="50" y1="0" x2="50" y2="100" className="grid-lon prime-meridian" />
             <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" />
 
             {/* Geodesic Flight & Transit Arcs */}
             {arcs && <path d={arcs} className="svg-trajectory-arc" />}
+
+            {/* Active Highlighted Journey Arc */}
+            {activeSvgArc && (
+              <path d={activeSvgArc} className="svg-active-journey-arc svg-active-route-pulse" />
+            )}
           </svg>
 
           {/* SVG Cluster Pins */}

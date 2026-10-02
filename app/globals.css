@@ -1398,6 +1398,15 @@ svg { flex: 0 0 auto; }
 .map-float-btn:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
 
 /* SVG Schematic Pins & Vehicles */
+.continent-group { opacity: 0.9; }
+.continent-land { fill: rgba(30, 41, 59, 0.5); stroke: rgba(56, 189, 248, 0.25); stroke-width: 0.5; transition: fill 0.2s ease; }
+.grid-lat, .grid-lon { stroke: rgba(255, 255, 255, 0.08); stroke-width: 0.35; stroke-dasharray: 1 1; }
+.grid-lat.equator, .grid-lon.prime-meridian { stroke: rgba(56, 189, 248, 0.28); stroke-width: 0.5; stroke-dasharray: none; }
+.svg-trajectory-arc { fill: none; stroke: rgba(56, 189, 248, 0.35); stroke-width: 0.6; stroke-dasharray: 1.5 1; }
+.svg-active-journey-arc { fill: none; stroke: #38bdf8; stroke-width: 1.2; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8)); }
+.svg-active-route-pulse { animation: svg-arc-pulse 2s ease-in-out infinite alternate; }
+@keyframes svg-arc-pulse { 0% { stroke-opacity: 0.55; stroke-width: 1.0; } 100% { stroke-opacity: 1.0; stroke-width: 1.5; } }
+
 .forensic-svg-pin { position: absolute; transform: translate(-50%, -100%); background: none; border: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
 .svg-pin-wrapper { position: relative; }
 .svg-pin-graphic .pin-body-shape { fill: #d97706; }
