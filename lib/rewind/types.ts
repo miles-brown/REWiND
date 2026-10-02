@@ -313,6 +313,7 @@ export interface MaritimeTravelMetadata {
   coTravelers?: Array<{ personId?: string; name: string; role?: string; slug?: string }>;
   satelliteTrackUrl?: string;
   speedKnots?: number;
+  routeCoordinates?: Array<[number, number]>;
 }
 
 export interface RailTravelMetadata {
@@ -323,6 +324,7 @@ export interface RailTravelMetadata {
   arrivalStation?: string;
   scheduledStops?: string[];
   classOfTravel?: string;
+  routeCoordinates?: Array<[number, number]>;
 }
 
 export interface ConvoyMetadata {
@@ -334,13 +336,67 @@ export interface ConvoyMetadata {
   notes?: string;
 }
 
+export type VehicleClassification =
+  | "executive_government"
+  | "head_of_state_limousine"
+  | "diplomatic_corps"
+  | "police_escort"
+  | "police_marked"
+  | "police_unmarked"
+  | "private_security_armored"
+  | "private_personal"
+  | "taxi_black_cab"
+  | "taxi_yellow_cab"
+  | "rideshare_uber"
+  | "rideshare_lyft"
+  | "rental"
+  | "unmarked_surveillance"
+  | "other";
+
+export type OccupantRole =
+  | "driven_passenger"
+  | "driving"
+  | "convoy_escort"
+  | "occupant_unknown";
+
+export interface DriverDetails {
+  name?: string;
+  organization?: string;
+  role?: string;
+}
+
 export interface RoadTravelMetadata {
-  convoyType?: string;
-  vehicleModel?: string;
+  make?: string;
+  model?: string;
+  modelYear?: number;
+  vehicleModel?: string; // Backward compatibility alias
+  color?: string;
   licensePlate?: string;
+  registrationMark?: string; // Alias
+  vehicleClassification?: VehicleClassification;
+  occupantStatus?: OccupantRole;
+  seatingPosition?: string;
+  driverDetails?: DriverDetails;
+  armoringLevel?: string;
+  convoyType?: string;
   highwayRoute?: string;
+  roadRouteName?: string;
+  turnByTurnSummary?: string;
   checkpointsPassed?: string[];
+  routeCoordinates?: Array<[number, number]>;
+  gpsTrackUrl?: string;
   convoyDetails?: ConvoyMetadata;
+}
+
+export interface TrajectoryPoint {
+  lng: number;
+  lat: number;
+  bearing: number;
+  progress: number;
+  altitudeMeters?: number;
+  speedKmh?: number;
+  timestamp?: string;
+  label?: string;
 }
 
 /**

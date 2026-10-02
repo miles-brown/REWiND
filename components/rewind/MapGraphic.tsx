@@ -5,7 +5,7 @@ import { Compass, Globe, Layers, Map as MapIcon, MapPin, Maximize2, Minimize2, Z
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord } from "@/lib/rewind";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
-import { interpolateGreatCircle } from "@/lib/rewind/travel";
+import { resolveRouteTrajectory } from "@/lib/rewind/travel";
 
 // Standard equirectangular projection helper for SVG fallback mode
 function project(lat: number, lon: number) {
@@ -193,6 +193,63 @@ function addTrajectoriesToMap(
     });
   } else if (map.getLayer("trajectory-line")) {
     map.setPaintProperty("trajectory-line", "line-color", trajectoryColor);
+  }
+}
+
+function updateActiveLegRoute(
+  map: MapLibreMap,
+  curvePoints: Array<{ lng: number; lat: number }>,
+  mode: string
+) {
+  const lineCoords = curvePoints.map((p) => [p.lng, p.lat]);
+  const existingSource = map.getSource("active-leg-route") as GeoJSONSource | undefined;
+
+  if (existingSource && "setData" in existingSource) {
+    existingSource.setData({
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "LineString",
+        coordinates: lineCoords,
+      },
+    });
+  } else if (!existingSource && lineCoords.length >= 2) {
+    map.addSource("active-leg-route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: lineCoords,
+        },
+      },
+    });
+  }
+
+  let color = "#38bdf8"; // cyan for air / flight
+  if (mode === "car" || mode === "bus") color = "#f59e0b"; // gold/amber for road/convoy
+  else if (mode === "boat") color = "#0284c7"; // deep ocean blue for maritime
+  else if (mode === "train") color = "#c084fc"; // purple for rail
+  else if (mode === "helicopter") color = "#34d399"; // emerald for helicopter
+
+  if (map.getSource("active-leg-route") && !map.getLayer("active-leg-line")) {
+    map.addLayer({
+      id: "active-leg-line",
+      type: "line",
+      source: "active-leg-route",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": color,
+        "line-width": 3.5,
+        "line-opacity": 0.9,
+      },
+    });
+  } else if (map.getLayer("active-leg-line")) {
+    map.setPaintProperty("active-leg-line", "line-color", color);
   }
 }
 
@@ -621,7 +678,7 @@ export function MapGraphic({
         markersRef.current.push(marker);
       });
 
-      // Add dynamic animated moving transport vehicle along Great-Circle route
+      // Add dynamic animated moving transport vehicle along exact route / Great-Circle route
       if (
         activeJourney.isJourney &&
         prevEvent &&
@@ -631,14 +688,11 @@ export function MapGraphic({
         currEvent.longitude != null &&
         currEvent.latitude != null
       ) {
-        // Calculate smooth Great-Circle curve coordinates with heading bearings
-        const curvePoints = interpolateGreatCircle(
-          prevEvent.longitude,
-          prevEvent.latitude,
-          currEvent.longitude,
-          currEvent.latitude,
-          50
-        );
+        // Calculate smooth exact trajectory or Great-Circle curve coordinates with heading bearings
+        const curvePoints = resolveRouteTrajectory(currEvent, prevEvent, 60);
+
+        // Update active highlighted leg line on map
+        updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
 
         const vehicleEl = document.createElement("div");
         vehicleEl.className = `moving-vehicle-marker mode-${activeJourney.iconName} animated-travel`;

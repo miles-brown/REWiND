@@ -82,8 +82,8 @@ test("verifies MapGraphic.tsx defines CARTO Voyager geopolitical basemap with bl
     "MapGraphic.tsx must include fallback raster tiles for Voyager"
   );
   assert.ok(
-    mapGraphicContent.includes("interpolateGreatCircle"),
-    "MapGraphic.tsx must compute Great-Circle curved trajectories"
+    mapGraphicContent.includes("resolveRouteTrajectory") || mapGraphicContent.includes("interpolateGreatCircle"),
+    "MapGraphic.tsx must compute route trajectories or Great-Circle curves"
   );
 });
 
@@ -173,4 +173,55 @@ test("verifies PersonTimeline.tsx renders 24-hr transit clocks, journey legs, an
     timelineContent.includes("journey-legs-block") || timelineContent.includes("journeyLegs"),
     "PersonTimeline.tsx must render multi-leg journey breakdown"
   );
+  assert.ok(
+    timelineContent.includes("road-telemetry") || timelineContent.includes("MOTOR VEHICLE & CONVOY"),
+    "PersonTimeline.tsx must render motor vehicle and convoy telemetry"
+  );
 });
+
+test("verifies computeTrajectoryFromCoordinates and resolveRouteTrajectory follow exact coordinate plots", async () => {
+  const { computeTrajectoryFromCoordinates, resolveRouteTrajectory } = await vite.ssrLoadModule("/lib/rewind/travel.ts");
+  assert.equal(typeof computeTrajectoryFromCoordinates, "function");
+  assert.equal(typeof resolveRouteTrajectory, "function");
+
+  // Multi-point ADS-B flight radar or road GPS track: Paris -> Brussels -> Amsterdam
+  const multiPlot = [
+    [2.3522, 48.8566], // Paris
+    [4.3517, 50.8503], // Brussels
+    [4.9041, 52.3676], // Amsterdam
+  ];
+
+  const traj = computeTrajectoryFromCoordinates(multiPlot, 30);
+  assert.ok(traj.length >= 30, "Trajectory must contain at least 30 samples");
+  assert.ok(Math.abs(traj[0].lng - 2.3522) < 0.001, "First point must match Paris");
+  assert.ok(Math.abs(traj[traj.length - 1].lng - 4.9041) < 0.001, "Last point must match Amsterdam");
+
+  // Event with explicit roadDetails routeCoordinates
+  const roadEvent = {
+    id: "evt-convoy-paris-brussels",
+    slug: "diplomatic-convoy",
+    eventName: "State Diplomatic Convoy",
+    startDate: "2020-09-12",
+    city: "Brussels",
+    country: "Belgium",
+    summary: "Diplomatic armored motorcade across border.",
+    verificationStatus: "verified",
+    sourceIds: ["src-convoy"],
+    participants: [],
+    roadDetails: {
+      make: "Cadillac",
+      model: "One ('The Beast')",
+      licensePlate: "800-002",
+      vehicleClassification: "head_of_state_limousine",
+      occupantStatus: "driven_passenger",
+      armoringLevel: "B7 / VR10 Ballistic Armor",
+      routeCoordinates: multiPlot,
+    },
+  };
+
+  const resolved = resolveRouteTrajectory(roadEvent);
+  assert.ok(resolved.length >= 2, "Must resolve trajectory from roadDetails.routeCoordinates");
+  assert.ok(Math.abs(resolved[0].lat - 48.8566) < 0.01, "Starts in Paris latitude");
+  assert.ok(Math.abs(resolved[resolved.length - 1].lat - 52.3676) < 0.01, "Ends in Amsterdam latitude");
+});
+

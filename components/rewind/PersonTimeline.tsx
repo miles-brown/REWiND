@@ -372,10 +372,10 @@ export function PersonTimeline({
                   </div>
                 )}
 
-                {/* Aviation & Vessel Specifications */}
+                {/* Aviation Specifications */}
                 {event.flightDetails && (
-                  <div className="travel-telemetry-box">
-                    <small className="telemetry-header">AIRCRAFT & FLIGHT METADATA</small>
+                  <div className="travel-telemetry-box flight-telemetry">
+                    <small className="telemetry-header">✈️ AIRCRAFT & FLIGHT METADATA</small>
                     <div className="telemetry-grid">
                       {event.flightDetails.flightNumber && (
                         <div>
@@ -399,6 +399,133 @@ export function PersonTimeline({
                         <div>
                           <dt>Operator</dt>
                           <dd>{event.flightDetails.operator}</dd>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Road & Vehicle Specifications */}
+                {(event.roadDetails || journeyLegs.find((l) => l.roadDetails)?.roadDetails) && (
+                  (() => {
+                    const road = event.roadDetails || journeyLegs.find((l) => l.roadDetails)?.roadDetails;
+                    if (!road) return null;
+                    const vehicleName = road.make
+                      ? `${road.make} ${road.model || ""}`.trim()
+                      : road.vehicleModel || road.model;
+                    const regMark = road.licensePlate || road.registrationMark;
+                    return (
+                      <div className="travel-telemetry-box road-telemetry">
+                        <small className="telemetry-header">🚘 MOTOR VEHICLE & CONVOY TELEMETRY</small>
+                        <div className="telemetry-grid">
+                          {vehicleName && (
+                            <div>
+                              <dt>Vehicle</dt>
+                              <dd>{vehicleName}</dd>
+                            </div>
+                          )}
+                          {regMark && (
+                            <div>
+                              <dt>Registration / Plate</dt>
+                              <dd>{regMark}</dd>
+                            </div>
+                          )}
+                          {road.vehicleClassification && (
+                            <div>
+                              <dt>Classification</dt>
+                              <dd>{road.vehicleClassification.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {road.occupantStatus && (
+                            <div>
+                              <dt>Occupant Status</dt>
+                              <dd>{road.occupantStatus.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {road.armoringLevel && (
+                            <div>
+                              <dt>Protection Tier</dt>
+                              <dd>{road.armoringLevel}</dd>
+                            </div>
+                          )}
+                          {road.convoyDetails?.motorcadeType && (
+                            <div>
+                              <dt>Motorcade Escort</dt>
+                              <dd>{road.convoyDetails.motorcadeType.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {(road.highwayRoute || road.roadRouteName) && (
+                            <div>
+                              <dt>Highway / Route</dt>
+                              <dd>{road.highwayRoute || road.roadRouteName}</dd>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+
+                {/* Maritime Vessel Specifications */}
+                {event.maritimeDetails && (
+                  <div className="travel-telemetry-box maritime-telemetry">
+                    <small className="telemetry-header">🚢 MARITIME & VESSEL METADATA</small>
+                    <div className="telemetry-grid">
+                      {event.maritimeDetails.vesselName && (
+                        <div>
+                          <dt>Vessel</dt>
+                          <dd>{event.maritimeDetails.vesselName}</dd>
+                        </div>
+                      )}
+                      {(event.maritimeDetails.mmsi || event.maritimeDetails.imoNumber) && (
+                        <div>
+                          <dt>MMSI / IMO</dt>
+                          <dd>{event.maritimeDetails.mmsi || event.maritimeDetails.imoNumber}</dd>
+                        </div>
+                      )}
+                      {event.maritimeDetails.flagState && (
+                        <div>
+                          <dt>Flag State</dt>
+                          <dd>{event.maritimeDetails.flagState}</dd>
+                        </div>
+                      )}
+                      {event.maritimeDetails.speedKnots != null && (
+                        <div>
+                          <dt>Speed</dt>
+                          <dd>{event.maritimeDetails.speedKnots} kn</dd>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rail Transit Specifications */}
+                {event.railDetails && (
+                  <div className="travel-telemetry-box rail-telemetry">
+                    <small className="telemetry-header">🚆 RAILWAY & TRAIN METADATA</small>
+                    <div className="telemetry-grid">
+                      {event.railDetails.railOperator && (
+                        <div>
+                          <dt>Operator</dt>
+                          <dd>{event.railDetails.railOperator}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.lineName && (
+                        <div>
+                          <dt>Line</dt>
+                          <dd>{event.railDetails.lineName}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.trainNumber && (
+                        <div>
+                          <dt>Train No.</dt>
+                          <dd>{event.railDetails.trainNumber}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.classOfTravel && (
+                        <div>
+                          <dt>Class</dt>
+                          <dd>{event.railDetails.classOfTravel}</dd>
                         </div>
                       )}
                     </div>

@@ -3,6 +3,7 @@ import type {
   EventRecord,
   JourneyLeg,
   PersonStayRecord,
+  TrajectoryPoint,
   TravelEventRecord,
   TravelInference,
 } from "./types";
@@ -493,3 +494,160 @@ export function decomposeCompositeJourney(
 
   return legs;
 }
+
+/**
+ * Computes a fine-grained sequence of trajectory points from an exact series of coordinates
+ * (e.g. FlightRadar24 ADS-B plots, Marine AIS track pings, GPX tracks, or road turn-by-turn vectors).
+ */
+export function computeTrajectoryFromCoordinates(
+  rawCoords: Array<[number, number] | [number, number, number]>,
+  targetPoints: number = 50
+): TrajectoryPoint[] {
+  if (!rawCoords || rawCoords.length === 0) return [];
+  if (rawCoords.length === 1) {
+    return [
+      {
+        lng: rawCoords[0][0],
+        lat: rawCoords[0][1],
+        altitudeMeters: rawCoords[0][2],
+        bearing: 0,
+        progress: 1.0,
+      },
+    ];
+  }
+
+  // Calculate cumulative segment distances
+  const segDistances: number[] = [0];
+  let totalDist = 0;
+
+  for (let i = 0; i < rawCoords.length - 1; i++) {
+    const p1 = rawCoords[i];
+    const p2 = rawCoords[i + 1];
+    const dLat = ((p2[1] - p1[1]) * Math.PI) / 180;
+    const dLon = ((p2[0] - p1[0]) * Math.PI) / 180;
+    const lat1 = (p1[1] * Math.PI) / 180;
+    const lat2 = (p2[1] * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const dist = 6371000 * c; // meters
+    totalDist += Math.max(dist, 1);
+    segDistances.push(totalDist);
+  }
+
+  const result: TrajectoryPoint[] = [];
+  const numSteps = Math.max(targetPoints, rawCoords.length);
+
+  for (let i = 0; i <= numSteps; i++) {
+    const targetDist = (i / numSteps) * totalDist;
+
+    // Find bounding segment
+    let segIdx = 0;
+    while (segIdx < segDistances.length - 1 && segDistances[segIdx + 1] < targetDist) {
+      segIdx++;
+    }
+
+    const segStartDist = segDistances[segIdx];
+    const segEndDist = segDistances[segIdx + 1] ?? totalDist;
+    const segSpan = Math.max(segEndDist - segStartDist, 1);
+    const segFrac = Math.min(Math.max((targetDist - segStartDist) / segSpan, 0), 1);
+
+    const pA = rawCoords[segIdx];
+    const pB = rawCoords[Math.min(segIdx + 1, rawCoords.length - 1)];
+
+    const curLng = pA[0] + (pB[0] - pA[0]) * segFrac;
+    const curLat = pA[1] + (pB[1] - pA[1]) * segFrac;
+    const curAlt =
+      pA[2] != null && pB[2] != null
+        ? pA[2] + (pB[2] - pA[2]) * segFrac
+        : pA[2] ?? pB[2];
+
+    // Compute tangent bearing
+    const yB = Math.sin(((pB[0] - pA[0]) * Math.PI) / 180) * Math.cos((pB[1] * Math.PI) / 180);
+    const xB =
+      Math.cos((pA[1] * Math.PI) / 180) * Math.sin((pB[1] * Math.PI) / 180) -
+      Math.sin((pA[1] * Math.PI) / 180) *
+        Math.cos((pB[1] * Math.PI) / 180) *
+        Math.cos(((pB[0] - pA[0]) * Math.PI) / 180);
+    const rawBearing = ((Math.atan2(yB, xB) * 180) / Math.PI + 360) % 360;
+
+    result.push({
+      lng: curLng,
+      lat: curLat,
+      altitudeMeters: curAlt,
+      bearing: Math.round(rawBearing),
+      progress: i / numSteps,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Resolves the full route trajectory (exact multi-point coordinate track or geodesic arc)
+ * between the previous event and the current event across all travel modalities (air, water, road, rail).
+ */
+export function resolveRouteTrajectory(
+  currEvent: EventRecord,
+  prevEvent?: EventRecord | null,
+  numSamplePoints: number = 50
+): TrajectoryPoint[] {
+  // 1. Check if exact route coordinates are supplied on the event or specific metadata schemas
+  if (currEvent.routeCoordinates && currEvent.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.routeCoordinates, numSamplePoints);
+  }
+
+  if (currEvent.roadDetails?.routeCoordinates && currEvent.roadDetails.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.roadDetails.routeCoordinates, numSamplePoints);
+  }
+
+  if (currEvent.maritimeDetails?.routeCoordinates && currEvent.maritimeDetails.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.maritimeDetails.routeCoordinates, numSamplePoints);
+  }
+
+  if (currEvent.railDetails?.routeCoordinates && currEvent.railDetails.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.railDetails.routeCoordinates, numSamplePoints);
+  }
+
+  // 2. Check if multiple intermediate waypoints are specified
+  if (currEvent.waypoints && currEvent.waypoints.length >= 2) {
+    const waypointCoords: Array<[number, number]> = currEvent.waypoints.map((w) => [
+      w.longitude,
+      w.latitude,
+    ]);
+    return computeTrajectoryFromCoordinates(waypointCoords, numSamplePoints);
+  }
+
+  // 3. Fallback to start-to-end great-circle geodesic curve
+  if (
+    prevEvent &&
+    prevEvent.longitude != null &&
+    prevEvent.latitude != null &&
+    currEvent.longitude != null &&
+    currEvent.latitude != null
+  ) {
+    return interpolateGreatCircle(
+      prevEvent.longitude,
+      prevEvent.latitude,
+      currEvent.longitude,
+      currEvent.latitude,
+      numSamplePoints
+    );
+  }
+
+  // 4. Single point fallback
+  if (currEvent.longitude != null && currEvent.latitude != null) {
+    return [
+      {
+        lng: currEvent.longitude,
+        lat: currEvent.latitude,
+        bearing: 0,
+        progress: 1.0,
+      },
+    ];
+  }
+
+  return [];
+}
+
