@@ -53,8 +53,26 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
     }
   };
 
+  const tabMeta: Record<typeof activeTab, { label: string; count?: number; unit?: string }> = {
+    career: { label: "Public Mandates & Career", count: career.length, unit: "position" },
+    education: { label: "Education credentials", count: education.length, unit: "record" },
+    works: { label: "Documented Works", count: works.length, unit: "item" },
+    awards: { label: "Honours & Awards", count: awards.length, unit: "recognition" },
+    identity: { label: "Identity & Origins" },
+  };
+
+  const currentMeta = tabMeta[activeTab];
+  const tabAnnounceText = currentMeta.count !== undefined
+    ? `${currentMeta.label} selected, showing ${currentMeta.count} ${currentMeta.unit}${currentMeta.count === 1 ? "" : "s"} for ${person.name}.`
+    : `${currentMeta.label} selected for ${person.name}.`;
+
   return (
     <section className="biographical-dossier" aria-label="Structured Biographical Dossier">
+      {/* Live Region for Screen Readers */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {tabAnnounceText}
+      </div>
+
       <div className="section-header">
         <span className="eyebrow">STRUCTURED BIOGRAPHICAL DOSSIER</span>
         <h3>Documented Record & Background</h3>

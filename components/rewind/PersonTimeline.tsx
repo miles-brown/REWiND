@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronLeft,
@@ -24,6 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
+import { decomposeCompositeJourney } from "@/lib/rewind/travel";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -115,7 +116,7 @@ export function PersonTimeline({
     ? Math.min(Math.max(index, 0), ordered.length - 1)
     : 0;
 
-  const moveTo = (next: number) => {
+  const moveTo = useCallback((next: number) => {
     setPlaying(false);
     if (!ordered.length) return;
     const clamped = Math.min(Math.max(next, 0), ordered.length - 1);
@@ -125,7 +126,7 @@ export function PersonTimeline({
       url.searchParams.set("evt", ordered[clamped].slug);
       window.history.replaceState(null, "", url.toString());
     }
-  };
+  }, [ordered]);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -171,9 +172,34 @@ export function PersonTimeline({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [ordered, safeIndex, direction, moveTo]);
 
-  if (!ordered.length) {
+  const event = ordered[safeIndex];
+
+  const prevRecordedEvent = useMemo(() => {
+    if (!event) return null;
+    for (let i = safeIndex - 1; i >= 0; i--) {
+      const candidate = ordered[i];
+      if (candidate && candidate.latitude != null && candidate.longitude != null) {
+        return candidate;
+      }
+    }
+    return null;
+  }, [ordered, safeIndex, event]);
+
+  const activeJourney = useMemo(() => {
+    if (!event || event.latitude == null || event.longitude == null) {
+      return null;
+    }
+    return resolveJourneyTransport(prevRecordedEvent, event);
+  }, [event, prevRecordedEvent]);
+
+  const journeyLegs = useMemo(() => {
+    if (!activeJourney?.isJourney || !event) return [];
+    return decomposeCompositeJourney(event, prevRecordedEvent);
+  }, [activeJourney, event, prevRecordedEvent]);
+
+  if (!ordered.length || !event) {
     return (
       <div className="zero-state">
         <h2>No timeline records yet</h2>
@@ -181,20 +207,6 @@ export function PersonTimeline({
       </div>
     );
   }
-
-  const event = ordered[safeIndex];
-  const activeJourney = (() => {
-    if (!event || event.latitude == null || event.longitude == null) {
-      return null;
-    }
-    for (let i = safeIndex - 1; i >= 0; i--) {
-      const candidate = ordered[i];
-      if (candidate && candidate.latitude != null && candidate.longitude != null) {
-        return resolveJourneyTransport(candidate, event);
-      }
-    }
-    return resolveJourneyTransport(null, event);
-  })();
 
   const source =
     event.sources?.[0] ||
@@ -321,12 +333,218 @@ export function PersonTimeline({
 
           {/* Forensic Transit & Journey Details */}
           {activeJourney?.isJourney && (
-            <div className="event-journey-banner">
+            <div className="event-journey-banner" role="region" aria-label="Documented transit leg details">
               <span className="journey-mode-icon" aria-hidden="true">{activeJourney.emoji}</span>
               <div className="journey-mode-copy">
-                <small>TRANSIT & JOURNEY METHOD</small>
+                <div className="journey-banner-header">
+                  <small>TRANSIT & JOURNEY METHOD</small>
+                  {activeJourney.departureClock && activeJourney.arrivalClock && (
+                    <span className="journey-chrono-badge">
+                      ⏱ {activeJourney.departureClock} → {activeJourney.arrivalClock} ({activeJourney.formattedDuration})
+                    </span>
+                  )}
+                </div>
                 <b>{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</b>
-                <span>Distance: {activeJourney.formattedDistance} · Compass Heading: {activeJourney.bearing}°</span>
+                <div className="journey-stats-row">
+                  <span>Distance: {activeJourney.formattedDistance}</span>
+                  <span>Heading: {activeJourney.bearing}°</span>
+                  {activeJourney.durationMinutes && (
+                    <span>Est. Time: {activeJourney.formattedDuration}</span>
+                  )}
+                </div>
+
+                {/* Granular Multi-Leg Sub-Travel Flow */}
+                {journeyLegs.length > 1 && (
+                  <div className="journey-legs-block">
+                    <small className="legs-header">COMPOSITE JOURNEY LEGS ({journeyLegs.length} STAGES):</small>
+                    <ol className="journey-legs-list">
+                      {journeyLegs.map((leg) => (
+                        <li key={leg.id} className="journey-leg-item">
+                          <span className="leg-num">{leg.legIndex}</span>
+                          <span className="leg-icon">{leg.transportMode === "flight" || leg.transportMode === "air-force-one" || leg.transportMode === "private-jet" ? "✈️" : leg.transportMode === "helicopter" ? "🚁" : leg.transportMode === "train" ? "🚆" : leg.transportMode === "boat" ? "🚢" : "🚘"}</span>
+                          <div className="leg-content">
+                            <b>{leg.legTitle}</b>
+                            <small>{leg.originVenue.name} → {leg.destinationVenue.name} · <span className="leg-certainty">{leg.certainty.replace("_", " ")}</span></small>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Aviation Specifications */}
+                {event.flightDetails && (
+                  <div className="travel-telemetry-box flight-telemetry">
+                    <small className="telemetry-header">✈️ AIRCRAFT & FLIGHT METADATA</small>
+                    <dl className="telemetry-grid">
+                      {event.flightDetails.flightNumber && (
+                        <div>
+                          <dt>Flight No.</dt>
+                          <dd>{event.flightDetails.flightNumber}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.tailNumber && (
+                        <div>
+                          <dt>Tail / Reg.</dt>
+                          <dd>{event.flightDetails.tailNumber}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.aircraftModel && (
+                        <div>
+                          <dt>Aircraft</dt>
+                          <dd>{event.flightDetails.aircraftManufacturer ? `${event.flightDetails.aircraftManufacturer} ` : ""}{event.flightDetails.aircraftModel}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.operator && (
+                        <div>
+                          <dt>Operator</dt>
+                          <dd>{event.flightDetails.operator}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+                )}
+
+                {/* Road & Vehicle Specifications */}
+                {(event.roadDetails || journeyLegs.find((l) => l.roadDetails)?.roadDetails) && (
+                  (() => {
+                    const road = event.roadDetails || journeyLegs.find((l) => l.roadDetails)?.roadDetails;
+                    if (!road) return null;
+                    const vehicleName = road.make
+                      ? `${road.make} ${road.model || ""}`.trim()
+                      : road.vehicleModel || road.model;
+                    const regMark = road.licensePlate || road.registrationMark;
+                    return (
+                      <div className="travel-telemetry-box road-telemetry">
+                        <small className="telemetry-header">🚘 MOTOR VEHICLE & CONVOY TELEMETRY</small>
+                        <dl className="telemetry-grid">
+                          {vehicleName && (
+                            <div>
+                              <dt>Vehicle</dt>
+                              <dd>{vehicleName}</dd>
+                            </div>
+                          )}
+                          {regMark && (
+                            <div>
+                              <dt>Registration / Plate</dt>
+                              <dd>{regMark}</dd>
+                            </div>
+                          )}
+                          {road.vehicleClassification && (
+                            <div>
+                              <dt>Classification</dt>
+                              <dd>{road.vehicleClassification.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {road.occupantStatus && (
+                            <div>
+                              <dt>Occupant Status</dt>
+                              <dd>{road.occupantStatus.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {road.armoringLevel && (
+                            <div>
+                              <dt>Protection Tier</dt>
+                              <dd>{road.armoringLevel}</dd>
+                            </div>
+                          )}
+                          {road.convoyDetails?.motorcadeType && (
+                            <div>
+                              <dt>Motorcade Escort</dt>
+                              <dd>{road.convoyDetails.motorcadeType.replace(/_/g, " ")}</dd>
+                            </div>
+                          )}
+                          {(road.highwayRoute || road.roadRouteName) && (
+                            <div>
+                              <dt>Highway / Route</dt>
+                              <dd>{road.highwayRoute || road.roadRouteName}</dd>
+                            </div>
+                          )}
+                        </dl>
+                      </div>
+                    );
+                  })()
+                )}
+
+                {/* Maritime Vessel Specifications */}
+                {event.maritimeDetails && (
+                  <div className="travel-telemetry-box maritime-telemetry">
+                    <small className="telemetry-header">🚢 MARITIME & VESSEL METADATA</small>
+                    <dl className="telemetry-grid">
+                      {event.maritimeDetails.vesselName && (
+                        <div>
+                          <dt>Vessel</dt>
+                          <dd>{event.maritimeDetails.vesselName}</dd>
+                        </div>
+                      )}
+                      {(event.maritimeDetails.mmsi || event.maritimeDetails.imoNumber) && (
+                        <div>
+                          <dt>MMSI / IMO</dt>
+                          <dd>{event.maritimeDetails.mmsi || event.maritimeDetails.imoNumber}</dd>
+                        </div>
+                      )}
+                      {event.maritimeDetails.flagState && (
+                        <div>
+                          <dt>Flag State</dt>
+                          <dd>{event.maritimeDetails.flagState}</dd>
+                        </div>
+                      )}
+                      {event.maritimeDetails.speedKnots != null && (
+                        <div>
+                          <dt>Speed</dt>
+                          <dd>{event.maritimeDetails.speedKnots} kn</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+                )}
+
+                {/* Rail Transit Specifications */}
+                {event.railDetails && (
+                  <div className="travel-telemetry-box rail-telemetry">
+                    <small className="telemetry-header">🚆 RAILWAY & TRAIN METADATA</small>
+                    <dl className="telemetry-grid">
+                      {event.railDetails.railOperator && (
+                        <div>
+                          <dt>Operator</dt>
+                          <dd>{event.railDetails.railOperator}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.lineName && (
+                        <div>
+                          <dt>Line</dt>
+                          <dd>{event.railDetails.lineName}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.trainNumber && (
+                        <div>
+                          <dt>Train No.</dt>
+                          <dd>{event.railDetails.trainNumber}</dd>
+                        </div>
+                      )}
+                      {event.railDetails.classOfTravel && (
+                        <div>
+                          <dt>Class</dt>
+                          <dd>{event.railDetails.classOfTravel}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+                )}
+
+                {/* Evidence Basis Inferences */}
+                {activeJourney.inferences && activeJourney.inferences.length > 0 && (
+                  <div className="journey-inferences-row">
+                    <small className="inferences-label">EVIDENCE BASIS:</small>
+                    <div className="inferences-pills">
+                      {activeJourney.inferences.map((inf) => (
+                        <span key={inf.id} className="inference-pill" title={inf.description}>
+                          {inf.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -565,8 +783,11 @@ export function PersonTimeline({
 
         <div className="console-meta-tools">
           {activeJourney?.isJourney && (
-            <div className="console-journey-chip" title={activeJourney.description}>
+            <div className="console-journey-chip" title={`${activeJourney.label}: ${activeJourney.originCity} → ${activeJourney.destinationCity} (${activeJourney.formattedDistance})`}>
               <span>{activeJourney.emoji}</span>
+              {activeJourney.departureClock && activeJourney.arrivalClock && (
+                <span className="console-clock-span">{activeJourney.departureClock} → {activeJourney.arrivalClock}</span>
+              )}
               <small>{activeJourney.formattedDistance}</small>
             </div>
           )}

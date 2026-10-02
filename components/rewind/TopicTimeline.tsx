@@ -153,15 +153,25 @@ export function TopicTimeline({
               >
                 <Users size={13} />
                 <span style={{ fontWeight: 600 }}>Key Participants:</span>
-                {evt.participants.map((p: Participant) => (
-                  <Link
-                    key={p.personId}
-                    href={`/person/${p.personId}`}
-                    className="participant-tag"
-                  >
-                    {p.name} {p.role ? `(${p.role})` : ""}
-                  </Link>
-                ))}
+                {evt.participants.map((p: Participant) => {
+                  const pSlug = p.slug || (p.personId ? p.personId.replace(/^p-/, "") : "");
+                  return pSlug ? (
+                    <Link
+                      key={p.personId || pSlug}
+                      href={`/person/${pSlug}`}
+                      className="participant-tag"
+                    >
+                      {p.name} {p.role ? `(${p.role})` : ""}
+                    </Link>
+                  ) : (
+                    <span
+                      key={p.personId || p.name}
+                      className="participant-tag"
+                    >
+                      {p.name} {p.role ? `(${p.role})` : ""}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

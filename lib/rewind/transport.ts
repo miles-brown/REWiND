@@ -1,4 +1,5 @@
-import type { EventRecord } from "./types";
+import type { EventRecord, TravelInference } from "./types";
+import { calculateJourneySchedule, extractTravelInferences } from "./travel";
 
 export type TransportMode =
   | "air-force-one"
@@ -25,6 +26,11 @@ export interface JourneyTransport {
   bearing: number;
   isJourney: boolean;
   description: string;
+  departureClock?: string;
+  arrivalClock?: string;
+  durationMinutes?: number;
+  formattedDuration?: string;
+  inferences?: TravelInference[];
 }
 
 /**
@@ -298,6 +304,13 @@ export function resolveJourneyTransport(
     ? `${emoji} ${label}: ${originCity} → ${destinationCity} (${formattedDistance})`
     : `📍 ${originCity}: ${label}`;
 
+  const schedule = calculateJourneySchedule(
+    distanceKm,
+    mode,
+    currEvent.localStartTime
+  );
+  const inferences = extractTravelInferences(currEvent);
+
   return {
     mode,
     label,
@@ -312,5 +325,10 @@ export function resolveJourneyTransport(
     bearing,
     isJourney,
     description,
+    departureClock: schedule.departureClock,
+    arrivalClock: schedule.arrivalClock,
+    durationMinutes: schedule.durationMinutes,
+    formattedDuration: schedule.formattedDuration,
+    inferences,
   };
 }
