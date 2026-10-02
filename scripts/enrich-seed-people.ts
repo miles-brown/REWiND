@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CanonicalPersonSeed } from "../data/seeds/types";
 
 // Helper to auto-enrich a seed record with complete demographic and inclusion attributes
@@ -11,22 +12,23 @@ export function enrichPersonSeed(p: CanonicalPersonSeed): CanonicalPersonSeed {
     nationality === "United States" || nationality === "United Kingdom" || nationality === "Australia" || nationality === "Canada" ? ["English"] :
     nationality === "France" ? ["French", "English"] :
     nationality === "Germany" ? ["German", "English"] :
-    nationality === "Russian Federation" || nationality === "Soviet Union" ? ["Russian"] :
-    nationality === "State of Palestine" || nationality === "Jordan" || nationality === "Egypt" || nationality === "Saudi Arabia" || nationality === "Qatar" || nationality === "United Arab Emirates" ? ["Arabic", "English"] :
+    nationality === "Russian Federation" || nationality === "Soviet Union" || nationality === "Russia" ? ["Russian"] :
+    nationality === "State of Palestine" || nationality === "Palestine" || nationality === "Jordan" || nationality === "Egypt" || nationality === "Saudi Arabia" || nationality === "Qatar" || nationality === "United Arab Emirates" || nationality === "Syria" || nationality === "Lebanon" ? ["Arabic", "English"] :
+    nationality === "Turkey" ? ["Turkish", "English"] :
     nationality === "Iran" ? ["Persian", "Arabic"] :
     ["English"]
   );
 
-  let religion = p.religion;
-  let religiousDenomination = p.religiousDenomination;
+  let religion = p.religion ?? null;
+  let religiousDenomination = p.religiousDenomination ?? null;
   let religionStatus = p.religionStatus;
 
   if (!religionStatus) {
     if (religion) {
       religionStatus = "self-identified";
-    } else if (nationality === "Israel" || p.classification === "religious-leader") {
+    } else if (nationality === "Israel") {
       religion = "Judaism";
-      religiousDenomination = "Traditional / Zionist";
+      religiousDenomination = null;
       religionStatus = "self-identified";
     } else {
       religionStatus = "not-publicly-stated";
@@ -48,16 +50,16 @@ export function enrichPersonSeed(p: CanonicalPersonSeed): CanonicalPersonSeed {
     }
   }
 
-  const inclusionRationale = p.inclusionRationale || `Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.`;
-  const culturalImpactSummary = p.culturalImpactSummary || `Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.`;
+  const inclusionRationale = p.inclusionRationale || null;
+  const culturalImpactSummary = p.culturalImpactSummary || null;
   const primaryFigureCategory = p.primaryFigureCategory || p.classification || "public-figure";
 
   return {
     ...p,
     citizenship,
     languages,
-    religion: religion || null,
-    religiousDenomination: religiousDenomination || null,
+    religion,
+    religiousDenomination,
     religionStatus,
     inclusionBasis,
     inclusionRationale,
@@ -104,4 +106,7 @@ export const ${exportKey}: CanonicalPersonSeed[] = ${JSON.stringify(enrichedList
   }
 }
 
-run().catch(console.error);
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  run().catch(console.error);
+}
+

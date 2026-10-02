@@ -1,5 +1,5 @@
 /**
- * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: LEGAL & INTELLIGENCE FIGURES (50 FIGURES)
+ * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: LEGAL & INTELLIGENCE FIGURES
  *
  * Forensically documented seed records for International Court Judges, Special Prosecutors,
  * Intelligence Agency Directors (CIA, Mossad, Shin Bet, MI6), and National Security Advisors.
@@ -110,8 +110,8 @@ export const legalAndIntelligencePeopleSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "intensive",
     publicationStatus: "published",
-    wikidataId: "Q6125026",
-    viafId: "85409395",
+    wikidataId: "Q119615591",
+    viafId: "23163155787601310708",
     avatarUrl: null,
     summary: "American political advisor and government official who has served as the 28th United States National Security Advisor since 2021, coordinating US strategy on European security, China, and Middle East defense agreements.",
     aliases: ["Jacob Jeremiah Sullivan", "NSA Sullivan"]
@@ -219,7 +219,7 @@ export const legalAndIntelligencePeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "normal",
     publicationStatus: "published",
     wikidataId: "Q15303649",
-    viafId: "114144865",
+    viafId: null,
     avatarUrl: null,
     summary: "Israeli intelligence officer who served as Director of the Mossad from 2016 to 2021, playing a pivotal role in negotiating the 2020 Abraham Accords and leading the 2018 operation that seized Iran's nuclear archive.",
     aliases: ["יוסי כהן", "Yosef Meir Cohen", "The Model"]
@@ -255,7 +255,7 @@ export const legalAndIntelligencePeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "intensive",
     publicationStatus: "published",
     wikidataId: "Q108871083",
-    viafId: "114144865",
+    viafId: null,
     avatarUrl: null,
     summary: "Israeli security officer who has served as the Director of the Shin Bet (Israel Security Agency) since 2021, leading domestic counter-terrorism operations and coordination with regional security services.",
     aliases: ["רונן בר", "Director Bar", "Shin Bet Chief"]
@@ -363,7 +363,7 @@ export const legalAndIntelligencePeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "intensive",
     publicationStatus: "published",
     wikidataId: "Q115286592",
-    viafId: "114144865",
+    viafId: null,
     avatarUrl: null,
     summary: "American attorney and prosecutor who has served as US Special Counsel since 2022 overseeing federal criminal investigations regarding classified documents and election interference, having previously served as Chief Prosecutor in The Hague for war crimes in Kosovo.",
     aliases: ["John Luman Smith", "Special Counsel Jack Smith"]

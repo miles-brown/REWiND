@@ -1,6 +1,5 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
@@ -94,13 +93,16 @@ test("verifies Historical Events Corpus & Spatial/Evidence Integrity", () => {
     assert.ok(e.startDate, `Event ${e.id} must have startDate`);
     assert.match(e.startDate, /^\d{4}/, `Event ${e.id} startDate must start with 4-digit year`);
 
-    if (e.latitude != null && e.longitude != null) {
+    const hasLat = e.latitude != null;
+    const hasLng = e.longitude != null;
+    assert.equal(hasLat, hasLng, `Event ${e.id} must specify both latitude and longitude or neither`);
+    if (hasLat && hasLng) {
       assert.ok(
-        e.latitude >= -90 && e.latitude <= 90,
+        Number.isFinite(e.latitude) && e.latitude >= -90 && e.latitude <= 90,
         `Event ${e.id} latitude ${e.latitude} out of bounds [-90, 90]`
       );
       assert.ok(
-        e.longitude >= -180 && e.longitude <= 180,
+        Number.isFinite(e.longitude) && e.longitude >= -180 && e.longitude <= 180,
         `Event ${e.id} longitude ${e.longitude} out of bounds [-180, 180]`
       );
     }
@@ -140,8 +142,20 @@ test("verifies travel corridor events contain valid origin/destination waypoints
   travelEvents.forEach((t) => {
     assert.ok(t.originWaypoint, `Travel event ${t.id} must have originWaypoint`);
     assert.ok(t.destinationWaypoint, `Travel event ${t.id} must have destinationWaypoint`);
-    assert.ok(t.originWaypoint.latitude != null && t.originWaypoint.longitude != null);
-    assert.ok(t.destinationWaypoint.latitude != null && t.destinationWaypoint.longitude != null);
+    assert.ok(
+      Number.isFinite(t.originWaypoint.latitude) &&
+      t.originWaypoint.latitude >= -90 && t.originWaypoint.latitude <= 90 &&
+      Number.isFinite(t.originWaypoint.longitude) &&
+      t.originWaypoint.longitude >= -180 && t.originWaypoint.longitude <= 180,
+      `Travel event ${t.id} must have valid numeric origin coordinates`
+    );
+    assert.ok(
+      Number.isFinite(t.destinationWaypoint.latitude) &&
+      t.destinationWaypoint.latitude >= -90 && t.destinationWaypoint.latitude <= 90 &&
+      Number.isFinite(t.destinationWaypoint.longitude) &&
+      t.destinationWaypoint.longitude >= -180 && t.destinationWaypoint.longitude <= 180,
+      `Travel event ${t.id} must have valid numeric destination coordinates`
+    );
   });
 });
 
@@ -160,8 +174,8 @@ test("queries events by person slug and returns chronologically sorted results",
   assert.ok(bEvents.length > 0, "Expected events for benjamin-netanyahu");
   for (let i = 1; i < bEvents.length; i++) {
     assert.ok(
-      bEvents[i - 1].startDate.localeCompare(bEvents[i].startDate) <= 0,
-      "Events must be sorted chronologically ascending"
+      bEvents[i - 1].startDate <= bEvents[i].startDate,
+      `Events must be sorted chronologically ascending: ${bEvents[i - 1].startDate} <= ${bEvents[i].startDate}`
     );
   }
 });

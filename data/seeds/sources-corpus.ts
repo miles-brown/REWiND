@@ -25,7 +25,7 @@ export const sourcesCorpus: SourceRecord[] = [
   {
     id: "src-wh-transcript-19960709",
     title: "The President's News Conference With Prime Minister Binyamin Netanyahu of Israel",
-    publisher: "The White House / Ronald Reagan Presidential Library (Compilation of Presidential Documents)",
+    publisher: "The White House / William J. Clinton Presidential Library (Compilation of Presidential Documents)",
     sourceType: "official-transcript",
     classification: "primary",
     sourceLevel: "primary",

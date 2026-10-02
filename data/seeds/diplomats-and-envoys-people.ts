@@ -1,5 +1,5 @@
 /**
- * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: DIPLOMATS & ENVOYS (50 FIGURES)
+ * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: DIPLOMATS & ENVOYS
  *
  * Forensically documented seed records for UN Secretaries-General, Senior Peace Envoys,
  * Foreign Ministers, Ambassadors, and Special Presidential Negotiators.
@@ -398,8 +398,8 @@ export const diplomatsAndEnvoysPeopleSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "normal",
     publicationStatus: "published",
-    wikidataId: "Q372481",
-    viafId: "79113153",
+    wikidataId: "Q366304",
+    viafId: "42646636",
     avatarUrl: null,
     summary: "American politician and diplomat who served as US Senate Majority Leader from 1989 to 1995 and chaired the peace negotiations that produced the historic 1998 Good Friday Agreement in Northern Ireland, later serving as US Special Envoy for Middle East Peace.",
     aliases: ["George John Mitchell Jr.", "Senator Mitchell"]
@@ -470,8 +470,8 @@ export const diplomatsAndEnvoysPeopleSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q1904128",
-    viafId: "114144865",
+    wikidataId: "Q1904033",
+    viafId: "41973619",
     avatarUrl: null,
     summary: "American diplomat and foreign policy analyst who served twice as United States Ambassador to Israel and as US Special Envoy for Israeli-Palestinian Negotiations from 2013 to 2014.",
     aliases: ["Ambassador Martin Indyk", "Martin Sean Indyk"]
@@ -614,8 +614,8 @@ export const diplomatsAndEnvoysPeopleSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q312489",
-    viafId: "114144865",
+    wikidataId: "Q311317",
+    viafId: "13947491",
     avatarUrl: null,
     summary: "American diplomat and author who brokered the 1995 Dayton Peace Agreement ending the war in Bosnia and Herzegovina, later serving as United States Ambassador to the United Nations and Special Representative for Afghanistan and Pakistan.",
     aliases: ["The Bulldozer", "Richard Charles Albert Holbrooke"]

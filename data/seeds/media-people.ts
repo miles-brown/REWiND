@@ -19,14 +19,14 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Broadcast Journalist / Host of Larry King Live",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Host of Larry King Live on CNN (1985–2010), conducted over 50,000 interviews with global leaders and public figures.",
     "programmeId": null,
     "isLiving": false,
     "monitoringPriority": "historical-only",
     "publicationStatus": "published",
-    "wikidataId": "Q190268",
-    "viafId": "115797305",
+    "wikidataId": "Q188334",
+    "viafId": "84034870",
     "avatarUrl": null,
     "summary": "American television and radio host whose career included 25 years hosting Larry King Live on CNN.",
     "aliases": [
@@ -45,9 +45,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "barbara-walters",
@@ -60,7 +60,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Broadcast Journalist / ABC News Anchor / Co-creator of The View",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "First female co-anchor of a network evening news program (ABC World News Tonight), host of 20/20, Today, and creator of The View.",
     "programmeId": null,
     "isLiving": false,
@@ -86,9 +86,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "christiane-amanpour",
@@ -101,7 +101,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United Kingdom",
     "primaryRole": "Chief International Anchor for CNN / Host of Amanpour",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "CNN Chief International Anchor, host of Amanpour and Amanpour & Company on PBS, veteran foreign correspondent.",
     "programmeId": null,
     "isLiving": true,
@@ -127,9 +127,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "wolf-blitzer",
@@ -142,7 +142,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Lead Anchor of The Situation Room / CNN Military & Diplomatic Correspondent",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Lead anchor of The Situation Room on CNN (2005–present), former Pentagon correspondent and Jerusalem Post reporter.",
     "programmeId": null,
     "isLiving": true,
@@ -168,9 +168,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "jake-tapper",
@@ -183,14 +183,14 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Lead Washington Anchor for CNN / Host of State of the Union",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Lead Washington Anchor for CNN, host of The Lead with Jake Tapper and State of the Union, author.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
-    "wikidataId": "Q6125026",
-    "viafId": "58392131",
+    "wikidataId": "Q6125033",
+    "viafId": "14092497",
     "avatarUrl": null,
     "summary": "American journalist, author, and cartoonist who is the lead Washington anchor for CNN.",
     "aliases": [
@@ -209,9 +209,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "rachel-maddow",
@@ -224,7 +224,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Host of The Rachel Maddow Show on MSNBC / Author",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Host of prime-time news commentary program The Rachel Maddow Show on MSNBC, podcast host, and political author.",
     "programmeId": null,
     "isLiving": true,
@@ -250,9 +250,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "sean-hannity",
@@ -265,7 +265,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Host of Hannity on Fox News / Nationally Syndicated Radio Host",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Host of Hannity on Fox News Channel, host of The Sean Hannity Show syndicated talk radio program.",
     "programmeId": null,
     "isLiving": true,
@@ -291,9 +291,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "piers-morgan",
@@ -306,14 +306,14 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United Kingdom",
     "primaryRole": "Broadcast Journalist / Host of Piers Morgan Uncensored / Newspaper Editor",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Host of Piers Morgan Uncensored, former host of Piers Morgan Tonight on CNN, former editor of Daily Mirror and News of the World.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
-    "wikidataId": "Q2052029",
-    "viafId": "85671501",
+    "wikidataId": "Q557758",
+    "viafId": "58376991",
     "avatarUrl": null,
     "summary": "British broadcaster, journalist, writer, and television personality who hosts Piers Morgan Uncensored.",
     "aliases": [
@@ -332,9 +332,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   },
   {
     "id": "rupert-murdoch",
@@ -347,7 +347,7 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Media Executive / Chairman Emeritus of News Corp & Fox Corporation",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Founder of News Corp, Fox News, 20th Century Fox, owner of The Wall Street Journal, The Times, and Sun newspapers.",
     "programmeId": null,
     "isLiving": true,
@@ -373,9 +373,9 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "jon-stewart",
@@ -388,14 +388,14 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Political Satirist / Host of The Daily Show / Producer",
-    "classification": "media",
+    "classification": "media-journalist",
     "notabilityBasis": "Host of The Daily Show on Comedy Central (1999–2015, 2024–present), prominent 9/11 First Responders legislative advocate.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
     "wikidataId": "Q211987",
-    "viafId": "78770389",
+    "viafId": "76541608",
     "avatarUrl": null,
     "summary": "American comedian, writer, producer, director, political commentator, and television host who gained prominence hosting The Daily Show.",
     "aliases": [
@@ -414,8 +414,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "media"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "media-journalist"
   }
 ];

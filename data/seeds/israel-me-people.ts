@@ -598,11 +598,11 @@ export const israelMePeopleSeed: CanonicalPersonSeed[] = [
       "Palestine"
     ],
     "languages": [
-      "English"
+      "Arabic"
     ],
-    "religion": "Judaism",
-    "religiousDenomination": "Traditional / Zionist",
-    "religionStatus": "self-identified",
+    "religion": "Islam",
+    "religiousDenomination": "Sunni",
+    "religionStatus": "scholarly-consensus",
     "inclusionBasis": [
       "major-religious-authority",
       "central-nexus-to-historical-events"
@@ -895,8 +895,8 @@ export const israelMePeopleSeed: CanonicalPersonSeed[] = [
       "Persian",
       "Arabic"
     ],
-    "religion": "Judaism",
-    "religiousDenomination": "Traditional / Zionist",
+    "religion": "Islam",
+    "religiousDenomination": "Twelver Shia",
     "religionStatus": "self-identified",
     "inclusionBasis": [
       "major-religious-authority",

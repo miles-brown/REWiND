@@ -1,5 +1,5 @@
 /**
- * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: GLOBAL & HISTORICAL FIGURES (50 FIGURES)
+ * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: GLOBAL & HISTORICAL FIGURES
  *
  * Forensically documented seed records for major religious authorities, founding figures,
  * investigative journalists, resistance figures, and monarchs.
@@ -38,8 +38,8 @@ export const globalFiguresPeopleSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "intensive",
     publicationStatus: "published",
-    wikidataId: "Q450675",
-    viafId: "68994511",
+    wikidataId: "Q9363",
+    viafId: "68358608",
     avatarUrl: null,
     summary: "Sovereign of the Vatican City State and 266th Bishop of Rome since 2013, leading historic interfaith diplomacy in the UAE and Iraq and hosting peace invocations with Israeli and Palestinian presidents at the Vatican.",
     aliases: ["Jorge Mario Bergoglio", "Papa Francisco", "Pontifex Maximus"]
@@ -291,7 +291,7 @@ export const globalFiguresPeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "historical-only",
     publicationStatus: "published",
     wikidataId: "Q9682",
-    viafId: "24838407",
+    viafId: "14772038",
     avatarUrl: null,
     summary: "Queen of the United Kingdom and Head of the Commonwealth from 1952 to 2022, whose historic 70-year reign made her the longest-serving British monarch and a central figure in international diplomacy.",
     aliases: ["Her Majesty The Queen", "Elizabeth Alexandra Mary", "Lilibet"]

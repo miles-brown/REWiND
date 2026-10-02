@@ -74,13 +74,18 @@ CREATE POLICY "Allow public read on person stays"
     )
   );
 
--- 5. Performance Indexes for Forensic Queries & Filters
+-- 5. Backfill Defaults for Non-Null Integrity
+UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status IS NULL;
+UPDATE public.people SET inclusion_contested = FALSE WHERE inclusion_contested IS NULL;
+UPDATE public.events SET is_travel_event = FALSE WHERE is_travel_event IS NULL;
+UPDATE public.events SET is_documented_flight = FALSE WHERE is_documented_flight IS NULL;
+
+-- 6. Performance Indexes for Forensic Queries & Filters
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people (slug);
 CREATE INDEX IF NOT EXISTS idx_people_pub_status ON public.people (publication_status);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON public.events (start_date);
 CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events (place_id);
-CREATE INDEX IF NOT EXISTS idx_event_participants_person ON public.event_participants (person_id);
-CREATE INDEX IF NOT EXISTS idx_event_participants_event ON public.event_participants (event_id);
 CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims (subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes (speaker_id);
 CREATE INDEX IF NOT EXISTS idx_person_stays_person ON public.person_stays (person_id);
+

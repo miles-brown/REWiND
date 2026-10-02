@@ -47,8 +47,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -90,8 +90,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -132,8 +132,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -143,15 +143,15 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "displayName": "Dick Cheney",
     "nativeName": null,
     "birthDate": "1941-01-30",
-    "deathDate": null,
+    "deathDate": "2025-11-03",
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "46th Vice President of the United States / Secretary of Defense",
     "classification": "politician",
     "notabilityBasis": "46th Vice President of the United States (2001–2009), 17th US Secretary of Defense (1989–1993), White House Chief of Staff.",
     "programmeId": null,
-    "isLiving": true,
-    "monitoringPriority": "normal",
+    "isLiving": false,
+    "monitoringPriority": "historical-only",
     "publicationStatus": "published",
     "wikidataId": "Q48259",
     "viafId": "18567059",
@@ -173,8 +173,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -183,7 +183,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "canonicalName": "Colin Powell",
     "displayName": "Colin Powell",
     "nativeName": null,
-    "birthDate": "1936-04-05",
+    "birthDate": "1937-04-05",
     "deathDate": "2021-10-18",
     "datePrecision": "exact-day",
     "nationality": "United States",
@@ -195,7 +195,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "historical-only",
     "publicationStatus": "published",
     "wikidataId": "Q150851",
-    "viafId": "79113160",
+    "viafId": "79113153",
     "avatarUrl": null,
     "summary": "American military officer and statesman who served as the 65th US Secretary of State and Chairman of the Joint Chiefs of Staff.",
     "aliases": [
@@ -215,8 +215,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "diplomat"
   },
   {
@@ -256,8 +256,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "diplomat"
   },
   {
@@ -297,8 +297,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "diplomat"
   },
   {
@@ -319,7 +319,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "normal",
     "publicationStatus": "published",
     "wikidataId": "Q473239",
-    "viafId": "1724151778254418130000",
+    "viafId": "59154921338563592817",
     "avatarUrl": null,
     "summary": "American politician and attorney who served as Director of the CIA and Secretary of State under President Donald Trump.",
     "aliases": [
@@ -338,8 +338,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "diplomat"
   },
   {
@@ -360,7 +360,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "historical-only",
     "publicationStatus": "published",
     "wikidataId": "Q174438",
-    "viafId": "115797305",
+    "viafId": "51856141",
     "avatarUrl": null,
     "summary": "American diplomat and political scientist who served as the first female US Secretary of State under President Bill Clinton.",
     "aliases": [
@@ -379,8 +379,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "diplomat"
   },
   {
@@ -420,8 +420,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -442,7 +442,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
     "wikidataId": "Q380900",
-    "viafId": "1724151778254418130000",
+    "viafId": "18991666",
     "avatarUrl": null,
     "summary": "American politician and attorney serving as the senior United States senator from New York and Leader of the Senate Democratic Caucus.",
     "aliases": [
@@ -461,8 +461,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -483,7 +483,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
     "wikidataId": "Q355522",
-    "viafId": "58334407",
+    "viafId": "77848600",
     "avatarUrl": null,
     "summary": "American politician and attorney who served as the leader of the Senate Republican Conference from 2007 to 2025.",
     "aliases": [
@@ -502,8 +502,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -544,8 +544,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -587,8 +587,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -629,8 +629,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -672,8 +672,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -694,7 +694,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "monitoringPriority": "historical-only",
     "publicationStatus": "published",
     "wikidataId": "Q7416",
-    "viafId": "102379567",
+    "viafId": "102379347",
     "avatarUrl": null,
     "summary": "British stateswoman who served as Prime Minister of the United Kingdom from 1979 to 1990 and Leader of the Conservative Party from 1975 to 1990.",
     "aliases": [
@@ -715,8 +715,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   },
   {
@@ -757,8 +757,8 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
     "primaryFigureCategory": "politician"
   }
 ];

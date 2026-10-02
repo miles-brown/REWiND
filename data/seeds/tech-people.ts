@@ -19,14 +19,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder of Microsoft / Co-chair of Bill & Melinda Gates Foundation",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder of Microsoft Corporation, pioneer of microcomputer revolution, global health philanthropist.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
     "wikidataId": "Q5284",
-    "viafId": "102379567",
+    "viafId": "102370383",
     "avatarUrl": null,
     "summary": "American businessman, investor, and philanthropist who co-founded Microsoft and the Bill & Melinda Gates Foundation.",
     "aliases": [
@@ -45,9 +45,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "peter-thiel",
@@ -60,7 +60,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder of PayPal & Palantir Technologies / Venture Capitalist",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder of PayPal, Palantir Technologies, Founders Fund, first outside investor in Facebook.",
     "programmeId": null,
     "isLiving": true,
@@ -86,9 +86,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "mark-zuckerberg",
@@ -101,14 +101,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Founder, Chairman & CEO of Meta Platforms",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder and CEO of Meta Platforms (formerly Facebook, Inc.), Chan Zuckerberg Initiative co-founder.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
     "wikidataId": "Q36215",
-    "viafId": "103554605",
+    "viafId": "168694082",
     "avatarUrl": null,
     "summary": "American businessman who co-founded the social media service Facebook and its parent company Meta Platforms.",
     "aliases": [
@@ -127,9 +127,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "jeff-bezos",
@@ -142,7 +142,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Founder & Executive Chairman of Amazon / Founder of Blue Origin",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Founder and Executive Chairman of Amazon, founder of spaceflight company Blue Origin, owner of The Washington Post.",
     "programmeId": null,
     "isLiving": true,
@@ -168,9 +168,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "sam-altman",
@@ -183,14 +183,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "CEO of OpenAI / Former President of Y Combinator",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "CEO of OpenAI, former President of startup accelerator Y Combinator (2014–2019), Worldcoin co-founder.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
-    "wikidataId": "Q7407093",
-    "viafId": "305260580",
+    "wikidataId": "Q20707765",
+    "viafId": "39168445781534481488",
     "avatarUrl": null,
     "summary": "American entrepreneur and investor serving as Chief Executive Officer of OpenAI since 2019.",
     "aliases": [
@@ -209,9 +209,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "larry-ellison",
@@ -224,7 +224,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder, Chief Technology Officer & Chairman of Oracle Corporation",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder and CTO of Oracle Corporation, former CEO (1977–2014), major technology investor and political donor.",
     "programmeId": null,
     "isLiving": true,
@@ -250,9 +250,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "marc-andreessen",
@@ -265,7 +265,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder of Andreessen Horowitz & Netscape",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-creator of Mosaic web browser, co-founder of Netscape, co-founder of venture capital firm Andreessen Horowitz (a16z).",
     "programmeId": null,
     "isLiving": true,
@@ -291,9 +291,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "jack-dorsey",
@@ -306,7 +306,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder of Twitter & Block (Square)",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder and former CEO of Twitter (2006–2008, 2015–2021), co-founder and CEO of Block, Inc. (Square).",
     "programmeId": null,
     "isLiving": true,
@@ -332,9 +332,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "sergey-brin",
@@ -347,14 +347,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder of Google & Alphabet Inc.",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder of Google with Larry Page, former President of Alphabet Inc.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
     "wikidataId": "Q92764",
-    "viafId": "308257262",
+    "viafId": "11956184",
     "avatarUrl": null,
     "summary": "American computer scientist and internet entrepreneur who co-founded Google with Larry Page.",
     "aliases": [
@@ -373,9 +373,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "eric-schmidt",
@@ -388,14 +388,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Former CEO & Executive Chairman of Google / Defense Innovation Board Chair",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "CEO of Google (2001–2011), Executive Chairman of Alphabet (2011–2017), Chairman of US Defense Innovation Board.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
     "wikidataId": "Q92747",
-    "viafId": "115797305",
+    "viafId": "108922262",
     "avatarUrl": null,
     "summary": "American businessman and software engineer who served as Chief Executive Officer of Google from 2001 to 2011.",
     "aliases": [
@@ -414,9 +414,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "tim-cook",
@@ -429,14 +429,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Chief Executive Officer of Apple Inc.",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "CEO of Apple Inc. (2011–present), succeeding Steve Jobs; former COO of Apple.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
-    "wikidataId": "Q265852",
-    "viafId": "1724151778254418130000",
+    "wikidataId": "Q265",
+    "viafId": "256429301",
     "avatarUrl": null,
     "summary": "American business executive serving as the chief executive officer of Apple Inc. since 2011.",
     "aliases": [
@@ -455,9 +455,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "satya-nadella",
@@ -470,14 +470,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Chairman & CEO of Microsoft Corporation",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "CEO of Microsoft Corporation (2014–present), Chairman of Microsoft, architect of Microsoft AI & cloud expansion.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
-    "wikidataId": "Q15709670",
-    "viafId": "305260580",
+    "wikidataId": "Q7426870",
+    "viafId": "316744475",
     "avatarUrl": null,
     "summary": "Indian-American business executive serving as Chairman and CEO of Microsoft Corporation.",
     "aliases": [
@@ -496,9 +496,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "sundar-pichai",
@@ -511,14 +511,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "CEO of Alphabet Inc. & Google",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "CEO of Google (2015–present) and CEO of Alphabet Inc. (2019–present).",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "normal",
     "publicationStatus": "published",
-    "wikidataId": "Q19653068",
-    "viafId": "141149717670711132766",
+    "wikidataId": "Q18098254",
+    "viafId": "4600151778220118130003",
     "avatarUrl": null,
     "summary": "Indian-American business executive serving as Chief Executive Officer of Alphabet Inc. and Google.",
     "aliases": [
@@ -537,9 +537,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "jensen-huang",
@@ -552,7 +552,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United States",
     "primaryRole": "Co-founder, President & CEO of Nvidia Corporation",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder, President, and CEO of Nvidia Corporation (1993–present), pioneer of GPU acceleration and AI hardware infrastructure.",
     "programmeId": null,
     "isLiving": true,
@@ -579,9 +579,9 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   },
   {
     "id": "demis-hassabis",
@@ -594,14 +594,14 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "datePrecision": "exact-day",
     "nationality": "United Kingdom",
     "primaryRole": "Co-founder & CEO of Google DeepMind / 2024 Nobel Laureate in Chemistry",
-    "classification": "executive",
+    "classification": "corporate-executive",
     "notabilityBasis": "Co-founder and CEO of DeepMind, creator of AlphaGo and AlphaFold, 2024 Nobel Prize Laureate in Chemistry.",
     "programmeId": null,
     "isLiving": true,
     "monitoringPriority": "intensive",
     "publicationStatus": "published",
-    "wikidataId": "Q16215808",
-    "viafId": "308257262",
+    "wikidataId": "Q3022141",
+    "viafId": "2020158915863250000003",
     "avatarUrl": null,
     "summary": "British computer scientist and AI researcher who co-founded DeepMind and won the 2024 Nobel Prize in Chemistry.",
     "aliases": [
@@ -621,8 +621,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "executive"
+    "inclusionRationale": null,
+    "culturalImpactSummary": null,
+    "primaryFigureCategory": "corporate-executive"
   }
 ];

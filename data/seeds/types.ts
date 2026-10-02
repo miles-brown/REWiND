@@ -7,10 +7,8 @@ export type FigureClassification =
   | "military-leader"
   | "religious-leader"
   | "media-journalist"
-  | "media"
   | "academic-historian"
   | "corporate-executive"
-  | "executive"
   | "monarch-royal"
   | "public-figure";
 
@@ -21,6 +19,35 @@ export type ReligionStatus =
   | "not-publicly-stated"
   | "disputed"
   | "unspecified";
+
+export type InclusionBasis =
+  | "head-of-state-or-government"
+  | "senior-diplomatic-or-geopolitical"
+  | "central-nexus-to-historical-events"
+  | "scholarly-historiographical-subject"
+  | "substantial-independent-coverage"
+  | "major-religious-authority"
+  | "significant-legal-or-judicial-record"
+  | "military-leader"
+  | "major-cultural-or-intellectual"
+  | "scientific-or-technological-impact"
+  | "treaty-signatory"
+  | "state-head"
+  | "cabinet-minister"
+  | "judicial-officer"
+  | "intelligence-official"
+  | "diplomatic-envoy"
+  | "religious-authority"
+  | "notable-cultural-impact"
+  | "investigative-subject"
+  | "key-witness"
+  | "public-advocate"
+  | "industry-executive"
+  | "historical-significance"
+  | "un-official"
+  | "military-commander"
+  | "monarch-royal"
+  | "parliamentary-leader";
 
 export interface CanonicalPersonSeed {
   id: string;
@@ -45,7 +72,7 @@ export interface CanonicalPersonSeed {
   classification: FigureClassification;
   primaryFigureCategory?: string;
   notabilityBasis: string;
-  inclusionBasis?: string[];
+  inclusionBasis?: InclusionBasis[];
   inclusionRationale?: string | null;
   culturalImpactSummary?: string | null;
   achievements?: Array<{ milestone: string; year?: number; evidence?: string }>;

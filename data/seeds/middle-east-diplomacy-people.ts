@@ -1,5 +1,5 @@
 /**
- * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: MIDDLE EAST & DIPLOMACY EXPANSION (120 FIGURES)
+ * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: MIDDLE EAST & DIPLOMACY EXPANSION
  *
  * Forensically documented seed records for Israeli, Arab, European, and regional leaders,
  * peace envoys, intelligence chiefs, foreign ministers, and treaty signatories.
@@ -225,8 +225,8 @@ export const middleEastDiplomacyPeopleSeed: CanonicalPersonSeed[] = [
     aliases: ["אהוד אולמרט", "Prime Minister Olmert"]
   },
   {
-    id: "tsipi-livni",
-    slug: "tsipi-livni",
+    id: "tzipi-livni",
+    slug: "tzipi-livni",
     canonicalName: "Tzipi Livni",
     displayName: "Tzipi Livni",
     nativeName: "צִפּוֹרָה מַלְכָּה לִבְנִי",
@@ -258,7 +258,7 @@ export const middleEastDiplomacyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "85672211",
     avatarUrl: null,
     summary: "Israeli politician, diplomat, and lawyer who served as Foreign Minister and Vice Prime Minister from 2006 to 2009, leading Israeli negotiations in the Annapolis peace process and drafting UN Resolution 1701.",
-    aliases: ["Tzipora Malka Livni", "ציפי לבני", "Foreign Minister Livni"]
+    aliases: ["Tzipora Malka Livni", "ציפי לבני", "Foreign Minister Livni", "tsipi-livni"]
   },
   {
     id: "naftali-bennett",
@@ -327,7 +327,7 @@ export const middleEastDiplomacyPeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "intensive",
     publicationStatus: "published",
     wikidataId: "Q144005",
-    viafId: "24838407",
+    viafId: null,
     avatarUrl: null,
     summary: "Israeli politician, author, and former journalist who served as the 14th Prime Minister of Israel in 2022 and Foreign Minister from 2021 to 2022, finalizing the historic 2022 maritime boundary accord with Lebanon.",
     aliases: ["יאיר לפיד", "Leader of the Opposition Lapid"]
@@ -363,7 +363,7 @@ export const middleEastDiplomacyPeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "intensive",
     publicationStatus: "published",
     wikidataId: "Q818055",
-    viafId: "24838407",
+    viafId: null,
     avatarUrl: null,
     summary: "Israeli politician and retired Lieutenant General who served as the 20th Chief of Staff of the IDF from 2011 to 2015 and Minister of Defense from 2020 to 2022, joining the emergency War Cabinet in 2023.",
     aliases: ["בני גנץ", "Benjamin Gantz", "Lieutenant General Gantz"]
@@ -399,7 +399,7 @@ export const middleEastDiplomacyPeopleSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "intensive",
     publicationStatus: "published",
     wikidataId: "Q289569",
-    viafId: "114144865",
+    viafId: null,
     avatarUrl: null,
     summary: "Israeli politician and retired Major General who has served as Minister of Defense of Israel since 2022, commanding Israeli military operations during the 2023–2024 regional war and coordinating US-Israel defense cooperation.",
     aliases: ["יואב גלנט", "Defense Minister Gallant"]
