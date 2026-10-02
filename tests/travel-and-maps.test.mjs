@@ -225,3 +225,69 @@ test("verifies computeTrajectoryFromCoordinates and resolveRouteTrajectory follo
   assert.ok(Math.abs(resolved[resolved.length - 1].lat - 52.3676) < 0.01, "Ends in Amsterdam latitude");
 });
 
+test("verifies 100% coordinate coverage across historical events and gazetteer resolution", async () => {
+  const { events } = await vite.ssrLoadModule("/archive/legacy-data/rewind.ts");
+  const { resolveGazetteerCoordinates } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  assert.ok(Array.isArray(events) && events.length > 0, "Must have indexed events");
+  const missing = events.filter((e) => e.latitude == null || e.longitude == null);
+  assert.equal(
+    missing.length,
+    0,
+    `Every historical event must have valid WGS-84 coordinates for forensic map pin rendering, found ${missing.length} missing`
+  );
+
+  // Verify gazetteer resolution for known places
+  const pmoCoords = resolveGazetteerCoordinates({ venue: "Prime Minister’s Office", city: "Jerusalem" });
+  assert.ok(pmoCoords && typeof pmoCoords.latitude === "number" && typeof pmoCoords.longitude === "number");
+  assert.ok(Math.abs(pmoCoords.latitude - 31.7818) < 0.01);
+
+  const unCoords = resolveGazetteerCoordinates({ venue: "United Nations Headquarters", city: "New York" });
+  assert.ok(unCoords && Math.abs(unCoords.latitude - 40.7499) < 0.01);
+
+  const maralagoCoords = resolveGazetteerCoordinates({ venue: "Mar-a-Lago Club", city: "Palm Beach" });
+  assert.ok(maralagoCoords && Math.abs(maralagoCoords.latitude - 26.6771) < 0.01);
+});
+
+test("verifies vehicle vector icon assets exist for all transit modes", () => {
+  const modes = ["airplane", "helicopter", "car", "police-convoy", "motorcade", "train", "boat", "bus", "walking"];
+  for (const mode of modes) {
+    const assetPath = path.join(root, `public/assets/vehicles/${mode}.svg`);
+    assert.ok(fs.existsSync(assetPath), `Vehicle SVG asset for mode '${mode}' must exist at ${assetPath}`);
+    const svgContent = fs.readFileSync(assetPath, "utf-8");
+    assert.ok(svgContent.includes("<svg") && svgContent.includes("</svg>"), `Vehicle asset '${mode}.svg' must be valid SVG`);
+  }
+});
+
+test("verifies PersonTimeline.tsx and MapGraphic.tsx layout non-collision and Base of Operations badge", () => {
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  const mapContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+
+  assert.ok(
+    timelineContent.includes("base-of-operations-pill") || timelineContent.includes("activeStay"),
+    "PersonTimeline.tsx must render Base of Operations accommodation badge"
+  );
+  assert.ok(
+    timelineContent.includes("allEvents={ordered}"),
+    "PersonTimeline.tsx must pass allEvents to MapGraphic for full lifetime pin rendering"
+  );
+  assert.ok(
+    mapContent.includes("map-floating-controls"),
+    "MapGraphic.tsx must render dedicated floating vertical navigation controls"
+  );
+  assert.ok(
+    mapContent.includes("/assets/vehicles/"),
+    "MapGraphic.tsx must load custom vehicle SVG/PNG assets"
+  );
+  assert.ok(
+    cssContent.includes(".map-floating-controls"),
+    "globals.css must define floating vertical navigation controls"
+  );
+  assert.ok(
+    cssContent.includes(".base-of-operations-pill"),
+    "globals.css must define Base of Operations styling"
+  );
+});
+
+

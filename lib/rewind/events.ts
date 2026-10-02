@@ -3,6 +3,7 @@ import { events as fallbackEvents, people as fallbackPeople, sources as fallback
 import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
+import { resolveGazetteerCoordinates } from "./places";
 import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
@@ -251,8 +252,16 @@ export function mapDatabaseEvent(
     city: place.city || "Unknown",
     country: place.country || "Unknown",
     venueName: place.venue || undefined,
-    latitude: typeof place.latitude === "number" ? place.latitude : (typeof row.latitude === "number" ? row.latitude : null),
-    longitude: typeof place.longitude === "number" ? place.longitude : (typeof row.longitude === "number" ? row.longitude : null),
+    latitude: typeof place.latitude === "number"
+      ? place.latitude
+      : typeof row.latitude === "number"
+      ? row.latitude
+      : resolveGazetteerCoordinates({ venue: place.venue || (row.venue as string | undefined), city: place.city || (row.city as string | undefined), country: place.country || (row.country as string | undefined) })?.latitude ?? null,
+    longitude: typeof place.longitude === "number"
+      ? place.longitude
+      : typeof row.longitude === "number"
+      ? row.longitude
+      : resolveGazetteerCoordinates({ venue: place.venue || (row.venue as string | undefined), city: place.city || (row.city as string | undefined), country: place.country || (row.country as string | undefined) })?.longitude ?? null,
     summary: String(row.summary || ""),
     description: row.description ? String(row.description) : undefined,
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "provisional",

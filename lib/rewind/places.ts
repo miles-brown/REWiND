@@ -3,6 +3,110 @@ import { getEvents } from "./events";
 import type { EventRecord, PlaceRecord } from "./types";
 
 /**
+ * Authoritative WGS-84 coordinate gazetteer for verified cities, diplomatic venues, and geographical landmarks.
+ * Format: [latitude, longitude]
+ */
+export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
+  // Diplomatic & Governmental Venues
+  "united nations headquarters": [40.7499, -73.9674],
+  "un headquarters": [40.7499, -73.9674],
+  "white house": [38.8977, -77.0365],
+  "state dining room, white house": [38.8977, -77.0365],
+  "oval office, white house": [38.8977, -77.0365],
+  "us capitol": [38.8899, -77.0090],
+  "knesset": [31.7766, 35.2052],
+  "prime minister’s office": [31.7818, 35.2012],
+  "prime minister's office": [31.7818, 35.2012],
+  "prime minister’s office (remote broadcast)": [31.7818, 35.2012],
+  "prime minister's official media channels": [31.7818, 35.2012],
+  "mar-a-lago club": [26.6771, -80.0370],
+  "mar-a-lago": [26.6771, -80.0370],
+  "770 eastern parkway": [40.6689, -73.9427],
+  "royal palace of madrid": [40.4179, -3.7143],
+  "mount herzl": [31.7744, 35.1806],
+  "yad vashem": [31.7742, 35.1754],
+  "weizmann institute of science": [31.9056, 34.8094],
+  "ben-gurion international airport": [32.0005, 34.8707],
+  "national press club": [38.8972, -77.0315],
+  "wye river conference center": [38.9440, -76.0810],
+  "camp david": [39.6483, -77.4639],
+  
+  // Cities & Districts
+  "jerusalem": [31.7683, 35.2137],
+  "tel aviv": [32.0853, 34.7818],
+  "lod area": [31.9870, 34.8860],
+  "lod": [31.9514, 34.8881],
+  "rehovot": [31.8928, 34.8113],
+  "erez": [31.5608, 34.5678],
+  "gaza": [31.5017, 34.4668],
+  "maale adumim": [31.7772, 35.2979],
+  "haifa": [32.7940, 34.9896],
+  "beersheba": [31.2529, 34.7915],
+  "ramallah": [31.9038, 35.2034],
+  "new york": [40.7128, -74.0060],
+  "brooklyn": [40.6782, -73.9442],
+  "washington": [38.9072, -77.0369],
+  "washington dc": [38.9072, -77.0369],
+  "washington, d.c.": [38.9072, -77.0369],
+  "palm beach": [26.7056, -80.0364],
+  "wye": [38.9440, -76.0810],
+  "london": [51.5072, -0.1276],
+  "paris": [48.8566, 2.3522],
+  "madrid": [40.4168, -3.7038],
+  "cairo": [30.0444, 31.2357],
+  "tokyo": [35.6762, 139.6503],
+  "moscow": [55.7558, 37.6173],
+  "bucharest": [44.4268, 26.1025],
+  "mexico city": [19.4326, -99.1332],
+  "rome": [41.9028, 12.4964],
+  "berlin": [52.5200, 13.4050],
+  "geneva": [46.2044, 6.1432],
+  "brussels": [50.8503, 4.3517],
+  "vienna": [48.2082, 16.3738],
+  "riyadh": [24.7136, 46.6753],
+  "doha": [25.2854, 51.5310],
+  "abu dhabi": [24.4539, 54.3773],
+  "dubai": [25.2048, 55.2708],
+  "amman": [31.9454, 35.9284],
+  "beirut": [33.8938, 35.5018],
+  "ankara": [39.9334, 32.8597],
+  "istanbul": [41.0082, 28.9784],
+  "beijing": [39.9042, 116.4074],
+  "singapore": [1.3521, 103.8198],
+  "seoul": [37.5665, 126.9780],
+  "ottawa": [45.4215, -75.6972],
+  "canberra": [-35.2809, 149.1300],
+  "sydney": [-33.8688, 151.2093],
+};
+
+/**
+ * Resolves WGS-84 coordinates for a place, venue, or city using the authoritative gazetteer.
+ */
+export function resolveGazetteerCoordinates(location: {
+  venue?: string | null;
+  city?: string | null;
+  country?: string | null;
+}): { latitude: number; longitude: number } | null {
+  if (location.venue) {
+    const venueNorm = location.venue.trim().toLowerCase();
+    if (GLOBAL_GAZETTEER_COORDINATES[venueNorm]) {
+      const [lat, lng] = GLOBAL_GAZETTEER_COORDINATES[venueNorm];
+      return { latitude: lat, longitude: lng };
+    }
+  }
+
+  if (location.city) {
+    const cityNorm = location.city.trim().toLowerCase();
+    if (GLOBAL_GAZETTEER_COORDINATES[cityNorm]) {
+      const [lat, lng] = GLOBAL_GAZETTEER_COORDINATES[cityNorm];
+      return { latitude: lat, longitude: lng };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Retrieves all gazetteer places and venues from Supabase with strict error propagation.
  */
 export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRecord[]> {

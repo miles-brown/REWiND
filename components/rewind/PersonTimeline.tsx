@@ -24,7 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
-import { decomposeCompositeJourney } from "@/lib/rewind/travel";
+import { decomposeCompositeJourney, resolveActiveStay } from "@/lib/rewind/travel";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -198,6 +198,14 @@ export function PersonTimeline({
     if (!activeJourney?.isJourney || !event) return [];
     return decomposeCompositeJourney(event, prevRecordedEvent);
   }, [activeJourney, event, prevRecordedEvent]);
+
+  const activeStay = useMemo(() => {
+    if (event?.activeStayLocation) return event.activeStayLocation;
+    if (person?.stays && person.stays.length > 0 && event?.startDate) {
+      return resolveActiveStay(person.stays, event.startDate);
+    }
+    return null;
+  }, [event, person]);
 
   if (!ordered.length || !event) {
     return (
@@ -637,6 +645,14 @@ export function PersonTimeline({
             <div className="stage-label-top">
               <span>DOCUMENTED POSITION</span>
               <b>{event.city}</b>
+              {activeStay && (
+                <span
+                  className="base-of-operations-pill"
+                  title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
+                >
+                  🏨 Base: {activeStay.stayName || activeStay.venueName}
+                </span>
+              )}
             </div>
             {activeJourney?.isJourney ? (
               <div className="stage-journey-pill" title={activeJourney.description}>
@@ -650,6 +666,8 @@ export function PersonTimeline({
           </div>
           <MapGraphic
             events={ordered.slice(0, safeIndex + 1)}
+            allEvents={ordered}
+            currentIndex={safeIndex}
             selected={event.id}
             onSelect={choose}
           />
