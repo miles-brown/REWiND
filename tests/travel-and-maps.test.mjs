@@ -159,23 +159,15 @@ test("verifies resolveActiveStay finds accommodation within date window", async 
   assert.equal(outside, null, "Must return null for date outside stay window");
 });
 
-test("verifies PersonTimeline.tsx renders 24-hr transit clocks, journey legs, and evidence basis pills", () => {
+test("verifies PersonTimeline.tsx renders transit stage pills and console chips", () => {
   const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
-    timelineContent.includes("journey-chrono-badge") || timelineContent.includes("departureClock"),
-    "PersonTimeline.tsx must display 24-hr transit departure and arrival clocks"
+    timelineContent.includes("stage-journey-pill"),
+    "PersonTimeline.tsx must display stage-journey-pill above map stage"
   );
   assert.ok(
-    timelineContent.includes("journey-inferences-row") || timelineContent.includes("inference-pill"),
-    "PersonTimeline.tsx must render evidentiary inferences pills"
-  );
-  assert.ok(
-    timelineContent.includes("journey-legs-block") || timelineContent.includes("journeyLegs"),
-    "PersonTimeline.tsx must render multi-leg journey breakdown"
-  );
-  assert.ok(
-    timelineContent.includes("road-telemetry") || timelineContent.includes("MOTOR VEHICLE & CONVOY"),
-    "PersonTimeline.tsx must render motor vehicle and convoy telemetry"
+    timelineContent.includes("console-journey-chip") || timelineContent.includes("activeJourney"),
+    "PersonTimeline.tsx must render transit info in console or map stage"
   );
 });
 

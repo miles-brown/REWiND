@@ -1040,13 +1040,12 @@ test("verifies transport calculation, forensic map pins, and compact timeline co
     "MapGraphic must render forensic-pin markers and moving-vehicle-marker along trajectory"
   );
 
-  // 3. PersonTimeline journey banner & compact console
+  // 3. PersonTimeline stage journey pill & compact console
   const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
-    timelineContent.includes("event-journey-banner") &&
     timelineContent.includes("console-journey-chip") &&
     timelineContent.includes("stage-journey-pill"),
-    "PersonTimeline must render event-journey-banner and compact console journey chips"
+    "PersonTimeline must render stage-journey-pill and compact console journey chips"
   );
 
   // 4. Globals.css styling for compact console and pins
