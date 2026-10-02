@@ -31,6 +31,9 @@ export interface JourneyTransport {
   durationMinutes?: number;
   formattedDuration?: string;
   inferences?: TravelInference[];
+  isDocumentedFlight?: boolean;
+  flightIdentifier?: string;
+  flightCorridor?: string;
 }
 
 /**
@@ -310,6 +313,36 @@ export function resolveJourneyTransport(
     currEvent.localStartTime
   );
   const inferences = extractTravelInferences(currEvent);
+  const isAir =
+    mode === "air-force-one" ||
+    mode === "private-jet" ||
+    mode === "flight" ||
+    mode === "helicopter";
+
+  // Precedence: If explicit flight details, tail numbers, or route coordinates exist on the record,
+  // documented flight record takes priority; otherwise auto-defaults to standard airway corridor.
+  const hasDocumentedFlight = Boolean(
+    currEvent.flightDetails?.tailNumber ||
+    currEvent.flightDetails?.flightNumber ||
+    currEvent.flightDetails?.aircraftModel ||
+    (currEvent.routeCoordinates && currEvent.routeCoordinates.length >= 2) ||
+    currEvent.legs?.some((l) => l.flightDetails)
+  );
+
+  const flightIdentifier = hasDocumentedFlight
+    ? currEvent.flightDetails?.tailNumber ||
+      currEvent.flightDetails?.flightNumber ||
+      currEvent.flightDetails?.aircraftModel ||
+      "Documented Flight Track"
+    : isAir
+    ? "Auto-Suggested Standard Airway"
+    : undefined;
+
+  const flightCorridor = isAir
+    ? hasDocumentedFlight
+      ? `${originCity} → ${destinationCity} (Documented Flight Log)`
+      : `${originCity} → ${destinationCity} (Great-Circle Standard Airway)`
+    : undefined;
 
   return {
     mode,
@@ -330,5 +363,8 @@ export function resolveJourneyTransport(
     durationMinutes: schedule.durationMinutes,
     formattedDuration: schedule.formattedDuration,
     inferences,
+    isDocumentedFlight: isAir ? hasDocumentedFlight : undefined,
+    flightIdentifier,
+    flightCorridor,
   };
 }

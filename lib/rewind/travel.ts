@@ -633,12 +633,18 @@ export function computeTrajectoryFromCoordinates(
         Math.cos(((pB[0] - pA[0]) * Math.PI) / 180);
     const rawBearing = ((Math.atan2(yB, xB) * 180) / Math.PI + 360) % 360;
 
+    const progressFrac = i / numSteps;
+    const fallbackAlt = Math.round(10500 * Math.sin(progressFrac * Math.PI));
+    const effectiveAlt = curAlt != null ? curAlt : (rawCoords.length >= 2 ? fallbackAlt : 0);
+    const scale = 1.0 + 0.35 * Math.sin(progressFrac * Math.PI);
+
     result.push({
       lng: curLng,
       lat: curLat,
-      altitudeMeters: curAlt,
+      altitudeMeters: effectiveAlt,
       bearing: Math.round(rawBearing),
-      progress: i / numSteps,
+      progress: progressFrac,
+      scale,
     });
   }
 
@@ -710,5 +716,55 @@ export function resolveRouteTrajectory(
   }
 
   return [];
+}
+
+/**
+ * Resolves the flight corridor trajectory for aerial transit.
+ * 
+ * Precedence Rule:
+ * 1. If the event record contains real flight telemetry, manifest waypoints, ADS-B plots,
+ *    or routeCoordinates, that documented flight data takes strict precedence.
+ * 2. If no explicit route coordinates are authored, it automatically defaults to the
+ *    most realistic standard Great-Circle airway corridor elevated into a 3D Bezier arc.
+ */
+export function resolveFlightCorridorTrajectory(
+  currEvent: EventRecord,
+  prevEvent?: EventRecord | null,
+  mode: TransportMode | string = "flight",
+  numSamplePoints: number = 60
+): TrajectoryPoint[] {
+  // 1. Level 1: Documented real flight coordinates
+  if (currEvent.routeCoordinates && currEvent.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.routeCoordinates, numSamplePoints);
+  }
+
+  if (currEvent.flightDetails?.routeCoordinates && currEvent.flightDetails.routeCoordinates.length >= 2) {
+    return computeTrajectoryFromCoordinates(currEvent.flightDetails.routeCoordinates, numSamplePoints);
+  }
+
+  if (currEvent.waypoints && currEvent.waypoints.length >= 2) {
+    const coords: Array<[number, number]> = currEvent.waypoints.map((w) => [w.longitude, w.latitude]);
+    return computeTrajectoryFromCoordinates(coords, numSamplePoints);
+  }
+
+  // 2. Level 2: Auto-suggested standard Great-Circle 3D airway corridor
+  if (
+    prevEvent &&
+    prevEvent.longitude != null &&
+    prevEvent.latitude != null &&
+    currEvent.longitude != null &&
+    currEvent.latitude != null
+  ) {
+    return calculate3DGreatCircleArc(
+      prevEvent.longitude,
+      prevEvent.latitude,
+      currEvent.longitude,
+      currEvent.latitude,
+      mode,
+      numSamplePoints
+    );
+  }
+
+  return resolveRouteTrajectory(currEvent, prevEvent, numSamplePoints);
 }
 
