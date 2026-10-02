@@ -1,6 +1,8 @@
 import type {
   Confidence,
   EventRecord,
+  JourneyLeg,
+  PersonStayRecord,
   TravelEventRecord,
   TravelInference,
 } from "./types";
@@ -279,4 +281,215 @@ export function extractTravelInferences(event: EventRecord): TravelInference[] {
   }
 
   return inferences;
+}
+
+/**
+ * Resolves a person's active base of operations or accommodation (e.g. hotel, official residence)
+ * on a given chronological date.
+ */
+export function resolveActiveStay(
+  stays: PersonStayRecord[] = [],
+  date: string
+): PersonStayRecord | null {
+  if (!stays.length || !date) return null;
+
+  const activeStay = stays.find((stay) => {
+    if (stay.startDate <= date) {
+      if (!stay.endDate || stay.endDate >= date) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  return activeStay || null;
+}
+
+/**
+ * Decomposes a journey into granular sub-travel event legs (e.g. Residence -> Helipad -> Airbase -> Airport -> Hotel)
+ * reflecting executive/presidential convoy protocols or inferred multi-modal transit legs.
+ */
+export function decomposeCompositeJourney(
+  currEvent: EventRecord,
+  prevEvent?: EventRecord | null
+): JourneyLeg[] {
+  // 1. If explicit legs were already authored on the event record, return them
+  if (currEvent.legs && currEvent.legs.length > 0) {
+    return currEvent.legs;
+  }
+
+  if (!prevEvent || prevEvent.latitude == null || prevEvent.longitude == null || currEvent.latitude == null || currEvent.longitude == null) {
+    return [];
+  }
+
+  const originCity = prevEvent.city || "Origin";
+  const destCity = currEvent.city || "Destination";
+  const originVenue = prevEvent.venueName || `${originCity} Base`;
+  const destVenue = currEvent.venueName || `${destCity} Venue`;
+
+  const dLat = Math.abs(currEvent.latitude - prevEvent.latitude);
+  const dLon = Math.abs(currEvent.longitude - prevEvent.longitude);
+  const isInterCity = dLat > 0.5 || dLon > 0.5;
+
+  const eventText = `${currEvent.eventName} ${currEvent.summary} ${currEvent.notes || ""}`.toLowerCase();
+  const isStateOrMilitary =
+    eventText.includes("president") ||
+    eventText.includes("prime minister") ||
+    eventText.includes("diplomatic") ||
+    eventText.includes("air force") ||
+    eventText.includes("state visit") ||
+    eventText.includes("summit") ||
+    eventText.includes("motorcade");
+
+  const legs: JourneyLeg[] = [];
+
+  if (isInterCity && isStateOrMilitary) {
+    // Multi-leg protocol: Ground Convoy -> Helicopter / Airbase -> Presidential Flight -> Arrival Motorcade -> Hotel / Venue
+    // Leg 1: Ground Executive Convoy to Helipad / Airbase
+    legs.push({
+      id: `leg-${currEvent.id}-1`,
+      legIndex: 1,
+      legTitle: `Executive Motorcade: ${originVenue} → Airfield Hub`,
+      originVenue: {
+        name: originVenue,
+        venueType: "official_residence",
+        city: originCity,
+        country: prevEvent.country,
+        latitude: prevEvent.latitude,
+        longitude: prevEvent.longitude,
+        stopType: "origin",
+      },
+      destinationVenue: {
+        name: `${originCity} Executive Airbase / Helipad`,
+        venueType: "airbase",
+        city: originCity,
+        country: prevEvent.country,
+        latitude: prevEvent.latitude + 0.05,
+        longitude: prevEvent.longitude + 0.05,
+        stopType: "layover",
+      },
+      transportMode: "car",
+      certainty: "inferred_likely",
+      roadDetails: {
+        convoyType: "official_motorcade",
+        convoyDetails: {
+          motorcadeType: "presidential_full",
+          policeEscort: true,
+          armoredLimousine: true,
+          notes: "Armed security detail and advance motorcade escort.",
+        },
+      },
+    });
+
+    // Leg 2: Main Air Transit Leg
+    const isPrivateOrState = eventText.includes("private jet") || eventText.includes("gulfstream") || eventText.includes("air force");
+    const flightMode = isPrivateOrState ? (eventText.includes("air force") ? "air-force-one" : "private-jet") : "flight";
+
+    legs.push({
+      id: `leg-${currEvent.id}-2`,
+      legIndex: 2,
+      legTitle: `${flightMode === "air-force-one" ? "State Aircraft (Air Force One)" : flightMode === "private-jet" ? "Private Jet Flight" : "Charter / Long-Haul Flight"}: ${originCity} → ${destCity}`,
+      originVenue: {
+        name: `${originCity} Airfield`,
+        venueType: "airport",
+        city: originCity,
+        country: prevEvent.country,
+        latitude: prevEvent.latitude + 0.05,
+        longitude: prevEvent.longitude + 0.05,
+        stopType: "layover",
+      },
+      destinationVenue: {
+        name: `${destCity} International Airport / Airbase`,
+        venueType: "airport",
+        city: destCity,
+        country: currEvent.country,
+        latitude: currEvent.latitude - 0.05,
+        longitude: currEvent.longitude - 0.05,
+        stopType: "layover",
+      },
+      transportMode: flightMode,
+      certainty: "documented_exact",
+      flightDetails: {
+        flightCategory: isPrivateOrState ? "government-state" : "commercial",
+        flightClassification: isStateOrMilitary ? "diplomatic" : "vip-private",
+        flightNumber: currEvent.flightDetails?.flightNumber || (flightMode === "air-force-one" ? "SAM 28000" : undefined),
+        aircraftManufacturer: currEvent.flightDetails?.aircraftManufacturer || (flightMode === "air-force-one" ? "Boeing" : "Gulfstream Aerospace"),
+        aircraftModel: currEvent.flightDetails?.aircraftModel || (flightMode === "air-force-one" ? "VC-25A (747-200B)" : "G550"),
+        tailNumber: currEvent.flightDetails?.tailNumber,
+        coTravelers: currEvent.participants?.map((p) => ({
+          personId: p.personId,
+          name: p.name,
+          role: p.role,
+          slug: p.slug,
+        })),
+        departureCity: originCity,
+        arrivalCity: destCity,
+      },
+      inferences: extractTravelInferences(currEvent),
+    });
+
+    // Leg 3: Arrival Motorcade to Hotel / Summit Venue
+    legs.push({
+      id: `leg-${currEvent.id}-3`,
+      legIndex: 3,
+      legTitle: `Diplomatic Convoy: ${destCity} Airport → ${destVenue}`,
+      originVenue: {
+        name: `${destCity} International Airport`,
+        venueType: "airport",
+        city: destCity,
+        country: currEvent.country,
+        latitude: currEvent.latitude - 0.05,
+        longitude: currEvent.longitude - 0.05,
+        stopType: "layover",
+      },
+      destinationVenue: {
+        name: destVenue,
+        venueType: "hotel",
+        city: destCity,
+        country: currEvent.country,
+        latitude: currEvent.latitude,
+        longitude: currEvent.longitude,
+        stopType: "destination",
+      },
+      transportMode: "car",
+      certainty: "inferred_likely",
+      roadDetails: {
+        convoyType: "diplomatic_motorcade",
+        convoyDetails: {
+          motorcadeType: "diplomatic_secure",
+          policeEscort: true,
+          armoredLimousine: true,
+          notes: "Host nation security escort to accommodation / delegation venue.",
+        },
+      },
+    });
+  } else {
+    // Single Direct Leg (Local Transfer / Direct Trip)
+    legs.push({
+      id: `leg-${currEvent.id}-direct`,
+      legIndex: 1,
+      legTitle: `Direct Transfer: ${originVenue} → ${destVenue}`,
+      originVenue: {
+        name: originVenue,
+        city: originCity,
+        country: prevEvent.country,
+        latitude: prevEvent.latitude,
+        longitude: prevEvent.longitude,
+        stopType: "origin",
+      },
+      destinationVenue: {
+        name: destVenue,
+        city: destCity,
+        country: currEvent.country,
+        latitude: currEvent.latitude,
+        longitude: currEvent.longitude,
+        stopType: "destination",
+      },
+      transportMode: isInterCity ? "flight" : "car",
+      certainty: "documented_exact",
+      inferences: extractTravelInferences(currEvent),
+    });
+  }
+
+  return legs;
 }

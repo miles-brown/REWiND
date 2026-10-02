@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 const vite = await createServer({
@@ -88,7 +87,79 @@ test("verifies MapGraphic.tsx defines CARTO Voyager geopolitical basemap with bl
   );
 });
 
-test("verifies PersonTimeline.tsx renders 24-hr transit clocks and evidence basis pills", () => {
+test("verifies decomposeCompositeJourney breaks state trips into multi-leg stages", async () => {
+  const { decomposeCompositeJourney } = await vite.ssrLoadModule("/lib/rewind/travel.ts");
+  assert.equal(typeof decomposeCompositeJourney, "function");
+
+  const prevEvent = {
+    id: "evt-dc-whitehouse",
+    slug: "whitehouse-departure",
+    eventName: "Departure from White House",
+    startDate: "2019-06-03",
+    city: "Washington",
+    country: "United States",
+    venueName: "The White House",
+    latitude: 38.8977,
+    longitude: -77.0365,
+    summary: "Presidential departure for UK State Visit.",
+    verificationStatus: "verified",
+    sourceIds: ["src-1"],
+    participants: [],
+  };
+
+  const currEvent = {
+    id: "evt-london-buckingham",
+    slug: "buckingham-state-banquet",
+    eventName: "State Visit Arrival and Banquet",
+    startDate: "2019-06-03",
+    city: "London",
+    country: "United Kingdom",
+    venueName: "Buckingham Palace",
+    latitude: 51.5014,
+    longitude: -0.1419,
+    summary: "Presidential motorcade arrival for state banquet at Buckingham Palace following Air Force One flight.",
+    verificationStatus: "verified",
+    sourceIds: ["src-2"],
+    participants: [],
+  };
+
+  const legs = decomposeCompositeJourney(currEvent, prevEvent);
+  assert.ok(legs.length >= 3, "State trip must decompose into at least 3 sub-travel legs");
+  assert.equal(legs[0].transportMode, "car", "Leg 1 must be ground motorcade to airfield");
+  assert.ok(legs[1].transportMode.includes("flight") || legs[1].transportMode.includes("air-force-one"), "Leg 2 must be air transit");
+  assert.equal(legs[2].transportMode, "car", "Leg 3 must be arrival diplomatic motorcade");
+});
+
+test("verifies resolveActiveStay finds accommodation within date window", async () => {
+  const { resolveActiveStay } = await vite.ssrLoadModule("/lib/rewind/travel.ts");
+  assert.equal(typeof resolveActiveStay, "function");
+
+  const stays = [
+    {
+      id: "stay-1",
+      personId: "p-potus",
+      venueName: "Winfield House (US Ambassador Residence)",
+      stayType: "diplomatic_guest_house",
+      city: "London",
+      country: "United Kingdom",
+      latitude: 51.5312,
+      longitude: -0.1623,
+      startDate: "2019-06-03",
+      endDate: "2019-06-05",
+      isBaseOfOperations: true,
+      sourceIds: ["src-stay-1"],
+    },
+  ];
+
+  const active = resolveActiveStay(stays, "2019-06-04");
+  assert.ok(active, "Must resolve active stay on 2019-06-04");
+  assert.equal(active.venueName, "Winfield House (US Ambassador Residence)");
+
+  const outside = resolveActiveStay(stays, "2019-06-10");
+  assert.equal(outside, null, "Must return null for date outside stay window");
+});
+
+test("verifies PersonTimeline.tsx renders 24-hr transit clocks, journey legs, and evidence basis pills", () => {
   const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
   assert.ok(
     timelineContent.includes("journey-chrono-badge") || timelineContent.includes("departureClock"),
@@ -97,5 +168,9 @@ test("verifies PersonTimeline.tsx renders 24-hr transit clocks and evidence basi
   assert.ok(
     timelineContent.includes("journey-inferences-row") || timelineContent.includes("inference-pill"),
     "PersonTimeline.tsx must render evidentiary inferences pills"
+  );
+  assert.ok(
+    timelineContent.includes("journey-legs-block") || timelineContent.includes("journeyLegs"),
+    "PersonTimeline.tsx must render multi-leg journey breakdown"
   );
 });

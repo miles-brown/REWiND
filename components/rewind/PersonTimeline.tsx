@@ -24,6 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
+import { decomposeCompositeJourney } from "@/lib/rewind/travel";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -173,7 +174,32 @@ export function PersonTimeline({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [ordered, safeIndex, direction, moveTo]);
 
-  if (!ordered.length) {
+  const event = ordered[safeIndex];
+
+  const prevRecordedEvent = useMemo(() => {
+    if (!event) return null;
+    for (let i = safeIndex - 1; i >= 0; i--) {
+      const candidate = ordered[i];
+      if (candidate && candidate.latitude != null && candidate.longitude != null) {
+        return candidate;
+      }
+    }
+    return null;
+  }, [ordered, safeIndex, event]);
+
+  const activeJourney = useMemo(() => {
+    if (!event || event.latitude == null || event.longitude == null) {
+      return null;
+    }
+    return resolveJourneyTransport(prevRecordedEvent, event);
+  }, [event, prevRecordedEvent]);
+
+  const journeyLegs = useMemo(() => {
+    if (!activeJourney?.isJourney || !event) return [];
+    return decomposeCompositeJourney(event, prevRecordedEvent);
+  }, [activeJourney, event, prevRecordedEvent]);
+
+  if (!ordered.length || !event) {
     return (
       <div className="zero-state">
         <h2>No timeline records yet</h2>
@@ -181,20 +207,6 @@ export function PersonTimeline({
       </div>
     );
   }
-
-  const event = ordered[safeIndex];
-  const activeJourney = (() => {
-    if (!event || event.latitude == null || event.longitude == null) {
-      return null;
-    }
-    for (let i = safeIndex - 1; i >= 0; i--) {
-      const candidate = ordered[i];
-      if (candidate && candidate.latitude != null && candidate.longitude != null) {
-        return resolveJourneyTransport(candidate, event);
-      }
-    }
-    return resolveJourneyTransport(null, event);
-  })();
 
   const source =
     event.sources?.[0] ||
@@ -340,6 +352,60 @@ export function PersonTimeline({
                     <span>Est. Time: {activeJourney.formattedDuration}</span>
                   )}
                 </div>
+
+                {/* Granular Multi-Leg Sub-Travel Flow */}
+                {journeyLegs.length > 1 && (
+                  <div className="journey-legs-block">
+                    <small className="legs-header">COMPOSITE JOURNEY LEGS ({journeyLegs.length} STAGES):</small>
+                    <ol className="journey-legs-list">
+                      {journeyLegs.map((leg) => (
+                        <li key={leg.id} className="journey-leg-item">
+                          <span className="leg-num">{leg.legIndex}</span>
+                          <span className="leg-icon">{leg.transportMode === "flight" || leg.transportMode === "air-force-one" || leg.transportMode === "private-jet" ? "✈️" : leg.transportMode === "helicopter" ? "🚁" : leg.transportMode === "train" ? "🚆" : leg.transportMode === "boat" ? "🚢" : "🚘"}</span>
+                          <div className="leg-content">
+                            <b>{leg.legTitle}</b>
+                            <small>{leg.originVenue.name} → {leg.destinationVenue.name} · <span className="leg-certainty">{leg.certainty.replace("_", " ")}</span></small>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Aviation & Vessel Specifications */}
+                {event.flightDetails && (
+                  <div className="travel-telemetry-box">
+                    <small className="telemetry-header">AIRCRAFT & FLIGHT METADATA</small>
+                    <div className="telemetry-grid">
+                      {event.flightDetails.flightNumber && (
+                        <div>
+                          <dt>Flight No.</dt>
+                          <dd>{event.flightDetails.flightNumber}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.tailNumber && (
+                        <div>
+                          <dt>Tail / Reg.</dt>
+                          <dd>{event.flightDetails.tailNumber}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.aircraftModel && (
+                        <div>
+                          <dt>Aircraft</dt>
+                          <dd>{event.flightDetails.aircraftManufacturer ? `${event.flightDetails.aircraftManufacturer} ` : ""}{event.flightDetails.aircraftModel}</dd>
+                        </div>
+                      )}
+                      {event.flightDetails.operator && (
+                        <div>
+                          <dt>Operator</dt>
+                          <dd>{event.flightDetails.operator}</dd>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Evidence Basis Inferences */}
                 {activeJourney.inferences && activeJourney.inferences.length > 0 && (
                   <div className="journey-inferences-row">
                     <small className="inferences-label">EVIDENCE BASIS:</small>

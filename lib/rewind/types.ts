@@ -183,6 +183,8 @@ export interface EventRecord {
   departureTimestamp?: string;
   arrivalTimestamp?: string;
   estimatedDurationMinutes?: number;
+  legs?: JourneyLeg[];
+  stayId?: string;
 }
 
 export type TravelInferenceType =
@@ -212,12 +214,48 @@ export interface TravelInference {
   mediaUrl?: string;
 }
 
+export type FlightCategory =
+  | "scheduled"
+  | "chartered"
+  | "private-jet"
+  | "government-state"
+  | "military"
+  | "commercial"
+  | "air-taxi";
+
+export type FlightClassification =
+  | "presidential"
+  | "diplomatic"
+  | "military-transport"
+  | "commercial-passenger"
+  | "vip-private"
+  | "cargo"
+  | "unknown";
+
+export type LegCertainty =
+  | "documented_exact"
+  | "inferred_likely"
+  | "standard_protocol"
+  | "provisional";
+
+export type StayType =
+  | "hotel"
+  | "official_residence"
+  | "private_home"
+  | "diplomatic_guest_house"
+  | "embassy"
+  | "military_base"
+  | "yacht_berth"
+  | "temporary_quarters";
+
 export interface TravelWaypoint {
   name: string;
+  venueType?: "official_residence" | "helipad" | "airbase" | "airport" | "hotel" | "train_station" | "port" | "embassy" | "venue";
   city?: string;
   country?: string;
   iataCode?: string;
   icaoCode?: string;
+  terminal?: string;
   latitude: number;
   longitude: number;
   arrivalTime?: string;
@@ -227,19 +265,41 @@ export interface TravelWaypoint {
 }
 
 export interface FlightTravelMetadata {
+  flightCategory?: FlightCategory;
+  flightClassification?: FlightClassification;
   flightNumber?: string;
   callsign?: string;
-  tailNumber?: string;
-  aircraftType?: string;
-  operator?: string;
-  seatAssignment?: string;
+  transponderHex?: string; // ICAO 24-bit Mode S transponder hex code (e.g. ADFDF8, 400892)
+  aircraftManufacturer?: string; // e.g. Boeing, Gulfstream Aerospace, Bombardier, Airbus
+  aircraftModel?: string; // e.g. 747-200B (VC-25A), Gulfstream G550, Boeing 727-23
+  aircraftTypeIcao?: string; // e.g. B742, GLF5, B722, GL6T
+  aircraftCode?: string;
+  tailNumber?: string; // Aircraft registration / serial (e.g. 92-9000, N212JE, VP-BMS)
+  serialNumberMsn?: string;
+  operator?: string; // e.g. US Air Force 89th Airlift Wing, NetJets, British Airways
+  airlineInfo?: string;
+  departureAirportName?: string;
   departureAirportIata?: string;
   departureAirportIcao?: string;
+  departureCity?: string;
+  departureCountry?: string;
+  departureTerminal?: string;
+  arrivalAirportName?: string;
   arrivalAirportIata?: string;
   arrivalAirportIcao?: string;
-  radarTrackUrl?: string;
-  altitudeFeet?: number;
+  arrivalCity?: string;
+  arrivalCountry?: string;
+  arrivalTerminal?: string;
+  coTravelers?: Array<{ personId?: string; name: string; role?: string; slug?: string }>;
+  passengerManifestSource?: string;
+  seatAssignment?: string;
+  expectedDurationMinutes?: number;
+  actualDurationMinutes?: number;
+  cruisingAltitudeFeet?: number;
   cruiseSpeedKnots?: number;
+  routeAirways?: string;
+  radarTrackUrl?: string; // FlightRadar24 / ADS-B Exchange / FlightAware replay link
+  identifyingMarkers?: string[];
 }
 
 export interface MaritimeTravelMetadata {
@@ -250,6 +310,7 @@ export interface MaritimeTravelMetadata {
   flagState?: string;
   portOfDeparture?: string;
   portOfArrival?: string;
+  coTravelers?: Array<{ personId?: string; name: string; role?: string; slug?: string }>;
   satelliteTrackUrl?: string;
   speedKnots?: number;
 }
@@ -261,6 +322,16 @@ export interface RailTravelMetadata {
   departureStation?: string;
   arrivalStation?: string;
   scheduledStops?: string[];
+  classOfTravel?: string;
+}
+
+export interface ConvoyMetadata {
+  vehicleCount?: number;
+  policeEscort?: boolean;
+  motorcadeType?: "presidential_full" | "diplomatic_secure" | "executive_convoy" | "standard_transfer";
+  armoredLimousine?: boolean;
+  leadVehicle?: string;
+  notes?: string;
 }
 
 export interface RoadTravelMetadata {
@@ -269,6 +340,53 @@ export interface RoadTravelMetadata {
   licensePlate?: string;
   highwayRoute?: string;
   checkpointsPassed?: string[];
+  convoyDetails?: ConvoyMetadata;
+}
+
+/**
+ * Represents a single sub-travel leg within a multi-leg composite journey.
+ * (e.g. Residence -> Helipad -> Airbase -> Airport -> Hotel)
+ */
+export interface JourneyLeg {
+  id: string;
+  legIndex: number;
+  legTitle: string;
+  originVenue: TravelWaypoint;
+  destinationVenue: TravelWaypoint;
+  transportMode: string;
+  certainty: LegCertainty;
+  departureTime?: string;
+  arrivalTime?: string;
+  estimatedDurationMinutes?: number;
+  distanceKm?: number;
+  flightDetails?: FlightTravelMetadata;
+  maritimeDetails?: MaritimeTravelMetadata;
+  railDetails?: RailTravelMetadata;
+  roadDetails?: RoadTravelMetadata;
+  inferences?: TravelInference[];
+  sourceIds?: string[];
+}
+
+/**
+ * Represents a person's documented accommodation, official residence, or hotel stay.
+ * Visualized on map journeys without polluting the chronological event stream as repetitive daily items.
+ */
+export interface PersonStayRecord {
+  id: string;
+  personId: string;
+  venueName: string;
+  stayType: StayType;
+  city: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  startDate: string; // ISO-8601
+  endDate?: string | null;
+  isBaseOfOperations?: boolean;
+  isPrimaryResidence?: boolean;
+  securityLevel?: string;
+  notes?: string;
+  sourceIds: string[];
 }
 
 export interface TravelEventRecord extends EventRecord {
@@ -279,6 +397,8 @@ export interface TravelEventRecord extends EventRecord {
   waypoints?: TravelWaypoint[];
   routeCoordinates?: Array<[number, number]>;
   inferences?: TravelInference[];
+  legs?: JourneyLeg[];
+  activeStayLocation?: PersonStayRecord;
   flightDetails?: FlightTravelMetadata;
   maritimeDetails?: MaritimeTravelMetadata;
   railDetails?: RailTravelMetadata;
