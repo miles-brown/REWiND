@@ -321,12 +321,37 @@ export function PersonTimeline({
 
           {/* Forensic Transit & Journey Details */}
           {activeJourney?.isJourney && (
-            <div className="event-journey-banner">
+            <div className="event-journey-banner" role="region" aria-label="Documented transit leg details">
               <span className="journey-mode-icon" aria-hidden="true">{activeJourney.emoji}</span>
               <div className="journey-mode-copy">
-                <small>TRANSIT & JOURNEY METHOD</small>
+                <div className="journey-banner-header">
+                  <small>TRANSIT & JOURNEY METHOD</small>
+                  {activeJourney.departureClock && activeJourney.arrivalClock && (
+                    <span className="journey-chrono-badge">
+                      ⏱ {activeJourney.departureClock} → {activeJourney.arrivalClock} ({activeJourney.formattedDuration})
+                    </span>
+                  )}
+                </div>
                 <b>{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</b>
-                <span>Distance: {activeJourney.formattedDistance} · Compass Heading: {activeJourney.bearing}°</span>
+                <div className="journey-stats-row">
+                  <span>Distance: {activeJourney.formattedDistance}</span>
+                  <span>Heading: {activeJourney.bearing}°</span>
+                  {activeJourney.durationMinutes && (
+                    <span>Est. Time: {activeJourney.formattedDuration}</span>
+                  )}
+                </div>
+                {activeJourney.inferences && activeJourney.inferences.length > 0 && (
+                  <div className="journey-inferences-row">
+                    <small className="inferences-label">EVIDENCE BASIS:</small>
+                    <div className="inferences-pills">
+                      {activeJourney.inferences.map((inf) => (
+                        <span key={inf.id} className="inference-pill" title={inf.description}>
+                          {inf.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -565,8 +590,11 @@ export function PersonTimeline({
 
         <div className="console-meta-tools">
           {activeJourney?.isJourney && (
-            <div className="console-journey-chip" title={activeJourney.description}>
+            <div className="console-journey-chip" title={`${activeJourney.label}: ${activeJourney.originCity} → ${activeJourney.destinationCity} (${activeJourney.formattedDistance})`}>
               <span>{activeJourney.emoji}</span>
+              {activeJourney.departureClock && activeJourney.arrivalClock && (
+                <span className="console-clock-span">{activeJourney.departureClock} → {activeJourney.arrivalClock}</span>
+              )}
               <small>{activeJourney.formattedDistance}</small>
             </div>
           )}

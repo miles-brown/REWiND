@@ -14,5 +14,6 @@ export * from "./roles";
 export * from "./milestones";
 export * from "./topics";
 export * from "./transport";
+export * from "./travel";
 export { getMonogram, findTopCoAttendee, isPhysicalConfirmedParticipant } from "./utils";
 

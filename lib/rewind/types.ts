@@ -169,6 +169,123 @@ export interface EventRecord {
     language: string;
     timestamp?: string | null;
   }[] | undefined;
+  isTravelEvent?: boolean;
+  travelMode?: string;
+  originLocation?: TravelWaypoint;
+  destinationLocation?: TravelWaypoint;
+  waypoints?: TravelWaypoint[];
+  routeCoordinates?: Array<[number, number]>;
+  inferences?: TravelInference[];
+  flightDetails?: FlightTravelMetadata;
+  maritimeDetails?: MaritimeTravelMetadata;
+  railDetails?: RailTravelMetadata;
+  roadDetails?: RoadTravelMetadata;
+  departureTimestamp?: string;
+  arrivalTimestamp?: string;
+  estimatedDurationMinutes?: number;
+}
+
+export type TravelInferenceType =
+  | "flight_manifest"
+  | "adsb_radar"
+  | "ais_marine_radar"
+  | "train_timetable"
+  | "photo_metadata"
+  | "eyewitness_account"
+  | "social_media_post"
+  | "official_schedule"
+  | "customs_border_log"
+  | "hotel_receipt"
+  | "documentary_film"
+  | "news_dispatch";
+
+export interface TravelInference {
+  id: string;
+  inferenceType: TravelInferenceType;
+  title: string;
+  description: string;
+  directness: "direct" | "inferential" | "circumstantial";
+  confidence: Confidence;
+  sourceId?: string;
+  supportingExcerpt?: string;
+  capturedAt?: string;
+  mediaUrl?: string;
+}
+
+export interface TravelWaypoint {
+  name: string;
+  city?: string;
+  country?: string;
+  iataCode?: string;
+  icaoCode?: string;
+  latitude: number;
+  longitude: number;
+  arrivalTime?: string;
+  departureTime?: string;
+  stopType: "origin" | "destination" | "layover" | "fuel_stop" | "radar_fix" | "station_stop" | "port_call" | "checkpoint";
+  notes?: string;
+}
+
+export interface FlightTravelMetadata {
+  flightNumber?: string;
+  callsign?: string;
+  tailNumber?: string;
+  aircraftType?: string;
+  operator?: string;
+  seatAssignment?: string;
+  departureAirportIata?: string;
+  departureAirportIcao?: string;
+  arrivalAirportIata?: string;
+  arrivalAirportIcao?: string;
+  radarTrackUrl?: string;
+  altitudeFeet?: number;
+  cruiseSpeedKnots?: number;
+}
+
+export interface MaritimeTravelMetadata {
+  vesselName?: string;
+  vesselType?: string;
+  mmsi?: string;
+  imoNumber?: string;
+  flagState?: string;
+  portOfDeparture?: string;
+  portOfArrival?: string;
+  satelliteTrackUrl?: string;
+  speedKnots?: number;
+}
+
+export interface RailTravelMetadata {
+  railOperator?: string;
+  trainNumber?: string;
+  lineName?: string;
+  departureStation?: string;
+  arrivalStation?: string;
+  scheduledStops?: string[];
+}
+
+export interface RoadTravelMetadata {
+  convoyType?: string;
+  vehicleModel?: string;
+  licensePlate?: string;
+  highwayRoute?: string;
+  checkpointsPassed?: string[];
+}
+
+export interface TravelEventRecord extends EventRecord {
+  isTravelEvent: true;
+  travelMode: string;
+  originLocation: TravelWaypoint;
+  destinationLocation: TravelWaypoint;
+  waypoints?: TravelWaypoint[];
+  routeCoordinates?: Array<[number, number]>;
+  inferences?: TravelInference[];
+  flightDetails?: FlightTravelMetadata;
+  maritimeDetails?: MaritimeTravelMetadata;
+  railDetails?: RailTravelMetadata;
+  roadDetails?: RoadTravelMetadata;
+  departureTimestamp?: string;
+  arrivalTimestamp?: string;
+  estimatedDurationMinutes?: number;
 }
 
 export interface PersonEducation {
