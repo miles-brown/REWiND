@@ -24,7 +24,7 @@ import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
-import { decomposeCompositeJourney } from "@/lib/rewind/travel";
+import { decomposeCompositeJourney, resolveActiveStay } from "@/lib/rewind/travel";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
@@ -199,6 +199,27 @@ export function PersonTimeline({
     return decomposeCompositeJourney(event, prevRecordedEvent);
   }, [activeJourney, event, prevRecordedEvent]);
 
+  const activeStay = useMemo(() => {
+    if (event?.activeStayLocation) return event.activeStayLocation;
+    if (person?.stays && person.stays.length > 0 && event?.startDate) {
+      return resolveActiveStay(person.stays, event.startDate);
+    }
+    return null;
+  }, [event, person]);
+
+  const choose = useCallback(
+    (id: string) => {
+      const next = ordered.findIndex((record) => record.id === id);
+      if (next >= 0) moveTo(next);
+    },
+    [ordered, moveTo]
+  );
+
+  const visibleEvents = useMemo(
+    () => ordered.slice(0, safeIndex + 1),
+    [ordered, safeIndex]
+  );
+
   if (!ordered.length || !event) {
     return (
       <div className="zero-state">
@@ -233,11 +254,6 @@ export function PersonTimeline({
       year: "numeric",
     }
   );
-
-  const choose = (id: string) => {
-    const next = ordered.findIndex((record) => record.id === id);
-    if (next >= 0) moveTo(next);
-  };
 
   const progress = Math.round(((safeIndex + 1) / ordered.length) * 100);
   const isPlayDisabled =
@@ -637,11 +653,24 @@ export function PersonTimeline({
             <div className="stage-label-top">
               <span>DOCUMENTED POSITION</span>
               <b>{event.city}</b>
+              {activeStay && (
+                <span
+                  className="base-of-operations-pill"
+                  title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
+                >
+                  <span aria-hidden="true">🏨 </span>
+                  <span title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}>
+                    Base: {activeStay.stayName || activeStay.venueName}
+                  </span>
+                </span>
+              )}
             </div>
             {activeJourney?.isJourney ? (
               <div className="stage-journey-pill" title={activeJourney.description}>
                 <span className="journey-emoji">{activeJourney.emoji}</span>
-                <span className="journey-text">{activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}</span>
+                <span className="journey-text" title={activeJourney.description}>
+                  {activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}
+                </span>
                 <span className="journey-distance">{activeJourney.formattedDistance}</span>
               </div>
             ) : (
@@ -649,7 +678,9 @@ export function PersonTimeline({
             )}
           </div>
           <MapGraphic
-            events={ordered.slice(0, safeIndex + 1)}
+            events={visibleEvents}
+            allEvents={ordered}
+            currentIndex={safeIndex}
             selected={event.id}
             onSelect={choose}
           />

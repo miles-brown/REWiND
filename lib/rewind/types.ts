@@ -185,6 +185,8 @@ export interface EventRecord {
   estimatedDurationMinutes?: number;
   legs?: JourneyLeg[];
   stayId?: string;
+  stayName?: string;
+  activeStayLocation?: PersonStayRecord;
 }
 
 export type TravelInferenceType =
@@ -431,6 +433,7 @@ export interface PersonStayRecord {
   id: string;
   personId: string;
   venueName: string;
+  stayName?: string;
   stayType: StayType;
   city: string;
   country: string;
@@ -549,6 +552,7 @@ export interface PersonRecord {
   career?: PersonCareer[];
   awards?: PersonAward[];
   works?: PersonWork[];
+  stays?: PersonStayRecord[];
 }
 
 export interface PlaceRecord {

@@ -3,6 +3,7 @@ import { events as fallbackEvents, people as fallbackPeople, sources as fallback
 import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
+import { resolveGazetteerCoordinates } from "./places";
 import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
@@ -216,6 +217,27 @@ export function mapDatabaseEvent(
   const place = (placeId && placesMap.get(placeId)) || (venueId && placesMap.get(venueId)) || (addressId && placesMap.get(addressId)) || {};
   const participants = participantsMap.get(id) || [];
   const sourceIds = sourcesMap.get(id) || [];
+  const rowVenue = typeof row.venue === "string" && row.venue.trim() ? row.venue.trim() : undefined;
+  const rowCity = typeof row.city === "string" && row.city.trim() ? row.city.trim() : undefined;
+  const rowCountry = typeof row.country === "string" && row.country.trim() ? row.country.trim() : undefined;
+  const directLat = typeof place.latitude === "number" ? place.latitude : typeof row.latitude === "number" ? row.latitude : null;
+  const directLng = typeof place.longitude === "number" ? place.longitude : typeof row.longitude === "number" ? row.longitude : null;
+  const gazetteerMatch = (directLat == null || directLng == null)
+    ? resolveGazetteerCoordinates({
+        venue: place.venue || rowVenue,
+        city: place.city || rowCity,
+        country: place.country || rowCountry,
+      })
+    : null;
+  const finalLat = directLat ?? gazetteerMatch?.latitude ?? null;
+  const finalLng = directLng ?? gazetteerMatch?.longitude ?? null;
+  const derivedPrecision = deriveLocationPrecision(row.location_precision, place, participants);
+  const locationPrecision: LocationPrecision =
+    (!row.location_precision && gazetteerMatch?.source === "city" && derivedPrecision === "venue")
+      ? "city"
+      : (finalLat == null || finalLng == null) && derivedPrecision === "venue"
+      ? "unknown"
+      : derivedPrecision;
   const sources = sourceEntitiesMap
     ? sourceIds.map((sId) => sourceEntitiesMap.get(sId)).filter((s): s is SourceRecord => Boolean(s))
     : [];
@@ -247,12 +269,12 @@ export function mapDatabaseEvent(
     holidayName: row.holiday_name ? String(row.holiday_name) : undefined,
     holidayType: row.holiday_type ? String(row.holiday_type) : undefined,
     holidayJurisdiction: row.holiday_jurisdiction ? String(row.holiday_jurisdiction) : undefined,
-    locationPrecision: deriveLocationPrecision(row.location_precision, place, participants),
-    city: place.city || "Unknown",
-    country: place.country || "Unknown",
-    venueName: place.venue || undefined,
-    latitude: typeof place.latitude === "number" ? place.latitude : (typeof row.latitude === "number" ? row.latitude : null),
-    longitude: typeof place.longitude === "number" ? place.longitude : (typeof row.longitude === "number" ? row.longitude : null),
+    locationPrecision,
+    city: place.city || rowCity || "Unknown",
+    country: place.country || rowCountry || "Unknown",
+    venueName: place.venue || rowVenue || undefined,
+    latitude: finalLat,
+    longitude: finalLng,
     summary: String(row.summary || ""),
     description: row.description ? String(row.description) : undefined,
     verificationStatus: (row.verification_status as "verified" | "provisional" | "disputed") || "provisional",
@@ -264,7 +286,7 @@ export function mapDatabaseEvent(
       ? String(row.reviewedAt)
       : undefined,
     sourceIds: Array.isArray(sourceIds) ? sourceIds : [],
-    sources: Array.isArray(sources) ? sources : [],
+    sources: sources,
     participants: Array.isArray(participants) ? participants : [],
     categories: [String(row.event_type || "diplomatic")],
     eventTypes: [String(row.event_type || "historical-action")],

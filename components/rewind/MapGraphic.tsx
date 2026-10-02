@@ -44,6 +44,9 @@ const CARTO_VOYAGER_STYLE =
       ? `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json?key=${CARTO_API_KEY}`
       : "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json");
 
+// Module-level cache for known-missing vehicle asset URLs to avoid duplicate onerror triggers
+const failedVehicleAssets = new Set<string>();
+
 // Mapbox Vector Styles (when token is provided or environment override set)
 const MAPBOX_DARK_STYLE =
   process.env.NEXT_PUBLIC_MAPBOX_DARK_STYLE ||
@@ -256,10 +259,14 @@ function updateActiveLegRoute(
 
 export function MapGraphic({
   events,
+  allEvents,
+  currentIndex,
   selected,
   onSelect,
 }: {
   events: EventRecord[];
+  allEvents?: EventRecord[];
+  currentIndex?: number;
   selected?: string;
   onSelect?: (id: string) => void;
 }) {
@@ -287,7 +294,14 @@ export function MapGraphic({
     return () => cancelAnimationFrame(handle);
   }, []);
 
+  // All valid points across the subject's entire documented life
   const points = useMemo(
+    () => (allEvents && allEvents.length > 0 ? allEvents : events).filter((e) => e.latitude != null && e.longitude != null),
+    [allEvents, events]
+  );
+
+  // Chronological points reached up to the active timeline index
+  const chronologicalPoints = useMemo(
     () => events.filter((e) => e.latitude != null && e.longitude != null),
     [events]
   );
@@ -297,24 +311,33 @@ export function MapGraphic({
     [points]
   );
 
+  const selectedEvent = useMemo(() => {
+    if (selected) {
+      const found = points.find((p) => p.id === selected);
+      if (found) return found;
+    }
+    return chronologicalPoints[chronologicalPoints.length - 1] || points[points.length - 1] || null;
+  }, [points, chronologicalPoints, selected]);
+
   const selectedIndex = useMemo(() => {
-    if (!points.length) return -1;
-    if (!selected) return points.length - 1;
-    return points.findIndex((p) => p.id === selected);
-  }, [points, selected]);
+    if (!chronologicalPoints.length) return -1;
+    if (selected) {
+      const idx = chronologicalPoints.findIndex((p) => p.id === selected || p.slug === selected);
+      if (idx !== -1) return idx;
+    }
+    if (typeof currentIndex === "number" && currentIndex >= 0) {
+      const target = (allEvents && allEvents[currentIndex]) || events[currentIndex];
+      if (target) {
+        const idx = chronologicalPoints.findIndex((p) => p.id === target.id || p.slug === target.slug);
+        if (idx !== -1) return idx;
+      }
+      return Math.min(currentIndex, chronologicalPoints.length - 1);
+    }
+    return chronologicalPoints.length - 1;
+  }, [allEvents, events, chronologicalPoints, selected, currentIndex]);
 
-  const selectedEvent = useMemo(
-    () =>
-      selectedIndex >= 0
-        ? points[selectedIndex]
-        : selected
-        ? null
-        : points[points.length - 1],
-    [points, selectedIndex, selected]
-  );
-
-  const prevEvent = selectedIndex > 0 ? points[selectedIndex - 1] : null;
-  const currEvent = selectedIndex >= 0 ? points[selectedIndex] : null;
+  const prevEvent = selectedIndex > 0 ? chronologicalPoints[selectedIndex - 1] : null;
+  const currEvent = selectedIndex >= 0 ? chronologicalPoints[selectedIndex] : null;
 
   const activeJourney = useMemo(
     () => resolveJourneyTransport(prevEvent, currEvent),
@@ -579,17 +602,20 @@ export function MapGraphic({
         grouped.set(key, list);
       });
 
+      const visitedIdSet = new Set(chronologicalPoints.map((cp) => cp.id));
+
       grouped.forEach((eventList) => {
         const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
         if (rep.latitude == null || rep.longitude == null) return;
         const { longitude, latitude } = rep;
 
         const isSelected = eventList.some((e) => e.id === selected);
+        const isVisited = eventList.some((e) => visitedIdSet.has(e.id));
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
         const el = document.createElement("button");
         el.type = "button";
-        el.className = `webgl-map-marker forensic-pin ${isSelected ? "selected" : ""} ${
+        el.className = `webgl-map-marker forensic-pin ${isSelected ? "selected active-focus" : isVisited ? "visited" : "future-location"} ${
           isVerified ? "verified" : "provisional"
         } ${mapTheme === "satellite" ? "satellite-theme" : mapTheme === "geopolitical" ? "geopolitical-theme" : ""}`;
         const tooltipText = `${rep.city} · ${
@@ -715,10 +741,31 @@ export function MapGraphic({
         iconWrap.style.transform = `rotate(${curvePoints[0]?.bearing ?? activeJourney.bearing}deg)`;
         iconWrap.setAttribute("aria-hidden", "true");
 
-        const symbol = document.createElement("span");
-        symbol.className = "vehicle-symbol";
-        symbol.textContent = activeJourney.emoji;
-        iconWrap.appendChild(symbol);
+        // Custom SVG / image asset renderer with emoji fallback and failure caching
+        const iconSrc = `/assets/vehicles/${activeJourney.iconName}.svg`;
+        if (failedVehicleAssets.has(iconSrc)) {
+          const symbol = document.createElement("span");
+          symbol.className = "vehicle-symbol";
+          symbol.textContent = activeJourney.emoji;
+          iconWrap.appendChild(symbol);
+        } else {
+          const iconImg = document.createElement("img");
+          iconImg.className = "vehicle-icon-asset";
+          iconImg.src = iconSrc;
+          iconImg.alt = activeJourney.label;
+          iconImg.onerror = () => {
+            iconImg.onerror = null;
+            failedVehicleAssets.add(iconSrc);
+            iconImg.remove();
+            if (!iconWrap.querySelector(".vehicle-symbol")) {
+              const symbol = document.createElement("span");
+              symbol.className = "vehicle-symbol";
+              symbol.textContent = activeJourney.emoji;
+              iconWrap.appendChild(symbol);
+            }
+          };
+          iconWrap.appendChild(iconImg);
+        }
         vehicleEl.appendChild(iconWrap);
 
         const tag = document.createElement("div");
@@ -795,12 +842,12 @@ export function MapGraphic({
         }
       }
 
-      // Update trajectory line coordinates
+      // Update trajectory line coordinates for chronological route
       const source = map.getSource("trajectories") as GeoJSONSource | undefined;
       if (source && "setData" in source) {
         const lineCoords =
-          points.length >= 2
-            ? points
+          chronologicalPoints.length >= 2
+            ? chronologicalPoints
                 .filter(
                   (p): p is typeof p & { longitude: number; latitude: number } =>
                     p.longitude != null && p.latitude != null
@@ -827,7 +874,7 @@ export function MapGraphic({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [points, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
+  }, [points, chronologicalPoints, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
 
   // Smooth fly-to camera movement on selection change
   useEffect(() => {
@@ -861,7 +908,7 @@ export function MapGraphic({
           : ""}
       </div>
 
-      {/* Map Control Actions Toolbar */}
+      {/* Map Control Actions Toolbar - Top Right */}
       <div className="map-toolbar" role="toolbar" aria-label="Map view controls">
         {/* Basemap Switcher: Geopolitical (Voyager / Blue Water) vs Dark Matter vs Satellite */}
         {webGlSupported && mapMode === "webgl" && (
@@ -921,11 +968,13 @@ export function MapGraphic({
             <span>{mapMode === "svg" ? "Live Map" : "Schematic"}</span>
           </button>
         )}
+      </div>
 
-        {/* Enlarge / Collapse */}
+      {/* Floating Vertical Navigation Controls - Bottom Right */}
+      <div className="map-floating-controls" role="toolbar" aria-label="Map navigation controls">
         <button
           type="button"
-          className="map-tool-btn icon-only"
+          className="map-float-btn"
           onClick={() => {
             setIsExpanded((prev) => !prev);
             setTimeout(() => mapInstanceRef.current?.resize(), 100);
@@ -934,32 +983,32 @@ export function MapGraphic({
           title={isExpanded ? "Collapse Map" : "Enlarge Map"}
           aria-label={isExpanded ? "Collapse map view" : "Enlarge map view"}
         >
-          {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
         </button>
 
         {mapMode === "webgl" && (
           <>
             <button
               type="button"
-              className="map-tool-btn icon-only"
+              className="map-float-btn"
               onClick={() => mapInstanceRef.current?.zoomIn()}
               aria-label="Zoom in"
               title="Zoom In"
             >
-              <ZoomIn size={13} />
+              <ZoomIn size={15} />
             </button>
             <button
               type="button"
-              className="map-tool-btn icon-only"
+              className="map-float-btn"
               onClick={() => mapInstanceRef.current?.zoomOut()}
               aria-label="Zoom out"
               title="Zoom Out"
             >
-              <ZoomOut size={13} />
+              <ZoomOut size={15} />
             </button>
             <button
               type="button"
-              className="map-tool-btn icon-only"
+              className="map-float-btn"
               onClick={() => {
                 if (!mapInstanceRef.current) return;
                 const flyOptions: {
@@ -984,7 +1033,7 @@ export function MapGraphic({
               aria-label="Reset orientation to North"
               title="Reset North Orientation"
             >
-              <Compass size={13} />
+              <Compass size={15} />
             </button>
           </>
         )}

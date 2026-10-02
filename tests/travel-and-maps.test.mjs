@@ -225,3 +225,114 @@ test("verifies computeTrajectoryFromCoordinates and resolveRouteTrajectory follo
   assert.ok(Math.abs(resolved[resolved.length - 1].lat - 52.3676) < 0.01, "Ends in Amsterdam latitude");
 });
 
+test("verifies forensic coordinate integrity, unknown location nulls, and gazetteer resolution", async () => {
+  const { events } = await vite.ssrLoadModule("/archive/legacy-data/rewind.ts");
+  const { resolveGazetteerCoordinates } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  assert.ok(Array.isArray(events) && events.length > 0, "Must have indexed events");
+  
+  // Events with established locations must have valid WGS-84 coordinates
+  const established = events.filter((e) => e.city !== "Location not established");
+  const missingEstablished = established.filter((e) => e.latitude == null || e.longitude == null);
+  assert.equal(
+    missingEstablished.length,
+    0,
+    `Every historical event with established city must have valid WGS-84 coordinates, found ${missingEstablished.length} missing`
+  );
+
+  // Events with 'Location not established' must NOT fabricate coordinates (must be null and precision 'unknown')
+  const unknownLocationEvents = events.filter((e) => e.city === "Location not established");
+  assert.ok(unknownLocationEvents.length > 0, "Must have records with Location not established");
+  for (const unk of unknownLocationEvents) {
+    assert.equal(unk.latitude, null, `Event '${unk.slug}' with Location not established must have null latitude`);
+    assert.equal(unk.longitude, null, `Event '${unk.slug}' with Location not established must have null longitude`);
+    assert.equal(unk.locationPrecision, "unknown", `Event '${unk.slug}' must have locationPrecision='unknown'`);
+    assert.equal(unk.country, "Unknown", `Event '${unk.slug}' must have country='Unknown'`);
+  }
+
+  // Verify gazetteer resolution for known places
+  const pmoCoords = resolveGazetteerCoordinates({ venue: "Prime Minister’s Office", city: "Jerusalem" });
+  assert.ok(pmoCoords && typeof pmoCoords.latitude === "number" && typeof pmoCoords.longitude === "number");
+  assert.equal(pmoCoords.source, "venue");
+  assert.ok(Math.abs(pmoCoords.latitude - 31.7818) < 0.01);
+
+  const unCoords = resolveGazetteerCoordinates({ venue: "United Nations Headquarters", city: "New York" });
+  assert.ok(unCoords && Math.abs(unCoords.latitude - 40.7499) < 0.01);
+  assert.equal(unCoords.source, "venue");
+
+  const maralagoCoords = resolveGazetteerCoordinates({ venue: "Mar-a-Lago Club", city: "Palm Beach" });
+  assert.ok(maralagoCoords && Math.abs(maralagoCoords.latitude - 26.6771) < 0.01);
+  assert.equal(maralagoCoords.source, "venue");
+
+  // Verify prototype safety (should return null, never throw or return prototype methods)
+  const protoCoords = resolveGazetteerCoordinates({ venue: "toString", city: "valueOf" });
+  assert.equal(protoCoords, null, "Must safely return null for inherited Object prototype keys");
+
+  // Verify type resilience with non-string inputs
+  const invalidCoords = resolveGazetteerCoordinates({ venue: 123, city: null });
+  assert.equal(invalidCoords, null, "Must handle non-string inputs safely");
+});
+
+test("verifies vehicle vector icon assets exist for all transit modes", () => {
+  const modes = ["airplane", "helicopter", "car", "police-convoy", "motorcade", "train", "boat", "bus", "walking"];
+  for (const mode of modes) {
+    const assetPath = path.join(root, `public/assets/vehicles/${mode}.svg`);
+    assert.ok(fs.existsSync(assetPath), `Vehicle SVG asset for mode '${mode}' must exist at ${assetPath}`);
+    const svgContent = fs.readFileSync(assetPath, "utf-8");
+    assert.ok(svgContent.includes("<svg") && svgContent.includes("</svg>"), `Vehicle asset '${mode}.svg' must be valid SVG`);
+  }
+});
+
+test("verifies PersonTimeline.tsx and MapGraphic.tsx layout non-collision and Base of Operations badge", () => {
+  const timelineContent = fs.readFileSync(path.join(root, "components/rewind/PersonTimeline.tsx"), "utf-8");
+  const mapContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+
+  // Both badge conditions must be satisfied in PersonTimeline.tsx
+  assert.ok(
+    timelineContent.includes("base-of-operations-pill"),
+    "PersonTimeline.tsx must include base-of-operations-pill class"
+  );
+  assert.ok(
+    timelineContent.includes("activeStay"),
+    "PersonTimeline.tsx must check activeStay state"
+  );
+  assert.ok(
+    timelineContent.includes("aria-hidden=\"true\">🏨"),
+    "PersonTimeline.tsx must wrap emoji in aria-hidden for screen reader accessibility"
+  );
+  assert.ok(
+    timelineContent.includes("allEvents={ordered}"),
+    "PersonTimeline.tsx must pass allEvents to MapGraphic for full lifetime pin rendering"
+  );
+  assert.ok(
+    timelineContent.includes("events={visibleEvents}"),
+    "PersonTimeline.tsx must pass memoized visibleEvents to MapGraphic"
+  );
+  assert.ok(
+    mapContent.includes("map-floating-controls"),
+    "MapGraphic.tsx must render dedicated floating vertical navigation controls"
+  );
+  assert.ok(
+    mapContent.includes("failedVehicleAssets"),
+    "MapGraphic.tsx must cache failed vehicle assets to avoid duplicate onerror handlers"
+  );
+  assert.ok(
+    mapContent.includes("visitedIdSet"),
+    "MapGraphic.tsx must use Set for O(1) visited event lookup"
+  );
+  assert.ok(
+    cssContent.includes(".map-floating-controls"),
+    "globals.css must define floating vertical navigation controls"
+  );
+  assert.ok(
+    cssContent.includes(".map-stage-label .base-of-operations-pill"),
+    "globals.css must define Base of Operations styling with high specificity"
+  );
+  assert.ok(
+    cssContent.includes(".webgl-map-marker.forensic-pin:focus-visible .pin-visual-wrapper"),
+    "globals.css must define high-contrast focus-visible ring for keyboard accessibility on forensic pins"
+  );
+});
+
+
