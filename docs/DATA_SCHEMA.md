@@ -85,16 +85,64 @@ export interface EventRecord {
 }
 ```
 
-### `Person`
-Represents a historical figure or public official whose timeline is indexed.
+### `PersonRecord`
+Represents an indexed historical figure or public official with full demographic, evidentiary, and relational attributes.
 ```typescript
-export interface Person {
-  id: string;           // E.g. "p-benjamin-netanyahu"
-  slug: string;         // E.g. "benjamin-netanyahu"
-  name: string;         // Full name
-  birth: string;        // Date of birth (YYYY-MM-DD)
-  death?: string;       // Date of death if applicable
-  description: string;  // Concise biographical introduction
+export interface PersonRecord {
+  id: string;                                   // Unique identifier, e.g. "p-benjamin-netanyahu"
+  slug: string;                                 // URL-safe slug, e.g. "benjamin-netanyahu"
+  name: string;                                 // Display name
+  canonicalName: string;                        // Standardized international transliteration
+  displayName: string;                          // Common display name
+  description: string;                          // Concise 2-3 sentence biographical summary
+  fullBirthName?: string;                       // Full legal birth name
+  birth?: string;                               // Date of birth (ISO YYYY-MM-DD)
+  death?: string;                               // Date of death if deceased
+  nationality?: string;                         // Primary sovereign nationality
+  citizenship?: string[];                       // Array of held legal citizenships
+  nationalIdentity?: string;                    // Self-asserted cultural identity
+  ethnicity?: string;                           // Ancestral lineage
+  ancestry?: string;                            // Family genealogical origins
+  religion?: string;                            // Documented faith (e.g. "Judaism", "Islam", "Christianity")
+  religiousDenomination?: string;               // Specific denomination (e.g. "Orthodox", "Catholic", "Sunni")
+  religionStatus?: string;                      // "self-identified" | "scholarly-consensus" | "not-publicly-stated"
+  languages?: string[];                         // Verified working languages
+  classification: string;                       // "head-of-state" | "politician" | "diplomat" | "judicial-official" ...
+  notabilityBasis?: string;                     // Controlled qualification criteria
+  inclusionBasis?: string[];                    // Qualifying checklist criteria
+  inclusionRationale?: string;                  // Neutral editorial scope explanation
+  culturalImpactSummary?: string;               // Summary of historical legacy
+  achievements?: { milestone: string; year?: number; evidence?: string }[];
+  avatarUrl?: string;                           // Portrait URL
+  eventCount?: number;                          // Total linked events in atlas
+  education?: PersonEducation[];                // Educational credentials
+  career?: PersonCareer[];                      // Public offices and mandates
+  awards?: PersonAward[];                       // Honors and awards
+  works?: PersonWork[];                         // Published books, legislation, treaties
+  stays?: PersonStayRecord[];                   // Documented residences & accommodation
+}
+```
+
+### `PersonStayRecord`
+Represents documented accommodation, official residences, or diplomatic stays.
+```typescript
+export interface PersonStayRecord {
+  id: string;
+  personId: string;
+  venueName: string;
+  stayName?: string;
+  stayType: "hotel" | "official_residence" | "private_home" | "embassy" | "military_base";
+  city: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  startDate: string;                            // ISO-8601
+  endDate?: string | null;
+  isBaseOfOperations?: boolean;
+  isPrimaryResidence?: boolean;
+  securityLevel?: string;
+  notes?: string;
+  sourceIds: string[];
 }
 ```
 

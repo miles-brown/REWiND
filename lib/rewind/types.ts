@@ -171,11 +171,20 @@ export interface EventRecord {
   }[] | undefined;
   isTravelEvent?: boolean;
   travelMode?: string;
+  transportMode?: string;
+  flightIdentifier?: string;
+  isDocumentedFlight?: boolean;
+  flightCorridor?: string;
+  departureAirportIata?: string;
+  arrivalAirportIata?: string;
+  originWaypoint?: TravelWaypoint;
+  destinationWaypoint?: TravelWaypoint;
   originLocation?: TravelWaypoint;
   destinationLocation?: TravelWaypoint;
   waypoints?: TravelWaypoint[];
   routeCoordinates?: Array<[number, number]>;
   inferences?: TravelInference[];
+  travelInferences?: TravelInference[];
   flightDetails?: FlightTravelMetadata;
   maritimeDetails?: MaritimeTravelMetadata;
   railDetails?: RailTravelMetadata;
@@ -184,6 +193,7 @@ export interface EventRecord {
   arrivalTimestamp?: string;
   estimatedDurationMinutes?: number;
   legs?: JourneyLeg[];
+  journeyLegs?: JourneyLeg[];
   stayId?: string;
   stayName?: string;
   activeStayLocation?: PersonStayRecord;

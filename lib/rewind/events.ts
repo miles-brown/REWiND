@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { events as fallbackEvents, people as fallbackPeople, sources as fallbackSources } from "@/archive/legacy-data/rewind";
+import { masterPeopleSeed } from "@/data/seeds/index";
+import { eventsCorpus } from "@/data/seeds/events-corpus";
+import { sourcesCorpus } from "@/data/seeds/sources-corpus";
 import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
@@ -7,6 +9,10 @@ import { resolveGazetteerCoordinates } from "./places";
 import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
+
+const fallbackEvents = eventsCorpus;
+const fallbackPeople = masterPeopleSeed;
+const fallbackSources = sourcesCorpus;
 
 const VALID_CONFIDENCES = new Set<Confidence>(["confirmed", "strong", "moderate", "limited", "disputed"]);
 const VALID_ATTENDANCE_MODES = new Set<AttendanceMode>([
@@ -27,37 +33,24 @@ function isAttendanceMode(value: unknown): value is AttendanceMode {
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
-  (fallbackSources || []).map((s) => [
-    s.id,
-    {
-      id: s.id,
-      title: s.title,
-      publisher: s.publisher,
-      sourceType: s.sourceType,
-      classification: s.classification as "primary" | "secondary",
-      tier: (s.classification === "primary" ? "tier-a" : "tier-c") as SourceRecord["tier"],
-      url: s.url,
-      publicationDate: s.publicationDate,
-      accessedDate: s.accessedDate,
-      language: s.language,
-    },
-  ])
+  (fallbackSources || []).map((s) => [s.id, s])
 );
 
-function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
+function mapFallbackEvent(e: EventRecord): EventRecord {
   const sources = (e.sourceIds || [])
     .map((sId) => fallbackSourceMap.get(sId))
     .filter((s): s is SourceRecord => Boolean(s));
 
   const startDate = e.startDate;
-  const dayOfWeek = deriveDayOfWeek(startDate) || undefined;
-  const explicitConfidence = (e as { confidence?: unknown }).confidence;
+  const dayOfWeek = e.dayOfWeek || deriveDayOfWeek(startDate) || undefined;
+  const explicitConfidence = e.confidence;
   const confidence: Confidence = isConfidence(explicitConfidence)
     ? explicitConfidence
     : (e.verificationStatus === "verified" ? "confirmed" : "limited");
-  const confidenceScore = (e as { confidenceScore?: number }).confidenceScore ?? (confidence === "confirmed" ? 1.0 : (confidence === "strong" ? 0.85 : (confidence === "moderate" ? 0.7 : (confidence === "disputed" ? 0.3 : 0.5))));
+  const confidenceScore = e.confidenceScore ?? (confidence === "confirmed" ? 1.0 : (confidence === "strong" ? 0.85 : (confidence === "moderate" ? 0.7 : (confidence === "disputed" ? 0.3 : 0.5))));
 
   return {
+    ...e,
     id: e.id,
     slug: e.slug,
     eventName: e.eventName,
@@ -71,23 +64,24 @@ function mapFallbackEvent(e: (typeof fallbackEvents)[0]): EventRecord {
     latitude: e.latitude ?? null,
     longitude: e.longitude ?? null,
     summary: e.summary,
-    description: e.summary || null,
-    verificationStatus: e.verificationStatus,
+    description: e.description || e.summary || null,
+    verificationStatus: e.verificationStatus || "verified",
     confidence,
     confidenceScore,
     sourceIds: e.sourceIds || [],
-    sources: sources,
+    sources: sources.length > 0 ? sources : (e.sources || []),
     participants: (e.participants || []).map((p) => ({
       personId: p.personId,
       slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
       name: p.name,
       role: p.role,
       presenceConfidence: p.presenceConfidence,
+      attendanceMode: p.attendanceMode,
     })),
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
     quotes: e.quotes,
-    claims: [],
+    claims: e.claims || [],
   };
 }
 

@@ -3,6 +3,7 @@ import {
   boolean,
   doublePrecision,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -30,13 +31,29 @@ export const people = pgTable("people", {
   canonicalName: text("canonical_name").notNull(),
   displayName: text("display_name").notNull(),
   nativeName: text("native_name"),
+  fullBirthName: text("full_birth_name"),
   birthDate: text("birth_date"),
   deathDate: text("death_date"),
   datePrecision: text("date_precision").default("exact-day").notNull(),
   nationality: text("nationality"),
+  citizenship: text("citizenship").array(),
+  nationalIdentity: text("national_identity"),
+  ethnicity: text("ethnicity"),
+  ancestry: text("ancestry"),
+  religion: text("religion"),
+  religiousDenomination: text("religious_denomination"),
+  religionStatus: text("religion_status").default("unspecified").notNull(),
+  languages: text("languages").array(),
   primaryRole: text("primary_role"),
   classification: text("classification").notNull(), // politician, diplomat, religious-leader, etc.
+  primaryFigureCategory: text("primary_figure_category").default("historical-figure"),
   notabilityBasis: text("notability_basis").notNull(),
+  inclusionBasis: text("inclusion_basis").array(),
+  inclusionRationale: text("inclusion_rationale"),
+  culturalImpactSummary: text("cultural_impact_summary"),
+  achievements: jsonb("achievements"),
+  inclusionContested: boolean("inclusion_contested").default(false).notNull(),
+  inclusionContestationNote: text("inclusion_contestation_note"),
   programmeId: text("programme_id").references(() => coverageProgrammes.id),
   isLiving: boolean("is_living").default(true).notNull(),
   monitoringPriority: text("monitoring_priority").default("normal").notNull(), // intensive, normal, historical-only
@@ -164,6 +181,40 @@ export const events = pgTable("events", {
   startDate: text("start_date").notNull(), // ISO-8601 calendar date or timestamp (validated by Zod & CI)
   endDate: text("end_date"), // Optional upper bound for multi-day summits / treaties
   temporalPrecision: text("temporal_precision").default("exact-day").notNull(), // exact-minute, exact-day, month, year, decade
+  dayOfWeek: text("day_of_week"),
+  localStartTime: text("local_start_time"),
+  localEndTime: text("local_end_time"),
+  utcStartTime: text("utc_start_time"),
+  utcEndTime: text("utc_end_time"),
+  timezoneId: text("timezone_id"),
+  utcOffsetSeconds: integer("utc_offset_seconds"),
+  timezoneAbbreviation: text("timezone_abbreviation"),
+  dstObserved: boolean("dst_observed"),
+  timezoneConfidence: text("timezone_confidence"),
+  timeConversionMethod: text("time_conversion_method"),
+  timeStandard: text("time_standard"),
+  durationSeconds: integer("duration_seconds"),
+  durationPrecision: text("duration_precision"),
+  durationBasis: text("duration_basis"),
+  holidayApplicable: boolean("holiday_applicable").default(false),
+  holidayName: text("holiday_name"),
+  holidayType: text("holiday_type"),
+  holidayJurisdiction: text("holiday_jurisdiction"),
+
+  // Travel, Flight & Transit Metadata
+  isTravelEvent: boolean("is_travel_event").default(false).notNull(),
+  transportMode: text("transport_mode"),
+  flightIdentifier: text("flight_identifier"),
+  isDocumentedFlight: boolean("is_documented_flight").default(false).notNull(),
+  flightCorridor: text("flight_corridor"),
+  departureAirportIata: text("departure_airport_iata"),
+  arrivalAirportIata: text("arrival_airport_iata"),
+  originWaypoint: jsonb("origin_waypoint"),
+  destinationWaypoint: jsonb("destination_waypoint"),
+  routeCoordinates: jsonb("route_coordinates"),
+  travelInferences: jsonb("travel_inferences"),
+  journeyLegs: jsonb("journey_legs"),
+
   placeId: text("place_id").references(() => places.id),
   seriesId: text("series_id").references(() => eventSeries.id),
   venueId: text("venue_id").references(() => venues.id),
@@ -402,4 +453,108 @@ export const eventTopics = pgTable("event_topics", {
   topicId: text("topic_id")
     .references(() => topics.id, { onDelete: "cascade" })
     .notNull(),
+});
+
+// ==========================================
+// 7. Structured Demographics & Person Stays
+// ==========================================
+
+export const personEducation = pgTable("person_education", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  institution: text("institution").notNull(),
+  degree: text("degree"),
+  fieldOfStudy: text("field_of_study"),
+  startYear: text("start_year"),
+  endYear: text("end_year"),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personCareer = pgTable("person_career", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  organisationId: text("organisation_id").references(() => organisations.id),
+  organisationName: text("organisation_name"),
+  roleTitle: text("role_title").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  isCurrent: boolean("is_current").default(false),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personAwards = pgTable("person_awards", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  awardName: text("award_name").notNull(),
+  awardingBody: text("awarding_body"),
+  yearReceived: text("year_received"),
+  citation: text("citation"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personWorks = pgTable("person_works", {
+  id: text("id").primaryKey(),
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  title: text("title").notNull(),
+  workType: text("work_type").notNull(),
+  publicationYear: text("publication_year"),
+  publisher: text("publisher"),
+  url: text("url"),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personStays = pgTable("person_stays", {
+  id: text("id").primaryKey(), // e.g. "stay-netanyahu-balfour-jerusalem"
+  personId: text("person_id")
+    .references(() => people.id, { onDelete: "cascade" })
+    .notNull(),
+  venueName: text("venue_name").notNull(),
+  stayName: text("stay_name"),
+  stayType: text("stay_type").default("official_residence").notNull(), // hotel, official_residence, private_home, embassy, military_base
+  city: text("city").notNull(),
+  country: text("country").notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  isBaseOfOperations: boolean("is_base_of_operations").default(false).notNull(),
+  isPrimaryResidence: boolean("is_primary_residence").default(false).notNull(),
+  securityLevel: text("security_level"),
+  notes: text("notes"),
+  sourceId: text("source_id").references(() => sources.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const eventPersonLocations = pgTable("event_person_locations", {
+  id: serial("id").primaryKey(),
+  eventPersonId: text("event_person_id")
+    .references(() => eventPeople.id, { onDelete: "cascade" })
+    .notNull(),
+  placeId: text("place_id").references(() => places.id),
+  venueId: text("venue_id").references(() => venues.id),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  coordinatePrecision: text("coordinate_precision").default("exact-position").notNull(),
+  uncertaintyRadiusMetres: integer("uncertainty_radius_metres"),
+  localStartTime: text("local_start_time"),
+  localEndTime: text("local_end_time"),
+  isPrincipalLocation: boolean("is_principal_location").default(true).notNull(),
+  locationBasis: text("location_basis").default("archival-record").notNull(),
+  confidence: text("confidence").default("limited").notNull(),
+  publicVisibility: text("public_visibility").default("approximate").notNull(),
 });

@@ -1,19 +1,35 @@
 import { createClient } from "@/lib/supabase/server";
-import { people as fallbackPeople } from "@/archive/legacy-data/rewind";
+import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
 import { getEventsByPersonWithStatus } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
 
-function mapFallbackPerson(p: (typeof fallbackPeople)[0]): PersonRecord {
+function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
   return {
     id: p.id,
     slug: p.slug,
-    name: p.name,
-    canonicalName: p.name,
-    displayName: p.name,
-    description: p.description,
-    birth: p.birth,
-    death: p.death,
-    classification: (p as { classification?: string }).classification || "unknown",
+    name: p.displayName || p.canonicalName,
+    canonicalName: p.canonicalName,
+    displayName: p.displayName || p.canonicalName,
+    description: p.primaryRole || p.summary || "",
+    fullBirthName: p.fullBirthName ?? undefined,
+    birth: p.birthDate,
+    death: p.deathDate ?? undefined,
+    nationality: p.nationality,
+    citizenship: p.citizenship,
+    nationalIdentity: p.nationalIdentity ?? undefined,
+    ethnicity: p.ethnicity ?? undefined,
+    ancestry: p.ancestry ?? undefined,
+    religion: p.religion ?? undefined,
+    religiousDenomination: p.religiousDenomination ?? undefined,
+    religionStatus: p.religionStatus ?? undefined,
+    languages: p.languages,
+    classification: p.classification || p.primaryFigureCategory || "unknown",
+    notabilityBasis: p.notabilityBasis ?? undefined,
+    inclusionBasis: p.inclusionBasis,
+    inclusionRationale: p.inclusionRationale ?? undefined,
+    culturalImpactSummary: p.culturalImpactSummary ?? undefined,
+    achievements: p.achievements,
+    avatarUrl: p.avatarUrl ?? undefined,
   };
 }
 
@@ -67,7 +83,7 @@ export async function getPeopleWithStatus(params: { limit?: number } = {}): Prom
       if (process.env.NODE_ENV === "production") {
         return { data: [], error: "Supabase client unavailable in production" };
       }
-      const fallbackList = fallbackPeople.map(mapFallbackPerson);
+      const fallbackList = masterPeopleSeed.map(mapFallbackPerson);
       return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
     }
 
@@ -84,7 +100,7 @@ export async function getPeopleWithStatus(params: { limit?: number } = {}): Prom
         if (process.env.NODE_ENV === "production") {
           return { data: [], error: error.message };
         }
-        const fallbackList = fallbackPeople.map(mapFallbackPerson);
+        const fallbackList = masterPeopleSeed.map(mapFallbackPerson);
         return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
       }
       return { data: (data || []).map((p) => mapDatabasePerson(p as Record<string, unknown>)), error: null };
@@ -105,7 +121,7 @@ export async function getPeopleWithStatus(params: { limit?: number } = {}): Prom
         if (process.env.NODE_ENV === "production") {
           return { data: [], error: error.message };
         }
-        const fallbackList = fallbackPeople.map(mapFallbackPerson);
+        const fallbackList = masterPeopleSeed.map(mapFallbackPerson);
         return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
       }
       if (!data || data.length === 0) break;
@@ -118,7 +134,7 @@ export async function getPeopleWithStatus(params: { limit?: number } = {}): Prom
     if (process.env.NODE_ENV === "production") {
       return { data: [], error: err instanceof Error ? err.message : "Database error" };
     }
-    const fallbackList = fallbackPeople.map(mapFallbackPerson);
+    const fallbackList = masterPeopleSeed.map(mapFallbackPerson);
     return { data: params.limit ? fallbackList.slice(0, params.limit) : fallbackList, error: null };
   }
 }
@@ -150,7 +166,7 @@ export async function getPersonBySlugWithStatus(
         if (process.env.NODE_ENV === "production") {
           return { data: null, error: error.message };
         }
-        const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+        const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
         return { data: fb ? mapFallbackPerson(fb) : null, error: null };
       }
 
@@ -258,13 +274,13 @@ export async function getPersonBySlugWithStatus(
     if (process.env.NODE_ENV === "production") {
       return { data: null, error: "Database client unavailable" };
     }
-    const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+    const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
     return { data: fb ? mapFallbackPerson(fb) : null, error: null };
   } catch (err) {
     if (process.env.NODE_ENV === "production") {
       return { data: null, error: err instanceof Error ? err.message : "Database error" };
     }
-    const fb = fallbackPeople.find((x) => x.slug === slug || x.id === slug);
+    const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
     return { data: fb ? mapFallbackPerson(fb) : null, error: null };
   }
 }
