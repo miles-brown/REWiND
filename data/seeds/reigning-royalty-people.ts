@@ -171,7 +171,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "intensive",
     publicationStatus: "published",
-    wikidataId: "Q10465",
+    wikidataId: "Q10479",
     viafId: "107179720",
     avatarUrl: "/avatars/catherine-middleton.jpg",
     summary: "Catherine, Princess of Wales is a member of the British royal family as the wife of William, Prince of Wales. She became Princess of Wales on 9 September 2022.",
@@ -566,7 +566,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     inclusionBasis: ["monarch-royal", "head-of-state-or-government", "historical-significance"],
     inclusionRationale: "Future Queen of Spain (first regnant Queen since Isabella II).",
     achievements: [
-      { milestone: "Bestowed the Order of the Golden Fleece", year: 2015, evidence: "Royal Decree 973/2015" },
+      { milestone: "Invested with the Insigne Order of the Golden Fleece", year: 2018, evidence: "Real Decreto 973/2015 / Casa Real de España Investiture 30 Jan 2018" },
       { milestone: "Solemn Constitutional Oath before the Cortes Generales", year: 2023, evidence: "Boletín Oficial del Estado, 31 Oct 2023" },
       { milestone: "Graduated General Military Academy of Zaragoza", year: 2024, evidence: "Ministerio de Defensa de España" }
     ],

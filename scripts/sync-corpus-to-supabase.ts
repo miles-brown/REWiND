@@ -58,6 +58,8 @@ console.log("===================================================================
 
 const client = postgres(connectionString, {
   max: 10,
+  idle_timeout: 60,
+  connect_timeout: 30,
   ssl: getPostgresSslConfig(isLocal),
 });
 
@@ -112,6 +114,11 @@ const PARTICIPANT_ID_ALIASES: Record<string, string> = {
   "prince-george": "prince-george-of-wales",
   "princess-charlotte": "princess-charlotte-of-wales",
   "prince-louis": "prince-louis-of-wales",
+  "margareta-custodian-romanian-crown": "margareta-custodian-of-the-crown-romania",
+  "crown-prince-alexander-serbia": "alexander-crown-prince-yugoslavia",
+  "crown-prince-pavlos-greece": "pavlos-crown-prince-greece",
+  "tsar-simeon-ii": "simeon-ii-bulgaria",
+  "simeon-ii": "simeon-ii-bulgaria",
 };
 
 /**
@@ -251,6 +258,8 @@ async function syncCorpus() {
     resolvedPersonIdMap.set(p.slug, p.id);
   });
 
+  const allAliasesToInsert: { personId: string; alias: string; aliasType: string }[] = [];
+
   for (const p of masterPeopleSeed) {
     const existingBySlug = existingPersonBySlug.get(p.slug);
     const existingById = existingPersonById.get(p.id);
@@ -310,8 +319,8 @@ async function syncCorpus() {
         .values(personValues);
     }
 
-    // Synchronize aliases
-    const aliasesToInsert = Array.from(
+    // Collect aliases for batch insert
+    const aliasesForPerson = Array.from(
       new Set([
         p.canonicalName,
         p.displayName,
@@ -323,16 +332,23 @@ async function syncCorpus() {
       ].filter((a): a is string => Boolean(a && a.trim())))
     );
 
-    for (const alias of aliasesToInsert) {
-      await db
-        .insert(schema.personAliases)
-        .values({
-          personId: targetId,
-          alias,
-          aliasType: alias === p.nativeName ? "native" : (p.aliases?.includes(alias) ? "transliteration" : "name"),
-        })
-        .onConflictDoNothing();
+    for (const alias of aliasesForPerson) {
+      allAliasesToInsert.push({
+        personId: targetId,
+        alias,
+        aliasType: alias === p.nativeName ? "native" : (p.aliases?.includes(alias) ? "transliteration" : "name"),
+      });
     }
+  }
+
+  // Batch insert all person aliases in chunks of 100
+  console.log(`   Synchronizing ${allAliasesToInsert.length} Person Aliases in batches...`);
+  for (let i = 0; i < allAliasesToInsert.length; i += 100) {
+    const chunk = allAliasesToInsert.slice(i, i + 100);
+    await db
+      .insert(schema.personAliases)
+      .values(chunk)
+      .onConflictDoNothing();
   }
 
   // Check for any participant mentions in eventsCorpus that might need automatic fallback registration
@@ -410,26 +426,35 @@ async function syncCorpus() {
   ];
 
   const uniqueSources = Array.from(new Map(allSources.map((s) => [s.id, s])).values());
+  const sourceList = uniqueSources.map((src) => ({
+    id: src.id,
+    title: src.title,
+    publisher: src.publisher,
+    sourceType: src.sourceType,
+    tier: src.tier || "tier-c",
+    url: src.url || null,
+    archiveUrl: null,
+    author: null,
+    publicationDate: src.publicationDate || null,
+    trustScore: src.trustScore ?? 1.0,
+  }));
 
-  for (const src of uniqueSources) {
-    const srcValues = {
-      id: src.id,
-      title: src.title,
-      publisher: src.publisher,
-      sourceType: src.sourceType,
-      tier: src.tier || "tier-c",
-      url: src.url || null,
-      archiveUrl: null,
-      author: null,
-      publicationDate: src.publicationDate || null,
-      trustScore: src.trustScore ?? 1.0,
-    };
+  for (let i = 0; i < sourceList.length; i += 50) {
+    const chunk = sourceList.slice(i, i + 50);
     await db
       .insert(schema.sources)
-      .values(srcValues)
+      .values(chunk)
       .onConflictDoUpdate({
         target: schema.sources.id,
-        set: srcValues,
+        set: {
+          title: sql`excluded.title`,
+          publisher: sql`excluded.publisher`,
+          sourceType: sql`excluded.source_type`,
+          tier: sql`excluded.tier`,
+          url: sql`excluded.url`,
+          publicationDate: sql`excluded.publication_date`,
+          trustScore: sql`excluded.trust_score`,
+        },
       });
   }
   console.log(`✅ ${uniqueSources.length} Primary Sources synchronized.`);
@@ -462,19 +487,21 @@ async function syncCorpus() {
     }
   }
 
-  for (const place of placesMap.values()) {
+  const placeList = Array.from(placesMap.values());
+  for (let i = 0; i < placeList.length; i += 50) {
+    const chunk = placeList.slice(i, i + 50);
     await db
       .insert(schema.places)
-      .values(place)
+      .values(chunk)
       .onConflictDoUpdate({
         target: schema.places.id,
         set: {
-          venue: place.venue,
-          city: place.city,
-          country: place.country,
-          latitude: place.latitude,
-          longitude: place.longitude,
-          placeType: place.placeType,
+          venue: sql`excluded.venue`,
+          city: sql`excluded.city`,
+          country: sql`excluded.country`,
+          latitude: sql`excluded.latitude`,
+          longitude: sql`excluded.longitude`,
+          placeType: sql`excluded.place_type`,
         },
       });
   }
@@ -653,179 +680,236 @@ async function syncCorpus() {
   // 6. Topics & Roles & Milestones
   // ---------------------------------------------------------
   console.log(`\n🏷️ 6. Synchronizing Topics, Roles & Milestones...`);
-  for (const topic of topicsSeed || []) {
+  const topicsToInsert = (topicsSeed || []).map((topic) => ({
+    id: topic.id,
+    slug: topic.slug,
+    name: topic.name,
+    category: topic.category,
+    summary: topic.summary,
+    startedDate: topic.startedDate,
+    endedDate: topic.endedDate,
+  }));
+  for (let i = 0; i < topicsToInsert.length; i += 50) {
     await db
       .insert(schema.topics)
-      .values({
-        id: topic.id,
-        slug: topic.slug,
-        name: topic.name,
-        category: topic.category,
-        summary: topic.summary,
-        startedDate: topic.startedDate,
-        endedDate: topic.endedDate,
-      })
+      .values(topicsToInsert.slice(i, i + 50))
       .onConflictDoNothing();
   }
 
-  for (const role of officialRolesSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(role.personId);
-    if (dbPersonId) {
-      await db
-        .insert(schema.personRoles)
-        .values({
-          personId: dbPersonId,
-          title: role.title,
-          startDate: role.startDate,
-          endDate: role.endDate,
-          isCurrent: role.isCurrent,
-        })
-        .onConflictDoNothing();
-    }
+  const rolesToInsert = (officialRolesSeed || [])
+    .map((role) => {
+      const dbPersonId = resolvedPersonIdMap.get(role.personId);
+      if (!dbPersonId) return null;
+      return {
+        personId: dbPersonId,
+        title: role.title,
+        startDate: role.startDate,
+        endDate: role.endDate,
+        isCurrent: role.isCurrent,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  for (let i = 0; i < rolesToInsert.length; i += 50) {
+    await db
+      .insert(schema.personRoles)
+      .values(rolesToInsert.slice(i, i + 50))
+      .onConflictDoNothing();
   }
 
-  for (const m of milestonesSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(m.personId);
-    if (dbPersonId) {
-      await db
-        .insert(schema.personMilestones)
-        .values({
-          personId: dbPersonId,
-          title: m.title,
-          category: m.category,
-          date: m.date,
-          year: validateYearIntOrNull(m.year) ?? m.year,
-          description: m.description,
-          metricOrStat: m.metricOrStat,
-          sourceId: m.sourceId || null,
-        })
-        .onConflictDoNothing();
-    }
+  const milestonesToInsert = (milestonesSeed || [])
+    .map((m) => {
+      const dbPersonId = resolvedPersonIdMap.get(m.personId);
+      if (!dbPersonId) return null;
+      return {
+        personId: dbPersonId,
+        title: m.title,
+        category: m.category,
+        date: m.date,
+        year: validateYearIntOrNull(m.year) ?? m.year,
+        description: m.description,
+        metricOrStat: m.metricOrStat,
+        sourceId: m.sourceId || null,
+      };
+    })
+    .filter((m): m is NonNullable<typeof m> => m !== null);
+
+  for (let i = 0; i < milestonesToInsert.length; i += 50) {
+    await db
+      .insert(schema.personMilestones)
+      .values(milestonesToInsert.slice(i, i + 50))
+      .onConflictDoNothing();
   }
 
   // Synchronize Structured Biographical Dossiers
   console.log(`   Synchronizing Structured Biographical Records (Education, Career, Awards, Works, Stays)...`);
-  for (const edu of royalEducationSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(edu.personId) || edu.personId;
-    const validatedStart = validateYearStringOrNull(edu.startYear);
-    const validatedEnd = validateYearStringOrNull(edu.endYear);
-    await db
-      .insert(schema.personEducation)
-      .values({
+  const eduList = (royalEducationSeed || [])
+    .map((edu) => {
+      const canonicalRef = PARTICIPANT_ID_ALIASES[edu.personId] || edu.personId;
+      const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(edu.personId);
+      if (!dbPersonId) {
+        console.warn(`⚠️ [Sync] Skipping education row ${edu.id}: person "${edu.personId}" not resolved in catalog.`);
+        return null;
+      }
+      return {
         id: edu.id,
         personId: dbPersonId,
         institution: edu.institution,
         degree: edu.degree || null,
         subject: edu.fieldOfStudy || null,
-        startDate: validatedStart,
-        endDate: validatedEnd,
+        startDate: validateYearStringOrNull(edu.startYear),
+        endDate: validateYearStringOrNull(edu.endYear),
         qualification: edu.degree || null,
         completedStatus: "completed",
         sourceId: edu.sourceId || null,
-      })
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+
+  for (let i = 0; i < eduList.length; i += 50) {
+    await db
+      .insert(schema.personEducation)
+      .values(eduList.slice(i, i + 50))
       .onConflictDoUpdate({
         target: schema.personEducation.id,
         set: {
-          institution: edu.institution,
-          degree: edu.degree || null,
-          subject: edu.fieldOfStudy || null,
-          startDate: validatedStart,
-          endDate: validatedEnd,
-          qualification: edu.degree || null,
-          completedStatus: "completed",
-          sourceId: edu.sourceId || null,
+          institution: sql`excluded.institution`,
+          degree: sql`excluded.degree`,
+          subject: sql`excluded.subject`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+          qualification: sql`excluded.qualification`,
+          completedStatus: sql`excluded.completed_status`,
+          sourceId: sql`excluded.source_id`,
         },
       });
   }
 
-  for (const car of royalCareerSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(car.personId) || car.personId;
-    await db
-      .insert(schema.personCareer)
-      .values({
+  const careerList = (royalCareerSeed || [])
+    .map((car) => {
+      const canonicalRef = PARTICIPANT_ID_ALIASES[car.personId] || car.personId;
+      const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(car.personId);
+      if (!dbPersonId) {
+        console.warn(`⚠️ [Sync] Skipping career row ${car.id}: person "${car.personId}" not resolved in catalog.`);
+        return null;
+      }
+      return {
         id: car.id,
         personId: dbPersonId,
         organisationName: car.organisationName,
         positionTitle: car.roleTitle,
         startDate: car.startDate || null,
         endDate: car.endDate || null,
+        isCurrent: car.isCurrent ?? false,
         notes: car.notes || null,
         sourceId: car.sourceId || null,
-      })
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  for (let i = 0; i < careerList.length; i += 50) {
+    await db
+      .insert(schema.personCareer)
+      .values(careerList.slice(i, i + 50))
       .onConflictDoUpdate({
         target: schema.personCareer.id,
         set: {
-          organisationName: car.organisationName,
-          positionTitle: car.roleTitle,
-          startDate: car.startDate || null,
-          endDate: car.endDate || null,
-          notes: car.notes || null,
-          sourceId: car.sourceId || null,
+          organisationName: sql`excluded.organisation_name`,
+          positionTitle: sql`excluded.position_title`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+          isCurrent: sql`excluded.is_current`,
+          notes: sql`excluded.notes`,
+          sourceId: sql`excluded.source_id`,
         },
       });
   }
 
-  for (const awd of royalAwardsSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(awd.personId) || awd.personId;
-    const yearInt = validateYearIntOrNull(awd.yearReceived);
-    await db
-      .insert(schema.personAwards)
-      .values({
+  const awardsList = (royalAwardsSeed || [])
+    .map((awd) => {
+      const canonicalRef = PARTICIPANT_ID_ALIASES[awd.personId] || awd.personId;
+      const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(awd.personId);
+      if (!dbPersonId) {
+        console.warn(`⚠️ [Sync] Skipping award row ${awd.id}: person "${awd.personId}" not resolved in catalog.`);
+        return null;
+      }
+      return {
         id: awd.id,
         personId: dbPersonId,
         awardName: awd.awardName,
         awardingBody: awd.awardingBody || null,
-        awardYear: yearInt,
+        awardYear: validateYearIntOrNull(awd.yearReceived),
         citationReason: awd.citation || null,
         result: "winner",
         sourceId: awd.sourceId || null,
-      })
+      };
+    })
+    .filter((a): a is NonNullable<typeof a> => a !== null);
+
+  for (let i = 0; i < awardsList.length; i += 50) {
+    await db
+      .insert(schema.personAwards)
+      .values(awardsList.slice(i, i + 50))
       .onConflictDoUpdate({
         target: schema.personAwards.id,
         set: {
-          awardName: awd.awardName,
-          awardingBody: awd.awardingBody || null,
-          awardYear: yearInt,
-          citationReason: awd.citation || null,
-          result: "winner",
-          sourceId: awd.sourceId || null,
+          awardName: sql`excluded.award_name`,
+          awardingBody: sql`excluded.awarding_body`,
+          awardYear: sql`excluded.award_year`,
+          citationReason: sql`excluded.citation_reason`,
+          result: sql`excluded.result`,
+          sourceId: sql`excluded.source_id`,
         },
       });
   }
 
-  for (const wrk of royalWorksSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(wrk.personId) || wrk.personId;
-    const validatedPubYear = validateYearStringOrNull(wrk.publicationYear);
-    await db
-      .insert(schema.personWorks)
-      .values({
+  const worksList = (royalWorksSeed || [])
+    .map((wrk) => {
+      const canonicalRef = PARTICIPANT_ID_ALIASES[wrk.personId] || wrk.personId;
+      const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(wrk.personId);
+      if (!dbPersonId) {
+        console.warn(`⚠️ [Sync] Skipping work row ${wrk.id}: person "${wrk.personId}" not resolved in catalog.`);
+        return null;
+      }
+      return {
         id: wrk.id,
         personId: dbPersonId,
         workTitle: wrk.title,
         workType: wrk.workType,
-        releaseDate: validatedPubYear,
+        releaseDate: validateYearStringOrNull(wrk.publicationYear),
         publisherOrVenue: wrk.publisher || null,
         significanceNote: wrk.notes || null,
         sourceId: wrk.sourceId || null,
-      })
+      };
+    })
+    .filter((w): w is NonNullable<typeof w> => w !== null);
+
+  for (let i = 0; i < worksList.length; i += 50) {
+    await db
+      .insert(schema.personWorks)
+      .values(worksList.slice(i, i + 50))
       .onConflictDoUpdate({
         target: schema.personWorks.id,
         set: {
-          workTitle: wrk.title,
-          workType: wrk.workType,
-          releaseDate: validatedPubYear,
-          publisherOrVenue: wrk.publisher || null,
-          significanceNote: wrk.notes || null,
-          sourceId: wrk.sourceId || null,
+          workTitle: sql`excluded.work_title`,
+          workType: sql`excluded.work_type`,
+          releaseDate: sql`excluded.release_date`,
+          publisherOrVenue: sql`excluded.publisher_or_venue`,
+          significanceNote: sql`excluded.significance_note`,
+          sourceId: sql`excluded.source_id`,
         },
       });
   }
 
-  for (const sty of royalStaysSeed || []) {
-    const dbPersonId = resolvedPersonIdMap.get(sty.personId) || sty.personId;
-    await db
-      .insert(schema.personStays)
-      .values({
+  const staysList = (royalStaysSeed || [])
+    .map((sty) => {
+      const canonicalRef = PARTICIPANT_ID_ALIASES[sty.personId] || sty.personId;
+      const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(sty.personId);
+      if (!dbPersonId) {
+        console.warn(`⚠️ [Sync] Skipping stay row ${sty.id}: person "${sty.personId}" not resolved in catalog.`);
+        return null;
+      }
+      return {
         id: sty.id,
         personId: dbPersonId,
         venueName: sty.venueName,
@@ -842,23 +926,31 @@ async function syncCorpus() {
         securityLevel: sty.securityLevel || null,
         notes: sty.notes || null,
         sourceId: sty.sourceId || null,
-      })
+      };
+    })
+    .filter((s): s is NonNullable<typeof s> => s !== null);
+
+  for (let i = 0; i < staysList.length; i += 50) {
+    await db
+      .insert(schema.personStays)
+      .values(staysList.slice(i, i + 50))
       .onConflictDoUpdate({
         target: schema.personStays.id,
         set: {
-          venueName: sty.venueName,
-          stayName: sty.stayName || null,
-          stayType: sty.stayType,
-          city: sty.city,
-          country: sty.country,
-          latitude: sty.latitude,
-          longitude: sty.longitude,
-          startDate: sty.startDate,
-          endDate: sty.endDate || null,
-          isBaseOfOperations: sty.isBaseOfOperations,
-          isPrimaryResidence: sty.isPrimaryResidence,
-          securityLevel: sty.securityLevel || null,
-          notes: sty.notes || null,
+          venueName: sql`excluded.venue_name`,
+          stayName: sql`excluded.stay_name`,
+          stayType: sql`excluded.stay_type`,
+          city: sql`excluded.city`,
+          country: sql`excluded.country`,
+          latitude: sql`excluded.latitude`,
+          longitude: sql`excluded.longitude`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+          isBaseOfOperations: sql`excluded.is_base_of_operations`,
+          isPrimaryResidence: sql`excluded.is_primary_residence`,
+          securityLevel: sql`excluded.security_level`,
+          notes: sql`excluded.notes`,
+          sourceId: sql`excluded.source_id`,
         },
       });
   }

@@ -147,7 +147,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // King Felipe VI of Spain
   {
     id: "edu-felipe-uam-law",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     institution: "Universidad Autónoma de Madrid (UAM)",
     degree: "Licenciatura en Derecho (Law Degree)",
     fieldOfStudy: "Law and Economics",
@@ -158,7 +158,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   },
   {
     id: "edu-felipe-georgetown",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     institution: "Edmund A. Walsh School of Foreign Service, Georgetown University",
     degree: "Master of Science in Foreign Service (MSFS)",
     fieldOfStudy: "International Relations and Security Studies",
@@ -171,7 +171,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // Princess Leonor of Spain
   {
     id: "edu-leonor-uwc-atlantic",
-    personId: "princess-leonor",
+    personId: "leonor-princess-of-asturias",
     institution: "UWC Atlantic College (Wales)",
     degree: "International Baccalaureate (IB)",
     fieldOfStudy: "Secondary Education",
@@ -182,7 +182,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   },
   {
     id: "edu-leonor-zaragoza-military",
-    personId: "princess-leonor",
+    personId: "leonor-princess-of-asturias",
     institution: "Academia General Militar de Zaragoza",
     degree: "Officer Cadet Course",
     fieldOfStudy: "Military Science (Spanish Army)",
@@ -195,7 +195,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // King Philippe of Belgium
   {
     id: "edu-philippe-rma-belgium",
-    personId: "king-philippe-belgium",
+    personId: "philippe-belgium",
     institution: "Royal Military Academy of Belgium (RMA)",
     degree: "Military Science Diploma",
     fieldOfStudy: "Aeronautics and Military Leadership",
@@ -206,7 +206,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   },
   {
     id: "edu-philippe-stanford",
-    personId: "king-philippe-belgium",
+    personId: "philippe-belgium",
     institution: "Stanford University",
     degree: "Master of Arts (MA)",
     fieldOfStudy: "Political Science",
@@ -219,7 +219,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // King Willem-Alexander of the Netherlands
   {
     id: "edu-willem-alexander-leiden",
-    personId: "king-willem-alexander",
+    personId: "willem-alexander-netherlands",
     institution: "Leiden University",
     degree: "Doctorandus in History (MA Equivalent)",
     fieldOfStudy: "History",
@@ -232,7 +232,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // Crown Princess Victoria of Sweden
   {
     id: "edu-victoria-yale",
-    personId: "crown-princess-victoria",
+    personId: "victoria-crown-princess-sweden",
     institution: "Yale University",
     degree: "Special Studies Program",
     fieldOfStudy: "Political Science and History",
@@ -243,7 +243,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   },
   {
     id: "edu-victoria-uppsala",
-    personId: "crown-princess-victoria",
+    personId: "victoria-crown-princess-sweden",
     institution: "Uppsala University",
     degree: "Bachelor of Arts (Filosofie Kandidatexamen)",
     fieldOfStudy: "Peace and Conflict Studies",
@@ -256,7 +256,7 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
   // Prince Albert II of Monaco
   {
     id: "edu-albert-amherst",
-    personId: "prince-albert-ii",
+    personId: "albert-ii-monaco",
     institution: "Amherst College (Massachusetts)",
     degree: "Bachelor of Arts (BA)",
     fieldOfStudy: "Political Science",
@@ -317,7 +317,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // King Felipe VI of Spain
   {
     id: "car-felipe-king-of-spain",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     organisationName: "Corona de España / Jefatura del Estado",
     roleTitle: "Rey de España (Head of State)",
     startDate: "2014-06-19",
@@ -329,7 +329,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // King Philippe of Belgium
   {
     id: "car-philippe-king-of-belgians",
-    personId: "king-philippe-belgium",
+    personId: "philippe-belgium",
     organisationName: "Royaume de Belgique / Koninkrijk België",
     roleTitle: "Roi des Belges / Koning der Belgen (King of the Belgians)",
     startDate: "2013-07-21",
@@ -341,7 +341,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // King Willem-Alexander of the Netherlands
   {
     id: "car-willem-alexander-king",
-    personId: "king-willem-alexander",
+    personId: "willem-alexander-netherlands",
     organisationName: "Koninkrijk der Nederlanden",
     roleTitle: "Koning der Nederlanden (King of the Netherlands)",
     startDate: "2013-04-30",
@@ -353,7 +353,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // King Carl XVI Gustaf of Sweden
   {
     id: "car-carl-xvi-gustaf-king",
-    personId: "king-carl-xvi-gustaf",
+    personId: "carl-xvi-gustaf-sweden",
     organisationName: "Konungariket Sverige",
     roleTitle: "Sveriges Konung (King of Sweden)",
     startDate: "1973-09-15",
@@ -365,7 +365,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // King Harald V of Norway
   {
     id: "car-harald-v-king",
-    personId: "king-harald-v",
+    personId: "harald-v-norway",
     organisationName: "Kongeriket Norge",
     roleTitle: "Norges Konge (King of Norway)",
     startDate: "1991-01-17",
@@ -377,7 +377,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // Prince Albert II of Monaco
   {
     id: "car-albert-ii-prince",
-    personId: "prince-albert-ii",
+    personId: "albert-ii-monaco",
     organisationName: "Principauté de Monaco",
     roleTitle: "Prince Souverain de Monaco",
     startDate: "2005-04-06",
@@ -389,7 +389,7 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
   // Grand Duke Henri of Luxembourg
   {
     id: "car-henri-grand-duke",
-    personId: "grand-duke-henri",
+    personId: "henri-luxembourg",
     organisationName: "Grand-Duché de Luxembourg",
     roleTitle: "Grand-Duc de Luxembourg",
     startDate: "2000-10-07",
@@ -447,7 +447,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   // King Felipe VI of Spain
   {
     id: "awd-felipe-golden-fleece",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     awardName: "Gran Maestre de la Insigne Orden del Toisón de Oro",
     awardingBody: "Casa Real de España",
     yearReceived: "1981",
@@ -456,7 +456,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   },
   {
     id: "awd-felipe-charles-iii",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     awardName: "Gran Maestre de la Real y Distinguida Orden Española de Carlos III",
     awardingBody: "Reino de España",
     yearReceived: "1986",
@@ -467,7 +467,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   // Princess Leonor of Spain
   {
     id: "awd-leonor-golden-fleece",
-    personId: "princess-leonor",
+    personId: "leonor-princess-of-asturias",
     awardName: "Caballero de la Insigne Orden del Toisón de Oro",
     awardingBody: "Rey Felipe VI de España",
     yearReceived: "2018",
@@ -476,7 +476,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   },
   {
     id: "awd-leonor-charles-iii",
-    personId: "princess-leonor",
+    personId: "leonor-princess-of-asturias",
     awardName: "Gran Cruz de la Real y Distinguida Orden de Carlos III",
     awardingBody: "Gobierno de España / Rey Felipe VI",
     yearReceived: "2023",
@@ -487,7 +487,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   // King Carl XVI Gustaf of Sweden
   {
     id: "awd-carl-seraphim",
-    personId: "king-carl-xvi-gustaf",
+    personId: "carl-xvi-gustaf-sweden",
     awardName: "Lord and Master of the Royal Order of the Seraphim (RoKavKMO)",
     awardingBody: "Kungl. Maj:ts Orden (Sweden)",
     yearReceived: "1973",
@@ -498,7 +498,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
   // Prince Albert II of Monaco
   {
     id: "awd-albert-saint-charles",
-    personId: "prince-albert-ii",
+    personId: "albert-ii-monaco",
     awardName: "Grand Master of the Order of Saint-Charles",
     awardingBody: "Principauté de Monaco",
     yearReceived: "2005",
@@ -631,7 +631,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   // King Felipe VI & Queen Letizia
   {
     id: "sty-felipe-zarzuela",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     venueName: "Palacio de la Zarzuela (Pabellón del Príncipe)",
     stayName: "Residencia Oficial de los Reyes de España",
     stayType: "official_residence",
@@ -648,7 +648,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   },
   {
     id: "sty-felipe-palacio-real",
-    personId: "king-felipe-vi",
+    personId: "felipe-vi-spain",
     venueName: "Palacio Real de Madrid (Palacio de Oriente)",
     stayName: "Sede de Actos de Estado",
     stayType: "official_residence",
@@ -667,7 +667,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   // King Philippe & Queen Mathilde
   {
     id: "sty-philippe-laeken",
-    personId: "king-philippe-belgium",
+    personId: "philippe-belgium",
     venueName: "Château de Laeken / Kasteel van Laken",
     stayName: "Official Royal Residence",
     stayType: "official_residence",
@@ -686,7 +686,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   // King Willem-Alexander & Queen Máxima
   {
     id: "sty-willem-huis-ten-bosch",
-    personId: "king-willem-alexander",
+    personId: "willem-alexander-netherlands",
     venueName: "Paleis Huis ten Bosch",
     stayName: "Woonpaleis van de Koning",
     stayType: "official_residence",
@@ -705,7 +705,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   // King Carl XVI Gustaf & Queen Silvia
   {
     id: "sty-carl-drottningholm",
-    personId: "king-carl-xvi-gustaf",
+    personId: "carl-xvi-gustaf-sweden",
     venueName: "Drottningholm Palace (Drottningholms Slott)",
     stayName: "Kungaparets Bostad",
     stayType: "official_residence",
@@ -724,7 +724,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
   // Prince Albert II & Princess Charlene
   {
     id: "sty-albert-palais-princier",
-    personId: "prince-albert-ii",
+    personId: "albert-ii-monaco",
     venueName: "Palais Princier de Monaco",
     stayName: "Palais Princier (Rocher de Monaco)",
     stayType: "official_residence",

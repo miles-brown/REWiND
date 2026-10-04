@@ -83,10 +83,19 @@ CREATE TABLE IF NOT EXISTS public.person_milestones (
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- 3c. Ensure person_career has is_current column
+ALTER TABLE public.person_career
+  ADD COLUMN IF NOT EXISTS is_current boolean DEFAULT false;
+
 -- 4. Enable RLS and Configure Read Policies
 ALTER TABLE public.person_stays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.person_milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_education ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_career ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_awards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_works ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_person_locations ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read on topics" ON public.topics;
 CREATE POLICY "Allow public read on topics"
@@ -119,10 +128,76 @@ CREATE POLICY "Allow public read on person stays"
     )
   );
 
+DROP POLICY IF EXISTS "Public read person education" ON public.person_education;
+DROP POLICY IF EXISTS "Allow public read on person education" ON public.person_education;
+CREATE POLICY "Allow public read on person education"
+  ON public.person_education FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_education.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person career" ON public.person_career;
+DROP POLICY IF EXISTS "Allow public read on person career" ON public.person_career;
+CREATE POLICY "Allow public read on person career"
+  ON public.person_career FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_career.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person awards" ON public.person_awards;
+DROP POLICY IF EXISTS "Allow public read on person awards" ON public.person_awards;
+CREATE POLICY "Allow public read on person awards"
+  ON public.person_awards FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_awards.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person works" ON public.person_works;
+DROP POLICY IF EXISTS "Allow public read on person works" ON public.person_works;
+CREATE POLICY "Allow public read on person works"
+  ON public.person_works FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_works.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read event person locations" ON public.event_person_locations;
+DROP POLICY IF EXISTS "Allow public read on event person locations" ON public.event_person_locations;
+CREATE POLICY "Allow public read on event person locations"
+  ON public.event_person_locations FOR SELECT
+  TO anon, authenticated
+  USING (
+    public_visibility = 'public-exact' OR public_visibility = 'approximate'
+  );
+
 -- 4b. Grant Privileges to Public Client Roles
 GRANT SELECT ON public.topics TO anon, authenticated;
 GRANT SELECT ON public.person_milestones TO anon, authenticated;
 GRANT SELECT ON public.person_stays TO anon, authenticated;
+GRANT SELECT ON public.person_education TO anon, authenticated;
+GRANT SELECT ON public.person_career TO anon, authenticated;
+GRANT SELECT ON public.person_awards TO anon, authenticated;
+GRANT SELECT ON public.person_works TO anon, authenticated;
+GRANT SELECT ON public.event_person_locations TO anon, authenticated;
 
 -- 5. Backfill Defaults for Non-Null Integrity
 UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status IS NULL;

@@ -504,6 +504,7 @@ export const personCareer = pgTable("person_career", {
   predecessor: text("predecessor"),
   successor: text("successor"),
   notes: text("notes"),
+  isCurrent: boolean("is_current").default(false),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

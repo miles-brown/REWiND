@@ -66,9 +66,9 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Foreign Sovereign Regent Guest", presenceConfidence: "confirmed" },
       { personId: "joan-enric-vives-sicilia", name: "Archbishop Joan-Enric Vives i Sicília", role: "Foreign Co-Prince of Andorra Guest", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
-      { personId: "margareta-custodian-romanian-crown", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-alexander-serbia", name: "Crown Prince Alexander", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-pavlos-greece", name: "Crown Prince Pavlos", role: "Dynastic Head Guest", presenceConfidence: "confirmed" }
+      { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
+      { personId: "alexander-crown-prince-yugoslavia", name: "Crown Prince Alexander", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
+      { personId: "pavlos-crown-prince-greece", name: "Crown Prince Pavlos", role: "Dynastic Head Guest", presenceConfidence: "confirmed" }
     ]
   },
 

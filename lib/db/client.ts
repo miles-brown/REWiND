@@ -481,7 +481,7 @@ function initializeSeedStore(): MemoryRelationalStore {
   }));
 
   const seedMilestones: (typeof schema.personMilestones.$inferSelect)[] = (milestonesSeed || []).map((m, idx) => ({
-    id: typeof m.id === "number" ? m.id : (parseInt(String(m.id).replace(/\D/g, ""), 10) || (idx + 1)),
+    id: idx + 1,
     personId: m.personId,
     title: m.title,
     category: m.category,
