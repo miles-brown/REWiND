@@ -58,6 +58,11 @@ const migrationFiles = [
   "20260904040000_schema_perfection_and_travel_corridors.sql",
 ];
 
+/**
+ * Applies listed migrations and records each version in the same transaction.
+ * Skips recorded versions unless --force is set, exits on migration failure,
+ * then reports public tables and RLS policies and closes the client on success.
+ */
 async function applyMigrations() {
   console.log("Connecting to Supabase PostgreSQL database...");
   const [{ version }] = await client`SELECT version()`;

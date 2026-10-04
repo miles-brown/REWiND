@@ -14,6 +14,10 @@ import { getPlaceBySlug } from "@/lib/rewind";
 import { EventCard } from "@/components/rewind/EventCard";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 
+/**
+ * Renders a place's geographic details and linked events for the requested slug.
+ * Returns a 404 for invalid or missing places and propagates lookup errors.
+ */
 export default async function PlacePage({
   params,
 }: {

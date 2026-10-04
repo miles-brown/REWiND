@@ -29,6 +29,9 @@ export interface PlacesExplorerProps {
   error?: string | null;
 }
 
+/**
+ * Maps a venue type to its display label and CSS badge class, with a generic fallback.
+ */
 function getVenueTypeBadge(type: string): { label: string; className: string } {
   const norm = (type || "").toLowerCase().replace(/[_\s]+/g, "-");
   switch (norm) {
@@ -57,6 +60,10 @@ function getVenueTypeBadge(type: string): { label: string; className: string } {
   }
 }
 
+/**
+ * Renders searchable, filterable geographic tree and list views with sorting,
+ * expandable country/city nodes, and an optional data-loading error notice.
+ */
 export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
   const [activeTab, setActiveTab] = useState<HierarchyTab>("tree");
   const [query, setQuery] = useState<string>("");

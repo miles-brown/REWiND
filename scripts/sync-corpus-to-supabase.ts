@@ -61,6 +61,11 @@ const PARTICIPANT_ID_ALIASES: Record<string, string> = {
   "nabil-el-araby": "nabil-elaraby",
 };
 
+/**
+ * Synchronizes bundled people, sources, places, events, and related records to PostgreSQL.
+ * Publishes synchronized people and events, writes each event and its evidence in
+ * one transaction, and reports row counts. Database failures reject the promise.
+ */
 async function syncCorpus() {
   console.log("🔌 Connected to live PostgreSQL database.");
 

@@ -7,6 +7,9 @@ export const metadata = {
   description: "Hierarchical global gazetteer organizing sovereign countries, metropolitan cities, institutional venues, and physical street addresses documented in the REWIND evidence corpus.",
 };
 
+/**
+ * Loads the geographic hierarchy and renders the places explorer or an empty/error state.
+ */
 export default async function PlacesPage() {
   const { data: hierarchy, error } = await getGeographicHierarchy();
 

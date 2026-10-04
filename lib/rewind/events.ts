@@ -85,6 +85,10 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
   };
 }
 
+/**
+ * Filters the bundled event corpus and returns a normalized page, newest first.
+ * Invalid years or unknown people yield an empty result without querying the database.
+ */
 export function getFallbackEventsResult(params: EventFilters = {}): PaginatedResult<EventRecord> {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.limit || 50));
