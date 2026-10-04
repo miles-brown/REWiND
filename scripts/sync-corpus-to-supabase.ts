@@ -19,10 +19,19 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
-import { masterPeopleSeed } from "../data/seeds/index";
+import {
+  masterPeopleSeed,
+  officialRolesSeed,
+  milestonesSeed,
+  topicsSeed,
+  royalEducationSeed,
+  royalCareerSeed,
+  royalAwardsSeed,
+  royalWorksSeed,
+  royalStaysSeed,
+} from "../data/seeds/index";
 import { eventsCorpus } from "../data/seeds/events-corpus";
 import { sourcesCorpus } from "../data/seeds/sources-corpus";
-import { officialRolesSeed, milestonesSeed, topicsSeed } from "../data/seeds";
 import { events as legacyEvents, sources as legacySources } from "../archive/legacy-data/rewind";
 
 if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === "function") {
@@ -59,6 +68,35 @@ const PARTICIPANT_ID_ALIASES: Record<string, string> = {
   "king-hussein-jordan": "king-hussein",
   "king-abdullah-saudi": "abdullah-saudi",
   "nabil-el-araby": "nabil-elaraby",
+  "prince-hans-adam-ii": "hans-adam-ii-liechtenstein",
+  "king-felipe-vi": "felipe-vi-spain",
+  "queen-letizia": "queen-letizia-spain",
+  "princess-leonor": "leonor-princess-of-asturias",
+  "infanta-sofia": "infanta-sofia-spain",
+  "king-philippe-belgium": "philippe-belgium",
+  "princess-elisabeth-belgium": "princess-elisabeth-belgium",
+  "king-willem-alexander": "willem-alexander-netherlands",
+  "queen-maxima": "queen-maxima-netherlands",
+  "princess-catharina-amalia": "catharina-amalia-netherlands",
+  "king-carl-xvi-gustaf": "carl-xvi-gustaf-sweden",
+  "queen-silvia-sweden": "queen-silvia-sweden",
+  "crown-princess-victoria": "victoria-crown-princess-sweden",
+  "king-harald-v": "harald-v-norway",
+  "queen-sonja-norway": "queen-sonja-norway",
+  "crown-prince-haakon": "haakon-crown-prince-norway",
+  "king-frederik-x": "frederik-x-denmark",
+  "queen-mary-denmark": "queen-mary-denmark",
+  "queen-margrethe-ii": "margrethe-ii-denmark",
+  "prince-albert-ii": "albert-ii-monaco",
+  "princess-charlene": "princess-charlene-monaco",
+  "grand-duke-henri": "henri-luxembourg",
+  "grand-duchess-maria-teresa": "maria-teresa-luxembourg",
+  "hereditary-grand-duke-guillaume": "guillaume-hereditary-grand-duke-luxembourg",
+  "hereditary-prince-alois": "alois-hereditary-prince-liechtenstein",
+  "prince-edward": "prince-edward-duke-of-edinburgh",
+  "prince-george": "prince-george-of-wales",
+  "princess-charlotte": "princess-charlotte-of-wales",
+  "prince-louis": "prince-louis-of-wales",
 };
 
 /**
@@ -152,6 +190,14 @@ async function syncCorpus() {
       description: "Network news anchors, foreign correspondents, and editorial commentators.",
       criteria: "National broadcast anchor or primary correspondent",
       autoQualify: false,
+      isActive: true,
+    },
+    {
+      id: "prog-world-royalty",
+      name: "Sovereign Monarchs & Historic Royal Houses",
+      description: "Official public timeline and forensic register of reigning European sovereigns and historic dynastic houses.",
+      criteria: "Hold sovereign monarchical title or hereditary dynastic headship",
+      autoQualify: true,
       isActive: true,
     },
   ];
@@ -629,7 +675,6 @@ async function syncCorpus() {
       await db
         .insert(schema.personMilestones)
         .values({
-          id: m.id,
           personId: dbPersonId,
           title: m.title,
           category: m.category,
@@ -641,6 +686,163 @@ async function syncCorpus() {
         })
         .onConflictDoNothing();
     }
+  }
+
+  // Synchronize Structured Biographical Dossiers
+  console.log(`   Synchronizing Structured Biographical Records (Education, Career, Awards, Works, Stays)...`);
+  for (const edu of royalEducationSeed || []) {
+    const dbPersonId = resolvedPersonIdMap.get(edu.personId) || edu.personId;
+    await db
+      .insert(schema.personEducation)
+      .values({
+        id: edu.id,
+        personId: dbPersonId,
+        institution: edu.institution,
+        degree: edu.degree || null,
+        subject: edu.fieldOfStudy || null,
+        startDate: edu.startYear || null,
+        endDate: edu.endYear || null,
+        qualification: edu.degree || null,
+        completedStatus: "completed",
+        sourceId: edu.sourceId || null,
+      })
+      .onConflictDoUpdate({
+        target: schema.personEducation.id,
+        set: {
+          institution: edu.institution,
+          degree: edu.degree || null,
+          subject: edu.fieldOfStudy || null,
+          startDate: edu.startYear || null,
+          endDate: edu.endYear || null,
+          qualification: edu.degree || null,
+          completedStatus: "completed",
+          sourceId: edu.sourceId || null,
+        },
+      });
+  }
+
+  for (const car of royalCareerSeed || []) {
+    const dbPersonId = resolvedPersonIdMap.get(car.personId) || car.personId;
+    await db
+      .insert(schema.personCareer)
+      .values({
+        id: car.id,
+        personId: dbPersonId,
+        organisationName: car.organisationName,
+        positionTitle: car.roleTitle,
+        startDate: car.startDate || null,
+        endDate: car.endDate || null,
+        notes: car.notes || null,
+        sourceId: car.sourceId || null,
+      })
+      .onConflictDoUpdate({
+        target: schema.personCareer.id,
+        set: {
+          organisationName: car.organisationName,
+          positionTitle: car.roleTitle,
+          startDate: car.startDate || null,
+          endDate: car.endDate || null,
+          notes: car.notes || null,
+          sourceId: car.sourceId || null,
+        },
+      });
+  }
+
+  for (const awd of royalAwardsSeed || []) {
+    const dbPersonId = resolvedPersonIdMap.get(awd.personId) || awd.personId;
+    const yearInt = awd.yearReceived ? parseInt(awd.yearReceived, 10) || null : null;
+    await db
+      .insert(schema.personAwards)
+      .values({
+        id: awd.id,
+        personId: dbPersonId,
+        awardName: awd.awardName,
+        awardingBody: awd.awardingBody || null,
+        awardYear: yearInt,
+        citationReason: awd.citation || null,
+        result: "winner",
+        sourceId: awd.sourceId || null,
+      })
+      .onConflictDoUpdate({
+        target: schema.personAwards.id,
+        set: {
+          awardName: awd.awardName,
+          awardingBody: awd.awardingBody || null,
+          awardYear: yearInt,
+          citationReason: awd.citation || null,
+          result: "winner",
+          sourceId: awd.sourceId || null,
+        },
+      });
+  }
+
+  for (const wrk of royalWorksSeed || []) {
+    const dbPersonId = resolvedPersonIdMap.get(wrk.personId) || wrk.personId;
+    await db
+      .insert(schema.personWorks)
+      .values({
+        id: wrk.id,
+        personId: dbPersonId,
+        workTitle: wrk.title,
+        workType: wrk.workType,
+        releaseDate: wrk.publicationYear || null,
+        publisherOrVenue: wrk.publisher || null,
+        significanceNote: wrk.notes || null,
+        sourceId: wrk.sourceId || null,
+      })
+      .onConflictDoUpdate({
+        target: schema.personWorks.id,
+        set: {
+          workTitle: wrk.title,
+          workType: wrk.workType,
+          releaseDate: wrk.publicationYear || null,
+          publisherOrVenue: wrk.publisher || null,
+          significanceNote: wrk.notes || null,
+          sourceId: wrk.sourceId || null,
+        },
+      });
+  }
+
+  for (const sty of royalStaysSeed || []) {
+    const dbPersonId = resolvedPersonIdMap.get(sty.personId) || sty.personId;
+    await db
+      .insert(schema.personStays)
+      .values({
+        id: sty.id,
+        personId: dbPersonId,
+        venueName: sty.venueName,
+        stayName: sty.stayName || null,
+        stayType: sty.stayType,
+        city: sty.city,
+        country: sty.country,
+        latitude: sty.latitude,
+        longitude: sty.longitude,
+        startDate: sty.startDate,
+        endDate: sty.endDate || null,
+        isBaseOfOperations: sty.isBaseOfOperations,
+        isPrimaryResidence: sty.isPrimaryResidence,
+        securityLevel: sty.securityLevel || null,
+        notes: sty.notes || null,
+        sourceId: sty.sourceId || null,
+      })
+      .onConflictDoUpdate({
+        target: schema.personStays.id,
+        set: {
+          venueName: sty.venueName,
+          stayName: sty.stayName || null,
+          stayType: sty.stayType,
+          city: sty.city,
+          country: sty.country,
+          latitude: sty.latitude,
+          longitude: sty.longitude,
+          startDate: sty.startDate,
+          endDate: sty.endDate || null,
+          isBaseOfOperations: sty.isBaseOfOperations,
+          isPrimaryResidence: sty.isPrimaryResidence,
+          securityLevel: sty.securityLevel || null,
+          notes: sty.notes || null,
+        },
+      });
   }
 
   // ---------------------------------------------------------
@@ -657,6 +859,11 @@ async function syncCorpus() {
     [{ count: eventPeopleCount }],
     [{ count: quotesCount }],
     [{ count: claimsCount }],
+    [{ count: eduCount }],
+    [{ count: careerCount }],
+    [{ count: awardsCount }],
+    [{ count: worksCount }],
+    [{ count: staysCount }],
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(schema.people),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.events),
@@ -665,6 +872,11 @@ async function syncCorpus() {
     db.select({ count: sql<number>`count(*)::int` }).from(schema.eventPeople),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.quotes),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.claims),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.personEducation),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.personCareer),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.personAwards),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.personWorks),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.personStays),
   ]);
 
   console.log(`- People:        ${peopleCount}`);
@@ -674,6 +886,11 @@ async function syncCorpus() {
   console.log(`- Participants:  ${eventPeopleCount}`);
   console.log(`- Quotes:        ${quotesCount}`);
   console.log(`- Claims:        ${claimsCount}`);
+  console.log(`- Education:     ${eduCount}`);
+  console.log(`- Careers:       ${careerCount}`);
+  console.log(`- Awards:        ${awardsCount}`);
+  console.log(`- Works:         ${worksCount}`);
+  console.log(`- Stays:         ${staysCount}`);
   console.log("================================================================================");
   console.log("🎉 Live Database Ingestion & Corpus Synchronization Complete!");
 }

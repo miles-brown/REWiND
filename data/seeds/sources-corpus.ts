@@ -5,8 +5,11 @@
  */
 
 import type { SourceRecord } from "@/lib/rewind/types";
+import { royalSourcesCorpus } from "./royal-sources-corpus";
 
-export const sourcesCorpus: SourceRecord[] = [
+export { royalSourcesCorpus };
+
+const baseSourcesCorpus: SourceRecord[] = [
   {
     id: "src-un-unga-19840925",
     title: "United Nations General Assembly 39th Session Plenary Meeting Transcript (A/39/PV.7)",
@@ -458,3 +461,13 @@ export const sourcesCorpus: SourceRecord[] = [
     independenceStatus: "official self-report"
   }
 ];
+
+export const allSourcesList: SourceRecord[] = [
+  ...baseSourcesCorpus,
+  ...royalSourcesCorpus,
+];
+
+// Ensure unique deduplicated sources by ID
+export const sourcesCorpus: SourceRecord[] = Array.from(
+  new Map(allSourcesList.map((src) => [src.id, src])).values()
+);

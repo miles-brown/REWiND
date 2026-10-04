@@ -185,3 +185,42 @@ test("supports search filtering across fallback events result", () => {
   assert.ok(res.data.length > 0, "Search for 'Jerusalem' should return matching events");
   assert.ok(res.count > 0);
 });
+
+test("verifies European Reigning and Historic Royal Families Seeds", async () => {
+  const charles = await getPersonBySlug("charles-iii");
+  assert.ok(charles, "Expected Charles III to be registered");
+  assert.equal(charles.canonicalName, "Charles III");
+  assert.equal(charles.nationality, "British");
+  assert.equal(charles.classification, "monarch-royal");
+  assert.ok(charles.achievements && charles.achievements.length >= 4);
+
+  const felipe = await getPersonBySlug("felipe-vi-spain");
+  assert.ok(felipe, "Expected King Felipe VI to be registered");
+  assert.equal(felipe.nationality, "Spanish");
+
+  const leonor = await getPersonBySlug("leonor-princess-of-asturias");
+  assert.ok(leonor, "Expected Princess Leonor to be registered");
+
+  const jeanCount = await getPersonBySlug("jean-count-of-paris");
+  assert.ok(jeanCount, "Expected Jean Count of Paris to be registered");
+
+  const napoleon = await getPersonBySlug("jean-christophe-prince-napoleon");
+  assert.ok(napoleon, "Expected Prince Jean-Christophe Napoléon to be registered");
+
+  const habsburg = await getPersonBySlug("karl-von-habsburg");
+  assert.ok(habsburg, "Expected Karl von Habsburg to be registered");
+});
+
+test("verifies Royal Historical Events Corpus with Co-attendance Rosters", () => {
+  const coronation = eventsCorpus.find((e) => e.id === "evt-2023-05-06-coronation-charles-camilla");
+  assert.ok(coronation, "Coronation event must exist in eventsCorpus");
+  assert.equal(coronation.city, "London");
+  assert.equal(coronation.venueName, "Westminster Abbey");
+  assert.ok(coronation.participants.length >= 10, "Coronation must have extensive participant roster");
+
+  const dday = eventsCorpus.find((e) => e.id === "evt-2024-06-06-dday-80-international-ceremony");
+  assert.ok(dday, "80th D-Day event must exist in eventsCorpus");
+  assert.equal(dday.city, "Saint-Laurent-sur-Mer");
+  assert.ok(dday.participants.some((p) => p.personId === "charles-iii"));
+  assert.ok(dday.participants.some((p) => p.personId === "king-frederik-x"));
+});

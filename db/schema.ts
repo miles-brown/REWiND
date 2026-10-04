@@ -432,7 +432,7 @@ export const auditLog = pgTable("audit_log", {
 // ==========================================
 
 export const personMilestones = pgTable("person_milestones", {
-  id: text("id").primaryKey(), // e.g. "mlst-netanyahu-longest-pm"
+  id: serial("id").primaryKey(),
   personId: text("person_id")
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
@@ -477,11 +477,14 @@ export const personEducation = pgTable("person_education", {
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
   institution: text("institution").notNull(),
+  location: text("location"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  qualification: text("qualification"),
+  subject: text("subject"),
   degree: text("degree"),
-  fieldOfStudy: text("field_of_study"),
-  startYear: text("start_year"),
-  endYear: text("end_year"),
-  notes: text("notes"),
+  honours: text("honours"),
+  completedStatus: text("completed_status").default("completed"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -491,12 +494,15 @@ export const personCareer = pgTable("person_career", {
   personId: text("person_id")
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
-  organisationId: text("organisation_id").references(() => organisations.id),
   organisationName: text("organisation_name"),
-  roleTitle: text("role_title").notNull(),
+  positionTitle: text("position_title").notNull(),
+  occupationCategory: text("occupation_category"),
   startDate: text("start_date"),
   endDate: text("end_date"),
-  isCurrent: boolean("is_current").default(false),
+  location: text("location"),
+  appointmentMethod: text("appointment_method"),
+  predecessor: text("predecessor"),
+  successor: text("successor"),
   notes: text("notes"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -509,8 +515,10 @@ export const personAwards = pgTable("person_awards", {
     .notNull(),
   awardName: text("award_name").notNull(),
   awardingBody: text("awarding_body"),
-  yearReceived: text("year_received"),
-  citation: text("citation"),
+  category: text("category"),
+  awardYear: integer("award_year"),
+  result: text("result").default("winner"),
+  citationReason: text("citation_reason"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -520,12 +528,11 @@ export const personWorks = pgTable("person_works", {
   personId: text("person_id")
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
-  title: text("title").notNull(),
+  workTitle: text("work_title").notNull(),
   workType: text("work_type").notNull(),
-  publicationYear: text("publication_year"),
-  publisher: text("publisher"),
-  url: text("url"),
-  notes: text("notes"),
+  releaseDate: text("release_date"),
+  publisherOrVenue: text("publisher_or_venue"),
+  significanceNote: text("significance_note"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

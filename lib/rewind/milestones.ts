@@ -34,7 +34,7 @@ export async function getPersonMilestones(personSlugOrId: string): Promise<Perso
 
   const milestones = store.personMilestones.filter((m) => m.personId === person.id || m.personId === person.slug);
   return milestones.map((m) => ({
-    id: m.id,
+    id: String(m.id),
     personId: m.personId,
     title: m.title,
     category: parseMilestoneCategory(m.category),
