@@ -110,10 +110,13 @@ export default async function PlacePage({
           )}
 
           {/* Coordinates */}
-          {place.latitude && place.longitude && (
+          {place.latitude != null && place.longitude != null && (
             <div className="place-coords-pill">
               <Compass size={14} />
-              <span>WGS-84: {place.latitude.toFixed(4)}° N, {place.longitude.toFixed(4)}° E</span>
+              <span>
+                WGS-84: {Math.abs(place.latitude).toFixed(4)}° {place.latitude >= 0 ? "N" : "S"},{" "}
+                {Math.abs(place.longitude).toFixed(4)}° {place.longitude >= 0 ? "E" : "W"}
+              </span>
             </div>
           )}
         </div>

@@ -90,7 +90,12 @@ async function applyMigrations() {
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
 
-    const forceRun = process.argv.includes("--force");
+    const targetVersions = process.argv
+      .filter((arg) => arg.startsWith("--version="))
+      .map((arg) => arg.split("=")[1]);
+    const forceAll = process.argv.includes("--force-all");
+    const isTargeted = targetVersions.length > 0 && targetVersions.includes(version);
+    const forceRun = forceAll || (process.argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
     if (appliedVersions.has(version) && !forceRun) {
       console.log(`\n========================================`);
       console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
