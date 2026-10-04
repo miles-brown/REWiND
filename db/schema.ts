@@ -149,6 +149,18 @@ export const venues = pgTable("venues", {
   longitude: doublePrecision("longitude"),
 });
 
+export const venueAreas = pgTable("venue_areas", {
+  id: text("id").primaryKey(), // e.g. "area-white-house-oval-office", "area-un-ga-hall"
+  venueId: text("venue_id")
+    .references(() => venues.id, { onDelete: "cascade" })
+    .notNull(),
+  parentAreaId: text("parent_area_id").references((): AnyPgColumn => venueAreas.id),
+  name: text("name").notNull(),
+  areaType: text("area_type").default("room").notNull(), // hall, stage, podium, room, compound
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+});
+
 export const eventSeries = pgTable("event_series", {
   id: text("id").primaryKey(),
   canonicalName: text("canonical_name").notNull(),

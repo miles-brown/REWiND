@@ -568,6 +568,96 @@ export interface PersonRecord {
   stays?: PersonStayRecord[];
 }
 
+export type GeographicLevel = "country" | "city" | "venue" | "address" | "venue-area";
+
+export interface VenueAreaNode {
+  id: string;
+  name: string;
+  areaType: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface VenueNode {
+  id: string;
+  slug: string;
+  name: string;
+  venueType: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  addressId?: string | null;
+  streetAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  venueAreas?: VenueAreaNode[];
+  eventCount: number;
+}
+
+export interface AddressNode {
+  id: string;
+  slug: string;
+  formattedAddress: string;
+  streetNumber?: string | null;
+  streetName?: string | null;
+  district?: string | null;
+  city: string;
+  country: string;
+  countryCode: string;
+  postalCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  venuesLocatedHere: string[];
+  eventCount: number;
+}
+
+export interface CityNode {
+  id: string;
+  slug: string;
+  name: string;
+  country: string;
+  countryCode: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  venueCount: number;
+  addressCount: number;
+  eventCount: number;
+}
+
+export interface CountryNode {
+  id: string;
+  slug: string;
+  name: string;
+  code: string;
+  flag?: string;
+  cityCount: number;
+  venueCount: number;
+  addressCount: number;
+  eventCount: number;
+}
+
+export interface GeographicHierarchySummary {
+  totalCountries: number;
+  totalCities: number;
+  totalVenues: number;
+  totalAddresses: number;
+  totalEvents: number;
+}
+
+export interface GeographicHierarchyTree {
+  countries: Array<CountryNode & {
+    cities: Array<CityNode & {
+      venues: VenueNode[];
+      addresses: AddressNode[];
+    }>;
+  }>;
+  allCountries: CountryNode[];
+  allCities: CityNode[];
+  allVenues: VenueNode[];
+  allAddresses: AddressNode[];
+  summary: GeographicHierarchySummary;
+}
+
 export interface PlaceRecord {
   id: string;
   slug: string;
@@ -577,6 +667,10 @@ export interface PlaceRecord {
   latitude?: number | null;
   longitude?: number | null;
   placeType: string;
+  addressId?: string | null;
+  streetAddress?: string | null;
+  geographicLevel?: GeographicLevel;
+  venueAreas?: VenueAreaNode[];
   eventCount?: number;
 }
 

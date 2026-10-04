@@ -135,7 +135,18 @@ export function getFallbackEventsResult(params: EventFilters = {}): PaginatedRes
   if (params.placeSlug) {
     filtered = filtered.filter((e) => {
       const slug = `${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${(e.venueName || "general").toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}`;
-      return slug === params.placeSlug || e.city.toLowerCase().includes(params.placeSlug!.toLowerCase());
+      const countrySlug = (e.country || "").toLowerCase().replace(/\s+/g, "-");
+      const citySlug = `${countrySlug}-${(e.city || "").toLowerCase().replace(/\s+/g, "-")}`;
+      const searchSlug = params.placeSlug!.toLowerCase();
+      const searchClean = searchSlug.replace(/-/g, " ");
+      return (
+        slug === params.placeSlug ||
+        countrySlug === searchSlug ||
+        citySlug === searchSlug ||
+        (e.city && e.city.toLowerCase().includes(searchClean)) ||
+        (e.country && e.country.toLowerCase().includes(searchClean)) ||
+        (e.address && e.address.toLowerCase().includes(searchClean))
+      );
     });
   }
 
@@ -753,14 +764,8 @@ export async function getEvents(params: EventFilters = {}): Promise<PaginatedRes
       } else if (vId) {
         query = query.eq("venue_id", vId);
       } else {
-        return {
-          data: [],
-          count: 0,
-          page,
-          pageSize,
-          totalPages: 0,
-          error: null,
-        };
+        const cleanPattern = params.placeSlug.replace(/[-_]+/g, " ").trim();
+        query = query.or(`country.ilike.%${cleanPattern}%,city.ilike.%${cleanPattern}%,address.ilike.%${cleanPattern}%,venue_name.ilike.%${cleanPattern}%`);
       }
     }
 
