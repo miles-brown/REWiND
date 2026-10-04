@@ -460,6 +460,31 @@ function resolveMatchedCoordinates(
   return { latitude: candidateCoords.latitude, longitude: candidateCoords.longitude };
 }
 
+/**
+ * Deterministically generates a unique, sanitized place slug.
+ * Strips diacritics (e.g., München -> munchen), collapses repeated dashes, and clamps length.
+ */
+export function generateDeterministicPlaceSlug(city?: string, venue?: string): string {
+  const normCity = (city || "unknown")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\w\d]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const normVenue = (venue || "general")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\w\d]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 30);
+  const citySlug = normCity || "unknown";
+  const venueSlug = normVenue || "general";
+  return `plc-${citySlug}-${venueSlug}`;
+}
+
 export function resolvePlace(
   venue?: string,
   city?: string,
@@ -582,9 +607,7 @@ export function resolvePlace(
   }
 
   // Create a slugged gazetteer entry if new
-  const citySlug = safeCity ? safeCity.toLowerCase().replace(/[^\w]/g, "-") : "unknown";
-  const venueSlug = safeVenue ? safeVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20) : "general";
-  const fallbackSlug = `plc-${citySlug}-${venueSlug}`;
+  const fallbackSlug = generateDeterministicPlaceSlug(safeCity, safeVenue);
 
   return {
     placeId: fallbackSlug,

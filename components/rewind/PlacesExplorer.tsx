@@ -30,33 +30,62 @@ export interface PlacesExplorerProps {
 }
 
 /**
- * Maps a venue type to its display label and CSS badge class, with a generic fallback.
+ * Maps a venue type to its display label and CSS badge class, with a forensic fallback.
  */
-function getVenueTypeBadge(type: string): { label: string; className: string } {
-  const norm = (type || "").toLowerCase().replace(/[_\s]+/g, "-");
+function getVenueTypeBadge(type?: string | null): { label: string; className: string } {
+  if (!type || !type.trim()) {
+    return { label: "VENUE", className: "badge-default" };
+  }
+  const norm = type.trim().toLowerCase().replace(/[_\s]+/g, "-");
   switch (norm) {
     case "executive-residence":
     case "presidential-residence":
+    case "royal-palace":
+    case "official-residence":
       return { label: "Executive Residence", className: "badge-executive" };
     case "parliament":
     case "legislative-complex":
+    case "congress":
       return { label: "Legislative Complex", className: "badge-parliament" };
     case "international-body":
     case "diplomatic-hq":
+    case "embassy":
+    case "consulate":
       return { label: "Diplomatic HQ", className: "badge-diplomatic" };
     case "summit-center":
     case "conference-center":
+    case "convention-center":
       return { label: "Summit Center", className: "badge-summit" };
     case "transport":
     case "airport":
+    case "heliport":
+    case "railway-station":
+    case "port":
       return { label: "Airport / Transit", className: "badge-transport" };
     case "memorial":
     case "historical-landmark":
+    case "monument":
       return { label: "Historical Landmark", className: "badge-memorial" };
     case "religious-center":
+    case "cathedral":
+    case "mosque":
+    case "synagogue":
+    case "temple":
       return { label: "Religious Center", className: "badge-religious" };
+    case "hotel":
+    case "resort":
+      return { label: "Hotel / Lodging", className: "badge-default" };
+    case "military-base":
+    case "barracks":
+      return { label: "Military Facility", className: "badge-default" };
+    case "unknown":
+    case "unknown-venue-type":
+      return { label: "UNKNOWN VENUE TYPE", className: "badge-default" };
     default:
-      return { label: type ? type.replace(/-/g, " ").toUpperCase() : "VENUE", className: "badge-default" };
+      return {
+        label: norm.length > 0 ? norm.replace(/-/g, " ").toUpperCase() : "UNKNOWN VENUE TYPE",
+        className: "badge-default",
+      };
   }
 }
 
@@ -331,8 +360,52 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
 
   const summary = hierarchy.summary;
 
+  // Dynamic screen reader status message for filter & search updates
+  const liveAnnouncementText = useMemo(() => {
+    const filterParts = [
+      selectedCountry !== "all" ? `in ${selectedCountry}` : null,
+      selectedCity !== "all" ? `city ${selectedCity}` : null,
+      selectedVenueType !== "all" ? `type ${selectedVenueType}` : null,
+      q ? `matching "${query}"` : null,
+    ].filter(Boolean);
+
+    const filterSuffix = filterParts.length > 0 ? ` (${filterParts.join(", ")})` : "";
+
+    switch (activeTab) {
+      case "tree":
+        return `Hierarchy tree view: showing ${filteredTree.length} countries${filterSuffix}.`;
+      case "countries":
+        return `Countries view: showing ${filteredCountries.length} countries${filterSuffix}.`;
+      case "cities":
+        return `Cities view: showing ${filteredCities.length} cities${filterSuffix}.`;
+      case "venues":
+        return `Venues view: showing ${filteredVenues.length} venues${filterSuffix}.`;
+      case "addresses":
+        return `Street addresses view: showing ${filteredAddresses.length} addresses${filterSuffix}.`;
+      default:
+        return `Geographic gazetteer updated${filterSuffix}.`;
+    }
+  }, [
+    activeTab,
+    filteredTree.length,
+    filteredCountries.length,
+    filteredCities.length,
+    filteredVenues.length,
+    filteredAddresses.length,
+    selectedCountry,
+    selectedCity,
+    selectedVenueType,
+    q,
+    query,
+  ]);
+
   return (
     <div className="places-explorer-wrapper">
+      {/* Screen Reader Live Announcement Region */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {liveAnnouncementText}
+      </div>
+
       {/* Forensic Metric Strip */}
       <div className="hierarchy-stats-bar" role="region" aria-label="Geographic Hierarchy Summary">
         <div className="stat-pill tier-country">
