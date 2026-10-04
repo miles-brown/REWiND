@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS public.topics (
 );
 
 CREATE TABLE IF NOT EXISTS public.person_milestones (
-  id text PRIMARY KEY,
+  id serial PRIMARY KEY,
   person_id text NOT NULL REFERENCES public.people(id) ON DELETE CASCADE,
   title text NOT NULL,
   category text NOT NULL,
@@ -89,10 +89,22 @@ ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.person_milestones ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read on topics" ON public.topics;
-CREATE POLICY "Allow public read on topics" ON public.topics FOR SELECT USING (true);
+CREATE POLICY "Allow public read on topics"
+  ON public.topics FOR SELECT
+  TO anon, authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS "Allow public read on person_milestones" ON public.person_milestones;
-CREATE POLICY "Allow public read on person_milestones" ON public.person_milestones FOR SELECT USING (true);
+CREATE POLICY "Allow public read on person_milestones"
+  ON public.person_milestones FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_milestones.person_id
+        AND p.publication_status = 'published'
+    )
+  );
 
 DROP POLICY IF EXISTS "Public read person stays" ON public.person_stays;
 DROP POLICY IF EXISTS "Allow public read on person stays" ON public.person_stays;
@@ -106,6 +118,11 @@ CREATE POLICY "Allow public read on person stays"
         AND p.publication_status = 'published'
     )
   );
+
+-- 4b. Grant Privileges to Public Client Roles
+GRANT SELECT ON public.topics TO anon, authenticated;
+GRANT SELECT ON public.person_milestones TO anon, authenticated;
+GRANT SELECT ON public.person_stays TO anon, authenticated;
 
 -- 5. Backfill Defaults for Non-Null Integrity
 UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status IS NULL;

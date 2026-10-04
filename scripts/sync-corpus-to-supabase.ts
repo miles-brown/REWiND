@@ -63,6 +63,21 @@ const client = postgres(connectionString, {
 
 const db = drizzle(client, { schema });
 
+// Strict fail-closed year validation helper (/^\d{4}$/)
+function validateYearStringOrNull(val: string | number | null | undefined): string | null {
+  if (val == null) return null;
+  const str = String(val).trim();
+  if (/^\d{4}$/.test(str)) return str;
+  const match = str.match(/^(\d{4})/);
+  if (match) return match[1];
+  return null;
+}
+
+function validateYearIntOrNull(val: string | number | null | undefined): number | null {
+  const yr = validateYearStringOrNull(val);
+  return yr ? parseInt(yr, 10) : null;
+}
+
 // Participant alias mappings to ensure zero foreign key mismatches
 const PARTICIPANT_ID_ALIASES: Record<string, string> = {
   "king-hussein-jordan": "king-hussein",
@@ -679,7 +694,7 @@ async function syncCorpus() {
           title: m.title,
           category: m.category,
           date: m.date,
-          year: m.year,
+          year: validateYearIntOrNull(m.year) ?? m.year,
           description: m.description,
           metricOrStat: m.metricOrStat,
           sourceId: m.sourceId || null,
@@ -692,6 +707,8 @@ async function syncCorpus() {
   console.log(`   Synchronizing Structured Biographical Records (Education, Career, Awards, Works, Stays)...`);
   for (const edu of royalEducationSeed || []) {
     const dbPersonId = resolvedPersonIdMap.get(edu.personId) || edu.personId;
+    const validatedStart = validateYearStringOrNull(edu.startYear);
+    const validatedEnd = validateYearStringOrNull(edu.endYear);
     await db
       .insert(schema.personEducation)
       .values({
@@ -700,8 +717,8 @@ async function syncCorpus() {
         institution: edu.institution,
         degree: edu.degree || null,
         subject: edu.fieldOfStudy || null,
-        startDate: edu.startYear || null,
-        endDate: edu.endYear || null,
+        startDate: validatedStart,
+        endDate: validatedEnd,
         qualification: edu.degree || null,
         completedStatus: "completed",
         sourceId: edu.sourceId || null,
@@ -712,8 +729,8 @@ async function syncCorpus() {
           institution: edu.institution,
           degree: edu.degree || null,
           subject: edu.fieldOfStudy || null,
-          startDate: edu.startYear || null,
-          endDate: edu.endYear || null,
+          startDate: validatedStart,
+          endDate: validatedEnd,
           qualification: edu.degree || null,
           completedStatus: "completed",
           sourceId: edu.sourceId || null,
@@ -750,7 +767,7 @@ async function syncCorpus() {
 
   for (const awd of royalAwardsSeed || []) {
     const dbPersonId = resolvedPersonIdMap.get(awd.personId) || awd.personId;
-    const yearInt = awd.yearReceived ? parseInt(awd.yearReceived, 10) || null : null;
+    const yearInt = validateYearIntOrNull(awd.yearReceived);
     await db
       .insert(schema.personAwards)
       .values({
@@ -778,6 +795,7 @@ async function syncCorpus() {
 
   for (const wrk of royalWorksSeed || []) {
     const dbPersonId = resolvedPersonIdMap.get(wrk.personId) || wrk.personId;
+    const validatedPubYear = validateYearStringOrNull(wrk.publicationYear);
     await db
       .insert(schema.personWorks)
       .values({
@@ -785,7 +803,7 @@ async function syncCorpus() {
         personId: dbPersonId,
         workTitle: wrk.title,
         workType: wrk.workType,
-        releaseDate: wrk.publicationYear || null,
+        releaseDate: validatedPubYear,
         publisherOrVenue: wrk.publisher || null,
         significanceNote: wrk.notes || null,
         sourceId: wrk.sourceId || null,
@@ -795,7 +813,7 @@ async function syncCorpus() {
         set: {
           workTitle: wrk.title,
           workType: wrk.workType,
-          releaseDate: wrk.publicationYear || null,
+          releaseDate: validatedPubYear,
           publisherOrVenue: wrk.publisher || null,
           significanceNote: wrk.notes || null,
           sourceId: wrk.sourceId || null,
