@@ -9,13 +9,25 @@ import {
 } from "@/lib/rewind";
 import { EventCard } from "@/components/rewind/EventCard";
 
+const SLUG_REGEX = /^[a-z0-9-]+$/;
+
+function isValidMeetingSlugs(slugs: unknown): slugs is string[] {
+  return (
+    Array.isArray(slugs) &&
+    slugs.length >= 2 &&
+    slugs.length <= 5 &&
+    new Set(slugs).size === slugs.length &&
+    slugs.every((s) => typeof s === "string" && SLUG_REGEX.test(s))
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slugs: string[] }>;
 }): Promise<Metadata> {
   const { slugs } = await params;
-  if (!slugs || slugs.length < 2) {
+  if (!isValidMeetingSlugs(slugs)) {
     return { title: "Co-Attendance Meeting Not Found — REWIND Evidence Atlas" };
   }
   return {
@@ -30,7 +42,7 @@ export default async function MultiFigureMeetingPage({
   params: Promise<{ slugs: string[] }>;
 }) {
   const { slugs } = await params;
-  if (!slugs || !Array.isArray(slugs) || slugs.length < 2 || slugs.length > 5) {
+  if (!isValidMeetingSlugs(slugs)) {
     notFound();
   }
 
@@ -66,7 +78,7 @@ export default async function MultiFigureMeetingPage({
       <header className="relationship-hero multi-figure-hero">
         <div className="multi-figure-monograms" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "center" }}>
           {people.map((p) => (
-            <Link key={p.slug} href={`/person/${p.slug}`} title={p.name}>
+            <Link key={p.slug} href={`/person/${p.slug}`} aria-label={p.name} title={p.name}>
               <span className="person-monogram large" aria-hidden="true">
                 {getMonogram(p.name)}
               </span>

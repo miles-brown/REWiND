@@ -4,7 +4,7 @@ export default function PlacesLoading() {
       <header className="page-hero" style={{ padding: "32px 24px" }}>
         <span className="eyebrow">GEOGRAPHY & VENUES</span>
         <h1>Global Places & Sovereign Venues</h1>
-        <p>Loading historical diplomatic venues and coordinate registers...</p>
+        <p role="status">Loading historical diplomatic venues and coordinate registers...</p>
       </header>
 
       <div

@@ -13,6 +13,8 @@
  *    - Deducts penalty for claims flagged as disputed or contradicted.
  */
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { sourcesCorpus } from "../data/seeds/sources-corpus";
 import { eventsCorpus } from "../data/seeds/events-corpus";
 import { sources as legacySources, events as legacyEvents } from "../archive/legacy-data/rewind";
@@ -43,7 +45,7 @@ export function calculateSourceTrustScores(): SourceTrustCalculation[] {
   const tierASourceIds = new Set(
     allSources
       .filter((s) => {
-        const tier = (s as { sourceTier?: string }).sourceTier;
+        const tier = (s as { tier?: string; sourceTier?: string }).tier || (s as { sourceTier?: string }).sourceTier;
         return tier === "tier-a" || tier === "tier-1" || s.sourceType === "official-transcript";
       })
       .map((s) => s.id)
@@ -76,7 +78,7 @@ export function calculateSourceTrustScores(): SourceTrustCalculation[] {
   const calculations: SourceTrustCalculation[] = [];
 
   sourceMap.forEach((src) => {
-    const tier = (src as { sourceTier?: string }).sourceTier || "tier-c";
+    const tier = (src as { tier?: string; sourceTier?: string }).tier || (src as { sourceTier?: string }).sourceTier || "tier-c";
     let baseScore = 0.72;
     if (tier === "tier-a" || tier === "tier-1" || src.sourceType === "official-transcript") {
       baseScore = 0.98;
@@ -121,7 +123,11 @@ export function calculateSourceTrustScores(): SourceTrustCalculation[] {
 }
 
 // Run if directly executed
-if (typeof process !== "undefined" && process.argv[1]?.includes("calculate-source-trust")) {
+if (
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  (process.argv[1].endsWith("calculate-source-trust.ts") || fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))
+) {
   console.log("================================================================================");
   console.log("REWIND EVIDENCE ATLAS — Automated Source Trust Score Recalculator");
   console.log("================================================================================");

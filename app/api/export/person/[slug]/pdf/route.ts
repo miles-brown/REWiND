@@ -9,18 +9,32 @@ export async function GET(
   const { slug } = await params;
   const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
 
-  if (personError || !person) {
+  if (personError) {
+    return NextResponse.json(
+      { error: "Database error retrieving person record." },
+      { status: 500 }
+    );
+  }
+
+  if (!person) {
     return NextResponse.json(
       { error: "Person record not found or inaccessible for export." },
       { status: 404 }
     );
   }
 
-  const { data: events = [] } = await getEventsByPersonWithStatus(person.slug);
+  const { data: events, error: eventsError } = await getEventsByPersonWithStatus(person.slug);
+  if (eventsError) {
+    return NextResponse.json(
+      { error: "Database error retrieving events for person." },
+      { status: 500 }
+    );
+  }
+  const verifiedEvents = events || [];
 
   // Compute deterministic SHA-256 forensic checksum of data payload
   const payloadDigest = createHash("sha256")
-    .update(JSON.stringify({ person, eventsCount: events.length, exportedAt: new Date().toISOString().slice(0, 10) }))
+    .update(JSON.stringify({ person, eventsCount: verifiedEvents.length }))
     .digest("hex");
 
   const exportedAt = new Date().toISOString();
@@ -121,7 +135,7 @@ export async function GET(
       </div>
       <div class="meta-cell">
         <small>Documented Events</small>
-        <b>${events.length} Verified Records</b>
+        <b>${verifiedEvents.length} Verified Records</b>
       </div>
       <div class="meta-cell">
         <small>Evidentiary Status</small>
@@ -130,7 +144,7 @@ export async function GET(
     </div>
   </div>
 
-  <div class="section-title">Verified Historical Event Chronology (${events.length})</div>
+  <div class="section-title">Verified Historical Event Chronology (${verifiedEvents.length})</div>
   <table>
     <thead>
       <tr>
@@ -142,7 +156,7 @@ export async function GET(
       </tr>
     </thead>
     <tbody>
-      ${events.length > 0 ? events.map((e) => `
+      ${verifiedEvents.length > 0 ? verifiedEvents.map((e) => `
         <tr>
           <td><b>${escapeHtml(e.startDate)}</b></td>
           <td><b>${escapeHtml(e.eventName)}</b><br/><small style="color: #64748b;">${escapeHtml(e.summary || "")}</small></td>
@@ -169,7 +183,7 @@ export async function GET(
           <tr>
             <td><b>${escapeHtml(ed.institution)}</b></td>
             <td>${escapeHtml(ed.degree || ed.qualification || "Studies")}</td>
-            <td>${ed.startDate || ""}${ed.endDate ? ` – ${ed.endDate}` : ""}</td>
+            <td>${escapeHtml(ed.startDate)}${ed.endDate ? ` – ${escapeHtml(ed.endDate)}` : ""}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -191,7 +205,7 @@ export async function GET(
           <tr>
             <td><b>${escapeHtml(c.positionTitle)}</b></td>
             <td>${escapeHtml(c.organisationName || "")}</td>
-            <td>${c.startDate || ""}${c.endDate ? ` – ${c.endDate}` : " (Present)"}</td>
+            <td>${escapeHtml(c.startDate)}${c.endDate ? ` – ${escapeHtml(c.endDate)}` : " (Present)"}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -208,10 +222,11 @@ export async function GET(
 </body>
 </html>`;
 
+  const safeSlug = person.slug.replace(/[^a-zA-Z0-9._-]/g, "_");
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Disposition": `inline; filename="rewind-person-dossier-${slug}.html"`,
+      "Content-Disposition": `inline; filename="rewind-person-dossier-${safeSlug}.html"`,
       "X-Forensic-Checksum": `sha256:${payloadDigest}`,
     },
   });

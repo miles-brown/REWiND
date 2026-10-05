@@ -27,6 +27,32 @@ export interface SearchQualifiers {
   tier?: string;
 }
 
+const SUPPORTED_SEARCH_TYPES = new Set([
+  "event",
+  "events",
+  "person",
+  "people",
+  "figure",
+  "monarch",
+  "place",
+  "places",
+  "venue",
+  "source",
+  "sources",
+  "quote",
+  "quotes",
+]);
+
+export function normalizeTier(t?: string | null): string | undefined {
+  if (!t) return undefined;
+  const lower = t.toLowerCase().trim();
+  if (lower === "1" || lower === "t1" || lower === "tier-a" || lower === "tier-1" || lower === "a") return "tier-a";
+  if (lower === "2" || lower === "t2" || lower === "tier-b" || lower === "tier-2" || lower === "b") return "tier-b";
+  if (lower === "3" || lower === "t3" || lower === "tier-c" || lower === "tier-3" || lower === "c") return "tier-c";
+  if (lower === "4" || lower === "t4" || lower === "tier-d" || lower === "tier-4" || lower === "d") return "tier-d";
+  return lower;
+}
+
 /**
  * Extracts filter qualifiers from a raw search query string.
  */
@@ -39,27 +65,32 @@ export function parseSearchQualifiers(query: string): SearchQualifiers {
 
   const typeMatch = cleaned.match(/\b(?:type|kind|category):([a-zA-Z_-]+)\b/i);
   if (typeMatch) {
-    type = typeMatch[1].toLowerCase();
-    cleaned = cleaned.replace(typeMatch[0], "").trim();
+    const rawVal = typeMatch[1].toLowerCase();
+    if (SUPPORTED_SEARCH_TYPES.has(rawVal)) {
+      type = rawVal;
+      cleaned = cleaned.replace(typeMatch[0], " ");
+    }
   }
 
   const yearMatch = cleaned.match(/\byear:(\d{4})\b/i);
   if (yearMatch) {
     year = yearMatch[1];
-    cleaned = cleaned.replace(yearMatch[0], "").trim();
+    cleaned = cleaned.replace(yearMatch[0], " ");
   }
 
   const countryMatch = cleaned.match(/\bcountry:([a-zA-Z_-]+)\b/i);
   if (countryMatch) {
     country = countryMatch[1].toLowerCase();
-    cleaned = cleaned.replace(countryMatch[0], "").trim();
+    cleaned = cleaned.replace(countryMatch[0], " ");
   }
 
-  const tierMatch = cleaned.match(/\btier:(t?[1-4]|tier-[a-d])\b/i);
+  const tierMatch = cleaned.match(/\btier:(t?[1-4]|tier-[a-d]|[a-d])\b/i);
   if (tierMatch) {
     tier = tierMatch[1].toLowerCase();
-    cleaned = cleaned.replace(tierMatch[0], "").trim();
+    cleaned = cleaned.replace(tierMatch[0], " ");
   }
+
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
 
   return {
     rawQuery: query,
@@ -119,39 +150,66 @@ export async function searchRewind(
   const ilikeEscaped = escapeIlikePattern(effectiveTerm);
   const postgrestIlikeEscaped = escapePostgrestValue(ilikeEscaped);
 
+  // 1. Build queries applying filters before the limit
+  let eventsQuery = supabase
+    .from("events")
+    .select("id, slug, title, start_date, summary")
+    .eq("publication_status", "published")
+    .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`);
+
+  if (year && /^\d{4}$/.test(year)) {
+    eventsQuery = eventsQuery.gte("start_date", `${year}-01-01`).lte("start_date", `${year}-12-31`);
+  }
+  eventsQuery = eventsQuery.limit(limit);
+
+  const peopleQuery = supabase
+    .from("people")
+    .select("id, slug, display_name, canonical_name, primary_role")
+    .eq("publication_status", "published")
+    .or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`)
+    .limit(limit);
+
+  let placesQuery = supabase
+    .from("places")
+    .select("id, slug, venue, city, country")
+    .or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`);
+
+  if (country) {
+    const escapedCountry = escapePostgrestValue(escapeIlikePattern(country));
+    placesQuery = placesQuery.ilike("country", `%${escapedCountry}%`);
+  }
+  placesQuery = placesQuery.limit(limit);
+
+  const venuesQuery = supabase
+    .from("venues")
+    .select("id, name, address_id")
+    .ilike("name", `%${ilikeEscaped}%`)
+    .limit(limit);
+
+  let sourcesQuery = supabase
+    .from("sources")
+    .select("id, title, publisher, tier")
+    .or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`);
+
+  const normTier = normalizeTier(tier);
+  if (normTier) {
+    sourcesQuery = sourcesQuery.eq("tier", normTier);
+  }
+  sourcesQuery = sourcesQuery.limit(limit);
+
+  const quotesQuery = supabase
+    .from("quotes")
+    .select("id, quote, context, speaker_id, event_id")
+    .or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`)
+    .limit(limit);
+
   const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
-    supabase
-      .from("events")
-      .select("id, slug, title, start_date, summary")
-      .eq("publication_status", "published")
-      .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("people")
-      .select("id, slug, display_name, canonical_name, primary_role")
-      .eq("publication_status", "published")
-      .or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("places")
-      .select("id, slug, venue, city, country")
-      .or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("venues")
-      .select("id, name, address_id")
-      .ilike("name", `%${ilikeEscaped}%`)
-      .limit(limit),
-    supabase
-      .from("sources")
-      .select("id, title, publisher, tier")
-      .or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("quotes")
-      .select("id, quote, context, speaker_id, event_id")
-      .or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
+    eventsQuery,
+    peopleQuery,
+    placesQuery,
+    venuesQuery,
+    sourcesQuery,
+    quotesQuery,
   ]);
 
   const searchError = eventsRes.error || peopleRes.error || placesRes.error || venuesRes.error || sourcesRes.error || quotesRes.error;
@@ -317,34 +375,19 @@ export async function searchRewind(
     badge: s.tier ? s.tier.toUpperCase() : "Source",
   }));
 
-  let filteredSourceItems = sourceItems;
-  if (tier) {
-    filteredSourceItems = sourceItems.filter((s) => s.badge?.toLowerCase().includes(tier));
-  }
-
-  let filteredEventItems = eventItems;
-  if (year) {
-    filteredEventItems = eventItems.filter((e) => e.date?.startsWith(year));
-  }
-
-  let filteredPlaceItems = placeItems;
-  if (country) {
-    filteredPlaceItems = placeItems.filter((p) => p.subtitle?.toLowerCase().includes(country));
-  }
-
-  let categoryGroups = [filteredEventItems, peopleItems, filteredPlaceItems, filteredSourceItems, quoteItems];
+  let categoryGroups = [eventItems, peopleItems, placeItems, sourceItems, quoteItems];
 
   if (type) {
     if (type === "person" || type === "people" || type === "figure" || type === "monarch") {
-      categoryGroups = [peopleItems, filteredEventItems, quoteItems, filteredPlaceItems, filteredSourceItems];
+      categoryGroups = [peopleItems, eventItems, quoteItems, placeItems, sourceItems];
     } else if (type === "event" || type === "events") {
-      categoryGroups = [filteredEventItems, peopleItems, filteredPlaceItems, quoteItems, filteredSourceItems];
+      categoryGroups = [eventItems, peopleItems, placeItems, quoteItems, sourceItems];
     } else if (type === "place" || type === "places" || type === "venue") {
-      categoryGroups = [filteredPlaceItems, filteredEventItems, peopleItems, filteredSourceItems, quoteItems];
+      categoryGroups = [placeItems, eventItems, peopleItems, sourceItems, quoteItems];
     } else if (type === "source" || type === "sources") {
-      categoryGroups = [filteredSourceItems, filteredEventItems, peopleItems, filteredPlaceItems, quoteItems];
+      categoryGroups = [sourceItems, eventItems, peopleItems, placeItems, quoteItems];
     } else if (type === "quote" || type === "quotes") {
-      categoryGroups = [quoteItems, filteredEventItems, peopleItems, filteredPlaceItems, filteredSourceItems];
+      categoryGroups = [quoteItems, eventItems, peopleItems, placeItems, sourceItems];
     }
   }
 
@@ -373,39 +416,20 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
 export interface HybridSearchOptions {
   limit?: number;
-  semanticWeight?: number; // 0.0 (lexical only) to 1.0 (vector only), default 0.35
-  queryEmbedding?: number[];
   supabaseClient?: unknown;
 }
 
 /**
- * Performs pgvector-ready hybrid semantic and lexical search across events, people, places, and sources.
+ * Performs search across events, people, places, and sources.
  */
 export async function hybridSearch(
   query: string,
   options: HybridSearchOptions = {}
 ): Promise<SearchResultItem[]> {
-  const { limit = 10, semanticWeight = 0.35, queryEmbedding } = options;
+  const { limit = 10 } = options;
   const term = query.trim();
   if (!term) return [];
 
-  // 1. Fetch lexical results with qualifier support
-  const lexicalResults = await searchRewind(term, limit * 2);
-
-  // 2. If vector embeddings are provided or pgvector match is available, re-rank results using hybrid weighting
-  if (queryEmbedding && Array.isArray(queryEmbedding) && queryEmbedding.length > 0) {
-    const scored = lexicalResults.map((item, idx) => {
-      const lexicalScore = 1 - idx / (lexicalResults.length || 1);
-      // If item has pre-computed similarity or we assign base lexical score
-      const itemScore = (1 - semanticWeight) * lexicalScore + semanticWeight * (lexicalScore * 0.95);
-      return { item, score: itemScore };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit).map((s) => s.item);
-  }
-
-  // 3. Fallback gracefully to interleave search
-  return lexicalResults.slice(0, limit);
+  return searchRewind(term, limit);
 }
 

@@ -26,10 +26,10 @@ interface VenueGeocoding {
 
 function resolveCourtCircularLocation(courtLocation: string, text: string, venueOverride?: string): VenueGeocoding {
   const normLoc = (courtLocation || "").toLowerCase();
-  const normText = (text || "").toLowerCase();
+  const normText = text || "";
 
-  // Explicit residences & palace locations
-  if (normLoc.includes("windsor") || normText.includes("windsor castle")) {
+  // Explicit residences & palace locations (skip text geocoding if courtLocation is known)
+  if (normLoc.includes("windsor")) {
     return {
       venue: venueOverride || "Windsor Castle",
       city: "Windsor",
@@ -39,7 +39,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("holyrood") || normText.includes("palace of holyroodhouse")) {
+  if (normLoc.includes("holyrood")) {
     return {
       venue: venueOverride || "Palace of Holyroodhouse",
       city: "Edinburgh",
@@ -49,7 +49,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("balmoral") || normText.includes("balmoral castle")) {
+  if (normLoc.includes("balmoral")) {
     return {
       venue: venueOverride || "Balmoral Castle",
       city: "Crathie",
@@ -59,7 +59,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("sandringham") || normText.includes("sandringham house")) {
+  if (normLoc.includes("sandringham")) {
     return {
       venue: venueOverride || "Sandringham House",
       city: "Sandringham",
@@ -69,7 +69,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("st james") || normLoc.includes("st. james") || normText.includes("st james's palace")) {
+  if (normLoc.includes("st james") || normLoc.includes("st. james")) {
     return {
       venue: venueOverride || "St James's Palace",
       city: "London",
@@ -79,7 +79,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("kensington") || normText.includes("kensington palace")) {
+  if (normLoc.includes("kensington")) {
     return {
       venue: venueOverride || "Kensington Palace",
       city: "London",
@@ -89,7 +89,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normLoc.includes("clarence") || normText.includes("clarence house")) {
+  if (normLoc.includes("clarence")) {
     return {
       venue: venueOverride || "Clarence House",
       city: "London",
@@ -99,8 +99,18 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  // Overseas state visit targets parsed from entry text
-  if (normText.includes("paris") || normText.includes("elysée") || normText.includes("elysee")) {
+  if (normLoc.includes("buckingham")) {
+    return {
+      venue: venueOverride || "Buckingham Palace",
+      city: "London",
+      country: "United Kingdom",
+      latitude: 51.5014,
+      longitude: -0.1419,
+    };
+  }
+
+  // Overseas state visit targets parsed from entry text (whole-word matching)
+  if (/\b(paris|élysée|elysee)\b/i.test(normText)) {
     return {
       venue: venueOverride || "Élysée Palace",
       city: "Paris",
@@ -110,7 +120,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normText.includes("washington") || normText.includes("white house")) {
+  if (/\b(washington|white house)\b/i.test(normText)) {
     return {
       venue: venueOverride || "The White House",
       city: "Washington, D.C.",
@@ -120,7 +130,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normText.includes("rome") || normText.includes("quirinale") || normText.includes("vatican")) {
+  if (/\b(rome|quirinale|vatican)\b/i.test(normText)) {
     return {
       venue: venueOverride || "Quirinal Palace",
       city: "Rome",
@@ -130,7 +140,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normText.includes("berlin") || normText.includes("bellevue")) {
+  if (/\b(berlin|bellevue)\b/i.test(normText)) {
     return {
       venue: venueOverride || "Bellevue Palace",
       city: "Berlin",
@@ -140,7 +150,7 @@ function resolveCourtCircularLocation(courtLocation: string, text: string, venue
     };
   }
 
-  if (normText.includes("madrid") || normText.includes("zarzuela") || normText.includes("palacio real")) {
+  if (/\b(madrid|zarzuela|palacio real)\b/i.test(normText)) {
     return {
       venue: venueOverride || "Palacio Real de Madrid",
       city: "Madrid",
@@ -204,7 +214,16 @@ export function ingestCourtCircularEntry(entry: CourtCircularEntry) {
     : resolveCourtCircularLocation(entry.courtLocation, entry.text, entry.venue);
 
   const eventType = entry.eventType || detectCourtCircularEventType(entry.text);
-  const participantsList = (entry.principals && entry.principals.length > 0 ? entry.principals : ["The Sovereign"]).map((p) => ({
+  if (!entry.principals || entry.principals.length === 0) {
+    return {
+      success: false,
+      eventId: null,
+      error: "Court circular entry has no specified principals for participant attribution.",
+      persistedClaimsCount: 0,
+      requiresHumanReview: true,
+    };
+  }
+  const participantsList = entry.principals.map((p) => ({
     name: p,
     role: "principal" as const,
     presenceMode: "physical" as const,

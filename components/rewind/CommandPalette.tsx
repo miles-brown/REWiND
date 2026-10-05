@@ -102,13 +102,16 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const trimmed = query.trim();
-  const rawResults = trimmed ? searchResults : DEFAULT_ACTIONS;
 
-  // Filter raw results by category filter if selected
+  // Filter results or default actions by category
   const results = useMemo(() => {
-    if (activeCategory === "all") return rawResults;
-    return rawResults.filter((item) => item.type === activeCategory);
-  }, [rawResults, activeCategory]);
+    if (!trimmed) {
+      if (activeCategory === "all") return DEFAULT_ACTIONS;
+      return DEFAULT_ACTIONS.filter((item) => item.type === activeCategory);
+    }
+    if (activeCategory === "all") return searchResults;
+    return searchResults.filter((item) => item.type === activeCategory);
+  }, [trimmed, searchResults, activeCategory]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -119,12 +122,17 @@ export function CommandPalette({
 
     const abortController = new AbortController();
     const requestId = ++searchRequestIdRef.current;
+    const effectiveQuery =
+      activeCategory !== "all" && !trimmedQuery.includes("type:")
+        ? `${trimmedQuery} type:${activeCategory}`
+        : trimmedQuery;
+
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setSearchResults([]);
       setSearchError(null);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=15`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=15`, {
           signal: abortController.signal,
         });
         if (requestId !== searchRequestIdRef.current) return;
@@ -156,7 +164,7 @@ export function CommandPalette({
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [query]);
+  }, [query, activeCategory]);
 
   const activeIndex = selectedIndex >= results.length ? 0 : selectedIndex;
 
@@ -269,7 +277,7 @@ export function CommandPalette({
         </div>
 
         {/* Category Filters Bar */}
-        <div className="command-filter-bar" role="tablist" aria-label="Filter results by category">
+        <div className="command-filter-bar" role="group" aria-label="Filter results by category">
           {FILTER_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeCategory === tab.id;
@@ -277,8 +285,7 @@ export function CommandPalette({
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={isActive}
+                aria-pressed={isActive}
                 className={`command-filter-pill ${isActive ? "active" : ""}`}
                 onClick={() => {
                   setActiveCategory(tab.id);

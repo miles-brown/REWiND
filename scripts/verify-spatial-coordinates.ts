@@ -8,6 +8,8 @@
  * 4. Flags 0,0 Null Island and ocean coordinate anomalies.
  */
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { eventsCorpus } from "../data/seeds/events-corpus";
 import { royalStaysSeed } from "../data/seeds/royal-bio-details-seed";
 import { events as legacyEvents } from "../archive/legacy-data/rewind";
@@ -61,7 +63,7 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
 
   // 1. Verify Events
   allEvents.forEach((e) => {
-    if (e.latitude != null && e.longitude != null) {
+    if (e.latitude != null && e.longitude != null && Number.isFinite(e.latitude) && Number.isFinite(e.longitude)) {
       const lat = e.latitude;
       const lng = e.longitude;
 
@@ -129,26 +131,11 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
 
   // 2. Verify Royal Stays
   royalStaysSeed.forEach((s) => {
-    const lat = s.latitude;
-    const lng = s.longitude;
+    if (s.latitude != null && s.longitude != null && Number.isFinite(s.latitude) && Number.isFinite(s.longitude)) {
+      const lat = s.latitude;
+      const lng = s.longitude;
 
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      anomalies.push({
-        recordType: "stay",
-        recordId: s.id,
-        name: s.venueName,
-        venue: s.stayName || s.venueName,
-        country: s.country,
-        latitude: lat,
-        longitude: lng,
-        reason: `Stay coordinates (${lat}, ${lng}) out of mathematical coordinate range`,
-        severity: "error",
-      });
-    }
-
-    if (s.country && COUNTRY_BOUNDS[s.country]) {
-      const [minLat, minLng, maxLat, maxLng] = COUNTRY_BOUNDS[s.country];
-      if (lat < minLat - 1.0 || lat > maxLat + 1.0 || lng < minLng - 1.0 || lng > maxLng + 1.0) {
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
         anomalies.push({
           recordType: "stay",
           recordId: s.id,
@@ -157,9 +144,26 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
           country: s.country,
           latitude: lat,
           longitude: lng,
-          reason: `Stay coordinates (${lat}, ${lng}) outside bounding box for ${s.country}`,
-          severity: "warning",
+          reason: `Stay coordinates (${lat}, ${lng}) out of mathematical coordinate range`,
+          severity: "error",
         });
+      }
+
+      if (s.country && COUNTRY_BOUNDS[s.country]) {
+        const [minLat, minLng, maxLat, maxLng] = COUNTRY_BOUNDS[s.country];
+        if (lat < minLat - 1.0 || lat > maxLat + 1.0 || lng < minLng - 1.0 || lng > maxLng + 1.0) {
+          anomalies.push({
+            recordType: "stay",
+            recordId: s.id,
+            name: s.venueName,
+            venue: s.stayName || s.venueName,
+            country: s.country,
+            latitude: lat,
+            longitude: lng,
+            reason: `Stay coordinates (${lat}, ${lng}) outside bounding box for ${s.country}`,
+            severity: "warning",
+          });
+        }
       }
     }
   });
@@ -167,7 +171,11 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
   return anomalies;
 }
 
-if (typeof process !== "undefined" && process.argv[1]?.includes("verify-spatial-coordinates")) {
+if (
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  (process.argv[1].endsWith("verify-spatial-coordinates.ts") || fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))
+) {
   console.log("================================================================================");
   console.log("REWIND EVIDENCE ATLAS — Spatial Coordinate Verification & Gazetteer QA");
   console.log("================================================================================");

@@ -117,9 +117,13 @@ export function ClaimInspector({
             <h4 className="claim-statement">{claim.statement}</h4>
 
             {(claim.contradictsClaimId || claim.contestationNotes) && (
-              <div className="claim-contestation-banner">
+              <div
+                className="claim-contestation-banner"
+                role="note"
+                aria-label="Evidentiary contestation notice"
+              >
                 <div className="contestation-header">
-                  <AlertTriangle size={14} className="contestation-icon" />
+                  <AlertTriangle size={14} className="contestation-icon" aria-hidden="true" />
                   <strong>EVIDENTIARY CONTESTATION NOTICE</strong>
                 </div>
                 {claim.contradictsClaimId && (

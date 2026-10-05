@@ -230,6 +230,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             sourceId,
             confidence: conf,
             supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+            contradictsClaimId: clm.contradictsClaimId || null,
+            contestationNotes: clm.contestationNotes || null,
             subjectMention: clm.subjectMention,
           });
         }
@@ -1181,6 +1183,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                   claimStatus: clm.claimStatus || "PROVISIONAL",
                   epistemicClass: clm.epistemicClass || "unknown",
                   supportingExcerpt: clm.supportingExcerpt,
+                  contradictsClaimId: clm.contradictsClaimId || null,
+                  contestationNotes: clm.contestationNotes || null,
                 });
               }
             }

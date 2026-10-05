@@ -759,3 +759,20 @@ export interface ApiSuccessResponse<T = unknown> {
   message?: string;
 }
 
+export interface RelationshipItem {
+  id: string;
+  source: string;
+  target: string;
+  sourceName: string;
+  targetName: string;
+  sharedEventsCount: number;
+  latestEventDate?: string;
+  types: string[];
+}
+
+export interface PairwiseRelationshipData {
+  personA: PersonRecord;
+  personB: PersonRecord;
+  sharedEvents: EventRecord[];
+}
+

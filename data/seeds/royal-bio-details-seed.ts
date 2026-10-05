@@ -1026,7 +1026,7 @@ export const royalStaysSeed: RoyalStaySeed[] = [
     stayType: "official_residence",
     city: "Brussels / Laeken",
     country: "Belgium",
-    latitude: 50.8892,
+    latitude: 50.8914,
     longitude: 4.3547,
     startDate: "1959-07-02",
     isBaseOfOperations: true,

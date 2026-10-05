@@ -368,7 +368,7 @@ async function syncCorpus() {
       programmeId: p.programmeId || "prog-heads-of-state",
       isLiving: p.isLiving,
       monitoringPriority: p.monitoringPriority || "normal",
-      publicationStatus: "published", // Force published for live catalog visibility
+      publicationStatus: p.publicationStatus || existingBySlug?.publicationStatus || existingById?.publicationStatus || "published",
       wikidataId: p.wikidataId || null,
       viafId: p.viafId || null,
       avatarUrl: p.avatarUrl || null,
@@ -693,9 +693,12 @@ async function syncCorpus() {
       }
 
       // Synchronize quotes
-      for (const q of evt.quotes || []) {
+      const quotesList = evt.quotes || [];
+      for (let qIdx = 0; qIdx < quotesList.length; qIdx++) {
+        const q = quotesList[qIdx];
         const matchedPerson = masterPeopleSeed.find((p) => p.canonicalName === q.speaker || p.displayName === q.speaker);
-        const speakerRef = matchedPerson?.id || evt.participants?.[0]?.personId;
+        const participantMatch = evt.participants?.find((pt) => pt.name === q.speaker);
+        const speakerRef = matchedPerson?.id || participantMatch?.personId || (quotesList.length === 1 && evt.participants?.length === 1 ? evt.participants[0]?.personId : null);
         if (speakerRef) {
           const canonicalSpeakerRef = PARTICIPANT_ID_ALIASES[speakerRef] || speakerRef;
           const dbSpeakerId = resolvedPersonIdMap.get(canonicalSpeakerRef) || canonicalSpeakerRef;
@@ -703,7 +706,7 @@ async function syncCorpus() {
           await tx
             .insert(schema.quotes)
             .values({
-              id: `qt-${evt.id}-${Math.random().toString(36).substring(2, 8)}`,
+              id: `qt-${evt.id}-${qIdx}`,
               eventId: evt.id,
               speakerId: dbSpeakerId,
               quote: q.text,

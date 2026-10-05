@@ -73,10 +73,13 @@ export function CitationModal({
             <X size={18} />
           </button>
         </header>
-        <div className="citation-modal-tabs">
+        <div className="citation-modal-tabs" role="tablist" aria-label="Citation formats">
           {(["bibtex", "apa", "chicago", "ris", "csl-json", "json"] as const).map((fmt) => (
             <button
               key={fmt}
+              type="button"
+              role="tab"
+              aria-selected={format === fmt}
               className={`citation-tab ${format === fmt ? "active" : ""}`}
               onClick={() => setFormat(fmt)}
             >

@@ -1,6 +1,6 @@
 import { Clock, Globe, Timer, Sparkles } from "lucide-react";
-import type { EventRecord } from "@/lib/rewind";
-import { formatCivilTime, formatDuration } from "@/lib/rewind";
+import type { EventRecord } from "@/lib/rewind/types";
+import { formatCivilTime, formatDuration } from "@/lib/rewind/temporal";
 
 export function TemporalBadge({ event }: { event: EventRecord }) {
   const civilDisplay = formatCivilTime(event.localStartTime, event.timezoneAbbreviation);

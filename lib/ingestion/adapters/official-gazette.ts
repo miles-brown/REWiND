@@ -48,13 +48,28 @@ function resolveGazetteLocation(country: string, cityOverride?: string, venueOve
     };
   }
 
-  // Default to London, United Kingdom
+  if (
+    normCountry.includes("uk") ||
+    normCountry.includes("united kingdom") ||
+    normCountry.includes("great britain") ||
+    normCountry.includes("england")
+  ) {
+    return {
+      venue: venueOverride || "Palace of Westminster",
+      city: cityOverride || "London",
+      country: "United Kingdom",
+      latitude: 51.4995,
+      longitude: -0.1248,
+    };
+  }
+
+  // Preserve provided country and leave coordinates undefined for unrecognized countries
   return {
-    venue: venueOverride || "Palace of Westminster",
-    city: cityOverride || "London",
-    country: "United Kingdom",
-    latitude: 51.4995,
-    longitude: -0.1248,
+    venue: venueOverride || "Official Government Seat",
+    city: cityOverride || "Capital City",
+    country: country || "International",
+    latitude: undefined,
+    longitude: undefined,
   };
 }
 
@@ -70,7 +85,7 @@ export function ingestOfficialGazette(rec: OfficialGazetteRecord) {
     publisher: rec.gazetteName,
     sourceType: "official-transcript",
     sourceTier: "tier-a",
-    url: rec.url || "https://boe.es",
+    url: rec.url || undefined,
     rawText: rec.text,
     fetchedAt: new Date().toISOString(),
   };
@@ -93,7 +108,7 @@ export function ingestOfficialGazette(rec: OfficialGazetteRecord) {
       {
         name: rec.signatory,
         role: "principal",
-        presenceMode: "physical",
+        presenceMode: "written",
       },
     ],
     claims: [

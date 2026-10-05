@@ -1,6 +1,6 @@
 export default function PeopleLoading() {
   return (
-    <div className="page-shell" aria-busy="true" aria-label="Loading people directory">
+    <div className="page-shell" role="status" aria-busy="true" aria-label="Loading people directory">
       <header className="page-hero">
         <span className="eyebrow">PEOPLE</span>
         <h1>Lives in the record</h1>

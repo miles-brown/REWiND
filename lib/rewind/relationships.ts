@@ -1,24 +1,54 @@
 import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople } from "@/archive/legacy-data/rewind";
 import { getPersonBySlugWithStatus } from "./people";
-import type { EventRecord, PersonRecord } from "./types";
+import type { EventRecord, PersonRecord, RelationshipItem, PairwiseRelationshipData } from "./types";
 import { getEventsByIds, getAllEvents } from "./events";
+import { isPhysicalConfirmedParticipant } from "./utils";
 
-export interface RelationshipItem {
-  id: string;
-  source: string;
-  target: string;
-  sourceName: string;
-  targetName: string;
-  sharedEventsCount: number;
-  latestEventDate?: string;
-  types: string[];
-}
+export type { RelationshipItem, PairwiseRelationshipData };
 
-export interface PairwiseRelationshipData {
-  personA: PersonRecord;
-  personB: PersonRecord;
-  sharedEvents: EventRecord[];
+async function fetchPersonParticipations(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  personId: string
+): Promise<{ data: { event_id: string }[] | null; error: { message: string } | null }> {
+  const participations: { event_id: string }[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("event_people")
+      .select("event_id, attendance_mode, involvement_type, presence_confidence")
+      .eq("person_id", personId);
+
+    if (typeof query.neq === "function") {
+      query = query.neq("presence_confidence", "disputed");
+    }
+    if (typeof query.order === "function") {
+      query = query.order("event_id", { ascending: true });
+    }
+
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+
+    if (data) {
+      const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
+        if (p.attendance_mode && p.attendance_mode !== "physical") return false;
+        if (p.presence_confidence && p.presence_confidence === "disputed") return false;
+        return true;
+      });
+      participations.push(...qualifying);
+    }
+
+    if (!data || data.length < pageSize) {
+      hasMore = false;
+    } else {
+      from += pageSize;
+    }
+  }
+  return { data: participations, error: null };
 }
 
 function getFallbackRelationships(): RelationshipItem[] {
@@ -237,53 +267,9 @@ export async function getRelationshipBetweenWithStatus(
     }
 
     if (supabase) {
-      // Find events where both personA.id and personB.id participate with robust pagination
-      const fetchParticipations = async (personId: string) => {
-        const participations: { event_id: string }[] = [];
-        const pageSize = 1000;
-        let from = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          let query = supabase
-            .from("event_people")
-            .select("event_id, attendance_mode, involvement_type, presence_confidence")
-            .eq("person_id", personId);
-
-          if (typeof query.neq === "function") {
-            query = query.neq("presence_confidence", "disputed");
-          }
-          if (typeof query.order === "function") {
-            query = query.order("event_id", { ascending: true });
-          }
-
-          const { data, error } = await query.range(from, from + pageSize - 1);
-
-          if (error) {
-            return { data: null, error };
-          }
-
-          if (data) {
-            const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
-              if (p.attendance_mode && p.attendance_mode !== "physical") return false;
-              if (p.presence_confidence && p.presence_confidence === "disputed") return false;
-              return true;
-            });
-            participations.push(...qualifying);
-          }
-
-          if (!data || data.length < pageSize) {
-            hasMore = false;
-          } else {
-            from += pageSize;
-          }
-        }
-        return { data: participations, error: null };
-      };
-
       const [resA, resB] = await Promise.all([
-        fetchParticipations(personA.id),
-        fetchParticipations(personB.id),
+        fetchPersonParticipations(supabase, personA.id),
+        fetchPersonParticipations(supabase, personB.id),
       ]);
 
       if (resA.error || resB.error) {
@@ -324,8 +310,12 @@ export async function getRelationshipBetweenWithStatus(
     const shared = all.filter(
       (e) =>
         e.verificationStatus === "verified" &&
-        (e.participants || []).some((p) => p.personId === personA.id || p.personId === personA.slug) &&
-        (e.participants || []).some((p) => p.personId === personB.id || p.personId === personB.slug)
+        (e.participants || []).some(
+          (p) => (p.personId === personA.id || p.personId === personA.slug) && isPhysicalConfirmedParticipant(p)
+        ) &&
+        (e.participants || []).some(
+          (p) => (p.personId === personB.id || p.personId === personB.slug) && isPhysicalConfirmedParticipant(p)
+        )
     );
 
     return {
@@ -416,48 +406,8 @@ export async function getCoAttendanceIntersectionsWithStatus(
     }
 
     if (supabase) {
-      const fetchParticipations = async (personId: string) => {
-        const participations: { event_id: string }[] = [];
-        const pageSize = 1000;
-        let from = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          let query = supabase
-            .from("event_people")
-            .select("event_id, attendance_mode, involvement_type, presence_confidence")
-            .eq("person_id", personId);
-
-          if (typeof query.neq === "function") {
-            query = query.neq("presence_confidence", "disputed");
-          }
-          if (typeof query.order === "function") {
-            query = query.order("event_id", { ascending: true });
-          }
-
-          const { data, error } = await query.range(from, from + pageSize - 1);
-          if (error) return { data: null, error };
-
-          if (data) {
-            const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
-              if (p.attendance_mode && p.attendance_mode !== "physical") return false;
-              if (p.presence_confidence && p.presence_confidence === "disputed") return false;
-              return true;
-            });
-            participations.push(...qualifying);
-          }
-
-          if (!data || data.length < pageSize) {
-            hasMore = false;
-          } else {
-            from += pageSize;
-          }
-        }
-        return { data: participations, error: null };
-      };
-
       const participationResults = await Promise.all(
-        people.map((p) => fetchParticipations(p.id))
+        people.map((p) => fetchPersonParticipations(supabase, p.id))
       );
 
       for (const pRes of participationResults) {
@@ -503,7 +453,11 @@ export async function getCoAttendanceIntersectionsWithStatus(
       if (e.verificationStatus !== "verified") return false;
       const participants = e.participants || [];
       return people.every((p) =>
-        participants.some((part) => part.personId === p.id || part.personId === p.slug)
+        participants.some(
+          (part) =>
+            (part.personId === p.id || part.personId === p.slug) &&
+            isPhysicalConfirmedParticipant(part)
+        )
       );
     });
 

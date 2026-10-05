@@ -18,7 +18,7 @@ export async function GET(
 
   // Compute deterministic SHA-256 forensic checksum of event record payload
   const payloadDigest = createHash("sha256")
-    .update(JSON.stringify({ event, exportedAt: new Date().toISOString().slice(0, 10) }))
+    .update(JSON.stringify({ event }))
     .digest("hex");
 
   const exportedAt = new Date().toISOString();
@@ -185,10 +185,11 @@ export async function GET(
 </body>
 </html>`;
 
+  const safeSlug = event.slug.replace(/[^a-zA-Z0-9._-]/g, "_");
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Disposition": `inline; filename="rewind-event-attestation-${slug}.html"`,
+      "Content-Disposition": `inline; filename="rewind-event-attestation-${safeSlug}.html"`,
       "X-Forensic-Checksum": `sha256:${payloadDigest}`,
     },
   });

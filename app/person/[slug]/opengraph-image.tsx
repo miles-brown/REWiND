@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
-import { getPersonBySlugWithStatus } from "@/lib/rewind";
+import { notFound } from "next/navigation";
+import { getPersonBySlugWithStatus } from "@/lib/rewind/people";
 
 export const runtime = "edge";
 export const alt = "REWIND Evidence Atlas — Person Dossier";
@@ -11,12 +12,16 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { data: person } = await getPersonBySlugWithStatus(slug);
+  const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
 
-  const title = person?.canonicalName || person?.name || "Historical Figure";
-  const role = person?.description || "Monitored Diplomatic Figure";
-  const nationality = person?.nationality || "International";
-  const category = (person?.classification || "Monarch / Sovereign").toUpperCase();
+  if (personError || !person) {
+    notFound();
+  }
+
+  const title = person.canonicalName || person.name;
+  const role = person.description || "";
+  const nationality = person.nationality || "";
+  const category = person.classification ? person.classification.toUpperCase() : "PUBLIC FIGURE";
 
   return new ImageResponse(
     (
@@ -79,7 +84,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         {/* Hero Figure Title */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <span style={{ fontSize: "16px", fontWeight: "700", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "1px" }}>
-            {nationality} · VERIFIED BIOGRAPHICAL DOSSIER
+            {nationality ? `${nationality} · ` : ""}VERIFIED BIOGRAPHICAL DOSSIER
           </span>
           <h1
             style={{
@@ -93,17 +98,19 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           >
             {title}
           </h1>
-          <p
-            style={{
-              fontSize: "22px",
-              color: "#cbd5e1",
-              margin: 0,
-              maxWidth: "950px",
-              lineHeight: 1.4,
-            }}
-          >
-            {role}
-          </p>
+          {role ? (
+            <p
+              style={{
+                fontSize: "22px",
+                color: "#cbd5e1",
+                margin: 0,
+                maxWidth: "950px",
+                lineHeight: 1.4,
+              }}
+            >
+              {role}
+            </p>
+          ) : null}
         </div>
 
         {/* Footer Meta */}

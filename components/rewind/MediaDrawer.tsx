@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronLeft,
@@ -36,23 +36,46 @@ export function MediaDrawer({
   const [activeMediaIdx, setActiveMediaIdx] = useState(0);
   const [copiedQuote, setCopiedQuote] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [prevEventId, setPrevEventId] = useState(event.id);
+
+  // Reset indices on event change during render
+  if (prevEventId !== event.id) {
+    setPrevEventId(event.id);
+    setActiveQuoteIdx(0);
+    setActiveMediaIdx(0);
+  }
 
   const quotes = event.quotes || [];
-  const currentQuote = quotes[activeQuoteIdx];
 
   // Synthesize archival media items if event has images/audio or default primary records
-  const archivalMedia: ArchivalMediaItem[] = (event.media && event.media.length > 0)
-    ? event.media.map((m) => ({ kind: m.kind, label: m.label, url: m.url, timestamp: event.startDate }))
-    : [
+  const archivalMedia: ArchivalMediaItem[] = useMemo(() => {
+    if (event.media && event.media.length > 0) {
+      return event.media.map((m) => ({
+        kind: m.kind,
+        label: m.label,
+        url: m.url,
+        timestamp: (m as { timestamp?: string }).timestamp,
+      }));
+    }
+    if (event.sourceIds && event.sourceIds.length > 0) {
+      return [
         {
-          kind: "broadcast-video",
-          url: event.sourceIds[0] ? `/source/${event.sourceIds[0]}` : "https://archive.org",
-          label: `${event.eventName} — Archival Primary Broadcast Recording`,
-          timestamp: event.startDate,
+          kind: "primary-source",
+          url: `/source/${event.sourceIds[0]}`,
+          label: `${event.eventName} — Archival Primary Source Record (${event.sourceIds[0]})`,
         },
       ];
+    }
+    return [];
+  }, [event.media, event.sourceIds, event.eventName]);
 
-  // Keyboard navigation: Escape to close, ArrowLeft/Right to navigate active reel
+  const clampedQuoteIdx = quotes.length > 0 ? Math.min(activeQuoteIdx, quotes.length - 1) : 0;
+  const currentQuote = quotes[clampedQuoteIdx];
+
+  const clampedMediaIdx = archivalMedia.length > 0 ? Math.min(activeMediaIdx, archivalMedia.length - 1) : 0;
+  const currentMedia = archivalMedia[clampedMediaIdx];
+
+  // Keyboard navigation: Escape to close, ArrowLeft/Right to navigate active quote or media reel
   useEffect(() => {
     if (!isOpen) return;
 
@@ -64,18 +87,24 @@ export function MediaDrawer({
         if (quotes.length > 1) {
           e.preventDefault();
           setActiveQuoteIdx((prev) => (prev > 0 ? prev - 1 : quotes.length - 1));
+        } else if (archivalMedia.length > 1) {
+          e.preventDefault();
+          setActiveMediaIdx((prev) => (prev > 0 ? prev - 1 : archivalMedia.length - 1));
         }
       } else if (e.key === "ArrowRight") {
         if (quotes.length > 1) {
           e.preventDefault();
           setActiveQuoteIdx((prev) => (prev < quotes.length - 1 ? prev + 1 : 0));
+        } else if (archivalMedia.length > 1) {
+          e.preventDefault();
+          setActiveMediaIdx((prev) => (prev < archivalMedia.length - 1 ? prev + 1 : 0));
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, quotes.length]);
+  }, [isOpen, onClose, quotes.length, archivalMedia.length]);
 
   if (!isOpen) return null;
 
@@ -129,49 +158,57 @@ export function MediaDrawer({
           </div>
 
           {/* Quotes & Speech Records */}
-          {quotes.length > 0 && (
-            <div className="quotes-reel-section">
-              <div className="quotes-header">
-                <span className="eyebrow">
-                  <MessageSquareQuote size={13} /> VERBATIM SPEECH EXCERPTS ({quotes.length})
-                </span>
-                <div className="quote-pills">
-                  {quotes.map((q, idx) => (
-                    <button
-                      key={idx}
-                      className={`quote-pill ${activeQuoteIdx === idx ? "active" : ""}`}
-                      onClick={() => setActiveQuoteIdx(idx)}
-                    >
-                      Quote {idx + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {currentQuote && (
-                <div className="active-quote-box">
-                  <blockquote>“{currentQuote.text}”</blockquote>
-                  <div className="quote-footer">
-                    <div className="speaker-info">
-                      <span className="speaker-avatar">{currentQuote.speaker[0]}</span>
-                      <div>
-                        <b>{currentQuote.speaker}</b>
-                        <small>Language: {currentQuote.language.toUpperCase()}{currentQuote.timestamp ? ` · ${currentQuote.timestamp}` : ""}</small>
-                      </div>
-                    </div>
-                    <button
-                      className="copy-quote-btn"
-                      onClick={() => handleCopyQuote(currentQuote.text)}
-                      aria-label="Copy quote text"
-                    >
-                      {copiedQuote ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copiedQuote ? "Copied" : "Copy Quote"}</span>
-                    </button>
+          <div className="quotes-reel-section">
+            {quotes.length > 0 ? (
+              <>
+                <div className="quotes-header">
+                  <span className="eyebrow">
+                    <MessageSquareQuote size={13} /> VERBATIM SPEECH EXCERPTS ({quotes.length})
+                  </span>
+                  <div className="quote-pills">
+                    {quotes.map((q, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`quote-pill ${clampedQuoteIdx === idx ? "active" : ""}`}
+                        onClick={() => setActiveQuoteIdx(idx)}
+                      >
+                        Quote {idx + 1}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {currentQuote && (
+                  <div className="active-quote-box">
+                    <blockquote>“{currentQuote.text}”</blockquote>
+                    <div className="quote-footer">
+                      <div className="speaker-info">
+                        <span className="speaker-avatar">{currentQuote.speaker[0]}</span>
+                        <div>
+                          <b>{currentQuote.speaker}</b>
+                          <small>Language: {currentQuote.language.toUpperCase()}{currentQuote.timestamp ? ` · ${currentQuote.timestamp}` : ""}</small>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="copy-quote-btn"
+                        onClick={() => handleCopyQuote(currentQuote.text)}
+                        aria-label="Copy quote text"
+                      >
+                        {copiedQuote ? <Check size={14} /> : <Copy size={14} />}
+                        <span>{copiedQuote ? "Copied" : "Copy Quote"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="empty-quotes-copy" role="status" style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "12px" }}>
+                No transcribed verbatim quotes are attached to this event record.
+              </div>
+            )}
+          </div>
 
           {/* Archival Media Carousel */}
           {archivalMedia.length > 0 && (
@@ -181,20 +218,23 @@ export function MediaDrawer({
                   <Film size={13} /> ARCHIVAL MEDIA ASSETS ({archivalMedia.length})
                 </span>
                 {archivalMedia.length > 1 && (
-                  <div className="media-nav-controls" style={{ display: "flex", gap: "6px" }}>
+                  <div className="media-nav-controls" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <div className="sr-only" role="status" aria-live="polite">
+                      Asset {clampedMediaIdx + 1} of {archivalMedia.length}
+                    </div>
                     <button
+                      type="button"
                       className="media-nav-btn"
                       onClick={() => setActiveMediaIdx((prev) => (prev > 0 ? prev - 1 : archivalMedia.length - 1))}
                       aria-label="Previous archival asset"
-                      style={{ background: "rgba(255, 255, 255, 0.08)", border: "none", color: "#f8fafc", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
                     >
                       <ChevronLeft size={14} />
                     </button>
                     <button
+                      type="button"
                       className="media-nav-btn"
                       onClick={() => setActiveMediaIdx((prev) => (prev < archivalMedia.length - 1 ? prev + 1 : 0))}
                       aria-label="Next archival asset"
-                      style={{ background: "rgba(255, 255, 255, 0.08)", border: "none", color: "#f8fafc", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
                     >
                       <ChevronRight size={14} />
                     </button>
@@ -202,7 +242,7 @@ export function MediaDrawer({
                 )}
               </div>
 
-              {archivalMedia[activeMediaIdx] && (
+              {currentMedia && (
                 <div
                   className="archival-media-card"
                   style={{
@@ -215,20 +255,20 @@ export function MediaDrawer({
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                     <span className="media-type-badge" style={{ fontSize: "10px", fontWeight: 800, padding: "2px 6px", borderRadius: "4px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", textTransform: "uppercase" }}>
-                      {archivalMedia[activeMediaIdx].kind || "Archival Asset"}
+                      {currentMedia.kind || "Archival Asset"}
                     </span>
-                    {archivalMedia[activeMediaIdx].timestamp && (
+                    {currentMedia.timestamp && (
                       <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-                        {archivalMedia[activeMediaIdx].timestamp}
+                        {currentMedia.timestamp}
                       </span>
                     )}
                   </div>
                   <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#f1f5f9", lineHeight: 1.45 }}>
-                    {archivalMedia[activeMediaIdx].label}
+                    {currentMedia.label}
                   </p>
-                  {archivalMedia[activeMediaIdx].url && (
+                  {currentMedia.url && (
                     <a
-                      href={archivalMedia[activeMediaIdx].url}
+                      href={currentMedia.url}
                       target="_blank"
                       rel="noreferrer"
                       style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#38bdf8", textDecoration: "none" }}

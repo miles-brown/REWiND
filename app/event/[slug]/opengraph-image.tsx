@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
-import { getEventBySlug } from "@/lib/rewind";
+import { notFound } from "next/navigation";
+import { getEventBySlug } from "@/lib/rewind/events";
 
 export const runtime = "edge";
 export const alt = "REWIND Evidence Atlas — Historical Event Record";
@@ -11,12 +12,16 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { data: event } = await getEventBySlug(slug);
+  const { data: event, error: eventError } = await getEventBySlug(slug);
 
-  const title = event?.eventName || "Historical Diplomatic Event";
-  const date = event?.startDate || "Historical Record";
-  const location = [event?.venueName, event?.city, event?.country].filter(Boolean).join(" · ") || "Diplomatic Venue";
-  const eventType = (event?.eventTypes?.[0] || event?.categories?.[0] || "Diplomatic Summit").toUpperCase();
+  if (eventError || !event) {
+    notFound();
+  }
+
+  const title = event.eventName;
+  const date = event.startDate;
+  const location = [event.venueName, event.city, event.country].filter(Boolean).join(" · ") || "Diplomatic Venue";
+  const eventType = (event.eventTypes?.[0] || event.categories?.[0] || "Diplomatic Summit").toUpperCase();
 
   return new ImageResponse(
     (

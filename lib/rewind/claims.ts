@@ -110,9 +110,21 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
       Boolean(c.contestation_notes) ||
       claimEvidenceList.some((ev) => ev.contradictsClaim);
 
-    let effectiveConfidence = (c.confidence as ClaimRecord["confidence"]) || "limited";
-    if (isContested && (effectiveConfidence === "confirmed" || effectiveConfidence === "strong")) {
-      effectiveConfidence = "disputed";
+    const rawConf = typeof c.confidence === "string" ? c.confidence.trim().toLowerCase() : "";
+    let effectiveConfidence: ClaimRecord["confidence"] =
+      rawConf && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(rawConf)
+        ? (rawConf as ClaimRecord["confidence"])
+        : "limited";
+
+    let parsedStatus = parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined);
+
+    if (isContested) {
+      if (effectiveConfidence === "confirmed" || effectiveConfidence === "strong") {
+        effectiveConfidence = "disputed";
+      }
+      if (parsedStatus === "ESTABLISHED" || parsedStatus === "STRONGLY SUPPORTED") {
+        parsedStatus = "DISPUTED";
+      }
     }
 
     return {
@@ -126,7 +138,7 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
       claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
       sourceId: c.source_id ? String(c.source_id) : undefined,
       confidence: effectiveConfidence,
-      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
+      claimStatus: parsedStatus,
       epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
       legalStatus: c.legal_status ? String(c.legal_status) : undefined,
       isAttributedOnly: Boolean(c.is_attributed_only),

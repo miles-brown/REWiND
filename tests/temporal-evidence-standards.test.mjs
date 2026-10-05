@@ -377,8 +377,8 @@ test("verifies PR #13 round-4 CodeRabbit and Codex review fixes: stats filtering
   assert.ok(standardsSql.includes("WHEN confidence = 'disputed' THEN 'disputed proposition'"), "Standards migration must map disputed claims to 'disputed proposition'");
 
   // 8. Monogram aria-hidden
-  const relPage = fs.readFileSync(path.join(root, "app/relationships/page.tsx"), "utf-8");
-  assert.ok(relPage.includes('<span className="person-monogram" aria-hidden="true">'), "Monogram spans must be aria-hidden");
+  const relPage = fs.readFileSync(path.join(root, "app/relationship/[a]/[b]/page.tsx"), "utf-8");
+  assert.ok(relPage.includes('<span className="person-monogram large" aria-hidden="true">'), "Monogram spans must be aria-hidden");
 
   // 9. Pipeline provisional confidence score, claim confidence, and merge claimsAdded tracking
   const pipelineContent = fs.readFileSync(path.join(root, "lib/ingestion/pipeline.ts"), "utf-8");

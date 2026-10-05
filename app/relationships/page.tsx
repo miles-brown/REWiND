@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { GitBranch } from "lucide-react";
 import { getRelationshipsWithStatus } from "@/lib/rewind";
 import { RelationshipNetworkGraph } from "@/components/rewind/RelationshipNetworkGraph";
@@ -59,21 +58,11 @@ export default async function RelationshipsPage() {
           </p>
         </div>
       ) : (
-        <>
-          <RelationshipNetworkGraph relationships={relationships} />
-          <div className="relationship-list sr-only" style={{ display: "none" }} aria-hidden="true">
-            {relationships.slice(0, 5).map((rel) => (
-              <Link href={`/relationship/${rel.source}/${rel.target}`} key={rel.id}>
-                <span className="person-monogram" aria-hidden="true">
-                  {rel.sourceName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </span>
-                <span className="person-monogram" aria-hidden="true">
-                  {rel.targetName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </>
+        <RelationshipNetworkGraph
+          relationships={[...relationships]
+            .sort((a, b) => b.sharedEventsCount - a.sharedEventsCount)
+            .slice(0, 50)}
+        />
       )}
     </div>
   );

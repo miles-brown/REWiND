@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Network, Table } from "lucide-react";
-import type { RelationshipItem } from "@/lib/rewind";
+import { getMonogram } from "@/lib/rewind/utils";
+import type { RelationshipItem } from "@/lib/rewind/types";
 
 interface NetworkNode {
   id: string;
@@ -46,20 +47,20 @@ export function RelationshipNetworkGraph({
   }, [relationships, minIntersections, searchQuery]);
 
   // Compute node topology positions
-  const { nodes, links } = useMemo(() => {
-    const nodeMap = new Map<string, { id: string; name: string; count: number }>();
+  const { nodes, links, nodeMap } = useMemo(() => {
+    const countsMap = new Map<string, { id: string; name: string; count: number }>();
 
     filteredLinks.forEach((rel) => {
-      const srcNode = nodeMap.get(rel.source) || { id: rel.source, name: rel.sourceName, count: 0 };
+      const srcNode = countsMap.get(rel.source) || { id: rel.source, name: rel.sourceName, count: 0 };
       srcNode.count += rel.sharedEventsCount;
-      nodeMap.set(rel.source, srcNode);
+      countsMap.set(rel.source, srcNode);
 
-      const tgtNode = nodeMap.get(rel.target) || { id: rel.target, name: rel.targetName, count: 0 };
+      const tgtNode = countsMap.get(rel.target) || { id: rel.target, name: rel.targetName, count: 0 };
       tgtNode.count += rel.sharedEventsCount;
-      nodeMap.set(rel.target, tgtNode);
+      countsMap.set(rel.target, tgtNode);
     });
 
-    const nodeArray = Array.from(nodeMap.values());
+    const nodeArray = Array.from(countsMap.values());
     const totalNodes = nodeArray.length;
     const centerX = 400;
     const centerY = 300;
@@ -74,6 +75,9 @@ export function RelationshipNetworkGraph({
       };
     });
 
+    const positionedNodeMap = new Map<string, NetworkNode>();
+    positionedNodes.forEach((n) => positionedNodeMap.set(n.id, n));
+
     const networkLinks: NetworkLink[] = filteredLinks.map((rel) => ({
       source: rel.source,
       target: rel.target,
@@ -82,10 +86,10 @@ export function RelationshipNetworkGraph({
       sharedEventsCount: rel.sharedEventsCount,
     }));
 
-    return { nodes: positionedNodes, links: networkLinks };
+    return { nodes: positionedNodes, links: networkLinks, nodeMap: positionedNodeMap };
   }, [filteredLinks]);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedNode = selectedNodeId ? nodeMap.get(selectedNodeId) : undefined;
   const selectedNodeLinks = selectedNodeId
     ? links.filter((l) => l.source === selectedNodeId || l.target === selectedNodeId)
     : [];
@@ -109,8 +113,9 @@ export function RelationshipNetworkGraph({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          <div style={{ display: "inline-flex", borderRadius: "6px", background: "rgba(0, 0, 0, 0.4)", padding: "2px" }} role="radiogroup" aria-label="View Mode">
+          <div style={{ display: "inline-flex", borderRadius: "6px", background: "rgba(0, 0, 0, 0.4)", padding: "2px" }} role="group" aria-label="View Mode">
             <button
+              type="button"
               onClick={() => setViewMode("graph")}
               className={`view-toggle-btn ${viewMode === "graph" ? "active" : ""}`}
               style={{
@@ -126,12 +131,12 @@ export function RelationshipNetworkGraph({
                 color: viewMode === "graph" ? "#38bdf8" : "#94a3b8",
                 cursor: "pointer",
               }}
-              role="radio"
-              aria-checked={viewMode === "graph"}
+              aria-pressed={viewMode === "graph"}
             >
               <Network size={14} /> Graph
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("table")}
               className={`view-toggle-btn ${viewMode === "table" ? "active" : ""}`}
               style={{
@@ -147,8 +152,7 @@ export function RelationshipNetworkGraph({
                 color: viewMode === "table" ? "#38bdf8" : "#94a3b8",
                 cursor: "pointer",
               }}
-              role="radio"
-              aria-checked={viewMode === "table"}
+              aria-pressed={viewMode === "table"}
             >
               <Table size={14} /> Table
             </button>
@@ -166,12 +170,12 @@ export function RelationshipNetworkGraph({
               borderRadius: "6px",
               padding: "6px 12px",
               color: "#f8fafc",
-              fontSize: "12px",
+              fontSize: "max(16px, 12px)",
               width: "160px",
             }}
           />
 
-          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#cbd5e1" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "max(16px, 12px)", color: "#cbd5e1" }}>
             <span>Min Intersections:</span>
             <select
               value={minIntersections}
@@ -183,7 +187,7 @@ export function RelationshipNetworkGraph({
                 borderRadius: "6px",
                 padding: "4px 8px",
                 color: "#f8fafc",
-                fontSize: "12px",
+                fontSize: "max(16px, 12px)",
               }}
             >
               <option value={1}>1+ Meetings</option>
@@ -218,9 +222,9 @@ export function RelationshipNetworkGraph({
           <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ maxHeight: "600px" }}>
             {/* Draw Links */}
             <g className="graph-links" stroke="rgba(56, 189, 248, 0.25)">
-              {links.map((link, idx) => {
-                const srcNode = nodes.find((n) => n.id === link.source);
-                const tgtNode = nodes.find((n) => n.id === link.target);
+              {links.map((link) => {
+                const srcNode = nodeMap.get(link.source);
+                const tgtNode = nodeMap.get(link.target);
                 if (!srcNode || !tgtNode) return null;
 
                 const isHighlighted =
@@ -229,7 +233,7 @@ export function RelationshipNetworkGraph({
 
                 return (
                   <line
-                    key={idx}
+                    key={`${link.source}-${link.target}`}
                     x1={srcNode.x}
                     y1={srcNode.y}
                     x2={tgtNode.x}
@@ -253,9 +257,10 @@ export function RelationshipNetworkGraph({
                     key={node.id}
                     transform={`translate(${node.x}, ${node.y})`}
                     onClick={() => setSelectedNodeId(isSelected ? null : node.id)}
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", outline: "none" }}
                     tabIndex={0}
                     role="button"
+                    aria-pressed={isSelected}
                     aria-label={`Figure ${node.name}, ${node.count} total documented intersections`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -278,11 +283,7 @@ export function RelationshipNetworkGraph({
                       fill="#f8fafc"
                       pointerEvents="none"
                     >
-                      {node.name
-                        .split(" ")
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join("")}
+                      {getMonogram(node.name)}
                     </text>
                     <text
                       textAnchor="middle"
@@ -304,6 +305,8 @@ export function RelationshipNetworkGraph({
           {selectedNode && (
             <div
               className="selected-node-panel"
+              role="region"
+              aria-label="Selected figure details"
               style={{
                 position: "absolute",
                 top: "20px",
@@ -317,6 +320,9 @@ export function RelationshipNetworkGraph({
                 backdropFilter: "blur(8px)",
               }}
             >
+              <div className="sr-only" role="status" aria-live="polite">
+                Selected figure {selectedNode.name}, {selectedNodeLinks.length} direct bilateral ties.
+              </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
                   <span className="eyebrow" style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 800 }}>
@@ -338,13 +344,13 @@ export function RelationshipNetworkGraph({
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "180px", overflowY: "auto", marginBottom: "12px" }}>
-                {selectedNodeLinks.map((link, idx) => {
+                {selectedNodeLinks.map((link) => {
                   const otherSlug = link.source === selectedNode.id ? link.target : link.source;
                   const otherName = link.source === selectedNode.id ? link.targetName : link.sourceName;
 
                   return (
                     <Link
-                      key={idx}
+                      key={`${link.source}-${link.target}`}
                       href={`/relationship/${selectedNode.id}/${otherSlug}`}
                       style={{
                         display: "flex",
@@ -405,6 +411,7 @@ export function RelationshipNetworkGraph({
           }}
         >
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+            <caption className="sr-only">Bilateral diplomatic relationships and documented co-appearances</caption>
             <thead>
               <tr style={{ background: "rgba(0, 0, 0, 0.4)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", color: "#94a3b8" }}>
                 <th style={{ padding: "12px 16px" }}>Figure A</th>
@@ -414,9 +421,9 @@ export function RelationshipNetworkGraph({
               </tr>
             </thead>
             <tbody>
-              {links.map((link, idx) => (
+              {links.map((link) => (
                 <tr
-                  key={idx}
+                  key={`${link.source}-${link.target}`}
                   style={{
                     borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                     color: "#f8fafc",

@@ -1,6 +1,6 @@
 export default function EventsLoading() {
   return (
-    <div className="page-shell" aria-busy="true" aria-label="Loading events directory">
+    <div className="page-shell" role="status" aria-busy="true" aria-label="Loading events directory">
       <header className="page-hero">
         <span className="eyebrow">CHRONOLOGY</span>
         <h1>Historical Events & Diplomatic Summits</h1>
