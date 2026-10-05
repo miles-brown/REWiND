@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
-import { getEventBySlug } from "@/lib/rewind/events";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const alt = "REWIND Evidence Atlas — Historical Event Record";
@@ -10,11 +10,67 @@ export const size = {
 };
 export const contentType = "image/png";
 
+interface EventMeta {
+  eventName: string;
+  startDate: string;
+  venueName?: string | null;
+  city?: string | null;
+  country?: string | null;
+  eventTypes?: string[] | null;
+  categories?: string[] | null;
+  summary?: string | null;
+}
+
+async function getEventMeta(slug: string): Promise<EventMeta | null> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("events")
+      .select("event_name, start_date, venue_name, city, country, event_types, categories, summary")
+      .or(`slug.eq.${slug},id.eq.${slug}`)
+      .eq("publication_status", "published")
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        eventName: data.event_name,
+        startDate: data.start_date,
+        venueName: data.venue_name,
+        city: data.city,
+        country: data.country,
+        eventTypes: data.event_types,
+        categories: data.categories,
+        summary: data.summary,
+      };
+    }
+  }
+
+  // Lightweight in-memory seed lookup
+  try {
+    const { eventsCorpus } = await import("@/data/seeds/events-corpus");
+    const evt = eventsCorpus.find((e) => e.slug === slug || e.id === slug);
+    if (evt) {
+      return {
+        eventName: evt.eventName,
+        startDate: evt.startDate,
+        venueName: evt.venueName,
+        city: evt.city,
+        country: evt.country,
+        eventTypes: evt.eventTypes,
+        categories: evt.categories,
+        summary: evt.summary,
+      };
+    }
+  } catch {}
+
+  return null;
+}
+
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { data: event, error: eventError } = await getEventBySlug(slug);
+  const event = await getEventMeta(slug);
 
-  if (eventError || !event) {
+  if (!event) {
     notFound();
   }
 

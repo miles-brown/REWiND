@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
-import { getPersonBySlugWithStatus } from "@/lib/rewind/people";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const alt = "REWIND Evidence Atlas — Person Dossier";
@@ -10,11 +10,58 @@ export const size = {
 };
 export const contentType = "image/png";
 
+interface PersonMeta {
+  canonicalName: string;
+  name: string;
+  description: string;
+  nationality: string;
+  classification: string;
+}
+
+async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("people")
+      .select("canonical_name, display_name, primary_role, nationality, classification, summary")
+      .or(`slug.eq.${slug},id.eq.${slug}`)
+      .eq("publication_status", "published")
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        canonicalName: data.canonical_name || data.display_name || "",
+        name: data.display_name || data.canonical_name || "",
+        description: data.summary || data.primary_role || "",
+        nationality: data.nationality || "",
+        classification: data.classification || "public-figure",
+      };
+    }
+  }
+
+  // Lightweight in-memory seed lookup
+  try {
+    const { masterPeopleSeed } = await import("@/data/seeds/index");
+    const p = masterPeopleSeed.find((person) => person.slug === slug || person.id === slug);
+    if (p) {
+      return {
+        canonicalName: p.canonicalName,
+        name: p.displayName || p.canonicalName,
+        description: p.summary || p.primaryRole || "",
+        nationality: p.nationality || "",
+        classification: p.classification || "public-figure",
+      };
+    }
+  } catch {}
+
+  return null;
+}
+
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
+  const person = await getPersonMeta(slug);
 
-  if (personError || !person) {
+  if (!person) {
     notFound();
   }
 
