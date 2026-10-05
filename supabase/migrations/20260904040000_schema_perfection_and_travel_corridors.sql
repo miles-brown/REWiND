@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS public.person_milestones (
   description text,
   metric_or_stat text,
   source_id text REFERENCES public.sources(id),
-  created_at timestamp with time zone DEFAULT now() NOT NULL
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT person_milestones_person_title_year_unique UNIQUE (person_id, title, year)
 );
 
 -- 3c. Ensure person_career has is_current column
@@ -213,4 +214,5 @@ CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events (place_id);
 CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims (subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes (speaker_id);
 CREATE INDEX IF NOT EXISTS idx_person_stays_person ON public.person_stays (person_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_person_milestones_person_title_year ON public.person_milestones (person_id, title, year);
 

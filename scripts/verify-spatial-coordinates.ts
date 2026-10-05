@@ -51,8 +51,8 @@ export interface CoordinateAnomaly {
   name: string;
   venue?: string | null;
   country?: string | null;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   reason: string;
   severity: "error" | "warning";
 }
@@ -78,8 +78,8 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
           name: e.eventName,
           venue: e.venueName,
           country: e.country,
-          latitude: typeof e.latitude === "number" ? e.latitude : 0,
-          longitude: typeof e.longitude === "number" ? e.longitude : 0,
+          latitude: typeof e.latitude === "number" && Number.isFinite(e.latitude) ? e.latitude : null,
+          longitude: typeof e.longitude === "number" && Number.isFinite(e.longitude) ? e.longitude : null,
           reason: "Non-finite or incomplete latitude/longitude coordinates",
           severity: "error",
         });
@@ -168,8 +168,8 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
           name: s.venueName,
           venue: s.stayName || s.venueName,
           country: s.country,
-          latitude: typeof s.latitude === "number" ? s.latitude : 0,
-          longitude: typeof s.longitude === "number" ? s.longitude : 0,
+          latitude: typeof s.latitude === "number" && Number.isFinite(s.latitude) ? s.latitude : null,
+          longitude: typeof s.longitude === "number" && Number.isFinite(s.longitude) ? s.longitude : null,
           reason: "Non-finite or incomplete stay coordinates",
           severity: "error",
         });
@@ -235,7 +235,8 @@ if (
   if (anomalies.length > 0) {
     console.log("\nDetected Spatial Notices:");
     anomalies.forEach((a, idx) => {
-      console.log(`${idx + 1}. [${a.severity.toUpperCase()}] [${a.recordType}: ${a.recordId}] ${a.name} (${a.country}) -> ${a.reason}`);
+      const coordText = a.latitude !== null && a.longitude !== null ? `(${a.latitude}, ${a.longitude})` : "(null coordinates)";
+      console.log(`${idx + 1}. [${a.severity.toUpperCase()}] [${a.recordType}: ${a.recordId}] ${a.name} (${a.country ?? "N/A"}) ${coordText} -> ${a.reason}`);
     });
   }
 

@@ -715,6 +715,8 @@ async function syncCorpus() {
               timestampInMedia: q.timestamp || null,
             })
             .onConflictDoNothing();
+        } else {
+          console.warn(`[Quote Warning] Unresolved speaker "${q.speaker}" for event ${evt.id} at quote index ${qIdx}.`);
         }
       }
 
@@ -786,7 +788,16 @@ async function syncCorpus() {
     await db
       .insert(schema.personRoles)
       .values(rolesToInsert.slice(i, i + 50))
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: schema.personRoles.id,
+        set: {
+          personId: sql`excluded.person_id`,
+          title: sql`excluded.title`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+          isCurrent: sql`excluded.is_current`,
+        },
+      });
   }
 
   const milestonesToInsert = (milestonesSeed || [])
@@ -810,7 +821,9 @@ async function syncCorpus() {
     await db
       .insert(schema.personMilestones)
       .values(milestonesToInsert.slice(i, i + 50))
-      .onConflictDoNothing();
+      .onConflictDoNothing({
+        target: [schema.personMilestones.personId, schema.personMilestones.title, schema.personMilestones.year],
+      });
   }
 
   // Synchronize Structured Biographical Dossiers

@@ -8,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 
@@ -435,20 +436,26 @@ export const auditLog = pgTable("audit_log", {
 // 6. Milestones, Achievements & Topics
 // ==========================================
 
-export const personMilestones = pgTable("person_milestones", {
-  id: serial("id").primaryKey(),
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  title: text("title").notNull(),
-  category: text("category").notNull(), // achievement, record, statistic, honor, landmark-fact
-  date: text("date").notNull(),
-  year: integer("year").notNull(),
-  description: text("description"),
-  metricOrStat: text("metric_or_stat"),
-  sourceId: text("source_id").references(() => sources.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const personMilestones = pgTable(
+  "person_milestones",
+  {
+    id: serial("id").primaryKey(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    title: text("title").notNull(),
+    category: text("category").notNull(), // achievement, record, statistic, honor, landmark-fact
+    date: text("date").notNull(),
+    year: integer("year").notNull(),
+    description: text("description"),
+    metricOrStat: text("metric_or_stat"),
+    sourceId: text("source_id").references(() => sources.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("person_milestones_person_title_year_idx").on(t.personId, t.title, t.year),
+  ]
+);
 
 export const topics = pgTable("topics", {
   id: text("id").primaryKey(), // e.g. "topic-911", "topic-iraq-war"

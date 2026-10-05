@@ -19,6 +19,9 @@ interface PersonMeta {
 }
 
 async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
+  if (!slug || typeof slug !== "string" || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return null;
+  }
   const supabase = getSupabaseServerClient();
   if (supabase) {
     const { data, error } = await supabase
