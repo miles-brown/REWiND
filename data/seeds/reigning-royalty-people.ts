@@ -544,7 +544,18 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "27258828",
     avatarUrl: "/avatars/felipe-vi.jpg",
     summary: "Felipe VI is King of Spain. He ascended the throne on 19 June 2014 following the abdication of his father, King Juan Carlos I. In accordance with the Spanish Constitution, as monarch, he is head of state and commander-in-chief of the Spanish Armed Forces.",
-    aliases: ["Prince of Asturias", "Felipe de Borbón", "King of Spain"]
+    aliases: [
+      "King Felipe VI",
+      "King Felipe VI of Spain",
+      "Felipe VI of Spain",
+      "Don Felipe VI",
+      "Rey Felipe VI",
+      "Rey Don Felipe VI",
+      "Prince of Asturias",
+      "Felipe de Borbón",
+      "King of Spain",
+      "king-felipe-vi"
+    ]
   },
   {
     id: "queen-letizia-spain",

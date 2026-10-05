@@ -674,6 +674,10 @@ export interface PlaceRecord {
   geographicLevel?: GeographicLevel;
   venueAreas?: VenueAreaNode[];
   eventCount?: number;
+  geojsonBoundary?: {
+    type: "Polygon" | "MultiPolygon";
+    coordinates: number[][][] | number[][][][];
+  } | null;
 }
 
 export interface SourceRecord {

@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Check, Copy, Download, FileText, X } from "lucide-react";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
-import { formatAPA, formatBibTeX, formatChicago, formatJSON } from "@/lib/citations";
+import { formatAPA, formatBibTeX, formatChicago, formatCSLJSON, formatJSON, formatRIS } from "@/lib/citations";
 
-type Format = "bibtex" | "apa" | "chicago" | "json";
+type Format = "bibtex" | "apa" | "chicago" | "ris" | "csl-json" | "json";
 
 export function CitationModal({
   event,
@@ -36,6 +36,8 @@ export function CitationModal({
   if (format === "bibtex") text = formatBibTeX(event, source);
   else if (format === "apa") text = formatAPA(event, source);
   else if (format === "chicago") text = formatChicago(event, source);
+  else if (format === "ris") text = formatRIS(event, source);
+  else if (format === "csl-json") text = formatCSLJSON(event, source);
   else if (format === "json") text = formatJSON(event, source);
 
   const handleCopy = async () => {
@@ -47,8 +49,8 @@ export function CitationModal({
 
   const handleDownload = () => {
     if (!text) return;
-    const ext = format === "json" ? "json" : format === "bibtex" ? "bib" : "txt";
-    const mime = format === "json" ? "application/json" : "text/plain";
+    const ext = format === "json" || format === "csl-json" ? "json" : format === "bibtex" ? "bib" : format === "ris" ? "ris" : "txt";
+    const mime = format === "json" || format === "csl-json" ? "application/json" : "text/plain";
     const blob = new Blob([text], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -72,7 +74,7 @@ export function CitationModal({
           </button>
         </header>
         <div className="citation-modal-tabs">
-          {(["bibtex", "apa", "chicago", "json"] as const).map((fmt) => (
+          {(["bibtex", "apa", "chicago", "ris", "csl-json", "json"] as const).map((fmt) => (
             <button
               key={fmt}
               className={`citation-tab ${format === fmt ? "active" : ""}`}

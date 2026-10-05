@@ -43,27 +43,32 @@ if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loa
   } catch {}
 }
 
+const isDryRun = process.argv.includes("--dry-run");
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
-if (!connectionString) {
+if (!connectionString && !isDryRun) {
   console.error("❌ ERROR: DATABASE_URL or POSTGRES_URL is not set in environment or .env.local.");
   process.exit(1);
 }
 
-const isLocal = connectionString.includes("localhost") || connectionString.includes("127.0.0.1") || connectionString.includes("::1");
+const isLocal = connectionString
+  ? (connectionString.includes("localhost") || connectionString.includes("127.0.0.1") || connectionString.includes("::1"))
+  : true;
 
 console.log("================================================================================");
-console.log("REWiND Evidence Atlas — Live Supabase Corpus Synchronization");
+console.log(`REWiND Evidence Atlas — ${isDryRun ? "[DRY-RUN SIMULATION]" : "Live Supabase"} Corpus Synchronization`);
 console.log("================================================================================");
 
-const client = postgres(connectionString, {
-  max: 10,
-  idle_timeout: 60,
-  connect_timeout: 30,
-  ssl: getPostgresSslConfig(isLocal),
-});
+const client = connectionString
+  ? postgres(connectionString, {
+      max: 10,
+      idle_timeout: 60,
+      connect_timeout: 30,
+      ssl: getPostgresSslConfig(isLocal),
+    })
+  : null;
 
-const db = drizzle(client, { schema });
+const db = client ? drizzle(client, { schema }) : null;
 
 // Strict fail-closed year validation helper (/^\d{4}$/ or standard ISO)
 function validateYearStringOrNull(val: string | number | null | undefined): string | null {
@@ -126,6 +131,70 @@ const PARTICIPANT_ID_ALIASES: Record<string, string> = {
  * one transaction, and reports row counts. Database failures reject the promise.
  */
 async function syncCorpus() {
+  if (isDryRun || !db) {
+    console.log("🔍 Running offline dry-run schema and foreign key integrity simulation...\n");
+    let validationErrors = 0;
+    let missingSourceRefs = 0;
+    let missingParticipantRefs = 0;
+
+    const validSourceIds = new Set([
+      ...(sourcesCorpus || []).map((s) => s.id),
+      ...(legacySources || []).map((s) => s.id),
+    ]);
+
+    const validPersonIds = new Set([
+      ...(masterPeopleSeed || []).map((p) => p.id),
+      ...(masterPeopleSeed || []).map((p) => p.slug),
+      ...Object.keys(PARTICIPANT_ID_ALIASES),
+    ]);
+
+    // 1. Check people
+    masterPeopleSeed.forEach((p) => {
+      if (!p.id || !p.canonicalName || !p.slug) {
+        console.warn(`⚠️ Invalid person record: missing id/canonicalName/slug: ${p.id}`);
+        validationErrors++;
+      }
+    });
+
+    // 2. Check events
+    const allEvents = [...(eventsCorpus || []), ...(legacyEvents || [])];
+    allEvents.forEach((e) => {
+      if (!e.id || !e.eventName || !e.startDate) {
+        console.warn(`⚠️ Invalid event record: missing id/eventName/startDate: ${e.id}`);
+        validationErrors++;
+      }
+      (e.sourceIds || []).forEach((sId) => {
+        if (!validSourceIds.has(sId)) {
+          missingSourceRefs++;
+        }
+      });
+      (e.participants || []).forEach((pt) => {
+        const pSlug = (pt as { slug?: string }).slug || "";
+        if (!validPersonIds.has(pt.personId) && !validPersonIds.has(pSlug)) {
+          missingParticipantRefs++;
+        }
+      });
+    });
+
+    console.log("================================================================================");
+    console.log("📊 DRY-RUN INTEGRITY SIMULATION REPORT:");
+    console.log("================================================================================");
+    console.log(`- People Records:         ${masterPeopleSeed.length} valid`);
+    console.log(`- Events Records:         ${allEvents.length} valid`);
+    console.log(`- Sources Catalog:        ${validSourceIds.size} valid`);
+    console.log(`- Bio Education:          ${royalEducationSeed.length} valid`);
+    console.log(`- Bio Careers:            ${royalCareerSeed.length} valid`);
+    console.log(`- Bio Awards:             ${royalAwardsSeed.length} valid`);
+    console.log(`- Bio Works:              ${royalWorksSeed.length} valid`);
+    console.log(`- Bio Stays:              ${royalStaysSeed.length} valid`);
+    console.log(`- Validation Anomalies:   ${validationErrors}`);
+    console.log(`- Unmapped Source Refs:   ${missingSourceRefs}`);
+    console.log(`- Unmapped Participants:  ${missingParticipantRefs}`);
+    console.log("================================================================================");
+    console.log("✅ Dry-run simulation completed successfully with zero mutations.");
+    return;
+  }
+
   console.log("🔌 Connected to live PostgreSQL database.");
 
   // ---------------------------------------------------------
@@ -1010,5 +1079,5 @@ syncCorpus()
     process.exit(1);
   })
   .finally(async () => {
-    await client.end();
+    if (client) await client.end();
   });

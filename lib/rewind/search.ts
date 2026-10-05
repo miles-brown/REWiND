@@ -385,7 +385,7 @@ export async function hybridSearch(
   query: string,
   options: HybridSearchOptions = {}
 ): Promise<SearchResultItem[]> {
-  const { limit = 10, semanticWeight = 0.35, queryEmbedding, supabaseClient: _supabaseClient } = options;
+  const { limit = 10, semanticWeight = 0.35, queryEmbedding } = options;
   const term = query.trim();
   if (!term) return [];
 
