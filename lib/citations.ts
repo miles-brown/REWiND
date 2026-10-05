@@ -139,7 +139,7 @@ export function formatRIS(item: CitationSubject, source?: Source): string {
   const src = !isEvt ? item : source;
 
   const rawDate = isEvt ? item.startDate : item.publicationDate;
-  const { year, month = "01", day = "01" } = parseDateParts(rawDate);
+  const { year, month = "", day = "" } = parseDateParts(rawDate);
   const publisher = src?.publisher || (isEvt ? "REWIND Evidence Atlas" : item.author || "REWIND Evidence Atlas");
   const title = isEvt ? item.eventName : item.title;
   const url = src?.url || (event ? `https://rewind.evidence.atlas/event/${event.slug}` : "https://rewind.evidence.atlas");

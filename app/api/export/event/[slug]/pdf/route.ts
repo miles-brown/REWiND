@@ -120,7 +120,7 @@ export async function GET(
       </div>
       <div class="meta-cell">
         <small>Confidence Tier</small>
-        <b><span class="badge">${escapeHtml(event.confidence || "confirmed")}</span></b>
+        <b><span class="badge">${escapeHtml(event.confidence || "limited")}</span></b>
       </div>
       <div class="meta-cell">
         <small>Primary Sources</small>

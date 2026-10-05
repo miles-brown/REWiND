@@ -158,7 +158,8 @@ export async function searchRewind(
     .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`);
 
   if (year && /^\d{4}$/.test(year)) {
-    eventsQuery = eventsQuery.gte("start_date", `${year}-01-01`).lte("start_date", `${year}-12-31`);
+    const nextYear = String(Number(year) + 1).padStart(4, "0");
+    eventsQuery = eventsQuery.gte("start_date", year).lt("start_date", nextYear);
   }
   eventsQuery = eventsQuery.limit(limit);
 
