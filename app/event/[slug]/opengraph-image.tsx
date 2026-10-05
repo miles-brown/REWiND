@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 import { getEventBySlug } from "@/lib/rewind/events";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = "REWIND Evidence Atlas — Historical Event Record";
 export const size = {
   width: 1200,
