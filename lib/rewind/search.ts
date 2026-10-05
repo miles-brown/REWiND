@@ -16,6 +16,62 @@ export function escapeIlikePattern(val: string): string {
 }
 
 /**
+ * Parsed search qualifiers for structured omnisearch queries (e.g. type:person, year:2023, country:spain, tier:t1).
+ */
+export interface SearchQualifiers {
+  rawQuery: string;
+  cleanedQuery: string;
+  type?: "event" | "person" | "place" | "source" | "quote" | string;
+  year?: string;
+  country?: string;
+  tier?: string;
+}
+
+/**
+ * Extracts filter qualifiers from a raw search query string.
+ */
+export function parseSearchQualifiers(query: string): SearchQualifiers {
+  let cleaned = query.trim();
+  let type: string | undefined;
+  let year: string | undefined;
+  let country: string | undefined;
+  let tier: string | undefined;
+
+  const typeMatch = cleaned.match(/\b(?:type|kind|category):([a-zA-Z_-]+)\b/i);
+  if (typeMatch) {
+    type = typeMatch[1].toLowerCase();
+    cleaned = cleaned.replace(typeMatch[0], "").trim();
+  }
+
+  const yearMatch = cleaned.match(/\byear:(\d{4})\b/i);
+  if (yearMatch) {
+    year = yearMatch[1];
+    cleaned = cleaned.replace(yearMatch[0], "").trim();
+  }
+
+  const countryMatch = cleaned.match(/\bcountry:([a-zA-Z_-]+)\b/i);
+  if (countryMatch) {
+    country = countryMatch[1].toLowerCase();
+    cleaned = cleaned.replace(countryMatch[0], "").trim();
+  }
+
+  const tierMatch = cleaned.match(/\btier:(t?[1-4]|tier-[a-d])\b/i);
+  if (tierMatch) {
+    tier = tierMatch[1].toLowerCase();
+    cleaned = cleaned.replace(tierMatch[0], "").trim();
+  }
+
+  return {
+    rawQuery: query,
+    cleanedQuery: cleaned,
+    type,
+    year,
+    country,
+    tier,
+  };
+}
+
+/**
  * Interleaves search result categories round-robin to preserve diversity and avoid category starvation.
  */
 export function interleaveSearchResults(
@@ -57,7 +113,10 @@ export async function searchRewind(
     throw new Error("Supabase search client is unavailable");
   }
 
-  const ilikeEscaped = escapeIlikePattern(term);
+  const { cleanedQuery, type, year, country, tier } = parseSearchQualifiers(term);
+  const effectiveTerm = cleanedQuery || term;
+
+  const ilikeEscaped = escapeIlikePattern(effectiveTerm);
   const postgrestIlikeEscaped = escapePostgrestValue(ilikeEscaped);
 
   const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
@@ -258,8 +317,39 @@ export async function searchRewind(
     badge: s.tier ? s.tier.toUpperCase() : "Source",
   }));
 
+  let filteredSourceItems = sourceItems;
+  if (tier) {
+    filteredSourceItems = sourceItems.filter((s) => s.badge?.toLowerCase().includes(tier));
+  }
+
+  let filteredEventItems = eventItems;
+  if (year) {
+    filteredEventItems = eventItems.filter((e) => e.date?.startsWith(year));
+  }
+
+  let filteredPlaceItems = placeItems;
+  if (country) {
+    filteredPlaceItems = placeItems.filter((p) => p.subtitle?.toLowerCase().includes(country));
+  }
+
+  let categoryGroups = [filteredEventItems, peopleItems, filteredPlaceItems, filteredSourceItems, quoteItems];
+
+  if (type) {
+    if (type === "person" || type === "people" || type === "figure" || type === "monarch") {
+      categoryGroups = [peopleItems, filteredEventItems, quoteItems, filteredPlaceItems, filteredSourceItems];
+    } else if (type === "event" || type === "events") {
+      categoryGroups = [filteredEventItems, peopleItems, filteredPlaceItems, quoteItems, filteredSourceItems];
+    } else if (type === "place" || type === "places" || type === "venue") {
+      categoryGroups = [filteredPlaceItems, filteredEventItems, peopleItems, filteredSourceItems, quoteItems];
+    } else if (type === "source" || type === "sources") {
+      categoryGroups = [filteredSourceItems, filteredEventItems, peopleItems, filteredPlaceItems, quoteItems];
+    } else if (type === "quote" || type === "quotes") {
+      categoryGroups = [quoteItems, filteredEventItems, peopleItems, filteredPlaceItems, filteredSourceItems];
+    }
+  }
+
   return interleaveSearchResults(
-    [eventItems, peopleItems, placeItems, sourceItems, quoteItems],
+    categoryGroups,
     limit
   );
 }

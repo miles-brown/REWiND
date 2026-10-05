@@ -1530,11 +1530,21 @@ svg { flex: 0 0 auto; }
 .citation-action-btn.primary:hover { background: #d97706; }
 
 /* --- Enhanced Command Palette --- */
-.command-palette-panel { max-width: 640px !important; }
-.command-palette-results { max-height: 380px; overflow-y: auto; padding: 8px 0; }
+.command-palette-panel { max-width: 640px !important; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; background: #0b1320; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+.command-filter-bar { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); overflow-x: auto; scrollbar-width: none; }
+.command-filter-bar::-webkit-scrollbar { display: none; }
+.command-filter-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #cbd5e1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
+.command-filter-pill:hover { background: rgba(255,255,255,0.08); color: #f8fafc; border-color: rgba(255,255,255,0.15); }
+.command-filter-pill.active { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.4); }
+.command-qualifiers-bar { display: flex; align-items: center; gap: 6px; padding: 6px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.04); overflow-x: auto; font-size: 11px; color: #cbd5e1; }
+.command-qualifier-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-right: 2px; }
+.command-qualifier-pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-family: monospace; color: #cbd5e1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.15s ease; }
+.command-qualifier-pill:hover { background: rgba(245,158,11,0.12); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+.command-palette-results { max-height: 380px; overflow-y: auto; padding: 6px 0; }
+.command-group-heading { padding: 6px 18px 2px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; display: flex; align-items: center; justify-content: space-between; }
 .command-item { display: flex; align-items: center; gap: 12px; padding: 10px 18px; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.1s; }
 .command-item:hover, .command-item.selected { background: rgba(245,158,11,0.1); }
-.command-item-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); color: #f59e0b; shrink: 0; }
+.command-item-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); color: #f59e0b; flex-shrink: 0; }
 .command-item.selected .command-item-icon { background: #f59e0b; color: #0f172a; }
 .command-item-text { flex: 1; min-width: 0; }
 .command-item-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }

@@ -644,5 +644,334 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Queen Consort of Sweden", presenceConfidence: "confirmed" },
       { personId: "crown-princess-victoria", name: "Crown Princess Victoria", role: "Crown Princess of Sweden", presenceConfidence: "confirmed" }
     ]
+  },
+
+  // =========================================================================
+  // 16. STATE VISIT OF KING FELIPE VI & QUEEN LETIZIA TO THE UK (2017)
+  // =========================================================================
+  {
+    id: "evt-2017-07-12-state-visit-spain-uk",
+    slug: "state-visit-king-felipe-vi-queen-letizia-london-2017",
+    eventName: "State Visit of King Felipe VI and Queen Letizia of Spain to the United Kingdom",
+    startDate: "2017-07-12",
+    endDate: "2017-07-14",
+    datePrecision: "exact-day",
+    city: "London",
+    country: "United Kingdom",
+    venueName: "Buckingham Palace and Palace of Westminster",
+    latitude: 51.5014,
+    longitude: -0.1419,
+    summary: "King Felipe VI and Queen Letizia conducted a three-day state visit to the UK, highlighted by King Felipe's address to a joint session of Parliament in the Royal Gallery and a State Banquet at Buckingham Palace.",
+    description: "The visit reaffirmed historical dynastic alliances and bilateral strategic ties between the British and Spanish crowns.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-visit", "bilateral-meeting", "state-ceremony"],
+    categories: ["state-visit", "state-ceremony"],
+    sourceIds: [
+      "src-uk-court-circular-20170712",
+      "src-spain-boe-20140619"
+    ],
+    participants: [
+      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia", name: "Queen Letizia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "charles-iii", name: "Prince Charles (later Charles III)", role: "Host Royal Family Member", presenceConfidence: "confirmed" },
+      { personId: "queen-camilla", name: "Camilla, Duchess of Cornwall", role: "Host Royal Family Member", presenceConfidence: "confirmed" },
+      { personId: "prince-william", name: "Prince William", role: "Duke of Cambridge", presenceConfidence: "confirmed" },
+      { personId: "prince-harry", name: "Prince Harry", role: "Host Royal Escort", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 17. STATE VISIT OF KING CHARLES III & QUEEN CAMILLA TO FRANCE (2023)
+  // =========================================================================
+  {
+    id: "evt-2023-09-20-state-visit-charles-france",
+    slug: "state-visit-king-charles-iii-france-senate-versailles-2023",
+    eventName: "State Visit of King Charles III and Queen Camilla to the French Republic",
+    startDate: "2023-09-20",
+    endDate: "2023-09-22",
+    datePrecision: "exact-day",
+    city: "Paris",
+    country: "France",
+    venueName: "Palais du Luxembourg and Palace of Versailles",
+    latitude: 48.8482,
+    longitude: 2.3371,
+    summary: "King Charles III became the first British monarch to deliver a speech from the French Senate chamber in French, followed by a State Banquet in the Hall of Mirrors at Versailles.",
+    description: "The state visit celebrated the renewal of Franco-British bilateral diplomacy and environmental cooperation.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-visit", "speech-plenary", "state-ceremony"],
+    categories: ["state-visit", "state-ceremony"],
+    sourceIds: [
+      "src-uk-court-circular-20230920",
+      "src-france-elysee-20240606"
+    ],
+    participants: [
+      { personId: "charles-iii", name: "King Charles III", role: "Visiting Sovereign & Senate Speaker", presenceConfidence: "confirmed" },
+      { personId: "queen-camilla", name: "Queen Camilla", role: "Visiting Queen Consort", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 18. STATE VISIT OF KING CHARLES III & QUEEN CAMILLA TO GERMANY (2023)
+  // =========================================================================
+  {
+    id: "evt-2023-03-29-state-visit-charles-germany",
+    slug: "state-visit-king-charles-iii-germany-bundestag-berlin-2023",
+    eventName: "State Visit of King Charles III and Queen Camilla to the Federal Republic of Germany",
+    startDate: "2023-03-29",
+    endDate: "2023-03-31",
+    datePrecision: "exact-day",
+    city: "Berlin",
+    country: "Germany",
+    venueName: "Reichstag Building (Bundestag) and Bellevue Palace",
+    latitude: 52.5186,
+    longitude: 13.3762,
+    summary: "In his first state visit as monarch, King Charles III addressed the German Bundestag in the Reichstag building and was honored at a State Banquet at Bellevue Palace.",
+    description: "The address praised deep historic Anglo-German connections and shared commitments to European security.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-visit", "speech-plenary", "state-ceremony"],
+    categories: ["state-visit", "state-ceremony"],
+    sourceIds: [
+      "src-uk-court-circular-20230329"
+    ],
+    participants: [
+      { personId: "charles-iii", name: "King Charles III", role: "Visiting Sovereign & Bundestag Speaker", presenceConfidence: "confirmed" },
+      { personId: "queen-camilla", name: "Queen Camilla", role: "Visiting Queen Consort", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 19. STATE VISIT OF KING WILLEM-ALEXANDER & QUEEN MÁXIMA TO BELGIUM (2023)
+  // =========================================================================
+  {
+    id: "evt-2023-06-20-state-visit-netherlands-belgium",
+    slug: "state-visit-king-willem-alexander-queen-maxima-belgium-2023",
+    eventName: "State Visit of King Willem-Alexander and Queen Máxima to the Kingdom of Belgium",
+    startDate: "2023-06-20",
+    endDate: "2023-06-22",
+    datePrecision: "exact-day",
+    city: "Brussels",
+    country: "Belgium",
+    venueName: "Royal Palace of Brussels and Château de Laeken",
+    latitude: 50.8417,
+    longitude: 4.3625,
+    summary: "King Willem-Alexander and Queen Máxima undertook a three-day state visit to Belgium, hosted by King Philippe and Queen Mathilde, strengthening Benelux cooperation.",
+    description: "The state visit included bilateral meetings, sustainable ports technology discussions in Antwerp, and a gala state banquet at Laeken.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-visit", "bilateral-meeting", "state-ceremony"],
+    categories: ["state-visit", "state-ceremony"],
+    sourceIds: [
+      "src-belgium-monarchie-20230620",
+      "src-netherlands-staatscourant-20130430"
+    ],
+    participants: [
+      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima", name: "Queen Máxima", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "king-philippe-belgium", name: "King Philippe", role: "Host Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Host Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "princess-elisabeth-belgium", name: "Princess Elisabeth", role: "Duchess of Brabant / Heir Apparent", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 20. STATE VISIT OF KING HARALD V & QUEEN SONJA TO DENMARK (2023)
+  // =========================================================================
+  {
+    id: "evt-2023-06-15-state-visit-norway-denmark",
+    slug: "state-visit-king-harald-v-queen-sonja-denmark-2023",
+    eventName: "State Visit of King Harald V and Queen Sonja of Norway to Denmark",
+    startDate: "2023-06-15",
+    endDate: "2023-06-16",
+    datePrecision: "exact-day",
+    city: "Copenhagen",
+    country: "Denmark",
+    venueName: "Amalienborg Palace and Christiansborg Palace",
+    latitude: 55.6841,
+    longitude: 12.5931,
+    summary: "King Harald V and Queen Sonja traveled on the Royal Yacht Norge to Copenhagen on an official visit celebrating Nordic monarchical and green energy ties.",
+    description: "The visit featured official meetings at Christiansborg, a business summit, and a dinner hosted by Queen Margrethe II at Amalienborg.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-visit", "bilateral-meeting", "state-ceremony"],
+    categories: ["state-visit", "state-ceremony"],
+    sourceIds: [
+      "src-norway-kongehuset-20230615",
+      "src-denmark-statsministeriet-20240114"
+    ],
+    participants: [
+      { personId: "king-harald-v", name: "King Harald V", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-sonja-norway", name: "Queen Sonja", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Host Sovereign", presenceConfidence: "confirmed" },
+      { personId: "king-frederik-x", name: "Crown Prince Frederik (later Frederik X)", role: "Host Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "queen-mary-denmark", name: "Crown Princess Mary", role: "Host Consort", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 21. STATE FUNERAL OF GRAND DUKE JEAN OF LUXEMBOURG (2019)
+  // =========================================================================
+  {
+    id: "evt-2019-05-04-funeral-grand-duke-jean-luxembourg",
+    slug: "state-funeral-grand-duke-jean-notre-dame-cathedral-luxembourg",
+    eventName: "State Funeral of His Royal Highness Grand Duke Jean of Luxembourg",
+    startDate: "2019-05-04",
+    endDate: "2019-05-04",
+    datePrecision: "exact-day",
+    city: "Luxembourg City",
+    country: "Luxembourg",
+    venueName: "Notre-Dame Cathedral of Luxembourg",
+    latitude: 49.6097,
+    longitude: 6.1314,
+    summary: "The national funeral of Grand Duke Jean of Luxembourg brought together European reigning sovereigns and historic royal heads to honor the Normandy liberation hero.",
+    description: "Presided over by Archbishop Jean-Claude Hollerich, the pontifical requiem celebrated Grand Duke Jean's 36-year reign and WWII military service in the Irish Guards.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "government",
+    eventTypes: ["state-funeral", "monarchical-ceremony", "religious-service"],
+    categories: ["state-funeral", "state-ceremony"],
+    sourceIds: [
+      "src-luxembourg-cour-20190504",
+      "src-luxembourg-memorial-20001007"
+    ],
+    participants: [
+      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Chief Mourner / Sovereign", presenceConfidence: "confirmed" },
+      { personId: "grand-duchess-maria-teresa", name: "Grand Duchess Maria Teresa", role: "Grand Duchess of Luxembourg", presenceConfidence: "confirmed" },
+      { personId: "hereditary-grand-duke-guillaume", name: "Hereditary Grand Duke Guillaume", role: "Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "stephanie-hereditary-grand-duchess-luxembourg", name: "Hereditary Grand Duchess Stéphanie", role: "Hereditary Grand Duchess", presenceConfidence: "confirmed" },
+      { personId: "king-philippe-belgium", name: "King Philippe", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-belgium", name: "King Albert II", role: "Former Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-paola-belgium", name: "Queen Paola", role: "Former Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "princess-beatrix-netherlands", name: "Princess Beatrix", role: "Former Sovereign", presenceConfidence: "confirmed" },
+      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "juan-carlos-i-spain", name: "King Juan Carlos I", role: "Former Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-sofia-spain", name: "Queen Sofía", role: "Former Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" },
+      { personId: "princess-anne", name: "Princess Anne", role: "Visiting Royal Princess (UK)", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 22. CENTENARY COMMEMORATION OF THE ARMISTICE OF 1918 (2018)
+  // =========================================================================
+  {
+    id: "evt-2018-11-11-armistice-centenary-paris",
+    slug: "centenary-armistice-commemoration-arc-de-triomphe-paris-2018",
+    eventName: "Centenary International Commemoration of the Armistice of 11 November 1918",
+    startDate: "2018-11-11",
+    endDate: "2018-11-11",
+    datePrecision: "exact-day",
+    city: "Paris",
+    country: "France",
+    venueName: "Arc de Triomphe (Place de l'Étoile)",
+    latitude: 48.8738,
+    longitude: 2.2950,
+    summary: "Over 70 heads of state and European sovereign monarchs assembled at the Tomb of the Unknown Soldier beneath the Arc de Triomphe in Paris to mark 100 years since the 1918 Armistice.",
+    description: "The global remembrance ceremony featured the rekindling of the Eternal Flame, classical musical performances by Yo-Yo Ma, and addresses calling for multilateral peace.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "diplomatic",
+    eventTypes: ["international-commemoration", "diplomatic-summit", "state-ceremony"],
+    categories: ["international-commemoration", "state-ceremony"],
+    sourceIds: [
+      "src-france-elysee-20181111"
+    ],
+    participants: [
+      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Head of State of Spain", presenceConfidence: "confirmed" },
+      { personId: "king-philippe-belgium", name: "King Philippe", role: "King of the Belgians", presenceConfidence: "confirmed" },
+      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg", presenceConfidence: "confirmed" },
+      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Prince of Monaco", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 23. ROYAL WEDDING OF INFANTA MARIA FRANCISCA OF PORTUGAL (2023)
+  // =========================================================================
+  {
+    id: "evt-2023-10-07-wedding-maria-francisca-braganza-mafra",
+    slug: "royal-wedding-infanta-maria-francisca-braganza-mafra-palace-2023",
+    eventName: "Marriage of Infanta Maria Francisca of Braganza and Duarte de Sousa Araújo Martins",
+    startDate: "2023-10-07",
+    endDate: "2023-10-07",
+    datePrecision: "exact-day",
+    city: "Mafra",
+    country: "Portugal",
+    venueName: "National Palace of Mafra (Basilica of Mafra)",
+    latitude: 38.9372,
+    longitude: -9.3267,
+    summary: "Infanta Maria Francisca of Portugal married Duarte de Sousa Araújo Martins at the Basilica of the National Palace of Mafra in the first Portuguese royal wedding in 28 years.",
+    description: "Broadcast live on national television, the ceremony was attended by the President of Portugal, European royal houses, and thousands of well-wishers.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "public",
+    eventTypes: ["royal-wedding", "monarchical-ceremony"],
+    categories: ["royal-wedding", "monarchical-ceremony"],
+    sourceIds: [
+      "src-portugal-braganza-wedding-20231007"
+    ],
+    participants: [
+      { personId: "infanta-maria-francisca-portugal", name: "Infanta Maria Francisca", role: "Royal Bride", presenceConfidence: "confirmed" },
+      { personId: "duarte-pio-duke-of-braganza", name: "Duarte Pio, Duke of Braganza", role: "Father of the Bride", presenceConfidence: "confirmed" },
+      { personId: "isabel-duchess-of-braganza", name: "Isabel, Duchess of Braganza", role: "Mother of the Bride", presenceConfidence: "confirmed" },
+      { personId: "afonso-prince-of-beira", name: "Afonso, Prince of Beira", role: "Brother of the Bride", presenceConfidence: "confirmed" },
+      { personId: "louis-alphonse-duke-of-anjou", name: "Louis Alphonse, Duke of Anjou", role: "Dynastic Royal Guest", presenceConfidence: "confirmed" },
+      { personId: "jean-christophe-prince-napoleon", name: "Jean-Christophe, Prince Napoléon", role: "Dynastic Royal Guest", presenceConfidence: "confirmed" }
+    ]
+  },
+
+  // =========================================================================
+  // 24. ROYAL WEDDING OF GRAND DUKE GEORGE MIKHAILOVICH OF RUSSIA (2021)
+  // =========================================================================
+  {
+    id: "evt-2021-10-01-wedding-george-mikhailovich-st-petersburg",
+    slug: "royal-wedding-grand-duke-george-mikhailovich-saint-isaacs-2021",
+    eventName: "Marriage of Grand Duke George Mikhailovich of Russia and Victoria Romanovna Bettarini",
+    startDate: "2021-10-01",
+    endDate: "2021-10-01",
+    datePrecision: "exact-day",
+    city: "Saint Petersburg",
+    country: "Russia",
+    venueName: "Saint Isaac's Cathedral",
+    latitude: 59.9341,
+    longitude: 30.3061,
+    summary: "Grand Duke George Mikhailovich of Russia married Victoria Romanovna Bettarini at Saint Isaac's Cathedral in Saint Petersburg in the first royal wedding in Russia since 1917.",
+    description: "The Russian Orthodox nuptial service was celebrated by Metropolitan Varsonofy of Saint Petersburg and Ladoga, attended by international royalty and Russian nobility.",
+    verificationStatus: "verified",
+    confidenceScore: 1.0,
+    confidence: "confirmed",
+    scope: "public",
+    eventTypes: ["royal-wedding", "monarchical-ceremony", "religious-service"],
+    categories: ["royal-wedding", "monarchical-ceremony"],
+    sourceIds: [
+      "src-russia-romanov-wedding-20211001"
+    ],
+    participants: [
+      { personId: "george-mikhailovich-russia", name: "Grand Duke George Mikhailovich", role: "Imperial Groom", presenceConfidence: "confirmed" },
+      { personId: "maria-vladimirovna-russia", name: "Grand Duchess Maria Vladimirovna", role: "Mother of the Groom / Head of Romanov House", presenceConfidence: "confirmed" },
+      { personId: "tsar-simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Visiting Sovereign / Royal Guest", presenceConfidence: "confirmed" },
+      { personId: "duarte-pio-duke-of-braganza", name: "Duarte Pio, Duke of Braganza", role: "Visiting Royal Guest", presenceConfidence: "confirmed" },
+      { personId: "aimone-duke-of-aosta", name: "Prince Aimone, Duke of Aosta", role: "Visiting Royal Guest", presenceConfidence: "confirmed" }
+    ]
   }
 ];
+

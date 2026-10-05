@@ -144,6 +144,32 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
     sourceId: "src-uk-court-circular-20110429",
   },
 
+  // King Juan Carlos I of Spain
+  {
+    id: "edu-juan-carlos-zaragoza",
+    personId: "juan-carlos-i-spain",
+    institution: "General Military Academy Zaragoza & Complutense University of Madrid",
+    degree: "Joint Military & Constitutional Law Program",
+    fieldOfStudy: "Military Strategy, Constitutional Law and Economics",
+    startYear: "1955",
+    endYear: "1961",
+    notes: "Trained across Army, Navy, and Air Force academies before university law studies.",
+    sourceId: "src-spain-boe-19751122",
+  },
+
+  // Queen Sofía of Spain
+  {
+    id: "edu-queen-sofia-athens",
+    personId: "queen-sofia-spain",
+    institution: "University of Athens & Fitzwilliam College, Cambridge",
+    degree: "Diploma in Childcare and Archaeology",
+    fieldOfStudy: "Archaeology and Pedagogy",
+    startYear: "1956",
+    endYear: "1960",
+    notes: "Conducted archaeological research in Greece and published research on Greek antiquity.",
+    sourceId: "src-spain-reina-sofia-1977",
+  },
+
   // King Felipe VI of Spain
   {
     id: "edu-felipe-uam-law",
@@ -192,6 +218,19 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
     sourceId: "src-spain-boe-20231031",
   },
 
+  // King Albert II of Belgium
+  {
+    id: "edu-albert-ii-belgian-navy",
+    personId: "albert-ii-belgium",
+    institution: "Belgian Naval Training Command",
+    degree: "Naval Officer Commission",
+    fieldOfStudy: "Naval Operations and Navigation",
+    startYear: "1952",
+    endYear: "1955",
+    notes: "Served as active naval officer reaching rank of Lieutenant General and Vice Admiral.",
+    sourceId: "src-belgium-moniteur-19930809",
+  },
+
   // King Philippe of Belgium
   {
     id: "edu-philippe-rma-belgium",
@@ -214,6 +253,19 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
     endYear: "1985",
     notes: "Master's degree in Political Science in California.",
     sourceId: "src-belgium-moniteur-20130721",
+  },
+
+  // Princess Beatrix of the Netherlands
+  {
+    id: "edu-beatrix-leiden",
+    personId: "princess-beatrix-netherlands",
+    institution: "Leiden University",
+    degree: "Doctor of Law (Meester in de rechten)",
+    fieldOfStudy: "Constitutional Law, Sociology, and Economics",
+    startYear: "1956",
+    endYear: "1961",
+    notes: "Graduated with full law degree prior to state responsibilities.",
+    sourceId: "src-netherlands-staatscourant-19800430",
   },
 
   // King Willem-Alexander of the Netherlands
@@ -264,6 +316,97 @@ export const royalEducationSeed: RoyalEducationSeed[] = [
     endYear: "1981",
     notes: "Graduated with honors in political science.",
     sourceId: "src-monaco-journal-20110702",
+  },
+
+  // Princess Caroline of Monaco
+  {
+    id: "edu-caroline-sorbonne",
+    personId: "caroline-princess-of-monaco",
+    institution: "Sorbonne University & Sciences Po Paris",
+    degree: "Licence de Philosophie (BA in Philosophy)",
+    fieldOfStudy: "Philosophy, Psychology, and Biology",
+    startYear: "1974",
+    endYear: "1977",
+    notes: "Graduated with degree in philosophy in Paris.",
+    sourceId: "src-un-unesco-2003",
+  },
+
+  // Archduke Karl von Habsburg
+  {
+    id: "edu-karl-habsburg-salzburg",
+    personId: "karl-von-habsburg",
+    institution: "University of Salzburg",
+    degree: "Law and Political Science Studies",
+    fieldOfStudy: "Constitutional Law and European Integration",
+    startYear: "1982",
+    endYear: "1987",
+    notes: "Studied law and political science in Salzburg and Michigan.",
+    sourceId: "src-habsburg-council-2007",
+  },
+
+  // Archduke Eduard of Austria
+  {
+    id: "edu-eduard-habsburg-eichstaett",
+    personId: "archduke-eduard-of-austria",
+    institution: "Catholic University of Eichstätt-Ingolstadt",
+    degree: "Doctor of Philosophy (PhD)",
+    fieldOfStudy: "Philosophy and Ethics",
+    startYear: "1988",
+    endYear: "1997",
+    notes: "Published doctoral dissertation on Thomistic ethics and personalism.",
+    sourceId: "src-vatican-bulletin-20151207",
+  },
+
+  // Georg Friedrich, Prince of Prussia
+  {
+    id: "edu-georg-friedrich-freiberg",
+    personId: "georg-friedrich-prince-of-prussia",
+    institution: "TU Bergakademie Freiberg",
+    degree: "Diplom-Kaufmann (Master of Business Administration)",
+    fieldOfStudy: "Business Administration and Economics",
+    startYear: "1996",
+    endYear: "2000",
+    notes: "Graduated with full business administration degree in Saxony.",
+    sourceId: "src-hohenzollern-haus-2011",
+  },
+
+  // Margareta, Custodian of the Crown of Romania
+  {
+    id: "edu-margareta-edinburgh",
+    personId: "margareta-custodian-of-the-crown-romania",
+    institution: "University of Edinburgh",
+    degree: "Master of Arts (MA Hons)",
+    fieldOfStudy: "Sociology, Political Science, and International Law",
+    startYear: "1969",
+    endYear: "1974",
+    notes: "Specialized in public health, rural development, and UN systems.",
+    sourceId: "src-romania-official-gazette-20171205",
+  },
+
+  // Duarte Pio, Duke of Braganza
+  {
+    id: "edu-duarte-pio-agronomia",
+    personId: "duarte-pio-duke-of-braganza",
+    institution: "Instituto Superior de Agronomia, Lisbon & University of Geneva",
+    degree: "Licenciatura in Agronomy and Development Studies",
+    fieldOfStudy: "Agricultural Engineering and Rural Economics",
+    startYear: "1968",
+    endYear: "1973",
+    notes: "Agricultural researcher focusing on Portuguese rural development.",
+    sourceId: "src-portugal-braganca-1995",
+  },
+
+  // Crown Prince Alexander of Yugoslavia
+  {
+    id: "edu-alexander-sandhurst",
+    personId: "alexander-crown-prince-yugoslavia",
+    institution: "Royal Military Academy Sandhurst",
+    degree: "Commissioned British Army Officer",
+    fieldOfStudy: "Military Tactics and Strategic Command",
+    startYear: "1964",
+    endYear: "1966",
+    notes: "Commissioned into 16th/5th The Queen's Royal Lancers.",
+    sourceId: "src-serbia-dvor-alexander-2001",
   }
 ];
 
@@ -314,6 +457,19 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
     sourceId: "src-uk-court-circular-20180519",
   },
 
+  // Juan Carlos I of Spain
+  {
+    id: "car-juan-carlos-king",
+    personId: "juan-carlos-i-spain",
+    organisationName: "Corona de España / Jefatura del Estado",
+    roleTitle: "Rey de España (Head of State)",
+    startDate: "1975-11-22",
+    endDate: "2014-06-19",
+    isCurrent: false,
+    notes: "Reigned as constitutional King of Spain for 39 years before abdication.",
+    sourceId: "src-spain-boe-19751122",
+  },
+
   // King Felipe VI of Spain
   {
     id: "car-felipe-king-of-spain",
@@ -324,6 +480,19 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
     isCurrent: true,
     notes: "Sovereign King of Spain and Captain General of the Spanish Armed Forces.",
     sourceId: "src-spain-boe-20140619",
+  },
+
+  // King Albert II of Belgium
+  {
+    id: "car-albert-ii-king",
+    personId: "albert-ii-belgium",
+    organisationName: "Royaume de Belgique / Koninkrijk België",
+    roleTitle: "Roi des Belges / Koning der Belgen",
+    startDate: "1993-08-09",
+    endDate: "2013-07-21",
+    isCurrent: false,
+    notes: "Reigned as sixth King of the Belgians for two decades before abdication.",
+    sourceId: "src-belgium-moniteur-19930809",
   },
 
   // King Philippe of Belgium
@@ -338,6 +507,19 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
     sourceId: "src-belgium-moniteur-20130721",
   },
 
+  // Princess Beatrix of the Netherlands
+  {
+    id: "car-beatrix-queen",
+    personId: "princess-beatrix-netherlands",
+    organisationName: "Koninkrijk der Nederlanden",
+    roleTitle: "Koningin der Nederlanden (Queen of the Netherlands)",
+    startDate: "1980-04-30",
+    endDate: "2013-04-30",
+    isCurrent: false,
+    notes: "Reigned for 33 years as constitutional sovereign of the Netherlands.",
+    sourceId: "src-netherlands-staatscourant-19800430",
+  },
+
   // King Willem-Alexander of the Netherlands
   {
     id: "car-willem-alexander-king",
@@ -348,6 +530,18 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
     isCurrent: true,
     notes: "Sovereign monarch of the Kingdom of the Netherlands (Netherlands, Aruba, Curaçao, Sint Maarten).",
     sourceId: "src-netherlands-staatscourant-20130430",
+  },
+
+  // Prince Constantijn of the Netherlands
+  {
+    id: "car-constantijn-techleap",
+    personId: "prince-constantijn-netherlands",
+    organisationName: "Techleap.nl / Ministry of Economic Affairs",
+    roleTitle: "Special Envoy for the Dutch Startup Ecosystem",
+    startDate: "2016-07-01",
+    isCurrent: true,
+    notes: "Special envoy leading international tech diplomacy and venture growth in the Netherlands.",
+    sourceId: "src-netherlands-techleap-2016",
   },
 
   // King Carl XVI Gustaf of Sweden
@@ -410,6 +604,43 @@ export const royalCareerSeed: RoyalCareerSeed[] = [
     sourceId: "src-liechtenstein-landtag-20040815",
   },
 
+  // Margareta, Custodian of the Crown of Romania
+  {
+    id: "car-margareta-crown-custodian",
+    personId: "margareta-custodian-of-the-crown-romania",
+    organisationName: "Casa Regală a României",
+    roleTitle: "Custodele Coroanei Române (Head of the Royal House)",
+    startDate: "2017-12-05",
+    isCurrent: true,
+    notes: "Head of the Royal House of Romania following the death of King Michael I.",
+    sourceId: "src-romania-official-gazette-20171205",
+  },
+
+  // Tsar Simeon II of Bulgaria
+  {
+    id: "car-simeon-prime-minister",
+    personId: "simeon-ii-bulgaria",
+    organisationName: "Government of the Republic of Bulgaria",
+    roleTitle: "Prime Minister of Bulgaria",
+    startDate: "2001-07-24",
+    endDate: "2005-08-17",
+    isCurrent: false,
+    notes: "Democratically elected 48th Prime Minister of Bulgaria leading NATO accession.",
+    sourceId: "src-bulgaria-parliament-20010724",
+  },
+
+  // Eduard of Austria
+  {
+    id: "car-eduard-ambassador-vatican",
+    personId: "archduke-eduard-of-austria",
+    organisationName: "Ministry of Foreign Affairs and Trade of Hungary",
+    roleTitle: "Ambassador of Hungary to the Holy See and Sovereign Military Order of Malta",
+    startDate: "2015-12-07",
+    isCurrent: true,
+    notes: "Hungarian Ambassador to Vatican City and Sovereign Order of Malta.",
+    sourceId: "src-vatican-bulletin-20151207",
+  },
+
   // Archbishop Joan-Enric Vives i Sicília
   {
     id: "car-vives-co-prince",
@@ -442,6 +673,17 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
     yearReceived: "1977",
     citation: "Highest chivalric order in Scotland.",
     sourceId: "src-uk-court-circular-20230506",
+  },
+
+  // Juan Carlos I of Spain
+  {
+    id: "awd-juan-carlos-fleece",
+    personId: "juan-carlos-i-spain",
+    awardName: "Caballero de la Insigne Orden del Toisón de Oro",
+    awardingBody: "Don Juan de Borbón, Conde de Barcelona",
+    yearReceived: "1941",
+    citation: "Bestowed dynastic investiture in Rome during exile; Grand Master 1975–2014.",
+    sourceId: "src-spain-boe-19751122",
   },
 
   // King Felipe VI of Spain
@@ -484,6 +726,28 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
     sourceId: "src-spain-boe-20231031",
   },
 
+  // Albert II of Belgium
+  {
+    id: "awd-albert-ii-leopold",
+    personId: "albert-ii-belgium",
+    awardName: "Grand Cordon de l'Ordre de Léopold",
+    awardingBody: "Royaume de Belgique",
+    yearReceived: "1953",
+    citation: "Grand Master of the Order of Leopold (1993–2013).",
+    sourceId: "src-belgium-moniteur-19930809",
+  },
+
+  // Princess Beatrix of the Netherlands
+  {
+    id: "awd-beatrix-gold-lion",
+    personId: "princess-beatrix-netherlands",
+    awardName: "Knight of the Order of the Gold Lion of the House of Nassau",
+    awardingBody: "Kingdom of the Netherlands & Grand Duchy of Luxembourg",
+    yearReceived: "1956",
+    citation: "Joint highest dynastic house order of the House of Orange-Nassau and Nassau-Weilburg.",
+    sourceId: "src-netherlands-staatscourant-19800430",
+  },
+
   // King Carl XVI Gustaf of Sweden
   {
     id: "awd-carl-seraphim",
@@ -504,6 +768,28 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
     yearReceived: "2005",
     citation: "Sovereign Grand Master of Monaco's highest civil order.",
     sourceId: "src-monaco-journal-20050712",
+  },
+
+  // Karl von Habsburg
+  {
+    id: "awd-karl-habsburg-fleece",
+    personId: "karl-von-habsburg",
+    awardName: "Sovereign Grand Master of the Order of the Golden Fleece (Austrian Branch)",
+    awardingBody: "Imperial House of Habsburg-Lorraine",
+    yearReceived: "2007",
+    citation: "Grand Master of the Austrian Order of the Golden Fleece succeeding Otto von Habsburg.",
+    sourceId: "src-habsburg-council-2007",
+  },
+
+  // Margareta of Romania
+  {
+    id: "awd-margareta-crown-romania",
+    personId: "margareta-custodian-of-the-crown-romania",
+    awardName: "Grand Master of the Order of the Crown of Romania",
+    awardingBody: "Royal House of Romania",
+    yearReceived: "2017",
+    citation: "Sovereign Grand Master of the dynastic Order of the Crown.",
+    sourceId: "src-romania-official-gazette-20171205",
   }
 ];
 
@@ -552,6 +838,54 @@ export const royalWorksSeed: RoyalWorkSeed[] = [
     publisher: "van Eck Publishers",
     notes: "Seminal political science treatise arguing for direct democracy, self-determination, and the state as a service provider rather than an oppressive master.",
     sourceId: "src-liechtenstein-landtag-20040815",
+  },
+
+  // Archduke Eduard of Austria
+  {
+    id: "wrk-eduard-habsburg-way",
+    personId: "archduke-eduard-of-austria",
+    title: "The Habsburg Way: 7 Rules for Turbulent Times",
+    workType: "Historical & Moral Treatise",
+    publicationYear: "2023",
+    publisher: "Sophia Institute Press",
+    notes: "Exploration of Habsburg statecraft, subsidiarity, and family governance principles for contemporary society.",
+    sourceId: "src-vatican-bulletin-20151207",
+  },
+
+  // Franz, Duke of Bavaria
+  {
+    id: "wrk-franz-bavaria-memoirs",
+    personId: "franz-duke-of-bavaria",
+    title: "Zuschauer in der ersten Reihe: Erinnerungen",
+    workType: "Autobiography / Historical Memoir",
+    publicationYear: "2023",
+    publisher: "C.H. Beck",
+    notes: "Firsthand accounts of 20th-century German history, childhood imprisonment in Nazi concentration camps, and contemporary arts stewardship.",
+    sourceId: "src-bavaria-wittelsbach-2023",
+  },
+
+  // Margareta, Custodian of the Crown of Romania
+  {
+    id: "wrk-margareta-diplomacy-book",
+    personId: "margareta-custodian-of-the-crown-romania",
+    title: "The Royal Book of Public Diplomacy",
+    workType: "Public Affairs Monograph",
+    publicationYear: "2010",
+    publisher: "Curtea Veche Publishing",
+    notes: "Analysis of the institutional role of historic European royal houses in modern multilateral diplomacy.",
+    sourceId: "src-romania-official-gazette-20171205",
+  },
+
+  // Princess Madeleine of Sweden
+  {
+    id: "wrk-madeleine-stella",
+    personId: "princess-madeleine-sweden",
+    title: "Stella och hemligheten",
+    workType: "Children's Literature / Rights Education",
+    publicationYear: "2019",
+    publisher: "Bonnier Carlsen",
+    notes: "Children's book promoting bodily integrity, self-esteem, and child safety created in partnership with World Childhood Foundation.",
+    sourceId: "src-sweden-bonnier-2019",
   }
 ];
 
@@ -628,6 +962,25 @@ export const royalStaysSeed: RoyalStaySeed[] = [
     sourceId: "src-uk-court-circular-20230506",
   },
 
+  // King Juan Carlos I & Queen Sofía
+  {
+    id: "sty-juan-carlos-zarzuela",
+    personId: "juan-carlos-i-spain",
+    venueName: "Palacio de la Zarzuela",
+    stayName: "Residencia Real Histórica",
+    stayType: "official_residence",
+    city: "Madrid",
+    country: "Spain",
+    latitude: 40.4725,
+    longitude: -3.8017,
+    startDate: "1962-05-14",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    securityLevel: "state-maximum",
+    notes: "Main historic residence of King Juan Carlos I and Queen Sofía since their marriage in 1962.",
+    sourceId: "src-spain-boe-19751122",
+  },
+
   // King Felipe VI & Queen Letizia
   {
     id: "sty-felipe-zarzuela",
@@ -664,6 +1017,25 @@ export const royalStaysSeed: RoyalStaySeed[] = [
     sourceId: "src-spain-boe-20140619",
   },
 
+  // King Albert II & Queen Paola
+  {
+    id: "sty-albert-ii-belvedere",
+    personId: "albert-ii-belgium",
+    venueName: "Château du Belvédère",
+    stayName: "Belvédère Royal Residence",
+    stayType: "official_residence",
+    city: "Brussels / Laeken",
+    country: "Belgium",
+    latitude: 50.8892,
+    longitude: 4.3547,
+    startDate: "1959-07-02",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    securityLevel: "state-maximum",
+    notes: "Private residence of King Albert II and Queen Paola in Laeken.",
+    sourceId: "src-belgium-moniteur-19930809",
+  },
+
   // King Philippe & Queen Mathilde
   {
     id: "sty-philippe-laeken",
@@ -681,6 +1053,25 @@ export const royalStaysSeed: RoyalStaySeed[] = [
     securityLevel: "state-maximum",
     notes: "Primary royal residence of the King and Queen of the Belgians.",
     sourceId: "src-belgium-moniteur-20130721",
+  },
+
+  // Princess Beatrix
+  {
+    id: "sty-beatrix-drakensteyn",
+    personId: "princess-beatrix-netherlands",
+    venueName: "Kasteel Drakensteyn",
+    stayName: "Drakensteyn Private Residence",
+    stayType: "official_residence",
+    city: "Lage Vuursche / Baarn",
+    country: "Netherlands",
+    latitude: 52.1794,
+    longitude: 5.2239,
+    startDate: "2014-02-04",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    securityLevel: "state-maximum",
+    notes: "Private residential estate of Princess Beatrix following her abdication.",
+    sourceId: "src-netherlands-staatscourant-20130430",
   },
 
   // King Willem-Alexander & Queen Máxima
@@ -757,5 +1148,43 @@ export const royalStaysSeed: RoyalStaySeed[] = [
     securityLevel: "state-maximum",
     notes: "Official residence of the Princely Family of Liechtenstein.",
     sourceId: "src-liechtenstein-landtag-20040815",
+  },
+
+  // Margareta & Radu of Romania
+  {
+    id: "sty-margareta-elisabeta",
+    personId: "margareta-custodian-of-the-crown-romania",
+    venueName: "Elisabeta Palace (Palatul Elisabeta)",
+    stayName: "Sediul Oficial al Familiei Regale a României",
+    stayType: "official_residence",
+    city: "Bucharest",
+    country: "Romania",
+    latitude: 44.4721,
+    longitude: 26.0792,
+    startDate: "2001-05-18",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    securityLevel: "state-maximum",
+    notes: "Official working residence of the Custodian of the Crown in Bucharest.",
+    sourceId: "src-romania-official-gazette-20171205",
+  },
+
+  // Crown Prince Alexander & Katherine of Yugoslavia
+  {
+    id: "sty-alexander-royal-compound",
+    personId: "alexander-crown-prince-yugoslavia",
+    venueName: "The Royal Palace (Kraljevski Dvor)",
+    stayName: "Kraljevski Dvor Dedinje",
+    stayType: "official_residence",
+    city: "Belgrade",
+    country: "Serbia",
+    latitude: 44.7633,
+    longitude: 20.4503,
+    startDate: "2001-07-17",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    securityLevel: "state-maximum",
+    notes: "Historic Royal Compound in Dedinje, Belgrade restored to the Royal Family in 2001.",
+    sourceId: "src-serbia-dvor-alexander-2001",
   }
 ];

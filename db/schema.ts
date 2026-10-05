@@ -578,3 +578,4 @@ export const eventPersonLocations = pgTable("event_person_locations", {
   confidence: text("confidence").default("limited").notNull(),
   publicVisibility: text("public_visibility").default("approximate").notNull(),
 });
+

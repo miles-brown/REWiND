@@ -11,22 +11,26 @@ import {
   Award,
   Calendar,
   ShieldAlert,
+  Landmark,
+  MapPin,
 } from "lucide-react";
 import type { PersonRecord } from "@/lib/rewind";
 
 export function BiographicalSection({ person }: { person: PersonRecord }) {
-  const [activeTab, setActiveTab] = useState<"career" | "education" | "works" | "awards" | "identity">("career");
-
   const education = person.education || [];
   const career = person.career || [];
   const awards = person.awards || [];
   const works = person.works || [];
+  const stays = person.stays || [];
 
-  const tabKeys: ("career" | "education" | "works" | "awards" | "identity")[] = [
+  const [activeTab, setActiveTab] = useState<"career" | "education" | "works" | "awards" | "residences" | "identity">("career");
+
+  const tabKeys: ("career" | "education" | "works" | "awards" | "residences" | "identity")[] = [
     "career",
     "education",
     "works",
     "awards",
+    ...(stays.length > 0 ? (["residences"] as const) : []),
     "identity",
   ];
 
@@ -58,10 +62,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
     education: { label: "Education credentials", count: education.length, unit: "record" },
     works: { label: "Documented Works", count: works.length, unit: "item" },
     awards: { label: "Honours & Awards", count: awards.length, unit: "recognition" },
+    residences: { label: "Official Residences & Palaces", count: stays.length, unit: "residence" },
     identity: { label: "Identity & Origins" },
   };
 
-  const currentMeta = tabMeta[activeTab];
+  const currentMeta = tabMeta[activeTab] || { label: "Biographical Record" };
   const tabAnnounceText = currentMeta.count !== undefined
     ? `${currentMeta.label} selected, showing ${currentMeta.count} ${currentMeta.unit}${currentMeta.count === 1 ? "" : "s"} for ${person.name}.`
     : `${currentMeta.label} selected for ${person.name}.`;
@@ -143,6 +148,22 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           <Trophy size={15} />
           <span>Honours & Awards ({awards.length})</span>
         </button>
+
+        {stays.length > 0 && (
+          <button
+            type="button"
+            role="tab"
+            id="bio-tab-residences"
+            tabIndex={activeTab === "residences" ? 0 : -1}
+            aria-selected={activeTab === "residences"}
+            aria-controls="bio-tabpanel-residences"
+            className={`bio-tab ${activeTab === "residences" ? "active" : ""}`}
+            onClick={() => setActiveTab("residences")}
+          >
+            <Landmark size={15} />
+            <span>Residences & Palaces ({stays.length})</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -280,6 +301,44 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
             </div>
           ) : (
             <p className="empty-copy">Recognitions, honorary orders, and civil decorations will appear here.</p>
+          )}
+        </div>
+      )}
+
+      {/* Residences & Official Stays */}
+      {activeTab === "residences" && (
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-residences"
+          aria-labelledby="bio-tab-residences"
+        >
+          {stays.length > 0 ? (
+            <div className="bio-grid-list">
+              {stays.map((s) => (
+                <div key={s.id} className="bio-card stay-card">
+                  <div className="stay-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f8fafc" }}>{s.stayName || s.venueName}</h4>
+                    {s.isPrimaryResidence && (
+                      <span className="status-tag confirmed" style={{ fontSize: "10px", padding: "2px 6px" }}>Primary Residence</span>
+                    )}
+                    {s.isBaseOfOperations && !s.isPrimaryResidence && (
+                      <span className="status-tag provisional" style={{ fontSize: "10px", padding: "2px 6px" }}>Base of Operations</span>
+                    )}
+                  </div>
+                  <p className="bio-org" style={{ margin: "4px 0", fontSize: "12px", color: "#cbd5e1" }}>
+                    <MapPin size={13} style={{ display: "inline", marginRight: "4px" }} /> {s.city}, {s.country}
+                  </p>
+                  <span className="bio-dates" style={{ fontSize: "11px", color: "#f59e0b" }}>
+                    <Calendar size={12} style={{ display: "inline", marginRight: "4px" }} />
+                    {s.startDate} {s.endDate ? `— ${s.endDate}` : "— Present"}
+                  </span>
+                  {s.notes && <p className="bio-notes" style={{ marginTop: "6px", fontSize: "11px", color: "#94a3b8" }}>{s.notes}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-copy">Documented palaces, official headquarters, and diplomatic residences will appear here.</p>
           )}
         </div>
       )}

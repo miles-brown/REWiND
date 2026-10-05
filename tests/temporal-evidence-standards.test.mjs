@@ -2265,6 +2265,66 @@ test("verifies round-34 CodeRabbit review fixes: draft-only person promotion gua
   );
 });
 
+test("verifies round-36 roadmap features: search qualifier parsing, multi-figure co-attendance intersections, and biographical residences", async () => {
+  const searchModule = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  const relModule = await vite.ssrLoadModule("/lib/rewind/relationships.ts");
+  const commandPaletteTs = fs.readFileSync(path.join(root, "components/rewind/CommandPalette.tsx"), "utf-8");
+  const bioSectionTs = fs.readFileSync(path.join(root, "components/rewind/BiographicalSection.tsx"), "utf-8");
+  const meetingPageTs = fs.readFileSync(path.join(root, "app/relationship/meeting/[...slugs]/page.tsx"), "utf-8");
+
+  // 1. parseSearchQualifiers validation
+  assert.equal(typeof searchModule.parseSearchQualifiers, "function");
+  const q1 = searchModule.parseSearchQualifiers("type:monarch coronation year:2023 country:uk tier:t1");
+  assert.equal(q1.type, "monarch");
+  assert.equal(q1.year, "2023");
+  assert.equal(q1.country, "uk");
+  assert.equal(q1.tier, "t1");
+  assert.equal(q1.cleanedQuery, "coronation");
+
+  const q2 = searchModule.parseSearchQualifiers("charles iii");
+  assert.equal(q2.cleanedQuery, "charles iii");
+  assert.equal(q2.type, undefined);
+  assert.equal(q2.year, undefined);
+
+  // 2. getCoAttendanceIntersections slug validation & self-pair guard
+  assert.equal(typeof relModule.getCoAttendanceIntersectionsWithStatus, "function");
+  assert.equal(typeof relModule.getCoAttendanceIntersections, "function");
+
+  const resTooFew = await relModule.getCoAttendanceIntersectionsWithStatus(["single-figure"]);
+  assert.ok(resTooFew.error?.includes("between 2 and 5"));
+
+  const resDuplicate = await relModule.getCoAttendanceIntersectionsWithStatus(["charles-iii", "charles-iii"]);
+  assert.ok(resDuplicate.error?.includes("Duplicate"));
+
+  const resInvalid = await relModule.getCoAttendanceIntersectionsWithStatus(["charles-iii", "bad slug!"]);
+  assert.ok(resInvalid.error?.includes("Invalid figure identifier format"));
+
+  // 3. CommandPalette category tabs and quick qualifiers
+  assert.ok(
+    commandPaletteTs.includes("type:monarch") &&
+    commandPaletteTs.includes("year:2023") &&
+    commandPaletteTs.includes("command-filter-bar") &&
+    commandPaletteTs.includes("command-qualifiers-bar"),
+    "CommandPalette.tsx must include filter bar, qualifiers bar, and quick qualifier chips"
+  );
+
+  // 4. BiographicalSection residences support
+  assert.ok(
+    bioSectionTs.includes("residences") &&
+    bioSectionTs.includes("Official Residences & Palaces") &&
+    bioSectionTs.includes("stay-card"),
+    "BiographicalSection.tsx must render residences and official palaces tab"
+  );
+
+  // 5. MultiFigureMeetingPage existence and structure
+  assert.ok(
+    meetingPageTs.includes("getCoAttendanceIntersectionsWithStatus") &&
+    meetingPageTs.includes("MULTI-FIGURE CO-ATTENDANCE INTERSECTION"),
+    "app/relationship/meeting/[...slugs]/page.tsx must use getCoAttendanceIntersectionsWithStatus"
+  );
+});
+
+
 
 
 

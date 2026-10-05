@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Calendar, Database, Loader2, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import { AlertCircle, Calendar, Database, Loader2, MapPin, MessageSquareQuote, Search, Sparkles, Users, X } from "lucide-react";
 import type { SearchResultItem } from "@/lib/rewind/types";
 
 const DEFAULT_ACTIONS: SearchResultItem[] = [
@@ -65,6 +65,25 @@ const DEFAULT_ACTIONS: SearchResultItem[] = [
   },
 ];
 
+type CategoryFilter = "all" | "person" | "event" | "place" | "source" | "quote";
+
+const FILTER_TABS: { id: CategoryFilter; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: "all", label: "All Categories", icon: Sparkles },
+  { id: "person", label: "People", icon: Users },
+  { id: "event", label: "Events", icon: Calendar },
+  { id: "place", label: "Places", icon: MapPin },
+  { id: "source", label: "Sources", icon: Database },
+  { id: "quote", label: "Quotes", icon: MessageSquareQuote },
+];
+
+const QUICK_QUALIFIERS = [
+  "type:monarch",
+  "year:2023",
+  "country:spain",
+  "type:event",
+  "type:source",
+];
+
 export function CommandPalette({
   isOpen,
   onClose,
@@ -74,14 +93,22 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const trimmed = query.trim();
-  const results = trimmed ? searchResults : DEFAULT_ACTIONS;
+  const rawResults = trimmed ? searchResults : DEFAULT_ACTIONS;
+
+  // Filter raw results by category filter if selected
+  const results = useMemo(() => {
+    if (activeCategory === "all") return rawResults;
+    return rawResults.filter((item) => item.type === activeCategory);
+  }, [rawResults, activeCategory]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -97,7 +124,7 @@ export function CommandPalette({
       setSearchResults([]);
       setSearchError(null);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=15`, {
           signal: abortController.signal,
         });
         if (requestId !== searchRequestIdRef.current) return;
@@ -150,6 +177,12 @@ export function CommandPalette({
     }
   };
 
+  const handleInjectQualifier = (qualifier: string) => {
+    const nextQuery = query ? `${query.trim()} ${qualifier} ` : `${qualifier} `;
+    setQuery(nextQuery);
+    inputRef.current?.focus();
+  };
+
   if (!isOpen) return null;
 
   const categoryIcon = (type: SearchResultItem["type"]) => {
@@ -176,6 +209,7 @@ export function CommandPalette({
         <div className="search-input">
           <Search size={18} />
           <input
+            ref={inputRef}
             autoFocus
             value={query}
             onChange={(e) => {
@@ -192,7 +226,7 @@ export function CommandPalette({
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search events, quotes, participants, venues, sources…"
+            placeholder="Search events, quotes, participants, venues, sources (e.g. type:monarch, year:2023)…"
             aria-label="Search query"
           />
           {isLoading && (
@@ -223,6 +257,7 @@ export function CommandPalette({
                 setSearchResults([]);
                 setSearchError(null);
                 setIsLoading(false);
+                inputRef.current?.focus();
               }}
               aria-label="Clear query"
             >
@@ -232,6 +267,47 @@ export function CommandPalette({
             <kbd className="search-kbd">ESC</kbd>
           )}
         </div>
+
+        {/* Category Filters Bar */}
+        <div className="command-filter-bar" role="tablist" aria-label="Filter results by category">
+          {FILTER_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeCategory === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`command-filter-pill ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  setActiveCategory(tab.id);
+                  setSelectedIndex(0);
+                }}
+              >
+                <Icon size={12} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Qualifier Pills */}
+        <div className="command-qualifiers-bar" aria-label="Quick search qualifiers">
+          <span className="command-qualifier-label">Filters:</span>
+          {QUICK_QUALIFIERS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className="command-qualifier-pill"
+              onClick={() => handleInjectQualifier(q)}
+              title={`Add ${q} to search`}
+            >
+              +{q}
+            </button>
+          ))}
+        </div>
+
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {searchError
             ? searchError
@@ -241,7 +317,8 @@ export function CommandPalette({
             ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
             : ""}
         </div>
-        <div className="command-palette-results" aria-live="polite">
+
+        <div className="command-palette-results" id="command-palette-results" aria-live="polite">
           {searchError ? (
             <div className="empty-copy search-error-copy" role="alert">
               <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "var(--color-crimson, #ef4444)" }}>
@@ -256,11 +333,13 @@ export function CommandPalette({
               <small>Try searching by person, treaty name, city, or date.</small>
             </div>
           ) : null}
+
           {results.map((item, index) => {
             const isSelected = index === activeIndex;
             return (
               <Link
                 key={item.id}
+                id={`cmd-item-${item.id}`}
                 href={item.url}
                 onClick={onClose}
                 onMouseEnter={() => setSelectedIndex(index)}
@@ -278,6 +357,7 @@ export function CommandPalette({
             );
           })}
         </div>
+
         <footer className="command-palette-footer">
           <span><kbd>↑</kbd> <kbd>↓</kbd> Navigate</span>
           <span><kbd>↵</kbd> Open</span>

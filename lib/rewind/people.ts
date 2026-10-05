@@ -1,9 +1,89 @@
 import { createClient } from "@/lib/supabase/server";
 import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
+import {
+  royalEducationSeed,
+  royalCareerSeed,
+  royalAwardsSeed,
+  royalWorksSeed,
+  royalStaysSeed,
+} from "@/data/seeds/royal-bio-details-seed";
 import { getEventsByPersonWithStatus } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
 
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
+  const pEdu = royalEducationSeed
+    .filter((e) => e.personId === p.id || e.personId === p.slug)
+    .map((e) => ({
+      id: e.id,
+      personId: e.personId,
+      institution: e.institution,
+      startDate: e.startYear,
+      endDate: e.endYear,
+      degree: e.degree,
+      subject: e.fieldOfStudy,
+      completedStatus: "completed" as const,
+      sourceId: e.sourceId,
+    }));
+
+  const pCareer = royalCareerSeed
+    .filter((c) => c.personId === p.id || c.personId === p.slug)
+    .map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      organisationName: c.organisationName,
+      positionTitle: c.roleTitle,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      notes: c.notes,
+      sourceId: c.sourceId,
+    }));
+
+  const pAwards = royalAwardsSeed
+    .filter((a) => a.personId === p.id || a.personId === p.slug)
+    .map((a) => ({
+      id: a.id,
+      personId: a.personId,
+      awardName: a.awardName,
+      awardingBody: a.awardingBody,
+      awardYear: a.yearReceived ? parseInt(a.yearReceived, 10) : undefined,
+      result: "winner" as const,
+      citationReason: a.citation,
+      sourceId: a.sourceId,
+    }));
+
+  const pWorks = royalWorksSeed
+    .filter((w) => w.personId === p.id || w.personId === p.slug)
+    .map((w) => ({
+      id: w.id,
+      personId: w.personId,
+      workTitle: w.title,
+      workType: w.workType,
+      releaseDate: w.publicationYear,
+      publisherOrVenue: w.publisher,
+      significanceNote: w.notes,
+      sourceId: w.sourceId,
+    }));
+
+  const pStays = royalStaysSeed
+    .filter((s) => s.personId === p.id || s.personId === p.slug)
+    .map((s) => ({
+      id: s.id,
+      personId: s.personId,
+      venueName: s.venueName,
+      stayName: s.stayName,
+      stayType: s.stayType,
+      city: s.city,
+      country: s.country,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      startDate: s.startDate,
+      endDate: s.endDate ?? undefined,
+      isBaseOfOperations: s.isBaseOfOperations,
+      isPrimaryResidence: s.isPrimaryResidence,
+      notes: s.notes,
+      sourceIds: s.sourceId ? [s.sourceId] : [],
+    }));
+
   return {
     id: p.id,
     slug: p.slug,
@@ -30,6 +110,11 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     culturalImpactSummary: p.culturalImpactSummary ?? undefined,
     achievements: p.achievements,
     avatarUrl: p.avatarUrl ?? undefined,
+    education: pEdu.length > 0 ? pEdu : undefined,
+    career: pCareer.length > 0 ? pCareer : undefined,
+    awards: pAwards.length > 0 ? pAwards : undefined,
+    works: pWorks.length > 0 ? pWorks : undefined,
+    stays: pStays.length > 0 ? pStays : undefined,
   };
 }
 
