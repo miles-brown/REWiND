@@ -475,9 +475,18 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     rawPlaces = await getPlacesStrict(supabase);
   }
 
-  // 2. Fetch all events to compute exact event counts per venue, city, and country
-  const allEventsRes = await getEvents({ limit: 1000 });
-  const allEvents = allEventsRes.data || [];
+  // 2. Fetch all events across all pages to compute exact event counts per venue, city, and country
+  const allEvents: EventRecord[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+  do {
+    const pageRes = await getEvents({ page: currentPage, limit: 100 });
+    if (pageRes.data && pageRes.data.length > 0) {
+      allEvents.push(...pageRes.data);
+    }
+    totalPages = pageRes.totalPages || 1;
+    currentPage++;
+  } while (currentPage <= totalPages && currentPage <= 100);
 
   const eventCountsByVenueId = new Map<string, number>();
   const eventCountsByCity = new Map<string, number>();

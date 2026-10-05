@@ -145,7 +145,7 @@ export async function searchRewind(
   }
 
   const { cleanedQuery, type, year, country, tier } = parseSearchQualifiers(term);
-  const effectiveTerm = cleanedQuery || term;
+  const effectiveTerm = cleanedQuery;
 
   const ilikeEscaped = escapeIlikePattern(effectiveTerm);
   const postgrestIlikeEscaped = escapePostgrestValue(ilikeEscaped);
@@ -154,8 +154,11 @@ export async function searchRewind(
   let eventsQuery = supabase
     .from("events")
     .select("id, slug, title, start_date, summary")
-    .eq("publication_status", "published")
-    .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`);
+    .eq("publication_status", "published");
+
+  if (effectiveTerm) {
+    eventsQuery = eventsQuery.or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`);
+  }
 
   if (year && /^\d{4}$/.test(year)) {
     const nextYear = String(Number(year) + 1).padStart(4, "0");
@@ -163,17 +166,23 @@ export async function searchRewind(
   }
   eventsQuery = eventsQuery.limit(limit);
 
-  const peopleQuery = supabase
+  let peopleQuery = supabase
     .from("people")
     .select("id, slug, display_name, canonical_name, primary_role")
-    .eq("publication_status", "published")
-    .or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`)
-    .limit(limit);
+    .eq("publication_status", "published");
+
+  if (effectiveTerm) {
+    peopleQuery = peopleQuery.or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+  peopleQuery = peopleQuery.limit(limit);
 
   let placesQuery = supabase
     .from("places")
-    .select("id, slug, venue, city, country")
-    .or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`);
+    .select("id, slug, venue, city, country");
+
+  if (effectiveTerm) {
+    placesQuery = placesQuery.or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`);
+  }
 
   if (country) {
     const escapedCountry = escapePostgrestValue(escapeIlikePattern(country));
@@ -181,16 +190,22 @@ export async function searchRewind(
   }
   placesQuery = placesQuery.limit(limit);
 
-  const venuesQuery = supabase
+  let venuesQuery = supabase
     .from("venues")
-    .select("id, name, address_id")
-    .ilike("name", `%${ilikeEscaped}%`)
-    .limit(limit);
+    .select("id, name, address_id");
+
+  if (effectiveTerm) {
+    venuesQuery = venuesQuery.ilike("name", `%${ilikeEscaped}%`);
+  }
+  venuesQuery = venuesQuery.limit(limit);
 
   let sourcesQuery = supabase
     .from("sources")
-    .select("id, title, publisher, tier")
-    .or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`);
+    .select("id, title, publisher, tier");
+
+  if (effectiveTerm) {
+    sourcesQuery = sourcesQuery.or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`);
+  }
 
   const normTier = normalizeTier(tier);
   if (normTier) {
@@ -198,11 +213,14 @@ export async function searchRewind(
   }
   sourcesQuery = sourcesQuery.limit(limit);
 
-  const quotesQuery = supabase
+  let quotesQuery = supabase
     .from("quotes")
-    .select("id, quote, context, speaker_id, event_id")
-    .or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`)
-    .limit(limit);
+    .select("id, quote, context, speaker_id, event_id");
+
+  if (effectiveTerm) {
+    quotesQuery = quotesQuery.or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+  quotesQuery = quotesQuery.limit(limit);
 
   const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
     eventsQuery,

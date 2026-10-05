@@ -649,7 +649,8 @@ async function syncCorpus() {
           set: eventValues,
         });
 
-      // Synchronize event sources (event_sources)
+      // Reconcile and synchronize event sources (event_sources)
+      await tx.delete(schema.eventSources).where(eq(schema.eventSources.eventId, evt.id));
       let isPrimarySource = true;
       for (const sId of evt.sourceIds || []) {
         await tx
@@ -658,8 +659,7 @@ async function syncCorpus() {
             eventId: evt.id,
             sourceId: sId,
             isPrimary: isPrimarySource,
-          })
-          .onConflictDoNothing();
+          });
         isPrimarySource = false;
       }
 

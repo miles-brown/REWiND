@@ -11,65 +11,26 @@ export interface OfficialGazetteRecord {
   signatoryRole?: string; // "King of Spain"
   city?: string;
   venue?: string;
+  latitude?: number;
+  longitude?: number;
   text: string; // Verbatim legal decree or state announcement
   url?: string;
 }
 
-function resolveGazetteLocation(country: string, cityOverride?: string, venueOverride?: string) {
-  const normCountry = (country || "").toLowerCase();
-
-  if (normCountry.includes("spain") || normCountry.includes("españa")) {
-    return {
-      venue: venueOverride || "Palacio de las Cortes",
-      city: cityOverride || "Madrid",
-      country: "Spain",
-      latitude: 40.4165,
-      longitude: -3.6967,
-    };
-  }
-
-  if (normCountry.includes("belgium") || normCountry.includes("belgique")) {
-    return {
-      venue: venueOverride || "Palais de la Nation (Federal Parliament)",
-      city: cityOverride || "Brussels",
-      country: "Belgium",
-      latitude: 50.8466,
-      longitude: 4.3644,
-    };
-  }
-
-  if (normCountry.includes("france")) {
-    return {
-      venue: venueOverride || "Palais Bourbon",
-      city: cityOverride || "Paris",
-      country: "France",
-      latitude: 48.8619,
-      longitude: 2.3186,
-    };
-  }
-
-  if (
-    normCountry.includes("uk") ||
-    normCountry.includes("united kingdom") ||
-    normCountry.includes("great britain") ||
-    normCountry.includes("england")
-  ) {
-    return {
-      venue: venueOverride || "Palace of Westminster",
-      city: cityOverride || "London",
-      country: "United Kingdom",
-      latitude: 51.4995,
-      longitude: -0.1248,
-    };
-  }
-
-  // Preserve provided country and leave coordinates undefined for unrecognized countries
+function resolveGazetteLocation(
+  country: string,
+  cityOverride?: string,
+  venueOverride?: string,
+  latitudeOverride?: number,
+  longitudeOverride?: number
+) {
+  // If venue or city are explicitly provided, preserve them without fabricating parliament/city/coordinates from country alone
   return {
-    venue: venueOverride || "Official Government Seat",
-    city: cityOverride || "Capital City",
+    venue: venueOverride || "Official State Gazette",
+    city: cityOverride || "National Jurisdiction",
     country: country || "International",
-    latitude: undefined,
-    longitude: undefined,
+    latitude: latitudeOverride,
+    longitude: longitudeOverride,
   };
 }
 
@@ -90,7 +51,7 @@ export function ingestOfficialGazette(rec: OfficialGazetteRecord) {
     fetchedAt: new Date().toISOString(),
   };
 
-  const loc = resolveGazetteLocation(rec.country, rec.city, rec.venue);
+  const loc = resolveGazetteLocation(rec.country, rec.city, rec.venue, rec.latitude, rec.longitude);
 
   const candidate: ExtractedCandidateEvent = {
     title: `${rec.gazetteName}: ${rec.documentTitle}`,
