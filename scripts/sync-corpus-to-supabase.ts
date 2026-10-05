@@ -14,6 +14,7 @@
  * 10. Topics & Topical Cross-References
  */
 
+import { createHash } from "node:crypto";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
@@ -65,13 +66,12 @@ const client = postgres(connectionString, {
 
 const db = drizzle(client, { schema });
 
-// Strict fail-closed year validation helper (/^\d{4}$/)
+// Strict fail-closed year validation helper (/^\d{4}$/ or standard ISO)
 function validateYearStringOrNull(val: string | number | null | undefined): string | null {
   if (val == null) return null;
   const str = String(val).trim();
   if (/^\d{4}$/.test(str)) return str;
-  const match = str.match(/^(\d{4})/);
-  if (match) return match[1];
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(str)) return str.slice(0, 4);
   return null;
 }
 
