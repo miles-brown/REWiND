@@ -740,6 +740,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,
+      embedding: null,
       participants: (Array.isArray(data.participants) ? data.participants : []).map((p: { name: string; role?: string; presenceMode?: string }) => {
         const canonicalId =
           resolvedParticipantMap.get(p.name?.toLowerCase().trim()) ||

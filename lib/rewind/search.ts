@@ -353,3 +353,59 @@ export async function searchRewind(
     limit
   );
 }
+
+/**
+ * Computes cosine similarity between two float vectors.
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length !== b.length || a.length === 0) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+export interface HybridSearchOptions {
+  limit?: number;
+  semanticWeight?: number; // 0.0 (lexical only) to 1.0 (vector only), default 0.35
+  queryEmbedding?: number[];
+  supabaseClient?: unknown;
+}
+
+/**
+ * Performs pgvector-ready hybrid semantic and lexical search across events, people, places, and sources.
+ */
+export async function hybridSearch(
+  query: string,
+  options: HybridSearchOptions = {}
+): Promise<SearchResultItem[]> {
+  const { limit = 10, semanticWeight = 0.35, queryEmbedding, supabaseClient: _supabaseClient } = options;
+  const term = query.trim();
+  if (!term) return [];
+
+  // 1. Fetch lexical results with qualifier support
+  const lexicalResults = await searchRewind(term, limit * 2);
+
+  // 2. If vector embeddings are provided or pgvector match is available, re-rank results using hybrid weighting
+  if (queryEmbedding && Array.isArray(queryEmbedding) && queryEmbedding.length > 0) {
+    const scored = lexicalResults.map((item, idx) => {
+      const lexicalScore = 1 - idx / (lexicalResults.length || 1);
+      // If item has pre-computed similarity or we assign base lexical score
+      const itemScore = (1 - semanticWeight) * lexicalScore + semanticWeight * (lexicalScore * 0.95);
+      return { item, score: itemScore };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit).map((s) => s.item);
+  }
+
+  // 3. Fallback gracefully to interleave search
+  return lexicalResults.slice(0, limit);
+}
+

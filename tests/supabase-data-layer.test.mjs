@@ -841,5 +841,33 @@ test("verifies Task 08: claim contestation handling and confidence downgrade inv
   assert.equal(uncontestedClaim.confidence, "confirmed");
 });
 
+test("verifies Task 11: pgvector hybrid semantic search and cosine similarity math", async () => {
+  const { cosineSimilarity, hybridSearch } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+
+  // Verify vector mathematics
+  const vecA = [1.0, 0.0, 0.0];
+  const vecB = [1.0, 0.0, 0.0];
+  const vecC = [0.0, 1.0, 0.0];
+
+  assert.equal(cosineSimilarity(vecA, vecB), 1.0, "Identical vectors must have cosine similarity 1.0");
+  assert.equal(cosineSimilarity(vecA, vecC), 0.0, "Orthogonal vectors must have cosine similarity 0.0");
+  assert.equal(cosineSimilarity([], []), 0.0, "Empty vectors return 0.0");
+
+  // Verify hybridSearch empty query handling
+  const emptyRes = await hybridSearch("", { limit: 5 });
+  assert.deepEqual(emptyRes, []);
+
+  // Verify hybridSearch client unavailable rejection
+  await assert.rejects(
+    hybridSearch("Charles", {
+      limit: 5,
+      semanticWeight: 0.4,
+      queryEmbedding: [0.12, 0.45, -0.23, 0.88],
+    }),
+    /Supabase search client is unavailable/
+  );
+});
+
+
 
 

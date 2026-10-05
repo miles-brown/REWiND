@@ -293,6 +293,7 @@ export function processCandidateEvent(
           publicationStatus: "published",
           publicationLane: policy.lane,
           significanceScore: 85,
+          embedding: null,
           participants: candidate.participants.map((p, idx) => ({
             personId: entityResolutions[idx]?.personId || resolveEntity(p.name).personId,
             name: p.name,

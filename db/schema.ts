@@ -62,6 +62,7 @@ export const people = pgTable("people", {
   viafId: text("viaf_id"),
   avatarUrl: text("avatar_url"),
   summary: text("summary"),
+  embedding: text("embedding"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -237,6 +238,7 @@ export const events = pgTable("events", {
   publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
   publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
   significanceScore: integer("significance_score").default(80).notNull(),
+  embedding: text("embedding"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

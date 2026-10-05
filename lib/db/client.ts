@@ -262,6 +262,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       viafId: null,
       avatarUrl: null,
       summary: p.description,
+      embedding: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -306,6 +307,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       viafId: p.viafId,
       avatarUrl: p.avatarUrl,
       summary: p.summary,
+      embedding: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -437,6 +439,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       publicationStatus: "published",
       publicationLane: "auto-publish",
       significanceScore: 80,
+      embedding: null,
       participants: (e.participants || []).map((p) => ({
         personId: personIdToSlug.get(p.personId) || p.personId,
         name: p.name,
