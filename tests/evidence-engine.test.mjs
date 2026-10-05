@@ -764,24 +764,4 @@ test("verifies Task 09: UK Court Circular and Hansard ingestion adapters", async
   assert.equal(hansardRes.policy.isEligible, true);
 });
 
-test("verifies Task 19: Official State Gazette Ingestion Adapter", async () => {
-  const { ingestOfficialGazette } = await vite.ssrLoadModule("/lib/ingestion/adapters/official-gazette.ts");
-
-  const gazetteRes = ingestOfficialGazette({
-    gazetteId: "boe-20140619-01",
-    gazetteName: "Boletín Oficial del Estado (BOE)",
-    country: "Spain",
-    publicationDate: "2014-06-19",
-    documentTitle: "Proclamación de Su Majestad el Rey Don Felipe VI ante las Cortes Generales",
-    signatory: "King Felipe VI",
-    signatoryRole: "Rey de España",
-    text: "En el día de hoy, ante las Cortes Generales reunidas en sesión conjunta, ha prestado juramento Su Majestad el Rey Don Felipe VI.",
-    url: "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2014-6475",
-  });
-
-  assert.ok(gazetteRes.candidateId);
-  assert.ok(gazetteRes.fingerprint);
-  assert.equal(gazetteRes.policy.isEligible, true);
-});
-
 

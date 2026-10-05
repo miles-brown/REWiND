@@ -126,7 +126,7 @@ export function calculateSourceTrustScores(): SourceTrustCalculation[] {
 if (
   typeof process !== "undefined" &&
   process.argv[1] &&
-  (process.argv[1].endsWith("calculate-source-trust.ts") || fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
   console.log("================================================================================");
   console.log("REWIND EVIDENCE ATLAS — Automated Source Trust Score Recalculator");

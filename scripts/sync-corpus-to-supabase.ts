@@ -698,7 +698,7 @@ async function syncCorpus() {
         const q = quotesList[qIdx];
         const matchedPerson = masterPeopleSeed.find((p) => p.canonicalName === q.speaker || p.displayName === q.speaker);
         const participantMatch = evt.participants?.find((pt) => pt.name === q.speaker);
-        const speakerRef = matchedPerson?.id || participantMatch?.personId || (quotesList.length === 1 && evt.participants?.length === 1 ? evt.participants[0]?.personId : null);
+        const speakerRef = matchedPerson?.id || participantMatch?.personId || null;
         if (speakerRef) {
           const canonicalSpeakerRef = PARTICIPANT_ID_ALIASES[speakerRef] || speakerRef;
           const dbSpeakerId = resolvedPersonIdMap.get(canonicalSpeakerRef) || canonicalSpeakerRef;
@@ -772,6 +772,7 @@ async function syncCorpus() {
       const dbPersonId = resolvedPersonIdMap.get(role.personId);
       if (!dbPersonId) return null;
       return {
+        id: role.id,
         personId: dbPersonId,
         title: role.title,
         startDate: role.startDate,

@@ -63,7 +63,29 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
 
   // 1. Verify Events
   allEvents.forEach((e) => {
-    if (e.latitude != null && e.longitude != null && Number.isFinite(e.latitude) && Number.isFinite(e.longitude)) {
+    if (e.latitude != null || e.longitude != null) {
+      if (
+        e.latitude == null ||
+        e.longitude == null ||
+        typeof e.latitude !== "number" ||
+        typeof e.longitude !== "number" ||
+        !Number.isFinite(e.latitude) ||
+        !Number.isFinite(e.longitude)
+      ) {
+        anomalies.push({
+          recordType: "event",
+          recordId: e.id,
+          name: e.eventName,
+          venue: e.venueName,
+          country: e.country,
+          latitude: typeof e.latitude === "number" ? e.latitude : 0,
+          longitude: typeof e.longitude === "number" ? e.longitude : 0,
+          reason: "Non-finite or incomplete latitude/longitude coordinates",
+          severity: "error",
+        });
+        return;
+      }
+
       const lat = e.latitude;
       const lng = e.longitude;
 
@@ -131,7 +153,29 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
 
   // 2. Verify Royal Stays
   royalStaysSeed.forEach((s) => {
-    if (s.latitude != null && s.longitude != null && Number.isFinite(s.latitude) && Number.isFinite(s.longitude)) {
+    if (s.latitude != null || s.longitude != null) {
+      if (
+        s.latitude == null ||
+        s.longitude == null ||
+        typeof s.latitude !== "number" ||
+        typeof s.longitude !== "number" ||
+        !Number.isFinite(s.latitude) ||
+        !Number.isFinite(s.longitude)
+      ) {
+        anomalies.push({
+          recordType: "stay",
+          recordId: s.id,
+          name: s.venueName,
+          venue: s.stayName || s.venueName,
+          country: s.country,
+          latitude: typeof s.latitude === "number" ? s.latitude : 0,
+          longitude: typeof s.longitude === "number" ? s.longitude : 0,
+          reason: "Non-finite or incomplete stay coordinates",
+          severity: "error",
+        });
+        return;
+      }
+
       const lat = s.latitude;
       const lng = s.longitude;
 
@@ -174,7 +218,7 @@ export function verifyAllSpatialCoordinates(): CoordinateAnomaly[] {
 if (
   typeof process !== "undefined" &&
   process.argv[1] &&
-  (process.argv[1].endsWith("verify-spatial-coordinates.ts") || fileURLToPath(import.meta.url) === path.resolve(process.argv[1]))
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
   console.log("================================================================================");
   console.log("REWIND EVIDENCE ATLAS — Spatial Coordinate Verification & Gazetteer QA");

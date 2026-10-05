@@ -791,6 +791,28 @@ test("verifies Task 08: claim contestation handling and confidence downgrade inv
                   contradicts_claim_id: null,
                   contestation_notes: null,
                 },
+                {
+                  id: "clm-103",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-c",
+                  claim_type: "presence",
+                  statement: "Monarch C signed bilateral pact",
+                  confidence: "strong",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
+                {
+                  id: "clm-104",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-d",
+                  claim_type: "presence",
+                  statement: "Monarch D attended closing session",
+                  confidence: "limited",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
               ],
               error: null,
             });
@@ -808,7 +830,27 @@ test("verifies Task 08: claim contestation handling and confidence downgrade inv
       if (tableName === "claim_evidence") {
         return {
           select() { return this; },
-          in() { return this; },
+          in() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "evd-103",
+                  claim_id: "clm-103",
+                  source_id: "src-disputed-report",
+                  evidence_form: "direct-citation",
+                  contradicts_claim: true,
+                },
+                {
+                  id: "evd-104",
+                  claim_id: "clm-104",
+                  source_id: "src-unverified-account",
+                  evidence_form: "direct-citation",
+                  contradicts_claim: true,
+                },
+              ],
+              error: null,
+            });
+          },
           range() {
             return Promise.resolve({
               data: [],
@@ -826,7 +868,7 @@ test("verifies Task 08: claim contestation handling and confidence downgrade inv
   };
 
   const claims = await getClaimsByEvent("evt-summit-1", mockClient);
-  assert.equal(claims.length, 2);
+  assert.equal(claims.length, 4);
 
   // clm-101 has contestation notes & contradicts_claim_id -> confidence must be downgraded to 'disputed'
   const contestedClaim = claims.find((c) => c.id === "clm-101");
@@ -839,6 +881,16 @@ test("verifies Task 08: claim contestation handling and confidence downgrade inv
   const uncontestedClaim = claims.find((c) => c.id === "clm-102");
   assert.ok(uncontestedClaim, "Must find uncontested claim");
   assert.equal(uncontestedClaim.confidence, "confirmed");
+
+  // clm-103 is contested via claim_evidence with contradicts_claim -> confidence downgraded from strong to disputed
+  const evidenceContestedClaim = claims.find((c) => c.id === "clm-103");
+  assert.ok(evidenceContestedClaim, "Must find evidence-contested claim");
+  assert.equal(evidenceContestedClaim.confidence, "disputed", "Contradictory evidence must downgrade strong to disputed");
+
+  // clm-104 is contested via claim_evidence with contradicts_claim and initial limited -> remains limited
+  const limitedContestedClaim = claims.find((c) => c.id === "clm-104");
+  assert.ok(limitedContestedClaim, "Must find limited contested claim");
+  assert.equal(limitedContestedClaim.confidence, "limited", "Contradictory evidence on limited claim preserves limited");
 });
 
 test("verifies Task 11: pgvector hybrid semantic search and cosine similarity math", async () => {

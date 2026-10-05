@@ -2281,10 +2281,9 @@ test("verifies round-36 roadmap features: search qualifier parsing, multi-figure
   assert.equal(q1.tier, "t1");
   assert.equal(q1.cleanedQuery, "coronation");
 
-  const q2 = searchModule.parseSearchQualifiers("charles iii");
-  assert.equal(q2.cleanedQuery, "charles iii");
-  assert.equal(q2.type, undefined);
-  assert.equal(q2.year, undefined);
+  const qTierA = searchModule.parseSearchQualifiers("summit tier:tier-a");
+  assert.equal(qTierA.tier, "tier-a");
+  assert.equal(qTierA.cleanedQuery, "summit");
 
   // 2. getCoAttendanceIntersections slug validation & self-pair guard
   assert.equal(typeof relModule.getCoAttendanceIntersectionsWithStatus, "function");
@@ -2300,18 +2299,22 @@ test("verifies round-36 roadmap features: search qualifier parsing, multi-figure
   assert.ok(resInvalid.error?.includes("Invalid figure identifier format"));
 
   // 3. CommandPalette category tabs and quick qualifiers
+  const cpModule = await vite.ssrLoadModule("/components/rewind/CommandPalette.tsx");
+  assert.equal(typeof cpModule.CommandPalette, "function", "CommandPalette must be exported as a functional component");
   assert.ok(
-    commandPaletteTs.includes("type:monarch") &&
-    commandPaletteTs.includes("year:2023") &&
+    commandPaletteTs.includes("role=\"group\"") &&
+    commandPaletteTs.includes("aria-label=\"Filter results by category\"") &&
     commandPaletteTs.includes("command-filter-bar") &&
     commandPaletteTs.includes("command-qualifiers-bar"),
-    "CommandPalette.tsx must include filter bar, qualifiers bar, and quick qualifier chips"
+    "CommandPalette.tsx must include filter bar with role=group, qualifiers bar, and quick qualifier chips"
   );
 
   // 4. BiographicalSection residences support
+  const bioModule = await vite.ssrLoadModule("/components/rewind/BiographicalSection.tsx");
+  assert.equal(typeof bioModule.BiographicalSection, "function", "BiographicalSection must be exported as a functional component");
   assert.ok(
     bioSectionTs.includes("residences") &&
-    bioSectionTs.includes("Official Residences & Palaces") &&
+    bioSectionTs.includes("id=\"bio-tabpanel-residences\"") &&
     bioSectionTs.includes("stay-card"),
     "BiographicalSection.tsx must render residences and official palaces tab"
   );

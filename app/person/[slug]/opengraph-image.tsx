@@ -39,19 +39,7 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
     }
   }
 
-  // Fallback formatting for slug
-  const title = slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-
-  return {
-    canonicalName: title,
-    name: title,
-    description: "Verified Biographical Dossier",
-    nationality: "",
-    classification: "public-figure",
-  };
+  return null;
 }
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {

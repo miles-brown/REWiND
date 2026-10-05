@@ -45,22 +45,7 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
     }
   }
 
-  // Fallback formatting for slug
-  const title = slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-
-  return {
-    eventName: title,
-    startDate: "Archival Record",
-    venueName: "Verified Venue",
-    city: "",
-    country: "",
-    eventTypes: ["Historical Event"],
-    categories: ["Diplomatic Record"],
-    summary: "Primary Government Records & Verified Coordinates",
-  };
+  return null;
 }
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
