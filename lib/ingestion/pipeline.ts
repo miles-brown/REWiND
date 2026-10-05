@@ -174,6 +174,8 @@ export function processCandidateEvent(
             claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
             epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
+            contradictsClaimId: null,
+            contestationNotes: null,
           });
         });
 
@@ -319,6 +321,8 @@ export function processCandidateEvent(
             claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
             epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
+            contradictsClaimId: null,
+            contestationNotes: null,
           });
         });
 

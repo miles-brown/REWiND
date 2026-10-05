@@ -104,6 +104,17 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
     const entityType = c.subject_entity_id
       ? c.subject_entity_type
       : (c.subject_id ? "person" : (c.subject_entity_type || "event"));
+    const claimEvidenceList = evidenceMap.get(String(c.id)) || [];
+    const isContested =
+      Boolean(c.contradicts_claim_id) ||
+      Boolean(c.contestation_notes) ||
+      claimEvidenceList.some((ev) => ev.contradictsClaim);
+
+    let effectiveConfidence = (c.confidence as ClaimRecord["confidence"]) || "limited";
+    if (isContested && (effectiveConfidence === "confirmed" || effectiveConfidence === "strong")) {
+      effectiveConfidence = "disputed";
+    }
+
     return {
       id: String(c.id),
       eventId: c.event_id ? String(c.event_id) : undefined,
@@ -114,14 +125,16 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
       claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
       claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
       sourceId: c.source_id ? String(c.source_id) : undefined,
-      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
+      confidence: effectiveConfidence,
       claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
       epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
       legalStatus: c.legal_status ? String(c.legal_status) : undefined,
       isAttributedOnly: Boolean(c.is_attributed_only),
       attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
       supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
-      evidence: evidenceMap.get(String(c.id)) || [],
+      contradictsClaimId: c.contradicts_claim_id ? String(c.contradicts_claim_id) : undefined,
+      contestationNotes: c.contestation_notes ? String(c.contestation_notes) : undefined,
+      evidence: claimEvidenceList,
     };
   });
 }

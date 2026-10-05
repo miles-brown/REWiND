@@ -758,5 +758,88 @@ test("retrieves person roles, personal milestones, and continuous topic timeline
   assert.ok(Array.isArray(topicEvents));
 });
 
+test("verifies Task 08: claim contestation handling and confidence downgrade invariant", async () => {
+  const { getClaimsByEvent } = await vite.ssrLoadModule("/lib/rewind/claims.ts");
+
+  const mockClient = {
+    from(tableName) {
+      if (tableName === "claims") {
+        return {
+          select() { return this; },
+          or() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "clm-101",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-a",
+                  claim_type: "presence",
+                  statement: "Monarch A arrived at 10:00 AM",
+                  confidence: "confirmed",
+                  contradicts_claim_id: "clm-100",
+                  contestation_notes: "Secondary source claimed 11:30 AM arrival",
+                },
+                {
+                  id: "clm-102",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-b",
+                  claim_type: "presence",
+                  statement: "Monarch B attended opening ceremony",
+                  confidence: "confirmed",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
+              ],
+              error: null,
+            });
+          },
+          eq() { return this; },
+          order() { return this; },
+          range() {
+            return Promise.resolve({
+              data: [],
+              error: null,
+            });
+          },
+        };
+      }
+      if (tableName === "claim_evidence") {
+        return {
+          select() { return this; },
+          in() { return this; },
+          range() {
+            return Promise.resolve({
+              data: [],
+              error: null,
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        range() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
+
+  const claims = await getClaimsByEvent("evt-summit-1", mockClient);
+  assert.equal(claims.length, 2);
+
+  // clm-101 has contestation notes & contradicts_claim_id -> confidence must be downgraded to 'disputed'
+  const contestedClaim = claims.find((c) => c.id === "clm-101");
+  assert.ok(contestedClaim, "Must find contested claim");
+  assert.equal(contestedClaim.contradictsClaimId, "clm-100");
+  assert.equal(contestedClaim.contestationNotes, "Secondary source claimed 11:30 AM arrival");
+  assert.equal(contestedClaim.confidence, "disputed", "Contested claim must downgrade confirmed to disputed");
+
+  // clm-102 is uncontested -> retains 'confirmed'
+  const uncontestedClaim = claims.find((c) => c.id === "clm-102");
+  assert.ok(uncontestedClaim, "Must find uncontested claim");
+  assert.equal(uncontestedClaim.confidence, "confirmed");
+});
+
 
 

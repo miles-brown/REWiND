@@ -340,6 +340,8 @@ export const claims = pgTable("claims", {
   claimStatus: text("claim_status").default("PROVISIONAL").notNull(),
   epistemicClass: text("epistemic_class").default("unknown").notNull(),
   supportingExcerpt: text("supporting_excerpt"),
+  contradictsClaimId: text("contradicts_claim_id"),
+  contestationNotes: text("contestation_notes"),
 });
 
 export const claimEvidence = pgTable("claim_evidence", {

@@ -81,6 +81,8 @@ export interface ClaimRecord {
   isAttributedOnly: boolean;
   attributionSpeakerId?: string;
   supportingExcerpt?: string;
+  contradictsClaimId?: string;
+  contestationNotes?: string;
   evidence?: ClaimEvidenceRecord[];
 }
 

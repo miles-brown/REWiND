@@ -466,6 +466,8 @@ function initializeSeedStore(): MemoryRelationalStore {
         claimStatus: p.presenceConfidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL",
         epistemicClass: p.presenceConfidence === "confirmed" ? "documented fact" : "attributed assertion",
         supportingExcerpt: e.summary,
+        contradictsClaimId: null,
+        contestationNotes: null,
       };
     })
   );
