@@ -219,9 +219,9 @@ export function RelationshipNetworkGraph({
             justifyContent: "center",
           }}
         >
-          <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ maxHeight: "600px" }}>
+          <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ maxHeight: "600px" }} role="img" aria-label="Interactive Diplomatic Relationship Topology Graph">
             {/* Draw Links */}
-            <g className="graph-links" stroke="rgba(56, 189, 248, 0.25)">
+            <g className="graph-links" stroke="rgba(56, 189, 248, 0.25)" role="group" aria-label="Bilateral connection lines">
               {links.map((link) => {
                 const srcNode = nodeMap.get(link.source);
                 const tgtNode = nodeMap.get(link.target);
@@ -241,16 +241,21 @@ export function RelationshipNetworkGraph({
                     stroke={isHighlighted ? "#38bdf8" : "rgba(56, 189, 248, 0.25)"}
                     strokeWidth={Math.min(6, Math.max(1.5, link.sharedEventsCount * 0.8))}
                     strokeOpacity={isHighlighted ? 0.9 : selectedNodeId ? 0.1 : 0.4}
+                    aria-label={`Connection: ${link.sourceName} and ${link.targetName} (${link.sharedEventsCount} shared events)`}
                   />
                 );
               })}
             </g>
 
             {/* Draw Nodes */}
-            <g className="graph-nodes">
+            <g className="graph-nodes" role="group" aria-label="Diplomatic Figure Nodes">
               {nodes.map((node) => {
                 const isSelected = selectedNodeId === node.id;
                 const nodeRadius = Math.min(26, Math.max(14, 12 + node.count * 1.2));
+                const nodeConnections = links
+                  .filter((l) => l.source === node.id || l.target === node.id)
+                  .map((l) => (l.source === node.id ? `${l.targetName} (${l.sharedEventsCount} events)` : `${l.sourceName} (${l.sharedEventsCount} events)`))
+                  .join(", ");
 
                 return (
                   <g
@@ -262,6 +267,7 @@ export function RelationshipNetworkGraph({
                     role="button"
                     aria-pressed={isSelected}
                     aria-label={`Figure ${node.name}, ${node.count} total documented intersections`}
+                    aria-describedby={`node-desc-${node.id}`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -269,6 +275,11 @@ export function RelationshipNetworkGraph({
                       }
                     }}
                   >
+                    <desc id={`node-desc-${node.id}`}>
+                      {nodeConnections
+                        ? `Connected figures: ${nodeConnections}`
+                        : "No bilateral connections matching current filters."}
+                    </desc>
                     <circle
                       r={nodeRadius}
                       fill={isSelected ? "#0284c7" : "#09131a"}
@@ -300,6 +311,15 @@ export function RelationshipNetworkGraph({
               })}
             </g>
           </svg>
+
+          {/* Screen Reader Live Region for Selection */}
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {selectedNode
+              ? `Selected ${selectedNode.name}. ${selectedNodeLinks.length} connections: ${selectedNodeLinks
+                  .map((l) => (l.source === selectedNode.id ? `${l.targetName} (${l.sharedEventsCount} events)` : `${l.sourceName} (${l.sharedEventsCount} events)`))
+                  .join(", ")}`
+              : "No figure selected."}
+          </div>
 
           {/* Selected Node Sidebar Card */}
           {selectedNode && (

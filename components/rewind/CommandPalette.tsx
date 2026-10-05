@@ -122,8 +122,9 @@ export function CommandPalette({
 
     const abortController = new AbortController();
     const requestId = ++searchRequestIdRef.current;
+    const hasExplicitTypeQualifier = /\b(?:type|kind|category):[a-zA-Z_-]+\b/i.test(trimmedQuery);
     const effectiveQuery =
-      activeCategory !== "all" && !trimmedQuery.includes("type:")
+      activeCategory !== "all" && !hasExplicitTypeQualifier
         ? `${trimmedQuery} type:${activeCategory}`
         : trimmedQuery;
 
@@ -186,8 +187,15 @@ export function CommandPalette({
   };
 
   const handleInjectQualifier = (qualifier: string) => {
-    const nextQuery = query ? `${query.trim()} ${qualifier} ` : `${qualifier} `;
-    setQuery(nextQuery);
+    const key = qualifier.split(":")[0];
+    const keyRegex = new RegExp(`\\b${key}:[a-zA-Z0-9_-]+\\b`, "gi");
+    let nextQuery = query.trim();
+    if (keyRegex.test(nextQuery)) {
+      nextQuery = nextQuery.replace(keyRegex, qualifier);
+    } else {
+      nextQuery = nextQuery ? `${nextQuery} ${qualifier}` : qualifier;
+    }
+    setQuery(`${nextQuery} `);
     inputRef.current?.focus();
   };
 
