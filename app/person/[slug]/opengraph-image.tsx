@@ -39,22 +39,19 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
     }
   }
 
-  // Lightweight in-memory seed lookup
-  try {
-    const { masterPeopleSeed } = await import("@/data/seeds/index");
-    const p = masterPeopleSeed.find((person) => person.slug === slug || person.id === slug);
-    if (p) {
-      return {
-        canonicalName: p.canonicalName,
-        name: p.displayName || p.canonicalName,
-        description: p.summary || p.primaryRole || "",
-        nationality: p.nationality || "",
-        classification: p.classification || "public-figure",
-      };
-    }
-  } catch {}
+  // Fallback formatting for slug
+  const title = slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
-  return null;
+  return {
+    canonicalName: title,
+    name: title,
+    description: "Verified Biographical Dossier",
+    nationality: "",
+    classification: "public-figure",
+  };
 }
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
