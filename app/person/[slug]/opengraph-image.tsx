@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 import { getPersonBySlugWithStatus } from "@/lib/rewind/people";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = "REWIND Evidence Atlas — Person Dossier";
 export const size = {
   width: 1200,
