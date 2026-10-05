@@ -20,7 +20,8 @@ ALTER TABLE public.people
   ADD COLUMN IF NOT EXISTS cultural_impact_summary text,
   ADD COLUMN IF NOT EXISTS achievements jsonb DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS inclusion_contested boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS inclusion_contestation_note text;
+  ADD COLUMN IF NOT EXISTS inclusion_contestation_note text,
+  ADD COLUMN IF NOT EXISTS embedding text;
 
 -- 2. Extend Events with Travel, Flight Corridors & Navigation Waypoints
 ALTER TABLE public.events
@@ -35,7 +36,8 @@ ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS destination_waypoint jsonb,
   ADD COLUMN IF NOT EXISTS route_coordinates jsonb,
   ADD COLUMN IF NOT EXISTS travel_inferences jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS journey_legs jsonb DEFAULT '[]';
+  ADD COLUMN IF NOT EXISTS journey_legs jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS embedding text;
 
 -- 3. Create Person Stays Table (Bases of Operations, Residencies, Hotels)
 CREATE TABLE IF NOT EXISTS public.person_stays (
