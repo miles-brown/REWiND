@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronLeft,
@@ -37,6 +37,7 @@ export function MediaDrawer({
   const [copiedQuote, setCopiedQuote] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [prevEventId, setPrevEventId] = useState(event.id);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Reset indices on event change during render
   if (prevEventId !== event.id) {
@@ -68,6 +69,8 @@ export function MediaDrawer({
     }
     return [];
   }, [event.media, event.sourceIds, event.eventName]);
+
+  const audioMedia = archivalMedia.find((m) => m.kind === "audio" || m.kind.toLowerCase().includes("audio"));
 
   const clampedQuoteIdx = quotes.length > 0 ? Math.min(activeQuoteIdx, quotes.length - 1) : 0;
   const currentQuote = quotes[clampedQuoteIdx];
@@ -132,30 +135,49 @@ export function MediaDrawer({
         </header>
 
         <div className="media-drawer-body">
-          {/* Audio / Broadcast Stream Mock Player */}
-          <div className="media-player-card">
-            <div className="player-waveform-visual">
-              <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
-              <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
-              <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
-              <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
-              <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+          {/* Audio / Broadcast Stream Player (only rendered when audio media exists) */}
+          {audioMedia && (
+            <div className="media-player-card">
+              <audio
+                ref={audioRef}
+                src={audioMedia.url}
+                onPlay={() => setIsPlayingAudio(true)}
+                onPause={() => setIsPlayingAudio(false)}
+                onEnded={() => setIsPlayingAudio(false)}
+                style={{ display: "none" }}
+              />
+              <div className="player-waveform-visual">
+                <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+                <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+                <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+                <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+                <span className={`wave-bar ${isPlayingAudio ? "active" : ""}`} />
+              </div>
+              <div className="player-meta">
+                <b>{audioMedia.label || `${event.eventName} — Historical Recording`}</b>
+                <small>
+                  {[audioMedia.timestamp, ...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
+                </small>
+              </div>
+              <button
+                type="button"
+                className={`player-toggle-btn ${isPlayingAudio ? "playing" : ""}`}
+                onClick={() => {
+                  if (audioRef.current) {
+                    if (isPlayingAudio) {
+                      audioRef.current.pause();
+                    } else {
+                      audioRef.current.play().catch(() => {});
+                    }
+                  }
+                }}
+                aria-label={isPlayingAudio ? "Pause archival broadcast" : "Listen to archival broadcast"}
+              >
+                {isPlayingAudio ? <Volume2 size={16} /> : <Play size={16} />}
+                <span>{isPlayingAudio ? "Playing..." : "Play Audio"}</span>
+              </button>
             </div>
-            <div className="player-meta">
-              <b>{event.eventName} — Historical Recording</b>
-              <small>
-                {[...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
-              </small>
-            </div>
-            <button
-              className={`player-toggle-btn ${isPlayingAudio ? "playing" : ""}`}
-              onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-              aria-label={isPlayingAudio ? "Pause archival broadcast" : "Listen to archival broadcast"}
-            >
-              {isPlayingAudio ? <Volume2 size={16} /> : <Play size={16} />}
-              <span>{isPlayingAudio ? "Broadcasting..." : "Preview Audio"}</span>
-            </button>
-          </div>
+          )}
 
           {/* Quotes & Speech Records */}
           <div className="quotes-reel-section">

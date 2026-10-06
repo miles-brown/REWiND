@@ -5990,6 +5990,17 @@ svg { flex: 0 0 auto; }
   .entity-card-grid { grid-template-columns: 1fr; }
 }
 
+/* Relationship Network Graph Node Accessibility */
+.graph-nodes g:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+}
+.graph-nodes g:focus-visible circle {
+  stroke: #38bdf8;
+  stroke-width: 3px;
+}
+
+
 
 
 

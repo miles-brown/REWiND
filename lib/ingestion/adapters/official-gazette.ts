@@ -14,6 +14,7 @@ export interface OfficialGazetteRecord {
   latitude?: number;
   longitude?: number;
   text: string; // Verbatim legal decree or state announcement
+  explicitQuote?: string; // Optional verbatim spoken quotation explicitly attributed to signatory
   url?: string;
 }
 
@@ -82,13 +83,15 @@ export function ingestOfficialGazette(rec: OfficialGazetteRecord) {
         supportingExcerpt: rec.text.slice(0, 300),
       },
     ],
-    quotes: [
-      {
-        speaker: rec.signatory,
-        quote: rec.text.slice(0, 200),
-        context: `${rec.gazetteName} (${rec.publicationDate})`,
-      },
-    ],
+    quotes: rec.explicitQuote
+      ? [
+          {
+            speaker: rec.signatory,
+            quote: rec.explicitQuote,
+            context: `${rec.gazetteName} (${rec.publicationDate})`,
+          },
+        ]
+      : [],
     hasSensitiveLegalMatters: false,
     involvesLivingPersonPrivateMovement: false,
     involvesMinors: false,

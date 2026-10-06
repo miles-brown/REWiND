@@ -409,10 +409,26 @@ async function syncCorpus() {
     }
   }
 
-  // Batch insert all person aliases in chunks of 100
+  // Batch insert all person aliases in chunks of 100 idempotently
   console.log(`   Synchronizing ${allAliasesToInsert.length} Person Aliases in batches...`);
-  for (let i = 0; i < allAliasesToInsert.length; i += 100) {
-    const chunk = allAliasesToInsert.slice(i, i + 100);
+  const existingAliases = await db
+    .select({ personId: schema.personAliases.personId, alias: schema.personAliases.alias })
+    .from(schema.personAliases);
+  const existingAliasSet = new Set(existingAliases.map((a) => `${a.personId}:::${a.alias.toLowerCase()}`));
+
+  const deduplicatedAliases: typeof allAliasesToInsert = [];
+  const localAliasSeen = new Set<string>();
+
+  for (const aliasItem of allAliasesToInsert) {
+    const key = `${aliasItem.personId}:::${aliasItem.alias.toLowerCase()}`;
+    if (!existingAliasSet.has(key) && !localAliasSeen.has(key)) {
+      localAliasSeen.add(key);
+      deduplicatedAliases.push(aliasItem);
+    }
+  }
+
+  for (let i = 0; i < deduplicatedAliases.length; i += 100) {
+    const chunk = deduplicatedAliases.slice(i, i + 100);
     await db
       .insert(schema.personAliases)
       .values(chunk)
@@ -663,7 +679,8 @@ async function syncCorpus() {
         isPrimarySource = false;
       }
 
-      // Synchronize event participants (event_people)
+      // Reconcile and synchronize event participants (event_people)
+      await tx.delete(schema.eventPeople).where(eq(schema.eventPeople.eventId, evt.id));
       for (const part of evt.participants || []) {
         const canonicalPersonRef = PARTICIPANT_ID_ALIASES[part.personId] || part.personId;
         const dbPersonId = resolvedPersonIdMap.get(canonicalPersonRef) || resolvedPersonIdMap.get((part as { slug?: string }).slug || "") || canonicalPersonRef;
@@ -681,14 +698,6 @@ async function syncCorpus() {
             attendanceMode: part.attendanceMode || "physical",
             presenceConfidence: part.presenceConfidence || "confirmed",
             roleConfidence: "confirmed",
-          })
-          .onConflictDoUpdate({
-            target: schema.eventPeople.id,
-            set: {
-              roleLabel: part.role || "Participant",
-              attendanceMode: part.attendanceMode || "physical",
-              presenceConfidence: part.presenceConfidence || "confirmed",
-            },
           });
       }
 
@@ -720,7 +729,8 @@ async function syncCorpus() {
         }
       }
 
-      // Synchronize claims
+      // Reconcile and synchronize claims
+      await tx.delete(schema.claims).where(eq(schema.claims.eventId, evt.id));
       for (let idx = 0; idx < (evt.participants || []).length; idx++) {
         const part = evt.participants![idx];
         const canonicalPersonRef = PARTICIPANT_ID_ALIASES[part.personId] || part.personId;
@@ -743,8 +753,7 @@ async function syncCorpus() {
             claimStatus: "ESTABLISHED",
             epistemicClass: "documented fact",
             supportingExcerpt: evt.summary,
-          })
-          .onConflictDoNothing();
+          });
       }
     });
   }

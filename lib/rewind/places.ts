@@ -445,6 +445,17 @@ export function resolveGazetteerCoordinates(location: {
   return null;
 }
 
+function sanitizePlaceSlug(str: string): string {
+  return (
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "unknown"
+  );
+}
+
 /**
  * Retrieves the complete multi-tier geographical hierarchy from Supabase:
  * Country -> City -> Address -> Venue & Venue Areas, with documented event metrics.
@@ -457,7 +468,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   let rawPlaces: PlaceRecord[] = [];
   if (!supabase) {
     rawPlaces = Object.entries(GLOBAL_GAZETTEER_METADATA).map(([key, meta]) => {
-      const slug = key.toLowerCase().replace(/\s+/g, "-");
+      const slug = sanitizePlaceSlug(key);
       return {
         id: `plc-${slug}`,
         slug,
@@ -520,10 +531,10 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   rawPlaces.forEach((p) => {
     const countryName = (p.country || "Unknown").trim();
     const countryCode = COUNTRY_CODE_MAP[countryName] || "UN";
-    const countrySlug = countryName.toLowerCase().replace(/\s+/g, "-");
+    const countrySlug = sanitizePlaceSlug(countryName);
 
     const cityName = (p.city || "Unknown").trim();
-    const citySlug = `${countrySlug}-${cityName.toLowerCase().replace(/\s+/g, "-")}`;
+    const citySlug = `${countrySlug}-${sanitizePlaceSlug(cityName)}`;
     const cityCityKey = `${countryName}::${cityName}`.toLowerCase();
 
     const venueName = (p.venue || cityName).trim();
@@ -593,7 +604,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
     // Address Node (if physical street address exists)
     if (streetAddress) {
-      const addrSlug = `${citySlug}-${streetAddress.toLowerCase().replace(/[^\w]/g, "-").slice(0, 30)}`;
+      const addrSlug = `${citySlug}-${sanitizePlaceSlug(streetAddress).slice(0, 30)}`;
       const addrKey = `${cityCityKey}::${streetAddress}`.toLowerCase();
 
       if (!addressesMap.has(addrKey)) {

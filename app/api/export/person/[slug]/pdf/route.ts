@@ -7,6 +7,14 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+
+  if (!slug || typeof slug !== "string" || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return NextResponse.json(
+      { error: "Invalid person identifier format." },
+      { status: 400 }
+    );
+  }
+
   const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
 
   if (personError) {
@@ -30,11 +38,11 @@ export async function GET(
       { status: 500 }
     );
   }
-  const verifiedEvents = events || [];
+  const verifiedEvents = (events || []).filter((e) => e.verificationStatus === "verified");
 
-  // Compute deterministic SHA-256 forensic checksum of data payload
+  // Compute deterministic SHA-256 forensic checksum of full data payload
   const payloadDigest = createHash("sha256")
-    .update(JSON.stringify({ person, eventsCount: verifiedEvents.length }))
+    .update(JSON.stringify({ person, events: verifiedEvents }))
     .digest("hex");
 
   const exportedAt = new Date().toISOString();

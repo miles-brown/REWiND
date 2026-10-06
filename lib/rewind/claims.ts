@@ -43,6 +43,59 @@ function parseEpistemicClass(epistemic?: string | null): EpistemicClass {
   return "unknown";
 }
 
+function normalizeClaimRecord(
+  c: Record<string, unknown>,
+  claimEvidenceList: ClaimEvidenceRecord[]
+): ClaimRecord {
+  const entityType = c.subject_entity_id
+    ? c.subject_entity_type
+    : (c.subject_id ? "person" : (c.subject_entity_type || "event"));
+
+  const isContested =
+    Boolean(c.contradicts_claim_id) ||
+    Boolean(c.contestation_notes) ||
+    claimEvidenceList.some((ev) => ev.contradictsClaim);
+
+  const rawConf = typeof c.confidence === "string" ? c.confidence.trim().toLowerCase() : "";
+  let effectiveConfidence: ClaimRecord["confidence"] =
+    rawConf && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(rawConf)
+      ? (rawConf as ClaimRecord["confidence"])
+      : "limited";
+
+  let parsedStatus = parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined);
+
+  if (isContested) {
+    if (effectiveConfidence === "confirmed" || effectiveConfidence === "strong") {
+      effectiveConfidence = "disputed";
+    }
+    if (parsedStatus === "ESTABLISHED" || parsedStatus === "STRONGLY SUPPORTED") {
+      parsedStatus = "DISPUTED";
+    }
+  }
+
+  return {
+    id: String(c.id),
+    eventId: c.event_id ? String(c.event_id) : undefined,
+    subjectEntityType: (entityType as "event" | "person" | "organisation") || "event",
+    subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
+    claimType: String(c.claim_type),
+    statement: String(c.statement),
+    claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
+    claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
+    sourceId: c.source_id ? String(c.source_id) : undefined,
+    confidence: effectiveConfidence,
+    claimStatus: parsedStatus,
+    epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
+    legalStatus: c.legal_status ? String(c.legal_status) : undefined,
+    isAttributedOnly: Boolean(c.is_attributed_only),
+    attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
+    supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
+    contradictsClaimId: c.contradicts_claim_id ? String(c.contradicts_claim_id) : undefined,
+    contestationNotes: c.contestation_notes ? String(c.contestation_notes) : undefined,
+    evidence: claimEvidenceList,
+  };
+}
+
 /**
  * Retrieves all factual claims associated with a specific event, including their evidential attachments.
  */
@@ -100,55 +153,10 @@ export async function getClaimsByEvent(eventId: string, supabaseClient?: unknown
     evidenceMap.set(String(ev.claim_id), list);
   });
 
-  return claimsData.map((c: Record<string, unknown>) => {
-    const entityType = c.subject_entity_id
-      ? c.subject_entity_type
-      : (c.subject_id ? "person" : (c.subject_entity_type || "event"));
-    const claimEvidenceList = evidenceMap.get(String(c.id)) || [];
-    const isContested =
-      Boolean(c.contradicts_claim_id) ||
-      Boolean(c.contestation_notes) ||
-      claimEvidenceList.some((ev) => ev.contradictsClaim);
-
-    const rawConf = typeof c.confidence === "string" ? c.confidence.trim().toLowerCase() : "";
-    let effectiveConfidence: ClaimRecord["confidence"] =
-      rawConf && ["confirmed", "strong", "moderate", "limited", "disputed"].includes(rawConf)
-        ? (rawConf as ClaimRecord["confidence"])
-        : "limited";
-
-    let parsedStatus = parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined);
-
-    if (isContested) {
-      if (effectiveConfidence === "confirmed" || effectiveConfidence === "strong") {
-        effectiveConfidence = "disputed";
-      }
-      if (parsedStatus === "ESTABLISHED" || parsedStatus === "STRONGLY SUPPORTED") {
-        parsedStatus = "DISPUTED";
-      }
-    }
-
-    return {
-      id: String(c.id),
-      eventId: c.event_id ? String(c.event_id) : undefined,
-      subjectEntityType: (entityType as "event" | "person" | "organisation") || "event",
-      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
-      claimType: String(c.claim_type),
-      statement: String(c.statement),
-      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
-      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
-      sourceId: c.source_id ? String(c.source_id) : undefined,
-      confidence: effectiveConfidence,
-      claimStatus: parsedStatus,
-      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
-      legalStatus: c.legal_status ? String(c.legal_status) : undefined,
-      isAttributedOnly: Boolean(c.is_attributed_only),
-      attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
-      supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
-      contradictsClaimId: c.contradicts_claim_id ? String(c.contradicts_claim_id) : undefined,
-      contestationNotes: c.contestation_notes ? String(c.contestation_notes) : undefined,
-      evidence: claimEvidenceList,
-    };
-  });
+  return claimsData.map((c: Record<string, unknown>) => ({
+    ...normalizeClaimRecord(c, evidenceMap.get(String(c.id)) || []),
+    evidence: evidenceMap.get(String(c.id)) || [],
+  }));
 }
 
 /**
@@ -208,28 +216,8 @@ export async function getClaimsByPerson(personId: string, supabaseClient?: unkno
     evidenceMap.set(String(ev.claim_id), list);
   });
 
-  return claimsData.map((c: Record<string, unknown>) => {
-    const entityType = c.subject_entity_id
-      ? c.subject_entity_type
-      : (c.subject_id ? "person" : (c.subject_entity_type || "person"));
-    return {
-      id: String(c.id),
-      eventId: c.event_id ? String(c.event_id) : undefined,
-      subjectEntityType: (entityType as "event" | "person" | "organisation") || "person",
-      subjectEntityId: c.subject_entity_id ? String(c.subject_entity_id) : (c.subject_id ? String(c.subject_id) : undefined),
-      claimType: String(c.claim_type),
-      statement: String(c.statement),
-      claimedTime: c.claimed_time ? String(c.claimed_time) : undefined,
-      claimedVenue: c.claimed_venue ? String(c.claimed_venue) : undefined,
-      sourceId: c.source_id ? String(c.source_id) : undefined,
-      confidence: (c.confidence as ClaimRecord["confidence"]) || "limited",
-      claimStatus: parseClaimStatus(c.claim_status ? String(c.claim_status) : undefined),
-      epistemicClass: parseEpistemicClass(c.epistemic_class ? String(c.epistemic_class) : undefined),
-      legalStatus: c.legal_status ? String(c.legal_status) : undefined,
-      isAttributedOnly: Boolean(c.is_attributed_only),
-      attributionSpeakerId: c.attribution_speaker_id ? String(c.attribution_speaker_id) : undefined,
-      supportingExcerpt: c.supporting_excerpt ? String(c.supporting_excerpt) : undefined,
-      evidence: evidenceMap.get(String(c.id)) || [],
-    };
-  });
+  return claimsData.map((c: Record<string, unknown>) => ({
+    ...normalizeClaimRecord(c, evidenceMap.get(String(c.id)) || []),
+    evidence: evidenceMap.get(String(c.id)) || [],
+  }));
 }

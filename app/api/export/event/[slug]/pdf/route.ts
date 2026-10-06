@@ -7,6 +7,14 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
+
+  if (!slug || typeof slug !== "string" || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return NextResponse.json(
+      { error: "Invalid event identifier format." },
+      { status: 400 }
+    );
+  }
+
   const { data: event, error: eventError } = await getEventBySlug(slug);
 
   if (eventError || !event) {

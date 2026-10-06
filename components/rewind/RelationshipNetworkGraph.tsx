@@ -262,7 +262,7 @@ export function RelationshipNetworkGraph({
                     key={node.id}
                     transform={`translate(${node.x}, ${node.y})`}
                     onClick={() => setSelectedNodeId(isSelected ? null : node.id)}
-                    style={{ cursor: "pointer", outline: "none" }}
+                    style={{ cursor: "pointer" }}
                     tabIndex={0}
                     role="button"
                     aria-pressed={isSelected}
@@ -275,6 +275,7 @@ export function RelationshipNetworkGraph({
                       }
                     }}
                   >
+                    <title>{node.name}</title>
                     <desc id={`node-desc-${node.id}`}>
                       {nodeConnections
                         ? `Connected figures: ${nodeConnections}`
