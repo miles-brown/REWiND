@@ -1373,26 +1373,36 @@ svg { flex: 0 0 auto; }
 .stage-journey-pill .journey-distance { color: #38bdf8; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
 /* Forensic Map Pins on WebGL Canvas */
-.webgl-map-marker.forensic-pin { background: none; border: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; outline: none; z-index: 10; }
+.webgl-map-marker.forensic-pin { background: none; border: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; outline: none; z-index: 15; }
 .pin-visual-wrapper { position: relative; display: flex; align-items: center; justify-content: center; transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); border-radius: 50%; }
 .webgl-map-marker.forensic-pin:hover .pin-visual-wrapper { transform: scale(1.18); }
 .webgl-map-marker.forensic-pin:focus-visible .pin-visual-wrapper { outline: 2px solid #38bdf8; outline-offset: 3px; transform: scale(1.18); }
 .webgl-map-marker.forensic-pin:focus-visible { outline: none; }
-.webgl-map-marker.selected { z-index: 12; }
-.webgl-map-marker.selected .pin-visual-wrapper { transform: scale(1.15); }
-.forensic-pin-svg .pin-drop-body { fill: #d97706; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6)); transition: fill 0.2s; }
+.webgl-map-marker.selected { z-index: 30; }
+.webgl-map-marker.selected .pin-visual-wrapper { transform: scale(1.18); }
+.forensic-pin-svg .pin-drop-body { fill: #d97706; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6)); transition: fill 0.2s, filter 0.2s; }
 .webgl-map-marker.verified .forensic-pin-svg .pin-drop-body { fill: #059669; }
-.webgl-map-marker.selected .forensic-pin-svg .pin-drop-body { fill: #0284c7; filter: drop-shadow(0 0 12px rgba(56,189,248,0.75)); }
-.webgl-map-marker.future-location { opacity: 0.55; filter: saturate(0.6); }
+.webgl-map-marker.selected .forensic-pin-svg .pin-drop-body { fill: #0284c7; filter: drop-shadow(0 0 14px rgba(56,189,248,0.85)); }
+.webgl-map-marker.future-location { opacity: 0.45; filter: saturate(0.5); }
 .webgl-map-marker.future-location:hover { opacity: 0.95; filter: none; }
+.webgl-map-marker.visited:not(.selected) { opacity: 0.88; }
 .forensic-pin-svg .pin-center-dot { fill: #ffffff; }
-.pin-pulse-wave { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin-top: -24px; margin-left: -17px; border-radius: 50%; border: 2px solid #38bdf8; animation: pin-pulse 1.8s infinite cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
+.pin-pulse-wave { position: absolute; top: 50%; left: 50%; width: 36px; height: 36px; margin-top: -26px; margin-left: -18px; border-radius: 50%; border: 2px solid #38bdf8; animation: pin-pulse 1.8s infinite cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
 @keyframes pin-pulse { 0% { transform: scale(0.4); opacity: 0.95; } 100% { transform: scale(2.2); opacity: 0; } }
-.marker-city-pill { display: inline-block; margin-top: 1px; padding: 2px 7px; background: rgba(8,16,26,0.88); border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; font-size: 10px; font-weight: 700; color: #f8fafc; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-.webgl-map-marker.selected .marker-city-pill { border-color: #38bdf8; color: #38bdf8; background: rgba(8,16,26,0.96); }
+
+/* Venue & City Badge on Map Markers */
+.marker-city-pill,
+.marker-venue-badge { display: flex; flex-direction: column; align-items: center; gap: 1px; margin-top: 2px; padding: 3px 8px; background: rgba(8,16,26,0.92); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.6); pointer-events: none; max-width: 220px; transition: all 0.15s ease; backdrop-filter: blur(8px); }
+.marker-venue-badge .venue-title-text { font-size: 11px; font-weight: 700; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+.marker-venue-badge .venue-sub-text { font-size: 9px; font-weight: 600; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.webgl-map-marker.selected .marker-city-pill,
+.webgl-map-marker.selected .marker-venue-badge { border-color: #38bdf8; background: rgba(8,16,26,0.98); box-shadow: 0 0 16px rgba(56,189,248,0.6), 0 4px 16px rgba(0,0,0,0.7); }
+.webgl-map-marker.selected .marker-venue-badge .venue-title-text { color: #38bdf8; }
+.webgl-map-marker.satellite-theme .marker-venue-badge { background: rgba(2,6,23,0.95); border-color: rgba(56,189,248,0.4); }
+.webgl-map-marker.satellite-theme.selected .marker-venue-badge { border-color: #38bdf8; box-shadow: 0 0 20px rgba(56,189,248,0.85); }
 
 /* Moving Vehicle Marker on Trajectory */
-.moving-vehicle-marker { display: flex; flex-direction: column; align-items: center; pointer-events: auto; z-index: 20; position: relative; }
+.moving-vehicle-marker { display: flex; flex-direction: column; align-items: center; pointer-events: auto; z-index: 25; position: relative; }
 .vehicle-icon-bubble { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(8,16,26,0.95); border: 2px solid #38bdf8; border-radius: 50%; box-shadow: 0 0 16px rgba(56,189,248,0.6), 0 4px 12px rgba(0,0,0,0.7); font-size: 17px; transition: transform 0.1s ease-out; overflow: hidden; will-change: transform; }
 .vehicle-icon-asset { width: 22px; height: 22px; object-fit: contain; pointer-events: none; }
 .vehicle-journey-tag { display: flex; flex-direction: column; align-items: center; margin-top: 3px; padding: 2px 8px; background: rgba(8,16,26,0.92); border: 1px solid rgba(56,189,248,0.3); border-radius: 5px; font-size: 10px; color: #f8fafc; font-weight: 700; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none; }
@@ -1424,19 +1434,26 @@ svg { flex: 0 0 auto; }
 .grid-lat, .grid-lon { stroke: rgba(255, 255, 255, 0.08); stroke-width: 0.35; stroke-dasharray: 1 1; }
 .grid-lat.equator, .grid-lon.prime-meridian { stroke: rgba(56, 189, 248, 0.28); stroke-width: 0.5; stroke-dasharray: none; }
 .svg-trajectory-arc { fill: none; stroke: rgba(56, 189, 248, 0.35); stroke-width: 0.6; stroke-dasharray: 1.5 1; }
-.svg-active-journey-arc { fill: none; stroke: #38bdf8; stroke-width: 1.2; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8)); }
+.svg-trajectory-arc.past { stroke: rgba(56, 189, 248, 0.4); stroke-width: 0.8; stroke-dasharray: 2 1; }
+.svg-trajectory-arc.future { stroke: rgba(255, 255, 255, 0.14); stroke-width: 0.45; stroke-dasharray: 1 2; }
+.svg-active-journey-arc { fill: none; stroke: #38bdf8; stroke-width: 1.6; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.85)); }
 .svg-active-route-pulse { animation: svg-arc-pulse 2s ease-in-out infinite alternate; }
-@keyframes svg-arc-pulse { 0% { stroke-opacity: 0.55; stroke-width: 1.0; } 100% { stroke-opacity: 1.0; stroke-width: 1.5; } }
+@keyframes svg-arc-pulse { 0% { stroke-opacity: 0.6; stroke-width: 1.2; } 100% { stroke-opacity: 1.0; stroke-width: 1.8; } }
 
 .forensic-svg-pin { position: absolute; transform: translate(-50%, -100%); background: none; border: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
 .svg-pin-wrapper { position: relative; }
 .svg-pin-graphic .pin-body-shape { fill: #d97706; }
 .forensic-svg-pin.verified .svg-pin-graphic .pin-body-shape { fill: #059669; }
 .forensic-svg-pin.selected .svg-pin-graphic .pin-body-shape { fill: #0284c7; filter: drop-shadow(0 0 10px #38bdf8); }
+.forensic-svg-pin.future-location { opacity: 0.45; }
 .svg-pin-graphic .pin-dot-shape { fill: #ffffff; }
 .svg-pulse-wave { position: absolute; top: 50%; left: 50%; width: 28px; height: 28px; margin-top: -18px; margin-left: -14px; border-radius: 50%; border: 2px solid #38bdf8; animation: pin-pulse 1.8s infinite; pointer-events: none; }
-.svg-pin-city { margin-top: 2px; font-size: 9px; font-weight: 700; color: #f8fafc; background: rgba(8,16,26,0.85); padding: 1px 5px; border-radius: 3px; }
+.svg-pin-city { margin-top: 2px; font-size: 9px; font-weight: 700; color: #f8fafc; background: rgba(8,16,26,0.9); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.svg-pin-city .svg-venue-name { font-weight: 700; color: #f8fafc; }
+.svg-pin-city .svg-city-sub { font-size: 8px; color: #38bdf8; font-weight: 600; }
+.forensic-svg-pin.selected .svg-pin-city { border-color: #38bdf8; color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.6); }
 .svg-moving-vehicle { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
+.svg-vehicle-icon-wrap { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(8,16,26,0.92); border: 2px solid #38bdf8; border-radius: 50%; font-size: 14px; box-shadow: 0 0 12px rgba(56,189,248,0.5); }
 .svg-vehicle-icon-wrap { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(8,16,26,0.92); border: 2px solid #38bdf8; border-radius: 50%; font-size: 14px; box-shadow: 0 0 12px rgba(56,189,248,0.5); }
 .svg-vehicle-badge { margin-top: 3px; padding: 1px 5px; background: rgba(8,16,26,0.9); border: 1px solid rgba(56,189,248,0.3); border-radius: 3px; font-size: 9px; font-weight: 700; color: #38bdf8; white-space: nowrap; }
 
