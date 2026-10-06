@@ -84,7 +84,7 @@ export async function GET(
         border-bottom: 2px solid #0284c7;
       }
       .print-btn {
-        background: #0284c7;
+        background: #0369a1;
         color: #ffffff;
         border: none;
         padding: 8px 16px;
@@ -97,7 +97,7 @@ export async function GET(
         gap: 6px;
         transition: background 0.15s ease;
       }
-      .print-btn:hover { background: #0369a1; }
+      .print-btn:hover { background: #075985; }
     }
     @media print {
       .print-action-bar { display: none !important; }

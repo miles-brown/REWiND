@@ -358,10 +358,10 @@ test("verifies Cross-Seed Data Integrity: zero ID collisions and valid entity fo
       assert.ok(p.name && p.name.trim().length > 0, `Royal participant in event ${e.id} must have a valid name`);
       assert.ok(p.presenceConfidence, `Royal participant ${p.name} in event ${e.id} must have presenceConfidence`);
       if (p.personId) {
-        const exists = personIdMap.has(p.personId) || personSlugMap.has(p.personId);
+        const exists = personIdMap.has(p.personId);
         assert.ok(
           exists,
-          `Royal participant '${p.name}' (personId: ${p.personId}) in event '${e.id}' references unregistered person ID/slug`
+          `Royal participant '${p.name}' (personId: ${p.personId}) in event '${e.id}' references unregistered person ID`
         );
       }
     });

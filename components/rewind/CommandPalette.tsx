@@ -210,12 +210,12 @@ export function CommandPalette({
     let updatedQuery = "";
 
     if (keyRegex.test(trimmedQuery)) {
-      updatedQuery = trimmedQuery.replace(keyRegex, qualifier);
+      updatedQuery = trimmedQuery.replace(keyRegex, `${qualifier} `);
     } else {
       updatedQuery = trimmedQuery ? `${trimmedQuery} ${qualifier} ` : `${qualifier} `;
     }
 
-    if (trimmedQuery === updatedQuery.trim()) {
+    if (query === updatedQuery) {
       inputRef.current?.focus();
       return;
     }
