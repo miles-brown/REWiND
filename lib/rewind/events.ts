@@ -6,7 +6,7 @@ import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
 import { resolveGazetteerCoordinates } from "./places";
-import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
+import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, ParticipantAssociation, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
 
@@ -30,6 +30,28 @@ function isConfidence(value: unknown): value is Confidence {
 
 function isAttendanceMode(value: unknown): value is AttendanceMode {
   return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
+}
+
+/**
+ * Splits role_label and capacity_title into distinct official title (role) and event capacity (association).
+ * Separates composite values such as "British Foreign Secretary (Author)" into role: "British Foreign Secretary", association: "Author".
+ */
+export function parseParticipantRoleAndAssociation(
+  roleLabel?: string | null,
+  capacityTitle?: string | null
+): { role?: string; association?: ParticipantAssociation | string } {
+  let role = roleLabel?.trim() || undefined;
+  let association: ParticipantAssociation | string | undefined = capacityTitle?.trim() || undefined;
+
+  if (role && !association) {
+    const match = role.match(/^(.*?)\s*\(([^)]+)\)$/);
+    if (match) {
+      role = match[1].trim() || undefined;
+      association = match[2].trim() || undefined;
+    }
+  }
+
+  return { role, association };
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
@@ -70,14 +92,19 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
     confidenceScore,
     sourceIds: e.sourceIds || [],
     sources: sources.length > 0 ? sources : (e.sources || []),
-    participants: (e.participants || []).map((p) => ({
-      personId: p.personId,
-      slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
-      name: p.name,
-      role: p.role,
-      presenceConfidence: p.presenceConfidence,
-      attendanceMode: p.attendanceMode,
-    })),
+    participants: (e.participants || []).map((p) => {
+      const parsed = parseParticipantRoleAndAssociation(p.role, p.association || p.capacityTitle);
+      return {
+        personId: p.personId,
+        slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
+        name: p.name,
+        role: parsed.role,
+        association: parsed.association,
+        presenceConfidence: p.presenceConfidence,
+        capacityTitle: p.capacityTitle,
+        attendanceMode: p.attendanceMode,
+      };
+    }),
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
     quotes: e.quotes,
@@ -480,11 +507,13 @@ async function hydrateEventRows(
 
   typedParticipants.forEach((p) => {
     const list = participantsMap.get(p.event_id) || [];
+    const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
     list.push({
       personId: p.person_id,
       slug: personSlugs.get(p.person_id),
       name: personNames.get(p.person_id) || p.person_id,
-      role: p.role_label,
+      role,
+      association,
       presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
       capacityTitle: p.capacity_title || undefined,
       attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
@@ -1067,11 +1096,13 @@ export async function getEventBySlug(
 
       const participants: Participant[] = participantRows.map((p) => {
         const loc = locationsMap.get(p.id);
+        const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
         return {
           personId: p.person_id,
           slug: personSlugs.get(p.person_id),
           name: personNames.get(p.person_id) || p.person_id,
-          role: p.role_label || undefined,
+          role,
+          association,
           presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
           capacityTitle: p.capacity_title || undefined,
           attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
