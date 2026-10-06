@@ -97,8 +97,8 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
         attendanceMode: "physical"
       },
       {
-        personId: "abraham-herzog",
-        slug: "abraham-herzog",
+        personId: "yitzhak-halevi-herzog",
+        slug: "yitzhak-halevi-herzog",
         name: "Yitzhak HaLevi Herzog",
         role: "Chief Rabbi of Mandatory Palestine (Observer)",
         presenceConfidence: "confirmed",
@@ -611,8 +611,8 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
     sourceIds: ["src-israel-jordan-treaty-19941026"],
     participants: [
       {
-        personId: "king-hussein-jordan",
-        slug: "king-hussein-jordan",
+        personId: "king-hussein",
+        slug: "king-hussein",
         name: "King Hussein I of Jordan",
         role: "Head of State of Jordan",
         presenceConfidence: "confirmed",
@@ -713,8 +713,8 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
         attendanceMode: "physical"
       },
       {
-        personId: "king-hussein-jordan",
-        slug: "king-hussein-jordan",
+        personId: "king-hussein",
+        slug: "king-hussein",
         name: "King Hussein I of Jordan",
         role: "King of Jordan (Special Mediator)",
         presenceConfidence: "confirmed",
@@ -1033,16 +1033,16 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
         attendanceMode: "physical"
       },
       {
-        personId: "abdullah-bin-zayed",
-        slug: "abdullah-bin-zayed",
+        personId: "abdullah-bin-zayed-al-nahyan",
+        slug: "abdullah-bin-zayed-al-nahyan",
         name: "Abdullah bin Zayed Al Nahyan",
         role: "Minister of Foreign Affairs and International Cooperation of the UAE (Signatory)",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       },
       {
-        personId: "abdullatif-al-zayani",
-        slug: "abdullatif-al-zayani",
+        personId: "abdullatif-bin-rashid-al-zayani",
+        slug: "abdullatif-bin-rashid-al-zayani",
         name: "Abdullatif bin Rashid Al Zayani",
         role: "Minister of Foreign Affairs of Bahrain (Signatory)",
         presenceConfidence: "confirmed",
@@ -1101,16 +1101,16 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
         attendanceMode: "physical"
       },
       {
-        personId: "abdullah-bin-zayed",
-        slug: "abdullah-bin-zayed",
+        personId: "abdullah-bin-zayed-al-nahyan",
+        slug: "abdullah-bin-zayed-al-nahyan",
         name: "Abdullah bin Zayed Al Nahyan",
         role: "Minister of Foreign Affairs and International Cooperation of the UAE",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       },
       {
-        personId: "abdullatif-al-zayani",
-        slug: "abdullatif-al-zayani",
+        personId: "abdullatif-bin-rashid-al-zayani",
+        slug: "abdullatif-bin-rashid-al-zayani",
         name: "Abdullatif bin Rashid Al Zayani",
         role: "Minister of Foreign Affairs of Bahrain",
         presenceConfidence: "confirmed",

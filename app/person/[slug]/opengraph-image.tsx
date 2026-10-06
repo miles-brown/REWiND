@@ -19,13 +19,18 @@ interface PersonMeta {
 }
 
 function deriveFallbackPersonMeta(slug: string): PersonMeta {
-  const formattedName = slug
+  const words = (slug || "")
     .split(/[-_]/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+    .map((w) => w.trim())
+    .filter(Boolean);
+
+  const formattedName = words.length > 0
+    ? words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : "REWIND Person Dossier";
+
   return {
-    canonicalName: formattedName,
-    name: formattedName,
+    canonicalName: formattedName || "REWIND Person Dossier",
+    name: formattedName || "REWIND Person Dossier",
     description: "Historical Public Figure Dossier",
     nationality: "",
     classification: "PUBLIC FIGURE",

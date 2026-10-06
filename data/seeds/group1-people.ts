@@ -720,49 +720,6 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
     "primaryFigureCategory": "politician"
   },
   {
-    "id": "emmanuel-macron",
-    "slug": "emmanuel-macron",
-    "canonicalName": "Emmanuel Macron",
-    "displayName": "Emmanuel Macron",
-    "nativeName": null,
-    "birthDate": "1977-12-21",
-    "deathDate": null,
-    "datePrecision": "exact-day",
-    "nationality": "France",
-    "primaryRole": "President of the French Republic",
-    "classification": "politician",
-    "notabilityBasis": "25th President of the French Republic (2017–present), Co-Prince of Andorra, former Minister of Economy.",
-    "programmeId": "prog-heads-of-government",
-    "isLiving": true,
-    "monitoringPriority": "intensive",
-    "publicationStatus": "published",
-    "wikidataId": "Q3052772",
-    "viafId": "308709540",
-    "avatarUrl": null,
-    "summary": "French politician serving as President of France since 2017.",
-    "aliases": [
-      "Emmanuel Jean-Michel Frédéric Macron"
-    ],
-    "citizenship": [
-      "France"
-    ],
-    "languages": [
-      "French",
-      "English"
-    ],
-    "religion": null,
-    "religiousDenomination": null,
-    "religionStatus": "not-publicly-stated",
-    "inclusionBasis": [
-      "head-of-state-or-government",
-      "central-nexus-to-historical-events",
-      "scholarly-historiographical-subject"
-    ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "politician"
-  },
-  {
     "id": "brigitte-macron",
     "slug": "brigitte-macron",
     "canonicalName": "Brigitte Macron",
@@ -1218,49 +1175,6 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
     "inclusionBasis": [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
-    ],
-    "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
-    "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",
-    "primaryFigureCategory": "politician"
-  },
-  {
-    "id": "george-w-bush",
-    "slug": "george-w-bush",
-    "canonicalName": "George W. Bush",
-    "displayName": "George W. Bush",
-    "nativeName": null,
-    "birthDate": "1946-07-06",
-    "deathDate": null,
-    "datePrecision": "exact-day",
-    "nationality": "United States",
-    "primaryRole": "43rd President of the United States / Governor of Texas",
-    "classification": "politician",
-    "notabilityBasis": "43rd President of the United States (2001–2009), 46th Governor of Texas (1995–2000).",
-    "programmeId": "prog-heads-of-government",
-    "isLiving": true,
-    "monitoringPriority": "normal",
-    "publicationStatus": "published",
-    "wikidataId": "Q207",
-    "viafId": "71559485",
-    "avatarUrl": null,
-    "summary": "American politician who served as the 43rd President of the United States from 2001 to 2009 and 46th Governor of Texas from 1995 to 2000.",
-    "aliases": [
-      "George Walker Bush",
-      "POTUS 43"
-    ],
-    "citizenship": [
-      "United States"
-    ],
-    "languages": [
-      "English"
-    ],
-    "religion": null,
-    "religiousDenomination": null,
-    "religionStatus": "not-publicly-stated",
-    "inclusionBasis": [
-      "head-of-state-or-government",
-      "central-nexus-to-historical-events",
-      "scholarly-historiographical-subject"
     ],
     "inclusionRationale": "Documented public official and historical figure whose actions and public record are indexed for evidentiary chronological inquiry.",
     "culturalImpactSummary": "Significant public figure whose verified actions, mandates, and statements shaped relevant geopolitical and historical events.",

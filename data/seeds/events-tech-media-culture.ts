@@ -197,8 +197,8 @@ export const techMediaCultureEvents: EventRecord[] = [
     sourceIds: ["src-un-unga-19840925"],
     participants: [
       {
-        personId: "king-abdullah-saudi",
-        slug: "king-abdullah-saudi",
+        personId: "crown-prince-abdullah-bin-abdulaziz",
+        slug: "crown-prince-abdullah-bin-abdulaziz",
         name: "Crown Prince Abdullah bin Abdulaziz",
         role: "Crown Prince of Saudi Arabia (Initiative Author)",
         presenceConfidence: "confirmed",

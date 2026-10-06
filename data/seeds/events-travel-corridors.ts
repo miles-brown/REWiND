@@ -41,7 +41,8 @@ export const travelCorridorsEvents: EventRecord[] = [
     departureAirportIata: "ADW",
     arrivalAirportIata: "CAI",
     originWaypoint: {
-      name: "Joint Base Andrews",
+        slug: "joint-base-andrews",
+        name: "Joint Base Andrews",
       city: "Camp Springs",
       country: "United States",
       iataCode: "ADW",
@@ -50,7 +51,8 @@ export const travelCorridorsEvents: EventRecord[] = [
       stopType: "origin"
     },
     destinationWaypoint: {
-      name: "Cairo International Airport",
+        slug: "cairo-international-airport",
+        name: "Cairo International Airport",
       city: "Cairo",
       country: "Egypt",
       iataCode: "CAI",
@@ -127,7 +129,8 @@ export const travelCorridorsEvents: EventRecord[] = [
     departureAirportIata: "ADW",
     arrivalAirportIata: "AQJ",
     originWaypoint: {
-      name: "Joint Base Andrews",
+        slug: "joint-base-andrews",
+        name: "Joint Base Andrews",
       city: "Camp Springs",
       country: "United States",
       iataCode: "ADW",
@@ -136,7 +139,8 @@ export const travelCorridorsEvents: EventRecord[] = [
       stopType: "origin"
     },
     destinationWaypoint: {
-      name: "King Hussein International Airport",
+        slug: "king-hussein-international-airport",
+        name: "King Hussein International Airport",
       city: "Aqaba",
       country: "Jordan",
       iataCode: "AQJ",
@@ -205,7 +209,8 @@ export const travelCorridorsEvents: EventRecord[] = [
     departureAirportIata: "RUH",
     arrivalAirportIata: "TLV",
     originWaypoint: {
-      name: "King Khalid International Airport",
+        slug: "king-khalid-international-airport",
+        name: "King Khalid International Airport",
       city: "Riyadh",
       country: "Saudi Arabia",
       iataCode: "RUH",
@@ -214,7 +219,8 @@ export const travelCorridorsEvents: EventRecord[] = [
       stopType: "origin"
     },
     destinationWaypoint: {
-      name: "Ben Gurion Airport",
+        slug: "ben-gurion-airport",
+        name: "Ben Gurion Airport",
       city: "Tel Aviv",
       country: "Israel",
       iataCode: "TLV",

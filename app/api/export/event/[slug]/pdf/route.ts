@@ -41,6 +41,9 @@ export async function GET(
   const exportedAt = new Date().toISOString();
   const location = [event.venueName, event.city, event.country].filter(Boolean).join(", ") || "Recorded Location";
 
+  const url = new URL(request.url);
+  const autoPrint = url.searchParams.get("print") === "true" || url.searchParams.get("auto") === "true";
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,6 +60,40 @@ export async function GET(
       font-size: 13px;
       margin: 0;
       padding: 24px;
+    }
+    @media screen {
+      .print-action-bar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #0c1820;
+        color: #ffffff;
+        padding: 12px 20px;
+        margin: -24px -24px 24px -24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #0284c7;
+      }
+      .print-btn {
+        background: #0284c7;
+        color: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s ease;
+      }
+      .print-btn:hover { background: #0369a1; }
+    }
+    @media print {
+      .print-action-bar { display: none !important; }
+      body { padding: 0 !important; }
     }
     .header {
       border-bottom: 2px solid #0284c7;
@@ -111,6 +148,13 @@ export async function GET(
   </style>
 </head>
 <body>
+  <div class="print-action-bar">
+    <div>
+      <b>REWIND Forensic Attestation</b> · Verifiable Print / Save as PDF Format
+    </div>
+    <button type="button" class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+
   <div class="header">
     <div>
       <div class="brand">REWIND EVIDENCE ATLAS</div>
@@ -200,6 +244,7 @@ export async function GET(
     </div>
     <div>Page 1 of 1</div>
   </div>
+  ${autoPrint ? `<script>window.addEventListener("DOMContentLoaded", function() { setTimeout(function() { window.print(); }, 250); });</script>` : ""}
 </body>
 </html>`;
 
