@@ -8,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 
@@ -62,6 +63,7 @@ export const people = pgTable("people", {
   viafId: text("viaf_id"),
   avatarUrl: text("avatar_url"),
   summary: text("summary"),
+  embedding: text("embedding"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -149,6 +151,18 @@ export const venues = pgTable("venues", {
   longitude: doublePrecision("longitude"),
 });
 
+export const venueAreas = pgTable("venue_areas", {
+  id: text("id").primaryKey(), // e.g. "area-white-house-oval-office", "area-un-ga-hall"
+  venueId: text("venue_id")
+    .references(() => venues.id, { onDelete: "cascade" })
+    .notNull(),
+  parentAreaId: text("parent_area_id").references((): AnyPgColumn => venueAreas.id),
+  name: text("name").notNull(),
+  areaType: text("area_type").default("room").notNull(), // hall, stage, podium, room, compound
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+});
+
 export const eventSeries = pgTable("event_series", {
   id: text("id").primaryKey(),
   canonicalName: text("canonical_name").notNull(),
@@ -225,6 +239,7 @@ export const events = pgTable("events", {
   publicationStatus: text("publication_status").default("draft").notNull(), // draft, provisional, published, archived, withdrawn
   publicationLane: text("publication_lane").default("human-review").notNull(), // auto-publish, provisional, human-review, quarantine, withheld, editorial-override, rejected
   significanceScore: integer("significance_score").default(80).notNull(),
+  embedding: text("embedding"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -328,6 +343,8 @@ export const claims = pgTable("claims", {
   claimStatus: text("claim_status").default("PROVISIONAL").notNull(),
   epistemicClass: text("epistemic_class").default("unknown").notNull(),
   supportingExcerpt: text("supporting_excerpt"),
+  contradictsClaimId: text("contradicts_claim_id"),
+  contestationNotes: text("contestation_notes"),
 });
 
 export const claimEvidence = pgTable("claim_evidence", {
@@ -419,20 +436,26 @@ export const auditLog = pgTable("audit_log", {
 // 6. Milestones, Achievements & Topics
 // ==========================================
 
-export const personMilestones = pgTable("person_milestones", {
-  id: text("id").primaryKey(), // e.g. "mlst-netanyahu-longest-pm"
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  title: text("title").notNull(),
-  category: text("category").notNull(), // achievement, record, statistic, honor, landmark-fact
-  date: text("date").notNull(),
-  year: integer("year").notNull(),
-  description: text("description"),
-  metricOrStat: text("metric_or_stat"),
-  sourceId: text("source_id").references(() => sources.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const personMilestones = pgTable(
+  "person_milestones",
+  {
+    id: serial("id").primaryKey(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    title: text("title").notNull(),
+    category: text("category").notNull(), // achievement, record, statistic, honor, landmark-fact
+    date: text("date").notNull(),
+    year: integer("year").notNull(),
+    description: text("description"),
+    metricOrStat: text("metric_or_stat"),
+    sourceId: text("source_id").references(() => sources.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("person_milestones_person_title_year_idx").on(t.personId, t.title, t.year),
+  ]
+);
 
 export const topics = pgTable("topics", {
   id: text("id").primaryKey(), // e.g. "topic-911", "topic-iraq-war"
@@ -465,11 +488,14 @@ export const personEducation = pgTable("person_education", {
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
   institution: text("institution").notNull(),
+  location: text("location"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  qualification: text("qualification"),
+  subject: text("subject"),
   degree: text("degree"),
-  fieldOfStudy: text("field_of_study"),
-  startYear: text("start_year"),
-  endYear: text("end_year"),
-  notes: text("notes"),
+  honours: text("honours"),
+  completedStatus: text("completed_status").default("completed"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -479,13 +505,17 @@ export const personCareer = pgTable("person_career", {
   personId: text("person_id")
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
-  organisationId: text("organisation_id").references(() => organisations.id),
   organisationName: text("organisation_name"),
-  roleTitle: text("role_title").notNull(),
+  positionTitle: text("position_title").notNull(),
+  occupationCategory: text("occupation_category"),
   startDate: text("start_date"),
   endDate: text("end_date"),
-  isCurrent: boolean("is_current").default(false),
+  location: text("location"),
+  appointmentMethod: text("appointment_method"),
+  predecessor: text("predecessor"),
+  successor: text("successor"),
   notes: text("notes"),
+  isCurrent: boolean("is_current").default(false),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -497,8 +527,10 @@ export const personAwards = pgTable("person_awards", {
     .notNull(),
   awardName: text("award_name").notNull(),
   awardingBody: text("awarding_body"),
-  yearReceived: text("year_received"),
-  citation: text("citation"),
+  category: text("category"),
+  awardYear: integer("award_year"),
+  result: text("result").default("winner"),
+  citationReason: text("citation_reason"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -508,12 +540,11 @@ export const personWorks = pgTable("person_works", {
   personId: text("person_id")
     .references(() => people.id, { onDelete: "cascade" })
     .notNull(),
-  title: text("title").notNull(),
+  workTitle: text("work_title").notNull(),
   workType: text("work_type").notNull(),
-  publicationYear: text("publication_year"),
-  publisher: text("publisher"),
-  url: text("url"),
-  notes: text("notes"),
+  releaseDate: text("release_date"),
+  publisherOrVenue: text("publisher_or_venue"),
+  significanceNote: text("significance_note"),
   sourceId: text("source_id").references(() => sources.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -558,3 +589,4 @@ export const eventPersonLocations = pgTable("event_person_locations", {
   confidence: text("confidence").default("limited").notNull(),
   publicVisibility: text("public_visibility").default("approximate").notNull(),
 });
+

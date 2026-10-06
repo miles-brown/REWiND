@@ -727,3 +727,41 @@ test("verifies findDuplicateEventAsync and collision-resistant event slug disamb
   assert.equal(dupMatch.matchedEventId, resA.publishedEventId);
   assert.ok(dupMatch.similarity >= 0.85);
 });
+
+test("verifies Task 09: UK Court Circular and Hansard ingestion adapters", async () => {
+  const { ingestCourtCircularEntry } = await vite.ssrLoadModule("/lib/ingestion/adapters/uk-court-circular.ts");
+  const { ingestHansardDebate } = await vite.ssrLoadModule("/lib/ingestion/adapters/hansard.ts");
+
+  // Ingest Court Circular entry
+  const ccRes = ingestCourtCircularEntry({
+    entryId: "cc-19940506-01",
+    date: "1994-05-06",
+    courtLocation: "Buckingham Palace",
+    text: "The Queen, accompanied by The Duke of Edinburgh, this morning opened the Channel Tunnel at Coquelles, France, with the President of the French Republic (President Mitterrand).",
+    principals: ["Queen Elizabeth II", "Prince Philip, Duke of Edinburgh"],
+    url: "https://www.royal.uk/court-circular-1994-05-06",
+  });
+
+  assert.ok(ccRes.candidateId);
+  assert.ok(ccRes.fingerprint);
+  assert.equal(ccRes.policy.isEligible, true);
+
+  // Ingest Hansard debate entry
+  const hansardRes = ingestHansardDebate({
+    debateId: "hansard-hc-19980410",
+    chamber: "House of Commons",
+    date: "1998-04-10",
+    title: "Good Friday Agreement: Statement by the Prime Minister",
+    speaker: "Tony Blair",
+    speakerRole: "The Prime Minister",
+    column: "vol 310 cc145-152",
+    text: "I am pleased to report to the House the conclusion of the multi-party negotiations in Belfast leading to the Good Friday Agreement.",
+    url: "https://hansard.parliament.uk/Commons/1998-04-10/debates/good-friday-agreement",
+  });
+
+  assert.ok(hansardRes.candidateId);
+  assert.ok(hansardRes.fingerprint);
+  assert.equal(hansardRes.policy.isEligible, true);
+});
+
+

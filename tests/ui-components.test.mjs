@@ -362,5 +362,99 @@ test("verifies person dossier enhancements for biographical live regions, semant
   assert.match(globalsCss, /\.person-time-console \.epoch-badge:focus-visible\s*\{[^}]*outline:\s*2px solid #f59e0b/);
 });
 
+test("verifies PlacesExplorer accessibility, dynamic aria-live announcements, venue badge fallback, and deterministic slug generation", async () => {
+  const placesExplorerSource = await readFile(path.join(root, "components/rewind/PlacesExplorer.tsx"), "utf8");
+  const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
+  const { generateDeterministicPlaceSlug } = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+
+  // 1. Dynamic aria-live status region in PlacesExplorer
+  assert.match(placesExplorerSource, /<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">/);
+  assert.match(placesExplorerSource, /liveAnnouncementText/);
+
+  // 1b. CSS token rules in globals.css
+  assert.match(globalsCss, /\.tier-tab\.active\s*\{[^}]*background:\s*#0c1820/);
+  assert.match(globalsCss, /\.badge-executive\s*\{[^}]*color:\s*#78350f/);
+
+  // 2. getVenueTypeBadge robust handling of null, empty, unknown, and standard types
+  assert.match(placesExplorerSource, /UNKNOWN VENUE TYPE/);
+  assert.match(placesExplorerSource, /badge-executive/);
+  assert.match(placesExplorerSource, /badge-diplomatic/);
+
+  // 3. Deterministic place slug generation
+  assert.strictEqual(
+    generateDeterministicPlaceSlug("München", "Schloss Nymphenburg"),
+    "plc-munchen-schloss-nymphenburg"
+  );
+  assert.strictEqual(
+    generateDeterministicPlaceSlug("Madrid", "Palacio Real de Madrid (Royal Palace)"),
+    "plc-madrid-palacio-real-de-madrid-royal-p"
+  );
+  assert.strictEqual(
+    generateDeterministicPlaceSlug("", ""),
+    "plc-unknown-general"
+  );
+  assert.strictEqual(
+    generateDeterministicPlaceSlug("Brussels---Capital", "Château   de   Laeken"),
+    "plc-brussels-capital-chateau-de-laeken"
+  );
+
+  // 4. Mathematical Color Contrast checks for PlacesExplorer & Badge styles
+  function normalizeHex(hex) {
+    if (!hex) return "#000000";
+    let clean = hex.trim().replace(/^#/, "");
+    if (clean.length === 3) clean = clean.split("").map((c) => c + c).join("");
+    return "#" + clean.toLowerCase();
+  }
+
+  function getLuminance(hex) {
+    const rgb = normalizeHex(hex).slice(1);
+    const r = parseInt(rgb.slice(0, 2), 16) / 255;
+    const g = parseInt(rgb.slice(2, 4), 16) / 255;
+    const b = parseInt(rgb.slice(4, 6), 16) / 255;
+    const a = [r, g, b].map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  }
+
+  function getContrast(hex1, hex2) {
+    const lum1 = getLuminance(hex1);
+    const lum2 = getLuminance(hex2);
+    return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
+  }
+
+  // Stat pill span (#cbd5e1 on #0c1820)
+  const statPillContrast = getContrast("#cbd5e1", "#0c1820");
+  assert.ok(statPillContrast >= 4.5, `stat-pill contrast (${statPillContrast.toFixed(2)}:1) must be >= 4.5:1`);
+
+  // Tier tab inactive (#1e293b on #f1f5f9) and active (#ffffff on #0c1820)
+  const tierTabInactive = getContrast("#1e293b", "#f1f5f9");
+  assert.ok(tierTabInactive >= 4.5, `tier-tab inactive contrast (${tierTabInactive.toFixed(2)}:1) must be >= 4.5:1`);
+  const tierTabActive = getContrast("#ffffff", "#0c1820");
+  assert.ok(tierTabActive >= 4.5, `tier-tab active contrast (${tierTabActive.toFixed(2)}:1) must be >= 4.5:1`);
+
+  // Badge colors on their background surfaces
+  const badgePairs = [
+    { fg: "#78350f", bg: "#fef3c7", name: "badge-executive" },
+    { fg: "#312e81", bg: "#e0e7ff", name: "badge-parliament" },
+    { fg: "#1e3a8a", bg: "#dbeafe", name: "badge-diplomatic" },
+    { fg: "#831843", bg: "#fce7f3", name: "badge-summit" },
+    { fg: "#134e4a", bg: "#ccfbf1", name: "badge-transport" },
+    { fg: "#111827", bg: "#f3f4f6", name: "badge-memorial" },
+    { fg: "#701a75", bg: "#fae8ff", name: "badge-religious" },
+    { fg: "#1e293b", bg: "#f1f5f9", name: "badge-default" },
+    { fg: "#075985", bg: "#ffffff", name: "country-tag" },
+    { fg: "#065f46", bg: "#ffffff", name: "city-tag" },
+    { fg: "#92400e", bg: "#ffffff", name: "venue-tag" },
+    { fg: "#9f1239", bg: "#ffffff", name: "address-tag" },
+  ];
+
+  for (const b of badgePairs) {
+    const contrast = getContrast(b.fg, b.bg);
+    assert.ok(
+      contrast >= 4.5,
+      `Badge contrast failure for ${b.name} (${b.fg} on ${b.bg}): ratio is ${contrast.toFixed(2)}:1, expected >= 4.5:1`
+    );
+  }
+});
+
 
 

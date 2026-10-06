@@ -1,24 +1,54 @@
 import { createClient } from "@/lib/supabase/server";
 import { events as fallbackEvents, people as fallbackPeople } from "@/archive/legacy-data/rewind";
 import { getPersonBySlugWithStatus } from "./people";
-import type { EventRecord, PersonRecord } from "./types";
+import type { EventRecord, PersonRecord, RelationshipItem, PairwiseRelationshipData } from "./types";
 import { getEventsByIds, getAllEvents } from "./events";
+import { isPhysicalConfirmedParticipant } from "./utils";
 
-export interface RelationshipItem {
-  id: string;
-  source: string;
-  target: string;
-  sourceName: string;
-  targetName: string;
-  sharedEventsCount: number;
-  latestEventDate?: string;
-  types: string[];
-}
+export type { RelationshipItem, PairwiseRelationshipData };
 
-export interface PairwiseRelationshipData {
-  personA: PersonRecord;
-  personB: PersonRecord;
-  sharedEvents: EventRecord[];
+async function fetchPersonParticipations(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  personId: string
+): Promise<{ data: { event_id: string }[] | null; error: { message: string } | null }> {
+  const participations: { event_id: string }[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("event_people")
+      .select("event_id, attendance_mode, involvement_type, presence_confidence")
+      .eq("person_id", personId);
+
+    if (typeof query.neq === "function") {
+      query = query.neq("presence_confidence", "disputed");
+    }
+    if (typeof query.order === "function") {
+      query = query.order("event_id", { ascending: true });
+    }
+
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+
+    if (data) {
+      const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
+        if (p.attendance_mode && p.attendance_mode !== "physical") return false;
+        if (p.presence_confidence && p.presence_confidence === "disputed") return false;
+        return true;
+      });
+      participations.push(...qualifying);
+    }
+
+    if (!data || data.length < pageSize) {
+      hasMore = false;
+    } else {
+      from += pageSize;
+    }
+  }
+  return { data: participations, error: null };
 }
 
 function getFallbackRelationships(): RelationshipItem[] {
@@ -237,53 +267,9 @@ export async function getRelationshipBetweenWithStatus(
     }
 
     if (supabase) {
-      // Find events where both personA.id and personB.id participate with robust pagination
-      const fetchParticipations = async (personId: string) => {
-        const participations: { event_id: string }[] = [];
-        const pageSize = 1000;
-        let from = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          let query = supabase
-            .from("event_people")
-            .select("event_id, attendance_mode, involvement_type, presence_confidence")
-            .eq("person_id", personId);
-
-          if (typeof query.neq === "function") {
-            query = query.neq("presence_confidence", "disputed");
-          }
-          if (typeof query.order === "function") {
-            query = query.order("event_id", { ascending: true });
-          }
-
-          const { data, error } = await query.range(from, from + pageSize - 1);
-
-          if (error) {
-            return { data: null, error };
-          }
-
-          if (data) {
-            const qualifying = (data as { event_id: string; attendance_mode?: string | null; presence_confidence?: string | null }[]).filter((p) => {
-              if (p.attendance_mode && p.attendance_mode !== "physical") return false;
-              if (p.presence_confidence && p.presence_confidence === "disputed") return false;
-              return true;
-            });
-            participations.push(...qualifying);
-          }
-
-          if (!data || data.length < pageSize) {
-            hasMore = false;
-          } else {
-            from += pageSize;
-          }
-        }
-        return { data: participations, error: null };
-      };
-
       const [resA, resB] = await Promise.all([
-        fetchParticipations(personA.id),
-        fetchParticipations(personB.id),
+        fetchPersonParticipations(supabase, personA.id),
+        fetchPersonParticipations(supabase, personB.id),
       ]);
 
       if (resA.error || resB.error) {
@@ -324,8 +310,12 @@ export async function getRelationshipBetweenWithStatus(
     const shared = all.filter(
       (e) =>
         e.verificationStatus === "verified" &&
-        (e.participants || []).some((p) => p.personId === personA.id || p.personId === personA.slug) &&
-        (e.participants || []).some((p) => p.personId === personB.id || p.personId === personB.slug)
+        (e.participants || []).some(
+          (p) => (p.personId === personA.id || p.personId === personA.slug) && isPhysicalConfirmedParticipant(p)
+        ) &&
+        (e.participants || []).some(
+          (p) => (p.personId === personB.id || p.personId === personB.slug) && isPhysicalConfirmedParticipant(p)
+        )
     );
 
     return {
@@ -353,6 +343,148 @@ export async function getRelationshipBetween(
   supabaseClient?: unknown
 ): Promise<PairwiseRelationshipData | null> {
   const res = await getRelationshipBetweenWithStatus(slugA, slugB, supabaseClient);
+  if (res.error && process.env.NODE_ENV === "production") {
+    throw new Error(res.error);
+  }
+  return res.data;
+}
+
+export interface CoAttendanceIntersectionData {
+  people: PersonRecord[];
+  sharedEvents: EventRecord[];
+  slugs: string[];
+}
+
+/**
+ * Retrieves the spacetime co-attendance intersections across multiple historical figures (2 to 5 public figures).
+ */
+export async function getCoAttendanceIntersectionsWithStatus(
+  slugs: string[],
+  supabaseClient?: unknown
+): Promise<{ data: CoAttendanceIntersectionData | null; error: string | null }> {
+  try {
+    if (!Array.isArray(slugs) || slugs.length < 2 || slugs.length > 5) {
+      return { data: null, error: "Multi-figure intersection requires between 2 and 5 figure identifiers." };
+    }
+
+    const slugPattern = /^[a-zA-Z0-9_-]+$/;
+    for (const slug of slugs) {
+      if (!slug || slug.length > 120 || !slugPattern.test(slug)) {
+        return { data: null, error: `Invalid figure identifier format: ${slug}` };
+      }
+    }
+
+    // Guard against self-pairs / duplicate slugs
+    const uniqueSlugs = Array.from(new Set(slugs));
+    if (uniqueSlugs.length !== slugs.length) {
+      return { data: null, error: "Duplicate figure identifiers provided in intersection query." };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
+
+    const peopleResults = await Promise.all(
+      uniqueSlugs.map((s) => getPersonBySlugWithStatus(s, supabase))
+    );
+
+    for (let i = 0; i < peopleResults.length; i++) {
+      const res = peopleResults[i];
+      if (res.error) {
+        return { data: null, error: `Lookup failed for figure ${uniqueSlugs[i]}: ${res.error}` };
+      }
+      if (!res.data) {
+        return { data: null, error: null };
+      }
+    }
+
+    const people = peopleResults.map((r) => r.data!);
+
+    // Ensure distinct person IDs
+    const distinctPersonIds = new Set(people.map((p) => p.id));
+    if (distinctPersonIds.size !== people.length) {
+      return { data: null, error: "Identified duplicate person entities across different slugs." };
+    }
+
+    if (supabase) {
+      const participationResults = await Promise.all(
+        people.map((p) => fetchPersonParticipations(supabase, p.id))
+      );
+
+      for (const pRes of participationResults) {
+        if (pRes.error) {
+          if (process.env.NODE_ENV === "production") {
+            return { data: null, error: `Participation query failed: ${pRes.error.message}` };
+          }
+          return { data: null, error: null };
+        }
+      }
+
+      // Compute intersection of event IDs
+      const eventSets = participationResults.map(
+        (pRes) => new Set((pRes.data || []).map((p) => p.event_id))
+      );
+
+      let sharedEventIds = Array.from(eventSets[0]);
+      for (let i = 1; i < eventSets.length; i++) {
+        sharedEventIds = sharedEventIds.filter((id) => eventSets[i].has(id));
+      }
+
+      if (sharedEventIds.length > 0) {
+        const CHUNK_SIZE = 500;
+        const fetchedEvents: EventRecord[] = [];
+        for (let i = 0; i < sharedEventIds.length; i += CHUNK_SIZE) {
+          const chunk = sharedEventIds.slice(i, i + CHUNK_SIZE);
+          const chunkEvents = await getEventsByIds(chunk, supabase);
+          fetchedEvents.push(...chunkEvents);
+        }
+        const sharedEvents = fetchedEvents.filter((e) => e.verificationStatus === "verified");
+        return { data: { people, sharedEvents, slugs: uniqueSlugs }, error: null };
+      }
+
+      return { data: { people, sharedEvents: [], slugs: uniqueSlugs }, error: null };
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      return { data: null, error: "Database client unavailable" };
+    }
+
+    const all = await getAllEvents();
+    const shared = all.filter((e) => {
+      if (e.verificationStatus !== "verified") return false;
+      const participants = e.participants || [];
+      return people.every((p) =>
+        participants.some(
+          (part) =>
+            (part.personId === p.id || part.personId === p.slug) &&
+            isPhysicalConfirmedParticipant(part)
+        )
+      );
+    });
+
+    return {
+      data: {
+        people,
+        sharedEvents: shared,
+        slugs: uniqueSlugs,
+      },
+      error: null,
+    };
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") {
+      return { data: null, error: err instanceof Error ? err.message : "Database error" };
+    }
+    return { data: null, error: null };
+  }
+}
+
+/**
+ * Retrieves the spacetime co-attendance intersections across multiple historical figures.
+ */
+export async function getCoAttendanceIntersections(
+  slugs: string[],
+  supabaseClient?: unknown
+): Promise<CoAttendanceIntersectionData | null> {
+  const res = await getCoAttendanceIntersectionsWithStatus(slugs, supabaseClient);
   if (res.error && process.env.NODE_ENV === "production") {
     throw new Error(res.error);
   }

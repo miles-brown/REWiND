@@ -26,6 +26,8 @@ interface CandidateClaimInput {
   confidence?: string;
   claimStatus?: string;
   epistemicClass?: string;
+  contradictsClaimId?: string;
+  contestationNotes?: string;
 }
 
 function escapeIlikePattern(str: string): string {
@@ -228,6 +230,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             sourceId,
             confidence: conf,
             supportingExcerpt: clm.supportingExcerpt || data.summary || null,
+            contradictsClaimId: clm.contradictsClaimId || null,
+            contestationNotes: clm.contestationNotes || null,
             subjectMention: clm.subjectMention,
           });
         }
@@ -738,6 +742,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,
+      embedding: null,
       participants: (Array.isArray(data.participants) ? data.participants : []).map((p: { name: string; role?: string; presenceMode?: string }) => {
         const canonicalId =
           resolvedParticipantMap.get(p.name?.toLowerCase().trim()) ||
@@ -788,6 +793,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
         claimStatus: clm.claimStatus || (clm.confidence === "confirmed" ? "ESTABLISHED" : "PROVISIONAL"),
         epistemicClass: clm.epistemicClass || (clm.confidence === "confirmed" ? "documented fact" : "unknown"),
         supportingExcerpt: clm.supportingExcerpt || null,
+        contradictsClaimId: clm.contradictsClaimId || null,
+        contestationNotes: clm.contestationNotes || null,
       };
       if (!store.claims.some((c) => c.id === inMem.id)) {
         store.claims.push(inMem);
@@ -924,6 +931,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
             claimStatus: clm.claimStatus || "PROVISIONAL",
             epistemicClass: clm.epistemicClass || "unknown",
             supportingExcerpt: clm.supportingExcerpt || null,
+            contradictsClaimId: clm.contradictsClaimId || null,
+            contestationNotes: clm.contestationNotes || null,
             subjectMention: clm.subjectMention,
           });
         }
@@ -1174,6 +1183,8 @@ export function mergeCandidate(candidateId: string, targetEventId: string, edito
                   claimStatus: clm.claimStatus || "PROVISIONAL",
                   epistemicClass: clm.epistemicClass || "unknown",
                   supportingExcerpt: clm.supportingExcerpt,
+                  contradictsClaimId: clm.contradictsClaimId || null,
+                  contestationNotes: clm.contestationNotes || null,
                 });
               }
             }

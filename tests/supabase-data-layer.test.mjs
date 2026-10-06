@@ -758,5 +758,353 @@ test("retrieves person roles, personal milestones, and continuous topic timeline
   assert.ok(Array.isArray(topicEvents));
 });
 
+test("verifies Task 08: claim contestation handling and confidence downgrade invariant", async () => {
+  const { getClaimsByEvent } = await vite.ssrLoadModule("/lib/rewind/claims.ts");
 
+  const mockClient = {
+    from(tableName) {
+      if (tableName === "claims") {
+        return {
+          select() { return this; },
+          or() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "clm-101",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-a",
+                  claim_type: "presence",
+                  statement: "Monarch A arrived at 10:00 AM",
+                  confidence: "confirmed",
+                  contradicts_claim_id: "clm-100",
+                  contestation_notes: "Secondary source claimed 11:30 AM arrival",
+                },
+                {
+                  id: "clm-102",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-b",
+                  claim_type: "presence",
+                  statement: "Monarch B attended opening ceremony",
+                  confidence: "confirmed",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
+                {
+                  id: "clm-103",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-c",
+                  claim_type: "presence",
+                  statement: "Monarch C signed bilateral pact",
+                  confidence: "strong",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
+                {
+                  id: "clm-104",
+                  event_id: "evt-summit-1",
+                  subject_entity_type: "person",
+                  subject_id: "monarch-d",
+                  claim_type: "presence",
+                  statement: "Monarch D attended closing session",
+                  confidence: "limited",
+                  contradicts_claim_id: null,
+                  contestation_notes: null,
+                },
+              ],
+              error: null,
+            });
+          },
+          eq() { return this; },
+          order() { return this; },
+          range() {
+            return Promise.resolve({
+              data: [],
+              error: null,
+            });
+          },
+        };
+      }
+      if (tableName === "claim_evidence") {
+        return {
+          select() { return this; },
+          in() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "evd-103",
+                  claim_id: "clm-103",
+                  source_id: "src-disputed-report",
+                  evidence_form: "direct-citation",
+                  contradicts_claim: true,
+                },
+                {
+                  id: "evd-104",
+                  claim_id: "clm-104",
+                  source_id: "src-unverified-account",
+                  evidence_form: "direct-citation",
+                  contradicts_claim: true,
+                },
+              ],
+              error: null,
+            });
+          },
+          range() {
+            return Promise.resolve({
+              data: [],
+              error: null,
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        range() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
 
+  const claims = await getClaimsByEvent("evt-summit-1", mockClient);
+  assert.equal(claims.length, 4);
+
+  // clm-101 has contestation notes & contradicts_claim_id -> confidence must be downgraded to 'disputed'
+  const contestedClaim = claims.find((c) => c.id === "clm-101");
+  assert.ok(contestedClaim, "Must find contested claim");
+  assert.equal(contestedClaim.contradictsClaimId, "clm-100");
+  assert.equal(contestedClaim.contestationNotes, "Secondary source claimed 11:30 AM arrival");
+  assert.equal(contestedClaim.confidence, "disputed", "Contested claim must downgrade confirmed to disputed");
+
+  // clm-102 is uncontested -> retains 'confirmed'
+  const uncontestedClaim = claims.find((c) => c.id === "clm-102");
+  assert.ok(uncontestedClaim, "Must find uncontested claim");
+  assert.equal(uncontestedClaim.confidence, "confirmed");
+
+  // clm-103 is contested via claim_evidence with contradicts_claim -> confidence downgraded from strong to disputed
+  const evidenceContestedClaim = claims.find((c) => c.id === "clm-103");
+  assert.ok(evidenceContestedClaim, "Must find evidence-contested claim");
+  assert.equal(evidenceContestedClaim.confidence, "disputed", "Contradictory evidence must downgrade strong to disputed");
+
+  // clm-104 is contested via claim_evidence with contradicts_claim and initial limited -> remains limited
+  const limitedContestedClaim = claims.find((c) => c.id === "clm-104");
+  assert.ok(limitedContestedClaim, "Must find limited contested claim");
+  assert.equal(limitedContestedClaim.confidence, "limited", "Contradictory evidence on limited claim preserves limited");
+});
+
+test("verifies Task 11: pgvector hybrid semantic search and cosine similarity math", async () => {
+  const { cosineSimilarity, hybridSearch } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+
+  // Verify vector mathematics
+  const vecA = [1.0, 0.0, 0.0];
+  const vecB = [1.0, 0.0, 0.0];
+  const vecC = [0.0, 1.0, 0.0];
+
+  assert.equal(cosineSimilarity(vecA, vecB), 1.0, "Identical vectors must have cosine similarity 1.0");
+  assert.equal(cosineSimilarity(vecA, vecC), 0.0, "Orthogonal vectors must have cosine similarity 0.0");
+  assert.equal(cosineSimilarity([], []), 0.0, "Empty vectors return 0.0");
+
+  // Verify hybridSearch empty query handling
+  const emptyRes = await hybridSearch("", { limit: 5 });
+  assert.deepEqual(emptyRes, []);
+
+  // Verify hybridSearch client unavailable rejection
+  await assert.rejects(
+    hybridSearch("Charles", {
+      limit: 5,
+      semanticWeight: 0.4,
+      queryEmbedding: [0.12, 0.45, -0.23, 0.88],
+    }),
+    /Supabase search client is unavailable/
+  );
+});
+
+test("verifies round-37 review fixes: year qualifier fail-closed, category isolation, and canonical country aggregation", async () => {
+  const { parseSearchQualifiers, searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  const { resolveCanonicalCountryName } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  // 1. Year qualifier validation: exact 4 digits vs malformed
+  const validYearParsed = parseSearchQualifiers("summit year:2024");
+  assert.equal(validYearParsed.year, "2024");
+  assert.equal(validYearParsed.cleanedQuery, "summit");
+
+  const invalidYearParsed = parseSearchQualifiers("summit year:2024abc");
+  assert.equal(invalidYearParsed.year, "invalid");
+  assert.equal(invalidYearParsed.cleanedQuery, "summit");
+
+  const shortYearParsed = parseSearchQualifiers("speech year:99");
+  assert.equal(shortYearParsed.year, "invalid");
+  assert.equal(shortYearParsed.cleanedQuery, "speech");
+
+  // 2. Category group isolation when type is present
+  const mockSearchClient = {
+    from(tableName) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        or() { return this; },
+        ilike() { return this; },
+        gte() { return this; },
+        lt() { return this; },
+        limit() {
+          if (tableName === "people") {
+            return Promise.resolve({
+              data: [
+                { id: "p-1", slug: "person-1", display_name: "Person 1", canonical_name: "Person 1", primary_role: "Leader" },
+              ],
+              error: null,
+            });
+          }
+          if (tableName === "events") {
+            return Promise.resolve({
+              data: [
+                { id: "e-1", slug: "event-1", title: "Summit 2024", summary: "Summit event", start_date: "2024-01-01" },
+              ],
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: [], error: null });
+        },
+      };
+    },
+  };
+
+  const typeQualifiedResults = await searchRewind("summit type:person", 10, mockSearchClient);
+  assert.ok(typeQualifiedResults.length > 0, "Type qualified search must return matching items");
+  assert.ok(typeQualifiedResults.every((item) => item.type === "person"), "All returned items must strictly be person items");
+
+  const unfilteredResults = await searchRewind("summit", 10, mockSearchClient);
+  assert.ok(unfilteredResults.some((item) => item.type === "person"), "Unfiltered search should include people");
+  assert.ok(unfilteredResults.some((item) => item.type === "event"), "Unfiltered search should include events");
+
+  // 3. Canonical country resolution for aliases and case insensitivity
+  assert.equal(resolveCanonicalCountryName("Palestine"), "State of Palestine");
+  assert.equal(resolveCanonicalCountryName("State of Palestine"), "State of Palestine");
+  assert.equal(resolveCanonicalCountryName("United States"), "United States");
+  assert.equal(resolveCanonicalCountryName("united states"), "United States");
+  assert.equal(resolveCanonicalCountryName("france"), "France");
+  assert.equal(resolveCanonicalCountryName("UK"), "United Kingdom");
+  assert.equal(resolveCanonicalCountryName("uk"), "United Kingdom");
+  assert.equal(resolveCanonicalCountryName("israel"), "Israel");
+});
+
+test("verifies evaluateQueryResult, unwrapDataOrNull, and query result state transitions", async () => {
+  const { evaluateQueryResult, unwrapDataOrNull } = await vite.ssrLoadModule("/lib/rewind/result.ts");
+
+  // 1. Success state
+  const successRes = evaluateQueryResult({ data: { id: "evt-1" }, error: null });
+  assert.equal(successRes.isSuccess, true);
+  assert.equal(successRes.isUnavailable, false);
+  assert.equal(successRes.isNotFound, false);
+  assert.deepEqual(successRes.data, { id: "evt-1" });
+  assert.deepEqual(unwrapDataOrNull({ data: { id: "evt-1" }, error: null }), { id: "evt-1" });
+
+  // 2. Not Found state
+  const notFoundRes = evaluateQueryResult({ data: null, error: null });
+  assert.equal(notFoundRes.isSuccess, false);
+  assert.equal(notFoundRes.isUnavailable, false);
+  assert.equal(notFoundRes.isNotFound, true);
+  assert.equal(notFoundRes.data, null);
+  assert.equal(unwrapDataOrNull({ data: null, error: null }), null);
+
+  // 3. Unavailable / Error state
+  const errorRes = evaluateQueryResult({ data: null, error: "Database timeout" });
+  assert.equal(errorRes.isSuccess, false);
+  assert.equal(errorRes.isUnavailable, true);
+  assert.equal(errorRes.isNotFound, false);
+  assert.equal(errorRes.error, "Database timeout");
+  assert.equal(unwrapDataOrNull({ data: null, error: "Database timeout" }), null);
+});
+
+test("verifies canonical city matching and alias normalization in places.ts", async () => {
+  const { isSameCity, normalizeCityName } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  assert.equal(normalizeCityName("Washington DC"), "Washington, D.C.");
+  assert.equal(normalizeCityName("Washington, D.C."), "Washington, D.C.");
+  assert.equal(normalizeCityName("Washington"), "Washington, D.C.");
+  assert.equal(normalizeCityName("NYC"), "New York City");
+  assert.equal(normalizeCityName("New York"), "New York City");
+
+  assert.equal(isSameCity("Washington DC", "Washington, D.C."), true);
+  assert.equal(isSameCity("Washington, DC", "Washington, D.C."), true);
+  assert.equal(isSameCity("Washington", "Washington, D.C."), true);
+  assert.equal(isSameCity("NYC", "New York City"), true);
+  assert.equal(isSameCity("Paris", "London"), false);
+  assert.equal(isSameCity("Jerusalem", "Tel Aviv"), false);
+});
+
+test("verifies getPersonBySlugWithStatus loads and maps person_stays alongside other biographical relations", async () => {
+  const { getPersonBySlugWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
+
+  const mockClient = {
+    from(table) {
+      if (table === "people") {
+        return {
+          select() { return this; },
+          or() { return this; },
+          eq() { return this; },
+          maybeSingle() {
+            return Promise.resolve({
+              data: {
+                id: "person-test-1",
+                slug: "test-figure",
+                canonical_name: "Test Figure",
+                display_name: "Test Figure",
+                primary_role: "Diplomat",
+                classification: "diplomat",
+                publication_status: "published",
+              },
+              error: null,
+            });
+          },
+        };
+      }
+      if (table === "person_stays") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "stay-test-1",
+                  person_id: "person-test-1",
+                  venue_name: "Official Residence",
+                  stay_name: "Embassy Compound",
+                  stay_type: "official_residence",
+                  city: "Washington, D.C.",
+                  country: "United States",
+                  latitude: 38.8977,
+                  longitude: -77.0365,
+                  start_date: "1990-01-01",
+                  end_date: "1995-01-01",
+                  is_base_of_operations: true,
+                  is_primary_residence: true,
+                  source_id: "src-1",
+                },
+              ],
+              error: null,
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
+
+  const res = await getPersonBySlugWithStatus("test-figure", mockClient);
+  assert.equal(res.error, null);
+  assert.ok(res.data);
+  assert.equal(res.data.canonicalName, "Test Figure");
+  assert.ok(Array.isArray(res.data.stays), "stays must be populated as an array");
+  assert.equal(res.data.stays.length, 1);
+  assert.equal(res.data.stays[0].venueName, "Official Residence");
+  assert.equal(res.data.stays[0].isBaseOfOperations, true);
+  assert.equal(res.data.stays[0].isPrimaryResidence, true);
+  assert.deepEqual(res.data.stays[0].sourceIds, ["src-1"]);
+});

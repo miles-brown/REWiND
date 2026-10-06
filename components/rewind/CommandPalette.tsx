@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Calendar, Database, Loader2, MapPin, MessageSquareQuote, Search, Users, X } from "lucide-react";
+import { AlertCircle, Calendar, Database, Loader2, MapPin, MessageSquareQuote, Search, Sparkles, Users, X } from "lucide-react";
 import type { SearchResultItem } from "@/lib/rewind/types";
 
 const DEFAULT_ACTIONS: SearchResultItem[] = [
@@ -65,6 +65,25 @@ const DEFAULT_ACTIONS: SearchResultItem[] = [
   },
 ];
 
+type CategoryFilter = "all" | "person" | "event" | "place" | "source" | "quote";
+
+const FILTER_TABS: { id: CategoryFilter; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: "all", label: "All Categories", icon: Sparkles },
+  { id: "person", label: "People", icon: Users },
+  { id: "event", label: "Events", icon: Calendar },
+  { id: "place", label: "Places", icon: MapPin },
+  { id: "source", label: "Sources", icon: Database },
+  { id: "quote", label: "Quotes", icon: MessageSquareQuote },
+];
+
+const QUICK_QUALIFIERS = [
+  "type:monarch",
+  "year:2023",
+  "country:spain",
+  "type:event",
+  "type:source",
+];
+
 export function CommandPalette({
   isOpen,
   onClose,
@@ -74,14 +93,42 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchRequestIdRef = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const trimmed = query.trim();
-  const results = trimmed ? searchResults : DEFAULT_ACTIONS;
+
+  // Filter results or default actions by category
+  const results = useMemo(() => {
+    if (!trimmed) {
+      if (activeCategory === "all") return DEFAULT_ACTIONS;
+      return DEFAULT_ACTIONS.filter((item) => item.type === activeCategory);
+    }
+    const explicitTypeMatch = trimmed.match(/\b(?:type|kind|category):([a-zA-Z_-]+)\b/i);
+    const rawCategory = explicitTypeMatch ? explicitTypeMatch[1].toLowerCase() : activeCategory;
+    const categoryMap: Record<string, string> = {
+      events: "event",
+      people: "person",
+      figure: "person",
+      monarch: "person",
+      places: "place",
+      venues: "place",
+      venue: "place",
+      locations: "place",
+      quotes: "quote",
+      statements: "quote",
+      sources: "source",
+      documents: "source",
+    };
+    const effectiveCategory = categoryMap[rawCategory] || rawCategory;
+    if (effectiveCategory === "all") return searchResults;
+    return searchResults.filter((item) => item.type === effectiveCategory);
+  }, [trimmed, searchResults, activeCategory]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -92,12 +139,18 @@ export function CommandPalette({
 
     const abortController = new AbortController();
     const requestId = ++searchRequestIdRef.current;
+    const hasExplicitTypeQualifier = /\b(?:type|kind|category):[a-zA-Z_-]+\b/i.test(trimmedQuery);
+    const effectiveQuery =
+      activeCategory !== "all" && !hasExplicitTypeQualifier
+        ? `${trimmedQuery} type:${activeCategory}`
+        : trimmedQuery;
+
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setSearchResults([]);
       setSearchError(null);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&limit=10`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(effectiveQuery)}&limit=15`, {
           signal: abortController.signal,
         });
         if (requestId !== searchRequestIdRef.current) return;
@@ -129,7 +182,7 @@ export function CommandPalette({
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [query]);
+  }, [query, activeCategory]);
 
   const activeIndex = selectedIndex >= results.length ? 0 : selectedIndex;
 
@@ -148,6 +201,25 @@ export function CommandPalette({
       e.preventDefault();
       onClose();
     }
+  };
+
+  const handleInjectQualifier = (qualifier: string) => {
+    const key = qualifier.split(":")[0];
+    const keyRegex = new RegExp(`\\b${key}:[a-zA-Z0-9_-]+\\b`, "gi");
+    let nextQuery = query.trim();
+    if (keyRegex.test(nextQuery)) {
+      nextQuery = nextQuery.replace(keyRegex, qualifier);
+    } else {
+      nextQuery = nextQuery ? `${nextQuery} ${qualifier}` : qualifier;
+    }
+    if (query.trim() === nextQuery.trim()) {
+      inputRef.current?.focus();
+      return;
+    }
+    setSelectedIndex(0);
+    setSearchResults([]);
+    setQuery(`${nextQuery} `);
+    inputRef.current?.focus();
   };
 
   if (!isOpen) return null;
@@ -176,6 +248,7 @@ export function CommandPalette({
         <div className="search-input">
           <Search size={18} />
           <input
+            ref={inputRef}
             autoFocus
             value={query}
             onChange={(e) => {
@@ -192,7 +265,7 @@ export function CommandPalette({
               }
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search events, quotes, participants, venues, sources…"
+            placeholder="Search events, quotes, participants, venues, sources (e.g. type:monarch, year:2023)…"
             aria-label="Search query"
           />
           {isLoading && (
@@ -223,6 +296,7 @@ export function CommandPalette({
                 setSearchResults([]);
                 setSearchError(null);
                 setIsLoading(false);
+                inputRef.current?.focus();
               }}
               aria-label="Clear query"
             >
@@ -232,6 +306,61 @@ export function CommandPalette({
             <kbd className="search-kbd">ESC</kbd>
           )}
         </div>
+
+        {/* Category Filters Bar */}
+        <div className="command-filter-bar" role="group" aria-label="Filter results by category">
+          {FILTER_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeCategory === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-pressed={isActive}
+                className={`command-filter-pill ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  searchRequestIdRef.current++;
+                  setActiveCategory(tab.id);
+                  setSelectedIndex(0);
+                  setSearchResults([]);
+                  setSearchError(null);
+                  if (tab.id !== "all") {
+                    const hasQualifier = /\b(?:type|kind|category):[a-zA-Z_-]+\b/i.test(query);
+                    if (hasQualifier) {
+                      setQuery(query.replace(/\b(?:type|kind|category):[a-zA-Z_-]+\b/i, `type:${tab.id}`).trim());
+                    }
+                  } else {
+                    const stripped = query.replace(/\b(?:type|kind|category):[a-zA-Z_-]+\b/i, "").replace(/\s+/g, " ").trim();
+                    if (stripped !== query.trim()) {
+                      setQuery(stripped);
+                    }
+                  }
+                  inputRef.current?.focus();
+                }}
+              >
+                <Icon size={12} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Qualifier Pills */}
+        <div className="command-qualifiers-bar" aria-label="Quick search qualifiers">
+          <span className="command-qualifier-label">Filters:</span>
+          {QUICK_QUALIFIERS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              className="command-qualifier-pill"
+              onClick={() => handleInjectQualifier(q)}
+              title={`Add ${q} to search`}
+            >
+              +{q}
+            </button>
+          ))}
+        </div>
+
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {searchError
             ? searchError
@@ -241,7 +370,8 @@ export function CommandPalette({
             ? `${results.length} archival record${results.length === 1 ? "" : "s"} found for "${trimmed}"`
             : ""}
         </div>
-        <div className="command-palette-results" aria-live="polite">
+
+        <div className="command-palette-results" id="command-palette-results" aria-live="polite">
           {searchError ? (
             <div className="empty-copy search-error-copy" role="alert">
               <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "var(--color-crimson, #ef4444)" }}>
@@ -256,11 +386,13 @@ export function CommandPalette({
               <small>Try searching by person, treaty name, city, or date.</small>
             </div>
           ) : null}
+
           {results.map((item, index) => {
             const isSelected = index === activeIndex;
             return (
               <Link
                 key={item.id}
+                id={`cmd-item-${item.id}`}
                 href={item.url}
                 onClick={onClose}
                 onMouseEnter={() => setSelectedIndex(index)}
@@ -278,6 +410,7 @@ export function CommandPalette({
             );
           })}
         </div>
+
         <footer className="command-palette-footer">
           <span><kbd>↑</kbd> <kbd>↓</kbd> Navigate</span>
           <span><kbd>↵</kbd> Open</span>

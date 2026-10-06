@@ -58,6 +58,11 @@ const migrationFiles = [
   "20260904040000_schema_perfection_and_travel_corridors.sql",
 ];
 
+/**
+ * Applies listed migrations and records each version in the same transaction.
+ * Skips recorded versions unless --force is set, exits on migration failure,
+ * then reports public tables and RLS policies and closes the client on success.
+ */
 async function applyMigrations() {
   console.log("Connecting to Supabase PostgreSQL database...");
   const [{ version }] = await client`SELECT version()`;
@@ -85,7 +90,13 @@ async function applyMigrations() {
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
 
-    if (appliedVersions.has(version)) {
+    const targetVersions = process.argv
+      .filter((arg) => arg.startsWith("--version="))
+      .map((arg) => arg.split("=")[1]);
+    const forceAll = process.argv.includes("--force-all");
+    const isTargeted = targetVersions.length > 0 && targetVersions.includes(version);
+    const forceRun = forceAll || (process.argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
+    if (appliedVersions.has(version) && !forceRun) {
       console.log(`\n========================================`);
       console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
       console.log(`========================================`);

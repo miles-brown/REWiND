@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolveCanonicalCountryName } from "./places";
 import type { SearchResultItem } from "./types";
 
 /**
@@ -13,6 +14,98 @@ export function escapePostgrestValue(val: string): string {
  */
 export function escapeIlikePattern(val: string): string {
   return val.replace(/[%_\\]/g, "\\$&");
+}
+
+/**
+ * Parsed search qualifiers for structured omnisearch queries (e.g. type:person, year:2023, country:spain, tier:t1).
+ */
+export interface SearchQualifiers {
+  rawQuery: string;
+  cleanedQuery: string;
+  type?: "event" | "person" | "place" | "source" | "quote" | string;
+  year?: string;
+  country?: string;
+  tier?: string;
+}
+
+const SUPPORTED_SEARCH_TYPES = new Set([
+  "event",
+  "events",
+  "person",
+  "people",
+  "figure",
+  "monarch",
+  "place",
+  "places",
+  "venue",
+  "source",
+  "sources",
+  "quote",
+  "quotes",
+]);
+
+export function normalizeTier(t?: string | null): string | undefined {
+  if (!t) return undefined;
+  const lower = t.toLowerCase().trim();
+  if (lower === "1" || lower === "t1" || lower === "tier-a" || lower === "tier-1" || lower === "a") return "tier-a";
+  if (lower === "2" || lower === "t2" || lower === "tier-b" || lower === "tier-2" || lower === "b") return "tier-b";
+  if (lower === "3" || lower === "t3" || lower === "tier-c" || lower === "tier-3" || lower === "c") return "tier-c";
+  if (lower === "4" || lower === "t4" || lower === "tier-d" || lower === "tier-4" || lower === "d") return "tier-d";
+  return lower;
+}
+
+/**
+ * Extracts filter qualifiers from a raw search query string.
+ */
+export function parseSearchQualifiers(query: string): SearchQualifiers {
+  let cleaned = query.trim();
+  let type: string | undefined;
+  let year: string | undefined;
+  let country: string | undefined;
+  let tier: string | undefined;
+
+  const typeMatch = cleaned.match(/\b(?:type|kind|category):([a-zA-Z_-]+)\b/i);
+  if (typeMatch) {
+    const rawVal = typeMatch[1].toLowerCase();
+    if (SUPPORTED_SEARCH_TYPES.has(rawVal)) {
+      type = rawVal;
+      cleaned = cleaned.replace(typeMatch[0], " ");
+    }
+  }
+
+  const yearMatch = cleaned.match(/\byear:([^\s]+)/i);
+  if (yearMatch) {
+    cleaned = cleaned.replace(yearMatch[0], " ");
+    const rawYear = yearMatch[1].trim();
+    if (/^\d{4}$/.test(rawYear)) {
+      year = rawYear;
+    } else {
+      year = "invalid";
+    }
+  }
+
+  const countryMatch = cleaned.match(/\bcountry:([a-zA-Z_-]+)\b/i);
+  if (countryMatch) {
+    country = countryMatch[1].toLowerCase();
+    cleaned = cleaned.replace(countryMatch[0], " ");
+  }
+
+  const tierMatch = cleaned.match(/\btier:(t?[1-4]|tier-[a-d]|[a-d])\b/i);
+  if (tierMatch) {
+    tier = tierMatch[1].toLowerCase();
+    cleaned = cleaned.replace(tierMatch[0], " ");
+  }
+
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  return {
+    rawQuery: query,
+    cleanedQuery: cleaned,
+    type,
+    year,
+    country,
+    tier,
+  };
 }
 
 /**
@@ -41,58 +134,113 @@ export function interleaveSearchResults(
   return results;
 }
 
+type SupabaseSearchClient = NonNullable<Awaited<ReturnType<typeof createClient>>>;
+
 /**
  * Searches across events, people, places, and sources in Supabase.
  */
 export async function searchRewind(
   query: string,
-  limit = 10
+  limit = 10,
+  supabaseClient?: unknown
 ): Promise<SearchResultItem[]> {
   const term = query.trim();
   if (!term) return [];
   if (!Number.isInteger(limit) || limit < 1 || limit > 30) return [];
 
-  const supabase = await createClient();
+  const supabase = (supabaseClient as SupabaseSearchClient) || (await createClient());
   if (!supabase) {
     throw new Error("Supabase search client is unavailable");
   }
 
-  const ilikeEscaped = escapeIlikePattern(term);
+  const { cleanedQuery, type, year, country, tier } = parseSearchQualifiers(term);
+  if (year && !/^\d{4}$/.test(year)) {
+    return [];
+  }
+  const effectiveTerm = cleanedQuery;
+
+  const ilikeEscaped = escapeIlikePattern(effectiveTerm);
   const postgrestIlikeEscaped = escapePostgrestValue(ilikeEscaped);
 
+  // 1. Build queries applying filters before the limit
+  let eventsQuery = supabase
+    .from("events")
+    .select("id, slug, title, start_date, summary")
+    .eq("publication_status", "published");
+
+  if (effectiveTerm) {
+    eventsQuery = eventsQuery.or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+
+  if (year && /^\d{4}$/.test(year)) {
+    const nextYear = String(Number(year) + 1).padStart(4, "0");
+    eventsQuery = eventsQuery.gte("start_date", year).lt("start_date", nextYear);
+  }
+  eventsQuery = eventsQuery.limit(limit);
+
+  let peopleQuery = supabase
+    .from("people")
+    .select("id, slug, display_name, canonical_name, primary_role")
+    .eq("publication_status", "published");
+
+  if (effectiveTerm) {
+    peopleQuery = peopleQuery.or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+  peopleQuery = peopleQuery.limit(limit);
+
+  let placesQuery = supabase
+    .from("places")
+    .select("id, slug, venue, city, country");
+
+  if (effectiveTerm) {
+    placesQuery = placesQuery.or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+
+  if (country) {
+    const escapedCountry = escapePostgrestValue(escapeIlikePattern(country));
+    placesQuery = placesQuery.ilike("country", `%${escapedCountry}%`);
+  }
+  placesQuery = placesQuery.limit(limit);
+
+  let venuesQuery = supabase
+    .from("venues")
+    .select("id, name, address_id");
+
+  if (effectiveTerm) {
+    venuesQuery = venuesQuery.ilike("name", `%${ilikeEscaped}%`);
+  }
+  venuesQuery = venuesQuery.limit(country ? Math.max(limit * 5, 50) : limit);
+
+  let sourcesQuery = supabase
+    .from("sources")
+    .select("id, title, publisher, tier");
+
+  if (effectiveTerm) {
+    sourcesQuery = sourcesQuery.or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+
+  const normTier = normalizeTier(tier);
+  if (normTier) {
+    sourcesQuery = sourcesQuery.eq("tier", normTier);
+  }
+  sourcesQuery = sourcesQuery.limit(limit);
+
+  let quotesQuery = supabase
+    .from("quotes")
+    .select("id, quote, context, speaker_id, event_id");
+
+  if (effectiveTerm) {
+    quotesQuery = quotesQuery.or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`);
+  }
+  quotesQuery = quotesQuery.limit(limit);
+
   const [eventsRes, peopleRes, placesRes, venuesRes, sourcesRes, quotesRes] = await Promise.all([
-    supabase
-      .from("events")
-      .select("id, slug, title, start_date, summary")
-      .eq("publication_status", "published")
-      .or(`title.ilike."%${postgrestIlikeEscaped}%",summary.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("people")
-      .select("id, slug, display_name, canonical_name, primary_role")
-      .eq("publication_status", "published")
-      .or(`canonical_name.ilike."%${postgrestIlikeEscaped}%",display_name.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("places")
-      .select("id, slug, venue, city, country")
-      .or(`venue.ilike."%${postgrestIlikeEscaped}%",city.ilike."%${postgrestIlikeEscaped}%",country.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("venues")
-      .select("id, name, address_id")
-      .ilike("name", `%${ilikeEscaped}%`)
-      .limit(limit),
-    supabase
-      .from("sources")
-      .select("id, title, publisher, tier")
-      .or(`title.ilike."%${postgrestIlikeEscaped}%",publisher.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
-    supabase
-      .from("quotes")
-      .select("id, quote, context, speaker_id, event_id")
-      .or(`quote.ilike."%${postgrestIlikeEscaped}%",context.ilike."%${postgrestIlikeEscaped}%"`)
-      .limit(limit),
+    eventsQuery,
+    peopleQuery,
+    placesQuery,
+    venuesQuery,
+    sourcesQuery,
+    quotesQuery,
   ]);
 
   const searchError = eventsRes.error || peopleRes.error || placesRes.error || venuesRes.error || sourcesRes.error || quotesRes.error;
@@ -230,12 +378,25 @@ export async function searchRewind(
       (addressRows || []).forEach((a: { id: string; city?: string | null; country_code?: string | null }) => addressesMap.set(a.id, a));
     }
 
-    venueRows.forEach((v) => {
+    let addedVenues = 0;
+    for (const v of venueRows) {
+      if (addedVenues >= limit) break;
       const vSlug = v.id.replace(/^plc-|^ven-/, "");
       if (!seenPlaceIds.has(v.id) && !seenPlaceSlugs.has(vSlug)) {
+        const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
+        if (country) {
+          const venueCountry = addr?.country_code ? resolveCanonicalCountryName(addr.country_code).toLowerCase() : "";
+          const venueCountryCode = (addr?.country_code || "").toLowerCase();
+          const targetCountry = country.toLowerCase();
+          const matches =
+            venueCountryCode === targetCountry ||
+            venueCountry === targetCountry ||
+            venueCountry.includes(targetCountry) ||
+            targetCountry.includes(venueCountryCode);
+          if (!matches) continue;
+        }
         seenPlaceIds.add(v.id);
         seenPlaceSlugs.add(vSlug);
-        const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
         const loc = [addr?.city, addr?.country_code].filter(Boolean).join(", ") || "Venue";
         placeItems.push({
           id: `place-${v.id}`,
@@ -245,8 +406,9 @@ export async function searchRewind(
           url: `/place/${vSlug}`,
           badge: "Place",
         });
+        addedVenues++;
       }
-    });
+    }
   }
 
   const sourceItems: SearchResultItem[] = (sourcesRes.data || []).map((s) => ({
@@ -258,8 +420,61 @@ export async function searchRewind(
     badge: s.tier ? s.tier.toUpperCase() : "Source",
   }));
 
+  let categoryGroups = [eventItems, peopleItems, placeItems, sourceItems, quoteItems];
+
+  if (type) {
+    if (type === "person" || type === "people" || type === "figure" || type === "monarch") {
+      categoryGroups = [peopleItems];
+    } else if (type === "event" || type === "events") {
+      categoryGroups = [eventItems];
+    } else if (type === "place" || type === "places" || type === "venue") {
+      categoryGroups = [placeItems];
+    } else if (type === "source" || type === "sources") {
+      categoryGroups = [sourceItems];
+    } else if (type === "quote" || type === "quotes") {
+      categoryGroups = [quoteItems];
+    }
+  }
+
   return interleaveSearchResults(
-    [eventItems, peopleItems, placeItems, sourceItems, quoteItems],
+    categoryGroups,
     limit
   );
 }
+
+/**
+ * Computes cosine similarity between two float vectors.
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length !== b.length || a.length === 0) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+export interface HybridSearchOptions {
+  limit?: number;
+  supabaseClient?: unknown;
+}
+
+/**
+ * Performs search across events, people, places, and sources.
+ */
+export async function hybridSearch(
+  query: string,
+  options: HybridSearchOptions = {}
+): Promise<SearchResultItem[]> {
+  const { limit = 10, supabaseClient } = options;
+  const term = query.trim();
+  if (!term) return [];
+
+  return searchRewind(term, limit, supabaseClient);
+}
+

@@ -174,6 +174,8 @@ export function processCandidateEvent(
             claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
             epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
+            contradictsClaimId: null,
+            contestationNotes: null,
           });
         });
 
@@ -291,6 +293,7 @@ export function processCandidateEvent(
           publicationStatus: "published",
           publicationLane: policy.lane,
           significanceScore: 85,
+          embedding: null,
           participants: candidate.participants.map((p, idx) => ({
             personId: entityResolutions[idx]?.personId || resolveEntity(p.name).personId,
             name: p.name,
@@ -319,6 +322,8 @@ export function processCandidateEvent(
             claimStatus: policy.lane === "auto-publish" ? "ESTABLISHED" : "PROVISIONAL",
             epistemicClass: policy.lane === "auto-publish" ? "documented fact" : "attributed assertion",
             supportingExcerpt: clm.supportingExcerpt || null,
+            contradictsClaimId: null,
+            contestationNotes: null,
           });
         });
 

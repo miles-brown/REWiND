@@ -116,6 +116,27 @@ export function ClaimInspector({
 
             <h4 className="claim-statement">{claim.statement}</h4>
 
+            {(claim.contradictsClaimId || claim.contestationNotes) && (
+              <div
+                className="claim-contestation-banner"
+                role="note"
+                aria-label="Evidentiary contestation notice"
+              >
+                <div className="contestation-header">
+                  <AlertTriangle size={14} className="contestation-icon" aria-hidden="true" />
+                  <strong>EVIDENTIARY CONTESTATION NOTICE</strong>
+                </div>
+                {claim.contradictsClaimId && (
+                  <p className="contestation-target">
+                    Directly contradicts recorded Claim ID: <code>{claim.contradictsClaimId}</code>
+                  </p>
+                )}
+                {claim.contestationNotes && (
+                  <p className="contestation-notes">{claim.contestationNotes}</p>
+                )}
+              </div>
+            )}
+
             {claim.supportingExcerpt && (
               <blockquote className="claim-excerpt">
                 “{claim.supportingExcerpt}”

@@ -185,3 +185,118 @@ test("supports search filtering across fallback events result", () => {
   assert.ok(res.data.length > 0, "Search for 'Jerusalem' should return matching events");
   assert.ok(res.count > 0);
 });
+
+test("verifies European Reigning and Historic Royal Families Seeds", async () => {
+  const charles = await getPersonBySlug("charles-iii");
+  assert.ok(charles, "Expected Charles III to be registered");
+  assert.equal(charles.canonicalName, "Charles III");
+  assert.equal(charles.nationality, "British");
+  assert.equal(charles.classification, "monarch-royal");
+  assert.ok(charles.achievements && charles.achievements.length >= 4);
+
+  const felipe = await getPersonBySlug("felipe-vi-spain");
+  assert.ok(felipe, "Expected King Felipe VI to be registered");
+  assert.equal(felipe.nationality, "Spanish");
+
+  const leonor = await getPersonBySlug("leonor-princess-of-asturias");
+  assert.ok(leonor, "Expected Princess Leonor to be registered");
+
+  const jeanCount = await getPersonBySlug("jean-count-of-paris");
+  assert.ok(jeanCount, "Expected Jean Count of Paris to be registered");
+
+  const napoleon = await getPersonBySlug("jean-christophe-prince-napoleon");
+  assert.ok(napoleon, "Expected Prince Jean-Christophe Napoléon to be registered");
+
+  const habsburg = await getPersonBySlug("karl-von-habsburg");
+  assert.ok(habsburg, "Expected Karl von Habsburg to be registered");
+});
+
+test("verifies Royal Historical Events Corpus with Co-attendance Rosters", () => {
+  const coronation = eventsCorpus.find((e) => e.id === "evt-2023-05-06-coronation-charles-camilla");
+  assert.ok(coronation, "Coronation event must exist in eventsCorpus");
+  assert.equal(coronation.city, "London");
+  assert.equal(coronation.venueName, "Westminster Abbey");
+  assert.ok(coronation.participants.length >= 10, "Coronation must have extensive participant roster");
+
+  const dday = eventsCorpus.find((e) => e.id === "evt-2024-06-06-dday-80-international-ceremony");
+  assert.ok(dday, "80th D-Day event must exist in eventsCorpus");
+  assert.equal(dday.city, "Saint-Laurent-sur-Mer");
+  assert.ok(dday.participants.some((p) => p.personId === "charles-iii"));
+  assert.ok(dday.participants.some((p) => p.personId === "king-frederik-x"));
+});
+
+test("verifies PR 33 Codex review fixes: MCP config, milestone date NOT NULL, PlacesExplorer buttons, and Leonor citation", async () => {
+  const fs = await import("node:fs");
+
+  // 1. .mcp.json has type: http
+  const mcpConfig = JSON.parse(fs.readFileSync(".mcp.json", "utf8"));
+  assert.equal(mcpConfig.mcpServers?.supabase?.type, "http", ".mcp.json supabase server must specify type: http");
+
+  // 2. Migration SQL person_milestones.date NOT NULL
+  const migrationSql = fs.readFileSync("supabase/migrations/20260904040000_schema_perfection_and_travel_corridors.sql", "utf8");
+  assert.match(migrationSql, /CREATE TABLE IF NOT EXISTS public\.person_milestones \([\s\S]*?date text NOT NULL,/);
+
+  // 3. PlacesExplorer tree nodes use separate node-toggle-btn buttons
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes('className="node-toggle-btn"'));
+  assert.ok(!placesExplorer.includes('className="tree-node-header country-node"\n                      onClick='));
+
+  // 4. Princess Leonor Golden Fleece citation clarity
+  const leonor = await getPersonBySlug("leonor-princess-of-asturias");
+  assert.ok(leonor);
+  const goldenFleece = leonor.achievements?.find((a) => a.milestone.includes("Golden Fleece"));
+  assert.ok(goldenFleece, "Golden Fleece milestone must be present for Leonor");
+  assert.match(goldenFleece.evidence, /Real Decreto 978\/2015 \(BOE-A-2015-11718, conceded 30 Oct 2015\)/);
+  assert.match(goldenFleece.evidence, /30 Jan 2018/);
+});
+
+test("verifies PR 33 review refinements: EventMedia typing, PDF ISO-8601 headers, and PlacesExplorer empty child states", async () => {
+  const fs = await import("node:fs");
+
+  // 1. MediaDrawer uses typed timestamp without type casting
+  const mediaDrawer = fs.readFileSync("components/rewind/MediaDrawer.tsx", "utf8");
+  assert.ok(!mediaDrawer.includes("as { timestamp?: string }"), "MediaDrawer should not contain ad-hoc type assertion");
+
+  // 2. Types define EventMedia
+  const typesContent = fs.readFileSync("lib/rewind/types.ts", "utf8");
+  assert.ok(typesContent.includes("export interface EventMedia"));
+
+  // 3. PDF routes include ISO-8601 header and timestamp
+  const eventPdf = fs.readFileSync("app/api/export/event/[slug]/pdf/route.ts", "utf8");
+  assert.ok(eventPdf.includes('"X-Forensic-Timestamp": exportedAt'));
+  assert.ok(eventPdf.includes("Timestamp (ISO-8601):"));
+
+  const personPdf = fs.readFileSync("app/api/export/person/[slug]/pdf/route.ts", "utf8");
+  assert.ok(personPdf.includes('"X-Forensic-Timestamp": exportedAt'));
+  assert.ok(personPdf.includes("Timestamp (ISO-8601):"));
+
+  // 4. PlacesExplorer has empty nested hints for filtered branches
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes("tree-empty-nested-hint"));
+});
+
+test("verifies CodeRabbit review fixes: evaluateQueryResult falsy values, isSameCity canonical matching, and venue keys", async () => {
+  const { evaluateQueryResult } = await vite.ssrLoadModule("/lib/rewind/result.ts");
+  const { isSameCity } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const fs = await import("node:fs");
+
+  // 1. evaluateQueryResult correctly preserves valid falsy data
+  const falsyZeroResult = evaluateQueryResult({ data: 0, error: null });
+  assert.equal(falsyZeroResult.isSuccess, true, "0 should be considered successful data");
+  assert.equal(falsyZeroResult.isNotFound, false);
+
+  const falsyEmptyStrResult = evaluateQueryResult({ data: "", error: null });
+  assert.equal(falsyEmptyStrResult.isSuccess, true, "Empty string should be considered successful data");
+
+  // 2. isSameCity does not match substring containment falsely
+  assert.equal(isSameCity("New York", "York"), false, "New York should not match York");
+  assert.equal(isSameCity("London", "City of Westminster"), true, "London should match Westminster alias");
+  assert.equal(isSameCity("Madrid", "Madrid"), true);
+
+  // 3. PlacesExplorer uses vName as unique React key
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes("<li key={vName}>🏛️ {vName}</li>"));
+});
+
+
+

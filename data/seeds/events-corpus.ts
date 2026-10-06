@@ -12,6 +12,7 @@ import { presidentialActionsEvents } from "./events-presidential-actions";
 import { legalAndIntelligenceEvents } from "./events-legal-and-intelligence";
 import { techMediaCultureEvents } from "./events-tech-media-culture";
 import { travelCorridorsEvents } from "./events-travel-corridors";
+import { royalEventsCorpus } from "./royal-events-corpus";
 
 export {
   foundationalAndSummitsEvents,
@@ -19,6 +20,7 @@ export {
   legalAndIntelligenceEvents,
   techMediaCultureEvents,
   travelCorridorsEvents,
+  royalEventsCorpus,
 };
 
 export const allHistoricalEvents: EventRecord[] = [
@@ -27,6 +29,7 @@ export const allHistoricalEvents: EventRecord[] = [
   ...legalAndIntelligenceEvents,
   ...techMediaCultureEvents,
   ...travelCorridorsEvents,
+  ...royalEventsCorpus,
 ];
 
 // Ensure unique deduplicated events by ID

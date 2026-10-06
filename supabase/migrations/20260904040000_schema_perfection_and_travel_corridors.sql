@@ -20,7 +20,8 @@ ALTER TABLE public.people
   ADD COLUMN IF NOT EXISTS cultural_impact_summary text,
   ADD COLUMN IF NOT EXISTS achievements jsonb DEFAULT '[]',
   ADD COLUMN IF NOT EXISTS inclusion_contested boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS inclusion_contestation_note text;
+  ADD COLUMN IF NOT EXISTS inclusion_contestation_note text,
+  ADD COLUMN IF NOT EXISTS embedding text;
 
 -- 2. Extend Events with Travel, Flight Corridors & Navigation Waypoints
 ALTER TABLE public.events
@@ -35,7 +36,8 @@ ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS destination_waypoint jsonb,
   ADD COLUMN IF NOT EXISTS route_coordinates jsonb,
   ADD COLUMN IF NOT EXISTS travel_inferences jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS journey_legs jsonb DEFAULT '[]';
+  ADD COLUMN IF NOT EXISTS journey_legs jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS embedding text;
 
 -- 3. Create Person Stays Table (Bases of Operations, Residencies, Hotels)
 CREATE TABLE IF NOT EXISTS public.person_stays (
@@ -58,8 +60,62 @@ CREATE TABLE IF NOT EXISTS public.person_stays (
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- 4. Enable RLS and Configure Read Policy on Person Stays
+-- 3b. Create Topics and Person Milestones Tables
+CREATE TABLE IF NOT EXISTS public.topics (
+  id text PRIMARY KEY,
+  slug text UNIQUE NOT NULL,
+  name text NOT NULL,
+  category text NOT NULL,
+  summary text,
+  started_date text,
+  ended_date text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.person_milestones (
+  id serial PRIMARY KEY,
+  person_id text NOT NULL REFERENCES public.people(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  category text NOT NULL,
+  date text NOT NULL,
+  year integer NOT NULL,
+  description text,
+  metric_or_stat text,
+  source_id text REFERENCES public.sources(id),
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- 3c. Ensure person_career has is_current column
+ALTER TABLE public.person_career
+  ADD COLUMN IF NOT EXISTS is_current boolean DEFAULT false;
+
+-- 4. Enable RLS and Configure Read Policies
 ALTER TABLE public.person_stays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_education ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_career ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_awards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.person_works ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_person_locations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read on topics" ON public.topics;
+CREATE POLICY "Allow public read on topics"
+  ON public.topics FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on person_milestones" ON public.person_milestones;
+CREATE POLICY "Allow public read on person_milestones"
+  ON public.person_milestones FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_milestones.person_id
+        AND p.publication_status = 'published'
+    )
+  );
 
 DROP POLICY IF EXISTS "Public read person stays" ON public.person_stays;
 DROP POLICY IF EXISTS "Allow public read on person stays" ON public.person_stays;
@@ -74,11 +130,109 @@ CREATE POLICY "Allow public read on person stays"
     )
   );
 
--- 5. Backfill Defaults for Non-Null Integrity
+DROP POLICY IF EXISTS "Public read person education" ON public.person_education;
+DROP POLICY IF EXISTS "Allow public read on person education" ON public.person_education;
+CREATE POLICY "Allow public read on person education"
+  ON public.person_education FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_education.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person career" ON public.person_career;
+DROP POLICY IF EXISTS "Allow public read on person career" ON public.person_career;
+CREATE POLICY "Allow public read on person career"
+  ON public.person_career FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_career.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person awards" ON public.person_awards;
+DROP POLICY IF EXISTS "Allow public read on person awards" ON public.person_awards;
+CREATE POLICY "Allow public read on person awards"
+  ON public.person_awards FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_awards.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read person works" ON public.person_works;
+DROP POLICY IF EXISTS "Allow public read on person works" ON public.person_works;
+CREATE POLICY "Allow public read on person works"
+  ON public.person_works FOR SELECT
+  TO anon, authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.people p
+      WHERE p.id = person_works.person_id
+        AND p.publication_status = 'published'
+    )
+  );
+
+DROP POLICY IF EXISTS "Public read event person locations" ON public.event_person_locations;
+DROP POLICY IF EXISTS "Allow public read on event person locations" ON public.event_person_locations;
+DROP POLICY IF EXISTS "Allow public read on event_person_locations" ON public.event_person_locations;
+CREATE POLICY "Allow public read on event_person_locations"
+  ON public.event_person_locations FOR SELECT
+  TO anon, authenticated
+  USING (
+    public_visibility = 'public-exact'
+    AND EXISTS (
+      SELECT 1 FROM public.event_people ep
+      JOIN public.events e ON e.id = ep.event_id
+      JOIN public.people p ON p.id = ep.person_id
+      WHERE ep.id = event_person_locations.event_person_id
+        AND e.publication_status = 'published'
+        AND p.publication_status = 'published'
+    )
+  );
+
+-- 4b. Grant Privileges to Public Client Roles
+GRANT SELECT ON public.topics TO anon, authenticated;
+GRANT SELECT ON public.person_milestones TO anon, authenticated;
+GRANT SELECT ON public.person_stays TO anon, authenticated;
+GRANT SELECT ON public.person_education TO anon, authenticated;
+GRANT SELECT ON public.person_career TO anon, authenticated;
+GRANT SELECT ON public.person_awards TO anon, authenticated;
+GRANT SELECT ON public.person_works TO anon, authenticated;
+GRANT SELECT ON public.event_person_locations TO anon, authenticated;
+
+-- 5. Backfill Defaults & Deduplication for Non-Null Integrity
 UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status IS NULL;
 UPDATE public.people SET inclusion_contested = FALSE WHERE inclusion_contested IS NULL;
 UPDATE public.events SET is_travel_event = FALSE WHERE is_travel_event IS NULL;
 UPDATE public.events SET is_documented_flight = FALSE WHERE is_documented_flight IS NULL;
+UPDATE public.person_milestones b
+SET
+  date = COALESCE(b.date, a.date),
+  category = COALESCE(b.category, a.category),
+  description = COALESCE(b.description, a.description),
+  metric_or_stat = COALESCE(b.metric_or_stat, a.metric_or_stat),
+  source_id = COALESCE(b.source_id, a.source_id)
+FROM public.person_milestones a
+WHERE a.id > b.id
+  AND a.person_id = b.person_id
+  AND a.title = b.title
+  AND a.year = b.year;
+
+DELETE FROM public.person_milestones a USING public.person_milestones b
+WHERE a.id > b.id
+  AND a.person_id = b.person_id
+  AND a.title = b.title
+  AND a.year = b.year;
 
 -- 6. Performance Indexes for Forensic Queries & Filters
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people (slug);
@@ -88,4 +242,5 @@ CREATE INDEX IF NOT EXISTS idx_events_place_id ON public.events (place_id);
 CREATE INDEX IF NOT EXISTS idx_claims_subject_id ON public.claims (subject_id);
 CREATE INDEX IF NOT EXISTS idx_quotes_speaker_id ON public.quotes (speaker_id);
 CREATE INDEX IF NOT EXISTS idx_person_stays_person ON public.person_stays (person_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_person_milestones_person_title_year ON public.person_milestones (person_id, title, year);
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
@@ -14,8 +14,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
     notFound();
   }
 
-  const { data: event, error } = await getEventBySlug(slug);
-  if (error && !event) {
+  const { data: event, error, isUnavailable, isNotFound } = evaluateQueryResult(
+    await getEventBySlug(slug)
+  );
+  if (isUnavailable) {
     return (
       <div className="page-shell">
         <div className="record-breadcrumb" style={{ marginBottom: "2rem" }}>
@@ -46,7 +48,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       </div>
     );
   }
-  if (!event) notFound();
+  if (isNotFound || !event) notFound();
 
   // Load surrounding events and attached source details concurrently
   const sourceIds = event.sourceIds || [];

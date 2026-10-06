@@ -1,9 +1,89 @@
 import { createClient } from "@/lib/supabase/server";
 import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
+import {
+  royalEducationSeed,
+  royalCareerSeed,
+  royalAwardsSeed,
+  royalWorksSeed,
+  royalStaysSeed,
+} from "@/data/seeds/royal-bio-details-seed";
 import { getEventsByPersonWithStatus } from "./events";
 import type { EventRecord, PersonRecord } from "./types";
 
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
+  const pEdu = royalEducationSeed
+    .filter((e) => e.personId === p.id || e.personId === p.slug)
+    .map((e) => ({
+      id: e.id,
+      personId: e.personId,
+      institution: e.institution,
+      startDate: e.startYear,
+      endDate: e.endYear,
+      degree: e.degree,
+      subject: e.fieldOfStudy,
+      completedStatus: "completed" as const,
+      sourceId: e.sourceId,
+    }));
+
+  const pCareer = royalCareerSeed
+    .filter((c) => c.personId === p.id || c.personId === p.slug)
+    .map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      organisationName: c.organisationName,
+      positionTitle: c.roleTitle,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      notes: c.notes,
+      sourceId: c.sourceId,
+    }));
+
+  const pAwards = royalAwardsSeed
+    .filter((a) => a.personId === p.id || a.personId === p.slug)
+    .map((a) => ({
+      id: a.id,
+      personId: a.personId,
+      awardName: a.awardName,
+      awardingBody: a.awardingBody,
+      awardYear: a.yearReceived ? parseInt(a.yearReceived, 10) : undefined,
+      result: "winner" as const,
+      citationReason: a.citation,
+      sourceId: a.sourceId,
+    }));
+
+  const pWorks = royalWorksSeed
+    .filter((w) => w.personId === p.id || w.personId === p.slug)
+    .map((w) => ({
+      id: w.id,
+      personId: w.personId,
+      workTitle: w.title,
+      workType: w.workType,
+      releaseDate: w.publicationYear,
+      publisherOrVenue: w.publisher,
+      significanceNote: w.notes,
+      sourceId: w.sourceId,
+    }));
+
+  const pStays = royalStaysSeed
+    .filter((s) => s.personId === p.id || s.personId === p.slug)
+    .map((s) => ({
+      id: s.id,
+      personId: s.personId,
+      venueName: s.venueName,
+      stayName: s.stayName,
+      stayType: s.stayType,
+      city: s.city,
+      country: s.country,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      startDate: s.startDate,
+      endDate: s.endDate ?? undefined,
+      isBaseOfOperations: s.isBaseOfOperations,
+      isPrimaryResidence: s.isPrimaryResidence,
+      notes: s.notes,
+      sourceIds: s.sourceId ? [s.sourceId] : [],
+    }));
+
   return {
     id: p.id,
     slug: p.slug,
@@ -30,6 +110,11 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     culturalImpactSummary: p.culturalImpactSummary ?? undefined,
     achievements: p.achievements,
     avatarUrl: p.avatarUrl ?? undefined,
+    education: pEdu.length > 0 ? pEdu : undefined,
+    career: pCareer.length > 0 ? pCareer : undefined,
+    awards: pAwards.length > 0 ? pAwards : undefined,
+    works: pWorks.length > 0 ? pWorks : undefined,
+    stays: pStays.length > 0 ? pStays : undefined,
   };
 }
 
@@ -175,16 +260,18 @@ export async function getPersonBySlugWithStatus(
         let careerData: Record<string, unknown>[] = [];
         let awardsData: Record<string, unknown>[] = [];
         let worksData: Record<string, unknown>[] = [];
+        let staysData: Record<string, unknown>[] = [];
 
         try {
-          const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
+          const [eduRes, careerRes, awardsRes, worksRes, staysRes] = await Promise.all([
             Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_career")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("award_year", { ascending: false }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("release_date", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_stays")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
           ]);
 
-          const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error;
+          const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error || staysRes?.error;
           if (bioError && process.env.NODE_ENV === "production") {
             return { data: null, error: `Failed to load biographical relation data: ${bioError.message}` };
           }
@@ -193,6 +280,7 @@ export async function getPersonBySlugWithStatus(
           careerData = (careerRes?.data || []) as Record<string, unknown>[];
           awardsData = (awardsRes?.data || []) as Record<string, unknown>[];
           worksData = (worksRes?.data || []) as Record<string, unknown>[];
+          staysData = (staysRes?.data || []) as Record<string, unknown>[];
         } catch (err) {
           if (process.env.NODE_ENV === "production") {
             return { data: null, error: err instanceof Error ? err.message : "Biographical query error" };
@@ -255,6 +343,25 @@ export async function getPersonBySlugWithStatus(
           sourceId: w.source_id ? String(w.source_id) : undefined,
         }));
 
+        const stays = staysData.map((s: Record<string, unknown>) => ({
+          id: String(s.id || ""),
+          personId: String(s.person_id || ""),
+          venueName: String(s.venue_name || ""),
+          stayName: s.stay_name ? String(s.stay_name) : undefined,
+          stayType: (s.stay_type as "hotel" | "official_residence" | "private_home" | "embassy" | "military_base") || "official_residence",
+          city: String(s.city || ""),
+          country: String(s.country || ""),
+          latitude: typeof s.latitude === "number" ? s.latitude : (parseFloat(String(s.latitude)) || 0),
+          longitude: typeof s.longitude === "number" ? s.longitude : (parseFloat(String(s.longitude)) || 0),
+          startDate: String(s.start_date || ""),
+          endDate: s.end_date ? String(s.end_date) : null,
+          isBaseOfOperations: Boolean(s.is_base_of_operations),
+          isPrimaryResidence: Boolean(s.is_primary_residence),
+          securityLevel: s.security_level ? String(s.security_level) : undefined,
+          notes: s.notes ? String(s.notes) : undefined,
+          sourceIds: s.source_id ? [String(s.source_id)] : (Array.isArray(s.source_ids) ? s.source_ids.map(String) : []),
+        }));
+
         return {
           data: {
             ...mapDatabasePerson(p),
@@ -262,6 +369,7 @@ export async function getPersonBySlugWithStatus(
             career,
             awards,
             works,
+            stays,
           },
           error: null,
         };

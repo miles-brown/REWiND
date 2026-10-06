@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { ArrowRight, GitBranch } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { getRelationshipsWithStatus } from "@/lib/rewind";
+import { RelationshipNetworkGraph } from "@/components/rewind/RelationshipNetworkGraph";
 
 export const metadata = {
   title: "Diplomatic Relationships — REWIND Evidence Atlas",
@@ -58,40 +58,11 @@ export default async function RelationshipsPage() {
           </p>
         </div>
       ) : (
-        <div className="relationship-list">
-          {relationships.map((rel) => (
-            <Link href={`/relationship/${rel.source}/${rel.target}`} key={rel.id}>
-              <span className="person-monogram" aria-hidden="true">
-                {rel.sourceName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
-              </span>
-              <div className="relation-line">
-                <i />
-                <b>{rel.sharedEventsCount}</b>
-              </div>
-              <span className="person-monogram" aria-hidden="true">
-                {rel.targetName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
-              </span>
-              <div>
-                <small>{rel.sourceName} ↔</small>
-                <h2>{rel.targetName}</h2>
-                <p>
-                  {rel.sharedEventsCount} documented intersection
-                  {rel.sharedEventsCount === 1 ? "" : "s"}
-                </p>
-              </div>
-              <GitBranch />
-              <ArrowRight />
-            </Link>
-          ))}
-        </div>
+        <RelationshipNetworkGraph
+          relationships={[...relationships]
+            .sort((a, b) => b.sharedEventsCount - a.sharedEventsCount)
+            .slice(0, 50)}
+        />
       )}
     </div>
   );

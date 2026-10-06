@@ -11,44 +11,50 @@ import {
   Award,
   Calendar,
   ShieldAlert,
+  Landmark,
+  MapPin,
 } from "lucide-react";
 import type { PersonRecord } from "@/lib/rewind";
 
 export function BiographicalSection({ person }: { person: PersonRecord }) {
-  const [activeTab, setActiveTab] = useState<"career" | "education" | "works" | "awards" | "identity">("career");
-
   const education = person.education || [];
   const career = person.career || [];
   const awards = person.awards || [];
   const works = person.works || [];
+  const stays = person.stays || [];
 
-  const tabKeys: ("career" | "education" | "works" | "awards" | "identity")[] = [
+  const [selectedTab, setSelectedTab] = useState<"career" | "education" | "works" | "awards" | "residences" | "identity">("career");
+
+  const tabKeys: ("career" | "education" | "works" | "awards" | "residences" | "identity")[] = [
     "career",
     "education",
     "works",
     "awards",
+    ...(stays.length > 0 ? (["residences"] as const) : []),
     "identity",
   ];
+
+  const activeTab = tabKeys.includes(selectedTab) ? selectedTab : "career";
 
   const handleTabKeyDown = (e: React.KeyboardEvent) => {
     const currentIndex = tabKeys.indexOf(activeTab);
     if (e.key === "ArrowRight") {
       e.preventDefault();
       const nextTab = tabKeys[(currentIndex + 1) % tabKeys.length];
-      setActiveTab(nextTab);
+      setSelectedTab(nextTab);
       document.getElementById(`bio-tab-${nextTab}`)?.focus();
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
       const prevTab = tabKeys[(currentIndex - 1 + tabKeys.length) % tabKeys.length];
-      setActiveTab(prevTab);
+      setSelectedTab(prevTab);
       document.getElementById(`bio-tab-${prevTab}`)?.focus();
     } else if (e.key === "Home") {
       e.preventDefault();
-      setActiveTab(tabKeys[0]);
+      setSelectedTab(tabKeys[0]);
       document.getElementById(`bio-tab-${tabKeys[0]}`)?.focus();
     } else if (e.key === "End") {
       e.preventDefault();
-      setActiveTab(tabKeys[tabKeys.length - 1]);
+      setSelectedTab(tabKeys[tabKeys.length - 1]);
       document.getElementById(`bio-tab-${tabKeys[tabKeys.length - 1]}`)?.focus();
     }
   };
@@ -58,10 +64,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
     education: { label: "Education credentials", count: education.length, unit: "record" },
     works: { label: "Documented Works", count: works.length, unit: "item" },
     awards: { label: "Honours & Awards", count: awards.length, unit: "recognition" },
+    residences: { label: "Official Residences & Palaces", count: stays.length, unit: "residence" },
     identity: { label: "Identity & Origins" },
   };
 
-  const currentMeta = tabMeta[activeTab];
+  const currentMeta = tabMeta[activeTab] || { label: "Biographical Record" };
   const tabAnnounceText = currentMeta.count !== undefined
     ? `${currentMeta.label} selected, showing ${currentMeta.count} ${currentMeta.unit}${currentMeta.count === 1 ? "" : "s"} for ${person.name}.`
     : `${currentMeta.label} selected for ${person.name}.`;
@@ -96,7 +103,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           aria-selected={activeTab === "career"}
           aria-controls="bio-tabpanel-career"
           className={`bio-tab ${activeTab === "career" ? "active" : ""}`}
-          onClick={() => setActiveTab("career")}
+          onClick={() => setSelectedTab("career")}
         >
           <Briefcase size={15} />
           <span>Public Mandates & Career ({career.length})</span>
@@ -110,7 +117,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           aria-selected={activeTab === "education"}
           aria-controls="bio-tabpanel-education"
           className={`bio-tab ${activeTab === "education" ? "active" : ""}`}
-          onClick={() => setActiveTab("education")}
+          onClick={() => setSelectedTab("education")}
         >
           <GraduationCap size={15} />
           <span>Education ({education.length})</span>
@@ -124,7 +131,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           aria-selected={activeTab === "works"}
           aria-controls="bio-tabpanel-works"
           className={`bio-tab ${activeTab === "works" ? "active" : ""}`}
-          onClick={() => setActiveTab("works")}
+          onClick={() => setSelectedTab("works")}
         >
           <BookOpen size={15} />
           <span>Documented Works ({works.length})</span>
@@ -138,11 +145,27 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           aria-selected={activeTab === "awards"}
           aria-controls="bio-tabpanel-awards"
           className={`bio-tab ${activeTab === "awards" ? "active" : ""}`}
-          onClick={() => setActiveTab("awards")}
+          onClick={() => setSelectedTab("awards")}
         >
           <Trophy size={15} />
           <span>Honours & Awards ({awards.length})</span>
         </button>
+
+        {stays.length > 0 && (
+          <button
+            type="button"
+            role="tab"
+            id="bio-tab-residences"
+            tabIndex={activeTab === "residences" ? 0 : -1}
+            aria-selected={activeTab === "residences"}
+            aria-controls="bio-tabpanel-residences"
+            className={`bio-tab ${activeTab === "residences" ? "active" : ""}`}
+            onClick={() => setSelectedTab("residences")}
+          >
+            <Landmark size={15} />
+            <span>Residences & Palaces ({stays.length})</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -152,7 +175,7 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           aria-selected={activeTab === "identity"}
           aria-controls="bio-tabpanel-identity"
           className={`bio-tab ${activeTab === "identity" ? "active" : ""}`}
-          onClick={() => setActiveTab("identity")}
+          onClick={() => setSelectedTab("identity")}
         >
           <UserCheck size={15} />
           <span>Identity & Origins</span>
@@ -280,6 +303,44 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
             </div>
           ) : (
             <p className="empty-copy">Recognitions, honorary orders, and civil decorations will appear here.</p>
+          )}
+        </div>
+      )}
+
+      {/* Residences & Official Stays */}
+      {activeTab === "residences" && (
+        <div
+          className="bio-tab-content"
+          role="tabpanel"
+          id="bio-tabpanel-residences"
+          aria-labelledby="bio-tab-residences"
+        >
+          {stays.length > 0 ? (
+            <div className="bio-grid-list">
+              {stays.map((s) => (
+                <div key={s.id} className="bio-card stay-card">
+                  <div className="stay-card-header">
+                    <h4>{s.stayName || s.venueName}</h4>
+                    {s.isPrimaryResidence && (
+                      <span className="stay-status-tag confirmed">Primary Residence</span>
+                    )}
+                    {s.isBaseOfOperations && !s.isPrimaryResidence && (
+                      <span className="stay-status-tag provisional">Base of Operations</span>
+                    )}
+                  </div>
+                  <p className="bio-org">
+                    <MapPin size={13} style={{ display: "inline", marginRight: "4px" }} /> {s.city}, {s.country}
+                  </p>
+                  <span className="bio-dates">
+                    <Calendar size={12} style={{ display: "inline", marginRight: "4px" }} />
+                    {s.startDate} {s.endDate ? `— ${s.endDate}` : "— Present"}
+                  </span>
+                  {s.notes && <p className="bio-notes">{s.notes}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-copy">Documented palaces, official headquarters, and diplomatic residences will appear here.</p>
           )}
         </div>
       )}
