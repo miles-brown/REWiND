@@ -212,6 +212,10 @@ export function CommandPalette({
     } else {
       nextQuery = nextQuery ? `${nextQuery} ${qualifier}` : qualifier;
     }
+    if (query.trim() === nextQuery.trim()) {
+      inputRef.current?.focus();
+      return;
+    }
     setSelectedIndex(0);
     setSearchResults([]);
     setQuery(`${nextQuery} `);

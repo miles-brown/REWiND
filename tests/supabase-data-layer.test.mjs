@@ -921,7 +921,7 @@ test("verifies Task 11: pgvector hybrid semantic search and cosine similarity ma
 });
 
 test("verifies round-37 review fixes: year qualifier fail-closed, category isolation, and canonical country aggregation", async () => {
-  const { parseSearchQualifiers, interleaveSearchResults } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  const { parseSearchQualifiers, searchRewind } = await vite.ssrLoadModule("/lib/rewind/search.ts");
   const { resolveCanonicalCountryName } = await vite.ssrLoadModule("/lib/rewind/places.ts");
 
   // 1. Year qualifier validation: exact 4 digits vs malformed
@@ -938,13 +938,45 @@ test("verifies round-37 review fixes: year qualifier fail-closed, category isola
   assert.equal(shortYearParsed.cleanedQuery, "speech");
 
   // 2. Category group isolation when type is present
-  const personItem = { id: "p-1", title: "Person 1", subtitle: "Leader", type: "person", url: "/person/p1", badge: "Person" };
-  const eventItem = { id: "e-1", title: "Event 1", subtitle: "Summit", type: "event", url: "/event/e1", badge: "Event" };
-  
-  // Single category group selection preserves only matching type
-  const isolatedPersonResults = interleaveSearchResults([[personItem]], 10);
-  assert.equal(isolatedPersonResults.length, 1);
-  assert.equal(isolatedPersonResults[0].type, "person");
+  const mockSearchClient = {
+    from(tableName) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        or() { return this; },
+        ilike() { return this; },
+        gte() { return this; },
+        lt() { return this; },
+        limit() {
+          if (tableName === "people") {
+            return Promise.resolve({
+              data: [
+                { id: "p-1", slug: "person-1", display_name: "Person 1", canonical_name: "Person 1", primary_role: "Leader" },
+              ],
+              error: null,
+            });
+          }
+          if (tableName === "events") {
+            return Promise.resolve({
+              data: [
+                { id: "e-1", slug: "event-1", title: "Summit 2024", summary: "Summit event", start_date: "2024-01-01" },
+              ],
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: [], error: null });
+        },
+      };
+    },
+  };
+
+  const typeQualifiedResults = await searchRewind("summit type:person", 10, mockSearchClient);
+  assert.ok(typeQualifiedResults.length > 0, "Type qualified search must return matching items");
+  assert.ok(typeQualifiedResults.every((item) => item.type === "person"), "All returned items must strictly be person items");
+
+  const unfilteredResults = await searchRewind("summit", 10, mockSearchClient);
+  assert.ok(unfilteredResults.some((item) => item.type === "person"), "Unfiltered search should include people");
+  assert.ok(unfilteredResults.some((item) => item.type === "event"), "Unfiltered search should include events");
 
   // 3. Canonical country resolution for aliases
   assert.equal(resolveCanonicalCountryName("Palestine"), "State of Palestine");

@@ -134,18 +134,21 @@ export function interleaveSearchResults(
   return results;
 }
 
+type SupabaseSearchClient = NonNullable<Awaited<ReturnType<typeof createClient>>>;
+
 /**
  * Searches across events, people, places, and sources in Supabase.
  */
 export async function searchRewind(
   query: string,
-  limit = 10
+  limit = 10,
+  supabaseClient?: unknown
 ): Promise<SearchResultItem[]> {
   const term = query.trim();
   if (!term) return [];
   if (!Number.isInteger(limit) || limit < 1 || limit > 30) return [];
 
-  const supabase = await createClient();
+  const supabase = (supabaseClient as SupabaseSearchClient) || (await createClient());
   if (!supabase) {
     throw new Error("Supabase search client is unavailable");
   }
@@ -468,10 +471,10 @@ export async function hybridSearch(
   query: string,
   options: HybridSearchOptions = {}
 ): Promise<SearchResultItem[]> {
-  const { limit = 10 } = options;
+  const { limit = 10, supabaseClient } = options;
   const term = query.trim();
   if (!term) return [];
 
-  return searchRewind(term, limit);
+  return searchRewind(term, limit, supabaseClient);
 }
 

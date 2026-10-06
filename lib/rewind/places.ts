@@ -592,13 +592,26 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   } while (currentPage <= totalPages && currentPage <= 100);
 
   const eventCountsByVenueId = new Map<string, number>();
+  const eventCountsByVenueKey = new Map<string, number>();
   const eventCountsByCity = new Map<string, number>();
   const eventCountsByCountry = new Map<string, number>();
 
   allEvents.forEach((e) => {
-    const vId = e.venueName ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${e.venueName.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
+    const rawVenue = (e.venueName || "").trim();
+    const venueNorm = rawVenue.toLowerCase();
+    const meta = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
+    const canonicalVenueName = (meta?.canonicalVenue || rawVenue).trim();
+    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+
+    const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
     if (vId) {
       eventCountsByVenueId.set(vId, (eventCountsByVenueId.get(vId) || 0) + 1);
+    }
+    if (canonicalVenueNorm) {
+      eventCountsByVenueKey.set(canonicalVenueNorm, (eventCountsByVenueKey.get(canonicalVenueNorm) || 0) + 1);
+    }
+    if (venueNorm && venueNorm !== canonicalVenueNorm) {
+      eventCountsByVenueKey.set(venueNorm, (eventCountsByVenueKey.get(venueNorm) || 0) + 1);
     }
     const eventCountryName = resolveCanonicalCountryName(e.country);
     const eventCityName = (e.city || "Unknown").trim();
@@ -634,11 +647,17 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const venueName = (p.venue || cityName).trim();
     const venueNorm = venueName.toLowerCase();
     const meta = GLOBAL_GAZETTEER_METADATA[venueNorm];
+    const canonicalVenueName = (meta?.canonicalVenue || venueName).trim();
+    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
 
     const streetAddress = meta?.streetAddress || (p.streetAddress || null);
     const venueType = meta?.venueType || p.placeType || "venue";
     const venueAreas = meta?.venueAreas || p.venueAreas || [];
-    const eventCount = eventCountsByVenueId.get(p.id) || (eventCountsByCity.get(cityCityKey) || 0);
+    const eventCount =
+      eventCountsByVenueId.get(p.id) ||
+      eventCountsByVenueKey.get(canonicalVenueNorm) ||
+      eventCountsByVenueKey.get(venueNorm) ||
+      0;
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
