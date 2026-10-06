@@ -271,6 +271,7 @@ export type StayType =
 
 export interface TravelWaypoint {
   name: string;
+  slug?: string;
   venueType?: "official_residence" | "helipad" | "airbase" | "airport" | "hotel" | "train_station" | "port" | "embassy" | "venue";
   city?: string;
   country?: string;

@@ -222,7 +222,7 @@ test("verifies Royal Historical Events Corpus with Co-attendance Rosters", () =>
   assert.ok(dday, "80th D-Day event must exist in eventsCorpus");
   assert.equal(dday.city, "Saint-Laurent-sur-Mer");
   assert.ok(dday.participants.some((p) => p.personId === "charles-iii"));
-  assert.ok(dday.participants.some((p) => p.personId === "king-frederik-x"));
+  assert.ok(dday.participants.some((p) => p.personId === "frederik-x-denmark"));
 });
 
 test("verifies PR 33 Codex review fixes: MCP config, milestone date NOT NULL, PlacesExplorer buttons, and Leonor citation", async () => {
@@ -297,6 +297,167 @@ test("verifies CodeRabbit review fixes: evaluateQueryResult falsy values, isSame
   const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
   assert.ok(placesExplorer.includes("<li key={vName}>🏛️ {vName}</li>"));
 });
+
+test("verifies Cross-Seed Data Integrity: zero ID collisions and valid entity foreign keys", async () => {
+  const { allCanonicalPeopleSeed } = await vite.ssrLoadModule("/data/seeds/index.ts");
+  const { sourcesCorpus } = await vite.ssrLoadModule("/data/seeds/sources-corpus.ts");
+  const { eventsCorpus } = await vite.ssrLoadModule("/data/seeds/events-corpus.ts");
+  const { GLOBAL_GAZETTEER_COORDINATES } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  // 1. Verify allCanonicalPeopleSeed has zero ID collisions and zero slug collisions
+  const personIdMap = new Map();
+  const personSlugMap = new Map();
+
+  allCanonicalPeopleSeed.forEach((p, idx) => {
+    assert.ok(p.id, `Person at index ${idx} missing id`);
+    assert.ok(p.slug, `Person at index ${idx} missing slug`);
+
+    if (personIdMap.has(p.id)) {
+      assert.fail(`Duplicate person ID detected across seed files: '${p.id}'`);
+    }
+    personIdMap.set(p.id, p);
+
+    if (personSlugMap.has(p.slug)) {
+      assert.fail(`Duplicate person slug detected across seed files: '${p.slug}'`);
+    }
+    personSlugMap.set(p.slug, p);
+  });
+
+  // 2. Verify all sources in sourcesCorpus have unique IDs
+  const sourceIdMap = new Map();
+  sourcesCorpus.forEach((s) => {
+    assert.ok(s.id, `Source missing id: ${JSON.stringify(s)}`);
+    if (sourceIdMap.has(s.id)) {
+      assert.fail(`Duplicate source ID detected in sourcesCorpus: '${s.id}'`);
+    }
+    sourceIdMap.set(s.id, s);
+  });
+
+  // 3. Verify all events have unique IDs and slugs
+  const eventIdMap = new Map();
+  const eventSlugMap = new Map();
+  eventsCorpus.forEach((e) => {
+    assert.ok(e.id, `Event missing id`);
+    assert.ok(e.slug, `Event ${e.id} missing slug`);
+    if (eventIdMap.has(e.id)) {
+      assert.fail(`Duplicate event ID detected: '${e.id}'`);
+    }
+    eventIdMap.set(e.id, e);
+
+    if (eventSlugMap.has(e.slug)) {
+      assert.fail(`Duplicate event slug detected: '${e.slug}'`);
+    }
+    eventSlugMap.set(e.slug, e);
+  });
+
+  // 4. Verify all event participants have valid names and valid presence confidence
+  // Royal event participants are strictly mapped to master seeds; general historical participants have valid slugs/names
+  const { royalEventsCorpus } = await vite.ssrLoadModule("/data/seeds/royal-events-corpus.ts");
+  royalEventsCorpus.forEach((e) => {
+    (e.participants || []).forEach((p) => {
+      assert.ok(p.name && p.name.trim().length > 0, `Royal participant in event ${e.id} must have a valid name`);
+      assert.ok(p.presenceConfidence, `Royal participant ${p.name} in event ${e.id} must have presenceConfidence`);
+      if (p.personId) {
+        const exists = personIdMap.has(p.personId);
+        assert.ok(
+          exists,
+          `Royal participant '${p.name}' (personId: ${p.personId}) in event '${e.id}' references unregistered person ID`
+        );
+      }
+    });
+  });
+
+  eventsCorpus.forEach((e) => {
+    (e.participants || []).forEach((p) => {
+      assert.ok(p.name && p.name.trim().length > 0, `Participant in event ${e.id} must have a valid name`);
+      assert.ok(p.presenceConfidence, `Participant ${p.name} in event ${e.id} must have presenceConfidence`);
+      if (p.personId) {
+        assert.match(p.personId, /^[a-z0-9-]+$/, `Participant personId '${p.personId}' in event '${e.id}' must be a valid kebab-case slug`);
+      }
+    });
+  });
+
+  // 5. Verify all gazetteer coordinates are valid WGS-84 numbers
+  Object.entries(GLOBAL_GAZETTEER_COORDINATES).forEach(([name, coords]) => {
+    assert.ok(Array.isArray(coords) && coords.length === 2, `Gazetteer entry ${name} must be [lat, lng]`);
+    const [lat, lng] = coords;
+    assert.ok(Number.isFinite(lat) && lat >= -90 && lat <= 90, `Gazetteer ${name} lat ${lat} out of range`);
+    assert.ok(Number.isFinite(lng) && lng >= -180 && lng <= 180, `Gazetteer ${name} lng ${lng} out of range`);
+  });
+});
+
+test("verifies Migration SQL and DB Schema Foreign Key Integrity & Constraints", async () => {
+  const fs = await import("node:fs");
+  const migrationSql = fs.readFileSync("supabase/migrations/20260904040000_schema_perfection_and_travel_corridors.sql", "utf8");
+  const schemaFile = fs.readFileSync("db/schema.ts", "utf8");
+
+  // Verify CASCADE actions on person foreign keys
+  assert.ok(migrationSql.includes("person_id text NOT NULL REFERENCES public.people(id) ON DELETE CASCADE"));
+  assert.ok(schemaFile.includes('.references(() => people.id, { onDelete: "cascade" })'));
+
+  // Verify RLS is enabled on all tables
+  const tables = [
+    "person_stays",
+    "topics",
+    "person_milestones",
+    "person_education",
+    "person_career",
+    "person_awards",
+    "person_works",
+    "event_person_locations",
+  ];
+  tables.forEach((tbl) => {
+    assert.ok(
+      migrationSql.includes(`ALTER TABLE public.${tbl} ENABLE ROW LEVEL SECURITY;`),
+      `RLS must be enabled on ${tbl}`
+    );
+  });
+
+  // Verify fail-closed visibility and public-exact RLS
+  assert.ok(migrationSql.includes("public_visibility = 'public-exact'"));
+});
+
+test("verifies Print-to-PDF Toolbar, Auto-Print trigger, and Media Styles", async () => {
+  const fs = await import("node:fs");
+
+  const eventPdf = fs.readFileSync("app/api/export/event/[slug]/pdf/route.ts", "utf8");
+  assert.ok(eventPdf.includes('class="print-action-bar"'));
+  assert.ok(eventPdf.includes('onclick="window.print()"'));
+  assert.ok(eventPdf.includes('@media screen'));
+  assert.ok(eventPdf.includes('@media print'));
+  assert.ok(eventPdf.includes('.print-action-bar { display: none !important; }'));
+  assert.ok(eventPdf.includes('autoPrint'));
+
+  const personPdf = fs.readFileSync("app/api/export/person/[slug]/pdf/route.ts", "utf8");
+  assert.ok(personPdf.includes('class="print-action-bar"'));
+  assert.ok(personPdf.includes('onclick="window.print()"'));
+  assert.ok(personPdf.includes('@media screen'));
+  assert.ok(personPdf.includes('@media print'));
+  assert.ok(personPdf.includes('.print-action-bar { display: none !important; }'));
+  assert.ok(personPdf.includes('autoPrint'));
+});
+
+test("verifies OpenGraph Image Fallback titles with robust empty/malformed slug safety", async () => {
+  const fs = await import("node:fs");
+
+  const eventOg = fs.readFileSync("app/event/[slug]/opengraph-image.tsx", "utf8");
+  assert.ok(eventOg.includes("REWIND Historical Event Record"));
+  assert.ok(eventOg.includes(".replace(/^evt-\\d{4}-\\d{2}-\\d{2}-|^evt-/, \"\")"));
+
+  const personOg = fs.readFileSync("app/person/[slug]/opengraph-image.tsx", "utf8");
+  assert.ok(personOg.includes("REWIND Person Dossier"));
+});
+
+test("verifies MediaDrawer audio error cleaner formatting", async () => {
+  const fs = await import("node:fs");
+  const mediaDrawer = fs.readFileSync("components/rewind/MediaDrawer.tsx", "utf8");
+
+  assert.ok(mediaDrawer.includes("formatAudioPlaybackError"));
+  assert.ok(mediaDrawer.includes("Unable to play archival recording: ${err.message.trim()}"));
+  assert.ok(mediaDrawer.includes("Unable to play archival recording. The audio stream may be unavailable."));
+  assert.ok(!mediaDrawer.includes("${detail}"));
+});
+
 
 
 

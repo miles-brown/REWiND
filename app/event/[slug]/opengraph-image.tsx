@@ -22,13 +22,18 @@ interface EventMeta {
 }
 
 function deriveFallbackEventMeta(slug: string): EventMeta {
-  const formattedTitle = slug
+  const words = (slug || "")
     .replace(/^evt-\d{4}-\d{2}-\d{2}-|^evt-/, "")
     .split(/[-_]/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+    .map((w) => w.trim())
+    .filter(Boolean);
+
+  const formattedTitle = words.length > 0
+    ? words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : "REWIND Historical Event Record";
+
   return {
-    eventName: formattedTitle || "Historical Event Record",
+    eventName: formattedTitle || "REWIND Historical Event Record",
     startDate: "Archival Record",
     venueName: null,
     city: null,

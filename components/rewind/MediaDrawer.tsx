@@ -48,6 +48,13 @@ export function MediaDrawer({
     setPlaybackError(null);
   }
 
+  const formatAudioPlaybackError = (err: unknown): string => {
+    if (err instanceof Error && err.message?.trim()) {
+      return `Unable to play archival recording: ${err.message.trim()}`;
+    }
+    return "Unable to play archival recording. The audio stream may be unavailable.";
+  };
+
   const quotes = event.quotes || [];
 
   // Synthesize archival media items if event has images/audio or default primary records
@@ -177,8 +184,7 @@ export function MediaDrawer({
                           audioRef.current.load();
                           audioRef.current.play().catch((err: unknown) => {
                             setIsPlayingAudio(false);
-                            const detail = err instanceof Error && err.message ? `: ${err.message}` : ". The audio stream may be unavailable.";
-                            setPlaybackError(`Unable to play archival recording${detail}`);
+                            setPlaybackError(formatAudioPlaybackError(err));
                           });
                         }
                       }}
@@ -208,8 +214,7 @@ export function MediaDrawer({
                       setPlaybackError(null);
                       audioRef.current.play().catch((err: unknown) => {
                         setIsPlayingAudio(false);
-                        const detail = err instanceof Error && err.message ? `: ${err.message}` : ". The audio stream may be unavailable.";
-                        setPlaybackError(`Unable to play archival recording${detail}`);
+                        setPlaybackError(formatAudioPlaybackError(err));
                       });
                     }
                   }

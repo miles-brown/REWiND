@@ -191,8 +191,8 @@ export const legalAndIntelligenceEvents: EventRecord[] = [
         attendanceMode: "physical"
       },
       {
-        personId: "nabil-el-araby",
-        slug: "nabil-el-araby",
+        personId: "nabil-elaraby",
+        slug: "nabil-elaraby",
         name: "Nabil Elaraby",
         role: "Judge of the International Court of Justice",
         presenceConfidence: "confirmed",

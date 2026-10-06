@@ -206,20 +206,29 @@ export function CommandPalette({
   const handleInjectQualifier = (qualifier: string) => {
     const key = qualifier.split(":")[0];
     const keyRegex = new RegExp(`\\b${key}:[a-zA-Z0-9_-]+\\b`, "gi");
-    let nextQuery = query.trim();
-    if (keyRegex.test(nextQuery)) {
-      nextQuery = nextQuery.replace(keyRegex, qualifier);
+    const trimmedQuery = query.trim();
+    let updatedQuery = "";
+
+    if (keyRegex.test(trimmedQuery)) {
+      updatedQuery = trimmedQuery.replace(keyRegex, `${qualifier} `).replace(/\s+/g, " ").trim() + " ";
     } else {
-      nextQuery = nextQuery ? `${nextQuery} ${qualifier}` : qualifier;
+      updatedQuery = trimmedQuery ? `${trimmedQuery} ${qualifier} ` : `${qualifier} `;
     }
-    if (query.trim() === nextQuery.trim()) {
+
+    if (query === updatedQuery) {
       inputRef.current?.focus();
       return;
     }
+
     setSelectedIndex(0);
     setSearchResults([]);
-    setQuery(`${nextQuery} `);
-    inputRef.current?.focus();
+    setQuery(updatedQuery);
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(updatedQuery.length, updatedQuery.length);
+      }
+    });
   };
 
   if (!isOpen) return null;

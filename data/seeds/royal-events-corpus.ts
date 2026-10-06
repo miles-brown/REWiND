@@ -41,29 +41,29 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "queen-camilla", name: "Queen Camilla", role: "Queen Consort Crowned", presenceConfidence: "confirmed" },
       { personId: "prince-william", name: "Prince William", role: "Prince of Wales & Homage of Royal Blood", presenceConfidence: "confirmed" },
       { personId: "catherine-princess-of-wales", name: "Catherine, Princess of Wales", role: "Princess of Wales", presenceConfidence: "confirmed" },
-      { personId: "prince-george", name: "Prince George", role: "Page of Honour", presenceConfidence: "confirmed" },
-      { personId: "princess-charlotte", name: "Princess Charlotte", role: "Royal Family Attendee", presenceConfidence: "confirmed" },
-      { personId: "prince-louis", name: "Prince Louis", role: "Royal Family Attendee", presenceConfidence: "confirmed" },
+      { personId: "prince-george-of-wales", name: "Prince George", role: "Page of Honour", presenceConfidence: "confirmed" },
+      { personId: "princess-charlotte-of-wales", name: "Princess Charlotte", role: "Royal Family Attendee", presenceConfidence: "confirmed" },
+      { personId: "prince-louis-of-wales", name: "Prince Louis", role: "Royal Family Attendee", presenceConfidence: "confirmed" },
       { personId: "prince-harry", name: "Prince Harry", role: "Duke of Sussex", presenceConfidence: "confirmed" },
       { personId: "princess-anne", name: "Princess Anne", role: "Gold Stick in Waiting", presenceConfidence: "confirmed" },
-      { personId: "prince-edward", name: "Prince Edward", role: "Duke of Edinburgh", presenceConfidence: "confirmed" },
+      { personId: "prince-edward-duke-of-edinburgh", name: "Prince Edward", role: "Duke of Edinburgh", presenceConfidence: "confirmed" },
       { personId: "sophie-duchess-of-edinburgh", name: "Sophie, Duchess of Edinburgh", role: "Duchess of Edinburgh", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Foreign Queen Consort Guest", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Foreign Queen Consort Guest", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Foreign Queen Consort Guest", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Foreign Queen Consort Guest", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
-      { personId: "crown-princess-victoria", name: "Crown Princess Victoria", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-haakon", name: "Crown Prince Haakon", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "King Frederik X", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Foreign Queen Consort Guest", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "victoria-crown-princess-sweden", name: "Crown Princess Victoria", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
+      { personId: "haakon-crown-prince-norway", name: "Crown Prince Haakon", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "King Frederik X", role: "Foreign Heir Apparent Guest", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Queen Mary", role: "Foreign Crown Princess Guest", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
-      { personId: "princess-charlene", name: "Princess Charlene", role: "Foreign Princess Consort Guest", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
-      { personId: "grand-duchess-maria-teresa", name: "Grand Duchess Maria Teresa", role: "Foreign Grand Duchess Consort Guest", presenceConfidence: "confirmed" },
-      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Foreign Sovereign Regent Guest", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "princess-charlene-monaco", name: "Princess Charlene", role: "Foreign Princess Consort Guest", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Foreign Sovereign Guest", presenceConfidence: "confirmed" },
+      { personId: "maria-teresa-luxembourg", name: "Grand Duchess Maria Teresa", role: "Foreign Grand Duchess Consort Guest", presenceConfidence: "confirmed" },
+      { personId: "alois-hereditary-prince-liechtenstein", name: "Hereditary Prince Alois", role: "Foreign Sovereign Regent Guest", presenceConfidence: "confirmed" },
       { personId: "joan-enric-vives-sicilia", name: "Archbishop Joan-Enric Vives i Sicília", role: "Foreign Co-Prince of Andorra Guest", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
       { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
@@ -104,34 +104,34 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "queen-camilla", name: "Queen Camilla", role: "Queen Consort", presenceConfidence: "confirmed" },
       { personId: "prince-william", name: "Prince William", role: "Prince of Wales", presenceConfidence: "confirmed" },
       { personId: "catherine-princess-of-wales", name: "Catherine, Princess of Wales", role: "Princess of Wales", presenceConfidence: "confirmed" },
-      { personId: "prince-george", name: "Prince George", role: "Royal Family Mourner", presenceConfidence: "confirmed" },
-      { personId: "princess-charlotte", name: "Princess Charlotte", role: "Royal Family Mourner", presenceConfidence: "confirmed" },
+      { personId: "prince-george-of-wales", name: "Prince George", role: "Royal Family Mourner", presenceConfidence: "confirmed" },
+      { personId: "princess-charlotte-of-wales", name: "Princess Charlotte", role: "Royal Family Mourner", presenceConfidence: "confirmed" },
       { personId: "prince-harry", name: "Prince Harry", role: "Duke of Sussex", presenceConfidence: "confirmed" },
       { personId: "meghan-duchess-of-sussex", name: "Meghan, Duchess of Sussex", role: "Duchess of Sussex", presenceConfidence: "confirmed" },
       { personId: "princess-anne", name: "Princess Anne", role: "Princess Royal", presenceConfidence: "confirmed" },
-      { personId: "prince-edward", name: "Prince Edward", role: "Earl of Wessex", presenceConfidence: "confirmed" },
+      { personId: "prince-edward-duke-of-edinburgh", name: "Prince Edward", role: "Earl of Wessex", presenceConfidence: "confirmed" },
       { personId: "sophie-duchess-of-edinburgh", name: "Sophie, Duchess of Edinburgh", role: "Countess of Wessex", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "king-harald-v", name: "King Harald V", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "harald-v-norway", name: "King Harald V", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
       { personId: "queen-sonja-norway", name: "Queen Sonja", role: "Visiting Queen Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "King Frederik X", role: "Visiting Crown Prince Mourner", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "princess-charlene", name: "Princess Charlene", role: "Visiting Princess Consort Mourner", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "grand-duchess-maria-teresa", name: "Grand Duchess Maria Teresa", role: "Visiting Grand Duchess Mourner", presenceConfidence: "confirmed" },
-      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent Mourner", presenceConfidence: "confirmed" },
-      { personId: "margareta-custodian-romanian-crown", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
-      { personId: "tsar-simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Monarch Mourner", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-alexander-serbia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-pavlos-greece", name: "Crown Prince Pavlos", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "King Frederik X", role: "Visiting Crown Prince Mourner", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "princess-charlene-monaco", name: "Princess Charlene", role: "Visiting Princess Consort Mourner", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Visiting Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "maria-teresa-luxembourg", name: "Grand Duchess Maria Teresa", role: "Visiting Grand Duchess Mourner", presenceConfidence: "confirmed" },
+      { personId: "alois-hereditary-prince-liechtenstein", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent Mourner", presenceConfidence: "confirmed" },
+      { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
+      { personId: "simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Monarch Mourner", presenceConfidence: "confirmed" },
+      { personId: "alexander-crown-prince-yugoslavia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
+      { personId: "pavlos-crown-prince-greece", name: "Crown Prince Pavlos", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" }
     ]
   },
@@ -167,13 +167,13 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "charles-iii", name: "King Charles III", role: "Head of State of the United Kingdom", presenceConfidence: "confirmed" },
       { personId: "queen-camilla", name: "Queen Camilla", role: "Queen Consort of the United Kingdom", presenceConfidence: "confirmed" },
       { personId: "prince-william", name: "Prince William", role: "Prince of Wales", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "King of the Belgians", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "King of the Belgians", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Queen of the Belgians", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "King of the Netherlands", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Queen of the Netherlands", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "King Frederik X", role: "King of Denmark", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-haakon", name: "Crown Prince Haakon", role: "Crown Prince of Norway", presenceConfidence: "confirmed" }
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "King of the Netherlands", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Queen of the Netherlands", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "King Frederik X", role: "King of Denmark", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg", presenceConfidence: "confirmed" },
+      { personId: "haakon-crown-prince-norway", name: "Crown Prince Haakon", role: "Crown Prince of Norway", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -204,10 +204,10 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-spain-boe-20140619"
     ],
     participants: [
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Sovereign Proclaimed", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Queen Consort of Spain", presenceConfidence: "confirmed" },
-      { personId: "princess-leonor", name: "Princess Leonor", role: "Princess of Asturias / Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "infanta-sofia", name: "Infanta Sofía", role: "Infanta of Spain", presenceConfidence: "confirmed" }
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Sovereign Proclaimed", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Queen Consort of Spain", presenceConfidence: "confirmed" },
+      { personId: "leonor-princess-of-asturias", name: "Princess Leonor", role: "Princess of Asturias / Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "infanta-sofia-spain", name: "Infanta Sofía", role: "Infanta of Spain", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -238,10 +238,10 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-spain-boe-20231031"
     ],
     participants: [
-      { personId: "princess-leonor", name: "Princess Leonor", role: "Heir Apparent Sworn In", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Sovereign of Spain", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Queen Consort of Spain", presenceConfidence: "confirmed" },
-      { personId: "infanta-sofia", name: "Infanta Sofía", role: "Infanta of Spain", presenceConfidence: "confirmed" }
+      { personId: "leonor-princess-of-asturias", name: "Princess Leonor", role: "Heir Apparent Sworn In", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Sovereign of Spain", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Queen Consort of Spain", presenceConfidence: "confirmed" },
+      { personId: "infanta-sofia-spain", name: "Infanta Sofía", role: "Infanta of Spain", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -272,9 +272,9 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-denmark-statsministeriet-20240114"
     ],
     participants: [
-      { personId: "king-frederik-x", name: "King Frederik X", role: "Sovereign Proclaimed", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "King Frederik X", role: "Sovereign Proclaimed", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Queen Mary", role: "Queen Consort of Denmark", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Abdicating Sovereign", presenceConfidence: "confirmed" }
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Abdicating Sovereign", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -305,7 +305,7 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-belgium-moniteur-20130721"
     ],
     participants: [
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Sovereign Sworn In", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Sovereign Sworn In", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Queen Consort of the Belgians", presenceConfidence: "confirmed" },
       { personId: "princess-elisabeth-belgium", name: "Princess Elisabeth", role: "Duchess of Brabant / Heir Apparent", presenceConfidence: "confirmed" }
     ]
@@ -338,21 +338,21 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-netherlands-staatscourant-20130430"
     ],
     participants: [
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Sovereign Inaugurated", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Queen Consort of the Netherlands", presenceConfidence: "confirmed" },
-      { personId: "princess-catharina-amalia", name: "Princess Catharina-Amalia", role: "Princess of Orange / Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Sovereign Inaugurated", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Queen Consort of the Netherlands", presenceConfidence: "confirmed" },
+      { personId: "catharina-amalia-netherlands", name: "Princess Catharina-Amalia", role: "Princess of Orange / Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "charles-iii", name: "Prince Charles (later Charles III)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-camilla", name: "Camilla, Duchess of Cornwall", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "Prince Felipe (later Felipe VI)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Princess Letizia", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "Prince Philippe (later Philippe I)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "Prince Felipe (later Felipe VI)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Princess Letizia", role: "Visiting Consort", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "Prince Philippe (later Philippe I)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Princess Mathilde", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Crown Princess Mary", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "crown-princess-victoria", name: "Crown Princess Victoria", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-haakon", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "hereditary-grand-duke-guillaume", name: "Hereditary Grand Duke Guillaume", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" }
+      { personId: "victoria-crown-princess-sweden", name: "Crown Princess Victoria", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "haakon-crown-prince-norway", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "guillaume-hereditary-grand-duke-luxembourg", name: "Hereditary Grand Duke Guillaume", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "alois-hereditary-prince-liechtenstein", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -383,13 +383,13 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-sweden-kungahuset-20230915"
     ],
     participants: [
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Sovereign Jubilarian", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Sovereign Jubilarian", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Queen Consort of Sweden", presenceConfidence: "confirmed" },
-      { personId: "crown-princess-victoria", name: "Crown Princess Victoria", role: "Crown Princess of Sweden", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign (Denmark)", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "Crown Prince Frederik (later Frederik X)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "victoria-crown-princess-sweden", name: "Crown Princess Victoria", role: "Crown Princess of Sweden", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Visiting Sovereign (Denmark)", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "Crown Prince Frederik (later Frederik X)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Crown Princess Mary", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-harald-v", name: "King Harald V", role: "Visiting Sovereign (Norway)", presenceConfidence: "confirmed" },
+      { personId: "harald-v-norway", name: "King Harald V", role: "Visiting Sovereign (Norway)", presenceConfidence: "confirmed" },
       { personId: "queen-sonja-norway", name: "Queen Sonja", role: "Visiting Queen Consort", presenceConfidence: "confirmed" }
     ]
   },
@@ -427,17 +427,17 @@ export const royalEventsCorpus: EventRecord[] = [
       { personId: "queen-camilla", name: "Queen Camilla (then Duchess of Cornwall)", role: "Stepmother of the Groom", presenceConfidence: "confirmed" },
       { personId: "prince-harry", name: "Prince Harry", role: "Best Man", presenceConfidence: "confirmed" },
       { personId: "princess-anne", name: "Princess Anne", role: "Royal Family Guest", presenceConfidence: "confirmed" },
-      { personId: "prince-edward", name: "Prince Edward", role: "Royal Family Guest", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "Prince Felipe (later Felipe VI)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Princess Letizia", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "king-harald-v", name: "King Harald V", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "prince-edward-duke-of-edinburgh", name: "Prince Edward", role: "Royal Family Guest", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "Prince Felipe (later Felipe VI)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Princess Letizia", role: "Visiting Consort", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "harald-v-norway", name: "King Harald V", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-sonja-norway", name: "Queen Sonja", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "princess-charlene", name: "Charlene Wittstock", role: "Visiting Fiancée", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "margareta-custodian-romanian-crown", name: "Margareta of Romania", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-alexander-serbia", name: "Crown Prince Alexander", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "princess-charlene-monaco", name: "Charlene Wittstock", role: "Visiting Fiancée", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta of Romania", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
+      { personId: "alexander-crown-prince-yugoslavia", name: "Crown Prince Alexander", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Guest", presenceConfidence: "confirmed" }
     ]
   },
@@ -469,20 +469,20 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-monaco-journal-20110702"
     ],
     participants: [
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Sovereign Groom", presenceConfidence: "confirmed" },
-      { personId: "princess-charlene", name: "Princess Charlene", role: "Princess Bride", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Sovereign Groom", presenceConfidence: "confirmed" },
+      { personId: "princess-charlene-monaco", name: "Princess Charlene", role: "Princess Bride", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "Prince Philippe (later Philippe I)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "Prince Philippe (later Philippe I)", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Princess Mathilde", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "Prince Willem-Alexander", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Princess Máxima", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "Prince Willem-Alexander", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Princess Máxima", role: "Visiting Consort", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Crown Princess Mary", role: "Visiting Consort", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-haakon", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" },
-      { personId: "prince-edward", name: "Prince Edward", role: "Visiting Royal Prince (UK)", presenceConfidence: "confirmed" },
+      { personId: "haakon-crown-prince-norway", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "alois-hereditary-prince-liechtenstein", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" },
+      { personId: "prince-edward-duke-of-edinburgh", name: "Prince Edward", role: "Visiting Royal Prince (UK)", presenceConfidence: "confirmed" },
       { personId: "sophie-duchess-of-edinburgh", name: "Sophie, Countess of Wessex", role: "Visiting Royal Guest (UK)", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Guest", presenceConfidence: "confirmed" },
       { personId: "jean-christophe-prince-napoleon", name: "Jean-Christophe, Prince Napoléon", role: "Dynastic Head Guest", presenceConfidence: "confirmed" }
@@ -516,13 +516,13 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-romania-custodian-communique-20171216"
     ],
     participants: [
-      { personId: "margareta-custodian-romanian-crown", name: "Margareta, Custodian of the Crown", role: "Chief Mourner / Head of Royal House", presenceConfidence: "confirmed" },
+      { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta, Custodian of the Crown", role: "Chief Mourner / Head of Royal House", presenceConfidence: "confirmed" },
       { personId: "charles-iii", name: "Prince Charles (later Charles III)", role: "Visiting Royal Prince (UK)", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign (Sweden)", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Visiting Sovereign (Sweden)", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort (Sweden)", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Visiting Sovereign (Luxembourg)", presenceConfidence: "confirmed" },
-      { personId: "tsar-simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-alexander-serbia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Visiting Sovereign (Luxembourg)", presenceConfidence: "confirmed" },
+      { personId: "simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "alexander-crown-prince-yugoslavia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
       { personId: "georg-friedrich-prince-of-prussia", name: "Georg Friedrich, Prince of Prussia", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
       { personId: "duarte-pio-duke-of-braganza", name: "Duarte Pio, Duke of Braganza", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" }
@@ -556,24 +556,24 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-greece-royal-funeral-20230116"
     ],
     participants: [
-      { personId: "crown-prince-pavlos-greece", name: "Crown Prince Pavlos", role: "Chief Mourner / Head of Royal House", presenceConfidence: "confirmed" },
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Visiting Sovereign (Nephew of Deceased)", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign (Sister-in-Law of Deceased)", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "pavlos-crown-prince-greece", name: "Crown Prince Pavlos", role: "Chief Mourner / Head of Royal House", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Visiting Sovereign (Nephew of Deceased)", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Visiting Sovereign (Sister-in-Law of Deceased)", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "Crown Prince Frederik", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-haakon", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "haakon-crown-prince-norway", name: "Crown Prince Haakon", role: "Visiting Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "princess-anne", name: "Princess Anne", role: "Visiting Royal Princess (UK)", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "tsar-simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Sovereign Mourner", presenceConfidence: "confirmed" },
-      { personId: "crown-prince-alexander-serbia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
-      { personId: "margareta-custodian-romanian-crown", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" }
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Former Sovereign Mourner", presenceConfidence: "confirmed" },
+      { personId: "alexander-crown-prince-yugoslavia", name: "Crown Prince Alexander", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" },
+      { personId: "margareta-custodian-of-the-crown-romania", name: "Margareta, Custodian of the Crown", role: "Dynastic Head Mourner", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -606,7 +606,7 @@ export const royalEventsCorpus: EventRecord[] = [
     participants: [
       { personId: "jean-christophe-prince-napoleon", name: "Jean-Christophe, Prince Napoléon", role: "Imperial Groom", presenceConfidence: "confirmed" },
       { personId: "karl-von-habsburg", name: "Karl von Habsburg", role: "Head of House of Habsburg-Lorraine Guest", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg Guest", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg Guest", presenceConfidence: "confirmed" },
       { personId: "jean-count-of-paris", name: "Jean, Count of Paris", role: "Head of House of Orléans Guest", presenceConfidence: "confirmed" },
       { personId: "louis-alphonse-duke-of-anjou", name: "Louis Alphonse, Duke of Anjou", role: "Head of House of Bourbon Guest", presenceConfidence: "confirmed" },
       { personId: "duarte-pio-duke-of-braganza", name: "Duarte Pio, Duke of Braganza", role: "Head of House of Braganza Guest", presenceConfidence: "confirmed" }
@@ -640,9 +640,9 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-nobel-prize-ceremony-2023"
     ],
     participants: [
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Royal Awarder & Sovereign Patron", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Royal Awarder & Sovereign Patron", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Queen Consort of Sweden", presenceConfidence: "confirmed" },
-      { personId: "crown-princess-victoria", name: "Crown Princess Victoria", role: "Crown Princess of Sweden", presenceConfidence: "confirmed" }
+      { personId: "victoria-crown-princess-sweden", name: "Crown Princess Victoria", role: "Crown Princess of Sweden", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -674,8 +674,8 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-spain-boe-20140619"
     ],
     participants: [
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "queen-letizia", name: "Queen Letizia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-letizia-spain", name: "Queen Letizia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
       { personId: "charles-iii", name: "Prince Charles (later Charles III)", role: "Host Royal Family Member", presenceConfidence: "confirmed" },
       { personId: "queen-camilla", name: "Camilla, Duchess of Cornwall", role: "Host Royal Family Member", presenceConfidence: "confirmed" },
       { personId: "prince-william", name: "Prince William", role: "Duke of Cambridge", presenceConfidence: "confirmed" },
@@ -776,9 +776,9 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-netherlands-staatscourant-20130430"
     ],
     participants: [
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "queen-maxima", name: "Queen Máxima", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Host Sovereign", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "queen-maxima-netherlands", name: "Queen Máxima", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Host Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Host Queen Consort", presenceConfidence: "confirmed" },
       { personId: "princess-elisabeth-belgium", name: "Princess Elisabeth", role: "Duchess of Brabant / Heir Apparent", presenceConfidence: "confirmed" }
     ]
@@ -812,10 +812,10 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-denmark-statsministeriet-20240114"
     ],
     participants: [
-      { personId: "king-harald-v", name: "King Harald V", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "harald-v-norway", name: "King Harald V", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-sonja-norway", name: "Queen Sonja", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Host Sovereign", presenceConfidence: "confirmed" },
-      { personId: "king-frederik-x", name: "Crown Prince Frederik (later Frederik X)", role: "Host Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Host Sovereign", presenceConfidence: "confirmed" },
+      { personId: "frederik-x-denmark", name: "Crown Prince Frederik (later Frederik X)", role: "Host Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "queen-mary-denmark", name: "Crown Princess Mary", role: "Host Consort", presenceConfidence: "confirmed" }
     ]
   },
@@ -848,23 +848,23 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-luxembourg-memorial-20001007"
     ],
     participants: [
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Chief Mourner / Sovereign", presenceConfidence: "confirmed" },
-      { personId: "grand-duchess-maria-teresa", name: "Grand Duchess Maria Teresa", role: "Grand Duchess of Luxembourg", presenceConfidence: "confirmed" },
-      { personId: "hereditary-grand-duke-guillaume", name: "Hereditary Grand Duke Guillaume", role: "Heir Apparent", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Chief Mourner / Sovereign", presenceConfidence: "confirmed" },
+      { personId: "maria-teresa-luxembourg", name: "Grand Duchess Maria Teresa", role: "Grand Duchess of Luxembourg", presenceConfidence: "confirmed" },
+      { personId: "guillaume-hereditary-grand-duke-luxembourg", name: "Hereditary Grand Duke Guillaume", role: "Heir Apparent", presenceConfidence: "confirmed" },
       { personId: "stephanie-hereditary-grand-duchess-luxembourg", name: "Hereditary Grand Duchess Stéphanie", role: "Hereditary Grand Duchess", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-mathilde-belgium", name: "Queen Mathilde", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
       { personId: "albert-ii-belgium", name: "King Albert II", role: "Former Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-paola-belgium", name: "Queen Paola", role: "Former Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "king-willem-alexander", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "willem-alexander-netherlands", name: "King Willem-Alexander", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "princess-beatrix-netherlands", name: "Princess Beatrix", role: "Former Sovereign", presenceConfidence: "confirmed" },
-      { personId: "king-carl-xvi-gustaf", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "carl-xvi-gustaf-sweden", name: "King Carl XVI Gustaf", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-silvia-sweden", name: "Queen Silvia", role: "Visiting Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "queen-margrethe-ii", name: "Queen Margrethe II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "margrethe-ii-denmark", name: "Queen Margrethe II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
       { personId: "juan-carlos-i-spain", name: "King Juan Carlos I", role: "Former Sovereign", presenceConfidence: "confirmed" },
       { personId: "queen-sofia-spain", name: "Queen Sofía", role: "Former Queen Consort", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
-      { personId: "hereditary-prince-alois", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Visiting Sovereign", presenceConfidence: "confirmed" },
+      { personId: "alois-hereditary-prince-liechtenstein", name: "Hereditary Prince Alois", role: "Visiting Sovereign Regent", presenceConfidence: "confirmed" },
       { personId: "princess-anne", name: "Princess Anne", role: "Visiting Royal Princess (UK)", presenceConfidence: "confirmed" }
     ]
   },
@@ -896,10 +896,10 @@ export const royalEventsCorpus: EventRecord[] = [
       "src-france-elysee-20181111"
     ],
     participants: [
-      { personId: "king-felipe-vi", name: "King Felipe VI", role: "Head of State of Spain", presenceConfidence: "confirmed" },
-      { personId: "king-philippe-belgium", name: "King Philippe", role: "King of the Belgians", presenceConfidence: "confirmed" },
-      { personId: "grand-duke-henri", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg", presenceConfidence: "confirmed" },
-      { personId: "prince-albert-ii", name: "Prince Albert II", role: "Prince of Monaco", presenceConfidence: "confirmed" }
+      { personId: "felipe-vi-spain", name: "King Felipe VI", role: "Head of State of Spain", presenceConfidence: "confirmed" },
+      { personId: "philippe-belgium", name: "King Philippe", role: "King of the Belgians", presenceConfidence: "confirmed" },
+      { personId: "henri-luxembourg", name: "Grand Duke Henri", role: "Grand Duke of Luxembourg", presenceConfidence: "confirmed" },
+      { personId: "albert-ii-monaco", name: "Prince Albert II", role: "Prince of Monaco", presenceConfidence: "confirmed" }
     ]
   },
 
@@ -968,7 +968,7 @@ export const royalEventsCorpus: EventRecord[] = [
     participants: [
       { personId: "george-mikhailovich-russia", name: "Grand Duke George Mikhailovich", role: "Imperial Groom", presenceConfidence: "confirmed" },
       { personId: "maria-vladimirovna-russia", name: "Grand Duchess Maria Vladimirovna", role: "Mother of the Groom / Head of Romanov House", presenceConfidence: "confirmed" },
-      { personId: "tsar-simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Visiting Sovereign / Royal Guest", presenceConfidence: "confirmed" },
+      { personId: "simeon-ii-bulgaria", name: "Tsar Simeon II", role: "Visiting Sovereign / Royal Guest", presenceConfidence: "confirmed" },
       { personId: "duarte-pio-duke-of-braganza", name: "Duarte Pio, Duke of Braganza", role: "Visiting Royal Guest", presenceConfidence: "confirmed" },
       { personId: "aimone-duke-of-aosta", name: "Prince Aimone, Duke of Aosta", role: "Visiting Royal Guest", presenceConfidence: "confirmed" }
     ]
