@@ -1033,3 +1033,78 @@ test("verifies canonical city matching and alias normalization in places.ts", as
   assert.equal(isSameCity("Paris", "London"), false);
   assert.equal(isSameCity("Jerusalem", "Tel Aviv"), false);
 });
+
+test("verifies getPersonBySlugWithStatus loads and maps person_stays alongside other biographical relations", async () => {
+  const { getPersonBySlugWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
+
+  const mockClient = {
+    from(table) {
+      if (table === "people") {
+        return {
+          select() { return this; },
+          or() { return this; },
+          eq() { return this; },
+          maybeSingle() {
+            return Promise.resolve({
+              data: {
+                id: "person-test-1",
+                slug: "test-figure",
+                canonical_name: "Test Figure",
+                display_name: "Test Figure",
+                primary_role: "Diplomat",
+                classification: "diplomat",
+                publication_status: "published",
+              },
+              error: null,
+            });
+          },
+        };
+      }
+      if (table === "person_stays") {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          order() {
+            return Promise.resolve({
+              data: [
+                {
+                  id: "stay-test-1",
+                  person_id: "person-test-1",
+                  venue_name: "Official Residence",
+                  stay_name: "Embassy Compound",
+                  stay_type: "official_residence",
+                  city: "Washington, D.C.",
+                  country: "United States",
+                  latitude: 38.8977,
+                  longitude: -77.0365,
+                  start_date: "1990-01-01",
+                  end_date: "1995-01-01",
+                  is_base_of_operations: true,
+                  is_primary_residence: true,
+                  source_id: "src-1",
+                },
+              ],
+              error: null,
+            });
+          },
+        };
+      }
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() { return Promise.resolve({ data: [], error: null }); },
+      };
+    },
+  };
+
+  const res = await getPersonBySlugWithStatus("test-figure", mockClient);
+  assert.equal(res.error, null);
+  assert.ok(res.data);
+  assert.equal(res.data.canonicalName, "Test Figure");
+  assert.ok(Array.isArray(res.data.stays), "stays must be populated as an array");
+  assert.equal(res.data.stays.length, 1);
+  assert.equal(res.data.stays[0].venueName, "Official Residence");
+  assert.equal(res.data.stays[0].isBaseOfOperations, true);
+  assert.equal(res.data.stays[0].isPrimaryResidence, true);
+  assert.deepEqual(res.data.stays[0].sourceIds, ["src-1"]);
+});

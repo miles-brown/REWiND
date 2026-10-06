@@ -260,16 +260,18 @@ export async function getPersonBySlugWithStatus(
         let careerData: Record<string, unknown>[] = [];
         let awardsData: Record<string, unknown>[] = [];
         let worksData: Record<string, unknown>[] = [];
+        let staysData: Record<string, unknown>[] = [];
 
         try {
-          const [eduRes, careerRes, awardsRes, worksRes] = await Promise.all([
+          const [eduRes, careerRes, awardsRes, worksRes, staysRes] = await Promise.all([
             Promise.resolve(supabase.from?.("person_education")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_career")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_awards")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("award_year", { ascending: false }) ?? { data: [] }),
             Promise.resolve(supabase.from?.("person_works")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("release_date", { ascending: false }) ?? { data: [] }),
+            Promise.resolve(supabase.from?.("person_stays")?.select?.("*")?.eq?.("person_id", p.id)?.order?.("start_date", { ascending: true }) ?? { data: [] }),
           ]);
 
-          const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error;
+          const bioError = eduRes?.error || careerRes?.error || awardsRes?.error || worksRes?.error || staysRes?.error;
           if (bioError && process.env.NODE_ENV === "production") {
             return { data: null, error: `Failed to load biographical relation data: ${bioError.message}` };
           }
@@ -278,6 +280,7 @@ export async function getPersonBySlugWithStatus(
           careerData = (careerRes?.data || []) as Record<string, unknown>[];
           awardsData = (awardsRes?.data || []) as Record<string, unknown>[];
           worksData = (worksRes?.data || []) as Record<string, unknown>[];
+          staysData = (staysRes?.data || []) as Record<string, unknown>[];
         } catch (err) {
           if (process.env.NODE_ENV === "production") {
             return { data: null, error: err instanceof Error ? err.message : "Biographical query error" };
@@ -340,6 +343,25 @@ export async function getPersonBySlugWithStatus(
           sourceId: w.source_id ? String(w.source_id) : undefined,
         }));
 
+        const stays = staysData.map((s: Record<string, unknown>) => ({
+          id: String(s.id || ""),
+          personId: String(s.person_id || ""),
+          venueName: String(s.venue_name || ""),
+          stayName: s.stay_name ? String(s.stay_name) : undefined,
+          stayType: (s.stay_type as "hotel" | "official_residence" | "private_home" | "embassy" | "military_base") || "official_residence",
+          city: String(s.city || ""),
+          country: String(s.country || ""),
+          latitude: typeof s.latitude === "number" ? s.latitude : (parseFloat(String(s.latitude)) || 0),
+          longitude: typeof s.longitude === "number" ? s.longitude : (parseFloat(String(s.longitude)) || 0),
+          startDate: String(s.start_date || ""),
+          endDate: s.end_date ? String(s.end_date) : null,
+          isBaseOfOperations: Boolean(s.is_base_of_operations),
+          isPrimaryResidence: Boolean(s.is_primary_residence),
+          securityLevel: s.security_level ? String(s.security_level) : undefined,
+          notes: s.notes ? String(s.notes) : undefined,
+          sourceIds: s.source_id ? [String(s.source_id)] : (Array.isArray(s.source_ids) ? s.source_ids.map(String) : []),
+        }));
+
         return {
           data: {
             ...mapDatabasePerson(p),
@@ -347,6 +369,7 @@ export async function getPersonBySlugWithStatus(
             career,
             awards,
             works,
+            stays,
           },
           error: null,
         };
