@@ -646,9 +646,10 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
     const venueName = (p.venue || cityName).trim();
     const venueNorm = venueName.toLowerCase();
-    const meta = GLOBAL_GAZETTEER_METADATA[venueNorm];
-    const canonicalVenueName = (meta?.canonicalVenue || venueName).trim();
+    const metaDirect = GLOBAL_GAZETTEER_METADATA[venueNorm];
+    const canonicalVenueName = (metaDirect?.canonicalVenue || venueName).trim();
     const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+    const meta = metaDirect || GLOBAL_GAZETTEER_METADATA[canonicalVenueNorm];
 
     const streetAddress = meta?.streetAddress || (p.streetAddress || null);
     const venueType = meta?.venueType || p.placeType || "venue";
@@ -861,19 +862,27 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
       data.forEach((p: Record<string, unknown>) => {
         const vName = String(p.venue || p.city || "");
         const meta = GLOBAL_GAZETTEER_METADATA[vName.toLowerCase()];
+        const dbCity = String(p.city || "Unknown");
+        const dbCountry = String(p.country || "Unknown");
+
+        const locationMatches =
+          Boolean(meta) &&
+          (!p.city || dbCity.toLowerCase() === meta!.city.toLowerCase() || meta!.city.toLowerCase().includes(dbCity.toLowerCase())) &&
+          (!p.country || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
+
         seenIds.add(String(p.id));
         seenSlugs.add(String(p.slug));
         results.push({
           id: String(p.id),
           slug: String(p.slug),
-          venue: meta?.canonicalVenue || vName,
-          city: meta?.city || String(p.city || "Unknown"),
-          country: meta?.country || String(p.country || "Unknown"),
-          latitude: typeof p.latitude === "number" ? p.latitude : (meta?.latitude ?? null),
-          longitude: typeof p.longitude === "number" ? p.longitude : (meta?.longitude ?? null),
-          placeType: meta?.venueType || String(p.place_type || "venue"),
-          streetAddress: meta?.streetAddress || null,
-          venueAreas: meta?.venueAreas || [],
+          venue: (locationMatches && meta?.canonicalVenue) || vName,
+          city: (locationMatches && meta?.city) || dbCity,
+          country: (locationMatches && meta?.country) || dbCountry,
+          latitude: typeof p.latitude === "number" ? p.latitude : (locationMatches ? (meta?.latitude ?? null) : null),
+          longitude: typeof p.longitude === "number" ? p.longitude : (locationMatches ? (meta?.longitude ?? null) : null),
+          placeType: (locationMatches && meta?.venueType) || String(p.place_type || "venue"),
+          streetAddress: (locationMatches && meta?.streetAddress) || null,
+          venueAreas: (locationMatches && meta?.venueAreas) || [],
         });
       });
     }
@@ -943,19 +952,27 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
         if (!seenSlugs.has(vSlug)) {
           const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
           const meta = GLOBAL_GAZETTEER_METADATA[v.name.toLowerCase()];
+          const addrCity = addr?.city || "Unknown";
+          const addrCountry = addr?.country_code ? resolveCanonicalCountryName(addr.country_code) : "Unknown";
+
+          const locationMatches =
+            Boolean(meta) &&
+            (!addr?.city || addrCity.toLowerCase() === meta!.city.toLowerCase() || meta!.city.toLowerCase().includes(addrCity.toLowerCase())) &&
+            (!addr?.country_code || resolveCanonicalCountryName(addrCountry).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
+
           seenIds.add(v.id);
           seenSlugs.add(vSlug);
           results.push({
             id: v.id,
             slug: vSlug,
-            venue: meta?.canonicalVenue || v.name,
-            city: meta?.city || addr?.city || "Unknown",
-            country: meta?.country || (addr?.country_code ? resolveCanonicalCountryName(addr.country_code) : "Unknown"),
-            latitude: v.latitude ?? (meta?.latitude ?? null),
-            longitude: v.longitude ?? (meta?.longitude ?? null),
-            placeType: meta?.venueType || "venue",
-            streetAddress: meta?.streetAddress || addr?.formatted_english || null,
-            venueAreas: meta?.venueAreas || [],
+            venue: (locationMatches && meta?.canonicalVenue) || v.name,
+            city: (locationMatches && meta?.city) || addrCity,
+            country: (locationMatches && meta?.country) || addrCountry,
+            latitude: v.latitude ?? (locationMatches ? (meta?.latitude ?? null) : null),
+            longitude: v.longitude ?? (locationMatches ? (meta?.longitude ?? null) : null),
+            placeType: (locationMatches && meta?.venueType) || "venue",
+            streetAddress: (locationMatches && meta?.streetAddress) || addr?.formatted_english || null,
+            venueAreas: (locationMatches && meta?.venueAreas) || [],
           });
         }
       }

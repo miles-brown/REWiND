@@ -181,9 +181,10 @@ export function MediaDrawer({
                       audioRef.current.pause();
                     } else {
                       setPlaybackError(null);
-                      audioRef.current.play().catch(() => {
+                      audioRef.current.play().catch((err: unknown) => {
                         setIsPlayingAudio(false);
-                        setPlaybackError("Unable to play archival recording. The audio stream may be unavailable.");
+                        const detail = err instanceof Error && err.message ? `: ${err.message}` : ". The audio stream may be unavailable.";
+                        setPlaybackError(`Unable to play archival recording${detail}`);
                       });
                     }
                   }
