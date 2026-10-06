@@ -23,23 +23,31 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
     return null;
   }
   const supabase = getSupabaseServerClient();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("people")
-      .select("canonical_name, display_name, primary_role, nationality, classification, summary")
-      .or(`slug.eq.${slug},id.eq.${slug}`)
-      .eq("publication_status", "published")
-      .maybeSingle();
+  if (!supabase) {
+    console.warn("[OG Image] Supabase server client is not configured or unavailable for person OG rendering.");
+    return null;
+  }
 
-    if (!error && data) {
-      return {
-        canonicalName: data.canonical_name || data.display_name || "",
-        name: data.display_name || data.canonical_name || "",
-        description: data.summary || data.primary_role || "",
-        nationality: data.nationality || "",
-        classification: data.classification || "public-figure",
-      };
-    }
+  const { data, error } = await supabase
+    .from("people")
+    .select("canonical_name, display_name, primary_role, nationality, classification, summary")
+    .or(`slug.eq.${slug},id.eq.${slug}`)
+    .eq("publication_status", "published")
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[OG Image Error] Failed to fetch person metadata for slug "${slug}":`, error.message);
+    return null;
+  }
+
+  if (data) {
+    return {
+      canonicalName: data.canonical_name || data.display_name || "",
+      name: data.display_name || data.canonical_name || "",
+      description: data.summary || data.primary_role || "",
+      nationality: data.nationality || "",
+      classification: data.classification || "public-figure",
+    };
   }
 
   return null;

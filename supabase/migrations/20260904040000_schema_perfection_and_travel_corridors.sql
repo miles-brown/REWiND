@@ -210,11 +210,16 @@ GRANT SELECT ON public.person_awards TO anon, authenticated;
 GRANT SELECT ON public.person_works TO anon, authenticated;
 GRANT SELECT ON public.event_person_locations TO anon, authenticated;
 
--- 5. Backfill Defaults for Non-Null Integrity
+-- 5. Backfill Defaults & Deduplication for Non-Null Integrity
 UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status IS NULL;
 UPDATE public.people SET inclusion_contested = FALSE WHERE inclusion_contested IS NULL;
 UPDATE public.events SET is_travel_event = FALSE WHERE is_travel_event IS NULL;
 UPDATE public.events SET is_documented_flight = FALSE WHERE is_documented_flight IS NULL;
+DELETE FROM public.person_milestones a USING public.person_milestones b
+WHERE a.id > b.id
+  AND a.person_id = b.person_id
+  AND a.title = b.title
+  AND a.year = b.year;
 
 -- 6. Performance Indexes for Forensic Queries & Filters
 CREATE INDEX IF NOT EXISTS idx_people_slug ON public.people (slug);

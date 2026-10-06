@@ -26,26 +26,34 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
     return null;
   }
   const supabase = getSupabaseServerClient();
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("events")
-      .select("event_name, start_date, venue_name, city, country, event_types, categories, summary")
-      .or(`slug.eq.${slug},id.eq.${slug}`)
-      .eq("publication_status", "published")
-      .maybeSingle();
+  if (!supabase) {
+    console.warn("[OG Image] Supabase server client is not configured or unavailable for event OG rendering.");
+    return null;
+  }
 
-    if (!error && data) {
-      return {
-        eventName: data.event_name,
-        startDate: data.start_date,
-        venueName: data.venue_name,
-        city: data.city,
-        country: data.country,
-        eventTypes: data.event_types,
-        categories: data.categories,
-        summary: data.summary,
-      };
-    }
+  const { data, error } = await supabase
+    .from("events")
+    .select("event_name, start_date, venue_name, city, country, event_types, categories, summary")
+    .or(`slug.eq.${slug},id.eq.${slug}`)
+    .eq("publication_status", "published")
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[OG Image Error] Failed to fetch event metadata for slug "${slug}":`, error.message);
+    return null;
+  }
+
+  if (data) {
+    return {
+      eventName: data.event_name,
+      startDate: data.start_date,
+      venueName: data.venue_name,
+      city: data.city,
+      country: data.country,
+      eventTypes: data.event_types,
+      categories: data.categories,
+      summary: data.summary,
+    };
   }
 
   return null;
