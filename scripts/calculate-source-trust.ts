@@ -17,7 +17,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sourcesCorpus } from "../data/seeds/sources-corpus";
 import { eventsCorpus } from "../data/seeds/events-corpus";
-import { sources as legacySources, events as legacyEvents } from "../archive/legacy-data/rewind";
 
 export interface SourceTrustCalculation {
   sourceId: string;
@@ -31,8 +30,8 @@ export interface SourceTrustCalculation {
 }
 
 export function calculateSourceTrustScores(): SourceTrustCalculation[] {
-  const allSources = [...(sourcesCorpus || []), ...(legacySources || [])];
-  const allEvents = [...(eventsCorpus || []), ...(legacyEvents || [])];
+  const allSources = sourcesCorpus || [];
+  const allEvents = eventsCorpus || [];
 
   const sourceMap = new Map<string, (typeof allSources)[0]>();
   allSources.forEach((s) => {

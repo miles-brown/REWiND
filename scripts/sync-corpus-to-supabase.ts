@@ -701,7 +701,8 @@ async function syncCorpus() {
           });
       }
 
-      // Synchronize quotes
+      // Reconcile and synchronize quotes
+      await tx.delete(schema.quotes).where(eq(schema.quotes.eventId, evt.id));
       const quotesList = evt.quotes || [];
       for (let qIdx = 0; qIdx < quotesList.length; qIdx++) {
         const q = quotesList[qIdx];
@@ -722,8 +723,7 @@ async function syncCorpus() {
               language: q.language || "en",
               sourceId: evt.sourceIds?.[0] || null,
               timestampInMedia: q.timestamp || null,
-            })
-            .onConflictDoNothing();
+            });
         } else {
           console.warn(`[Quote Warning] Unresolved speaker "${q.speaker}" for event ${evt.id} at quote index ${qIdx}.`);
         }

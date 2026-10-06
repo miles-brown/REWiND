@@ -412,7 +412,92 @@ const COUNTRY_CODE_MAP: Record<string, string> = {
   "Lebanon": "LB",
   "Syria": "SY",
   "Iran": "IR",
+  "Belgium": "BE",
+  "Canada": "CA",
+  "Australia": "AU",
+  "Poland": "PL",
+  "Ukraine": "UA",
+  "Sweden": "SE",
+  "Norway": "NO",
+  "Denmark": "DK",
+  "Finland": "FI",
+  "Ireland": "IE",
+  "New Zealand": "NZ",
+  "India": "IN",
+  "Brazil": "BR",
+  "Mexico": "MX",
+  "South Africa": "ZA",
+  "South Korea": "KR",
+  "Singapore": "SG",
+  "Qatar": "QA",
+  "Kuwait": "KW",
+  "Oman": "OM",
+  "Iraq": "IQ",
+  "Yemen": "YE",
+  "Vatican City": "VA",
 };
+
+const CODE_TO_COUNTRY_MAP: Record<string, string> = {
+  US: "United States",
+  USA: "United States",
+  IL: "Israel",
+  GB: "United Kingdom",
+  UK: "United Kingdom",
+  JO: "Jordan",
+  EG: "Egypt",
+  FR: "France",
+  DE: "Germany",
+  ES: "Spain",
+  CH: "Switzerland",
+  AT: "Austria",
+  NL: "Netherlands",
+  SA: "Saudi Arabia",
+  AE: "United Arab Emirates",
+  PS: "State of Palestine",
+  CN: "China",
+  RU: "Russia",
+  BH: "Bahrain",
+  MA: "Morocco",
+  JP: "Japan",
+  IT: "Italy",
+  TR: "Turkey",
+  LB: "Lebanon",
+  SY: "Syria",
+  IR: "Iran",
+  BE: "Belgium",
+  CA: "Canada",
+  AU: "Australia",
+  PL: "Poland",
+  UA: "Ukraine",
+  SE: "Sweden",
+  NO: "Norway",
+  DK: "Denmark",
+  FI: "Finland",
+  IE: "Ireland",
+  NZ: "New Zealand",
+  IN: "India",
+  BR: "Brazil",
+  MX: "Mexico",
+  ZA: "South Africa",
+  KR: "South Korea",
+  SG: "Singapore",
+  QA: "Qatar",
+  KW: "Kuwait",
+  OM: "Oman",
+  IQ: "Iraq",
+  YE: "Yemen",
+  VA: "Vatican City",
+};
+
+export function resolveCanonicalCountryName(countryOrCode?: string | null): string {
+  if (!countryOrCode) return "Unknown";
+  const trimmed = countryOrCode.trim();
+  const upper = trimmed.toUpperCase();
+  if (CODE_TO_COUNTRY_MAP[upper]) {
+    return CODE_TO_COUNTRY_MAP[upper];
+  }
+  return trimmed;
+}
 
 /**
  * Resolves WGS-84 coordinates for a place, venue, or city using the authoritative gazetteer.
@@ -529,8 +614,8 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   const countryCitiesMap = new Map<string, CityNode[]>();
 
   rawPlaces.forEach((p) => {
-    const countryName = (p.country || "Unknown").trim();
-    const countryCode = COUNTRY_CODE_MAP[countryName] || "UN";
+    const countryName = resolveCanonicalCountryName(p.country);
+    const countryCode = COUNTRY_CODE_MAP[countryName] || (p.country && p.country.trim().length === 2 ? p.country.trim().toUpperCase() : "UN");
     const countrySlug = sanitizePlaceSlug(countryName);
 
     const cityName = (p.city || "Unknown").trim();
@@ -837,7 +922,7 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
             slug: vSlug,
             venue: meta?.canonicalVenue || v.name,
             city: meta?.city || addr?.city || "Unknown",
-            country: meta?.country || addr?.country_code || "Unknown",
+            country: meta?.country || (addr?.country_code ? resolveCanonicalCountryName(addr.country_code) : "Unknown"),
             latitude: v.latitude ?? (meta?.latitude ?? null),
             longitude: v.longitude ?? (meta?.longitude ?? null),
             placeType: meta?.venueType || "venue",
