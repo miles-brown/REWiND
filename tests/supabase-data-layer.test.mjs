@@ -978,11 +978,15 @@ test("verifies round-37 review fixes: year qualifier fail-closed, category isola
   assert.ok(unfilteredResults.some((item) => item.type === "person"), "Unfiltered search should include people");
   assert.ok(unfilteredResults.some((item) => item.type === "event"), "Unfiltered search should include events");
 
-  // 3. Canonical country resolution for aliases
+  // 3. Canonical country resolution for aliases and case insensitivity
   assert.equal(resolveCanonicalCountryName("Palestine"), "State of Palestine");
   assert.equal(resolveCanonicalCountryName("State of Palestine"), "State of Palestine");
   assert.equal(resolveCanonicalCountryName("United States"), "United States");
+  assert.equal(resolveCanonicalCountryName("united states"), "United States");
+  assert.equal(resolveCanonicalCountryName("france"), "France");
   assert.equal(resolveCanonicalCountryName("UK"), "United Kingdom");
+  assert.equal(resolveCanonicalCountryName("uk"), "United Kingdom");
+  assert.equal(resolveCanonicalCountryName("israel"), "Israel");
 });
 
 test("verifies evaluateQueryResult, unwrapDataOrNull, and query result state transitions", async () => {
@@ -1011,4 +1015,21 @@ test("verifies evaluateQueryResult, unwrapDataOrNull, and query result state tra
   assert.equal(errorRes.isNotFound, false);
   assert.equal(errorRes.error, "Database timeout");
   assert.equal(unwrapDataOrNull({ data: null, error: "Database timeout" }), null);
+});
+
+test("verifies canonical city matching and alias normalization in places.ts", async () => {
+  const { isSameCity, normalizeCityName } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+
+  assert.equal(normalizeCityName("Washington DC"), "Washington, D.C.");
+  assert.equal(normalizeCityName("Washington, D.C."), "Washington, D.C.");
+  assert.equal(normalizeCityName("Washington"), "Washington, D.C.");
+  assert.equal(normalizeCityName("NYC"), "New York City");
+  assert.equal(normalizeCityName("New York"), "New York City");
+
+  assert.equal(isSameCity("Washington DC", "Washington, D.C."), true);
+  assert.equal(isSameCity("Washington, DC", "Washington, D.C."), true);
+  assert.equal(isSameCity("Washington", "Washington, D.C."), true);
+  assert.equal(isSameCity("NYC", "New York City"), true);
+  assert.equal(isSameCity("Paris", "London"), false);
+  assert.equal(isSameCity("Jerusalem", "Tel Aviv"), false);
 });

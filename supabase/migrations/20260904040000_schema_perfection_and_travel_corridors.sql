@@ -215,6 +215,19 @@ UPDATE public.people SET religion_status = 'unspecified' WHERE religion_status I
 UPDATE public.people SET inclusion_contested = FALSE WHERE inclusion_contested IS NULL;
 UPDATE public.events SET is_travel_event = FALSE WHERE is_travel_event IS NULL;
 UPDATE public.events SET is_documented_flight = FALSE WHERE is_documented_flight IS NULL;
+UPDATE public.person_milestones b
+SET
+  date = COALESCE(b.date, a.date),
+  category = COALESCE(b.category, a.category),
+  description = COALESCE(b.description, a.description),
+  metric_or_stat = COALESCE(b.metric_or_stat, a.metric_or_stat),
+  source_id = COALESCE(b.source_id, a.source_id)
+FROM public.person_milestones a
+WHERE a.id > b.id
+  AND a.person_id = b.person_id
+  AND a.title = b.title
+  AND a.year = b.year;
+
 DELETE FROM public.person_milestones a USING public.person_milestones b
 WHERE a.id > b.id
   AND a.person_id = b.person_id

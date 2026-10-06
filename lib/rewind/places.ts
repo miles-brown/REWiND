@@ -489,16 +489,56 @@ const CODE_TO_COUNTRY_MAP: Record<string, string> = {
   VA: "Vatican City",
 };
 
+const NORMALIZED_COUNTRY_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRY_CODE_MAP).map(([k, v]) => [k.toLowerCase(), v])
+);
+
+const CITY_ALIASES: Record<string, string> = {
+  "washington dc": "Washington, D.C.",
+  "washington, dc": "Washington, D.C.",
+  "washington, d.c.": "Washington, D.C.",
+  "washington d.c.": "Washington, D.C.",
+  "washington": "Washington, D.C.",
+  "district of columbia": "Washington, D.C.",
+  "nyc": "New York City",
+  "new york": "New York City",
+  "new york city": "New York City",
+  "la": "Los Angeles",
+  "los angeles": "Los Angeles",
+};
+
+export function normalizeCityName(city?: string | null): string {
+  if (!city) return "";
+  const trimmed = city.trim();
+  const lower = trimmed.toLowerCase();
+  const cleaned = lower.replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
+  if (CITY_ALIASES[lower]) return CITY_ALIASES[lower];
+  if (CITY_ALIASES[cleaned]) return CITY_ALIASES[cleaned];
+  return trimmed;
+}
+
+export function isSameCity(cityA?: string | null, cityB?: string | null): boolean {
+  if (!cityA || !cityB) return false;
+  const normA = normalizeCityName(cityA).toLowerCase();
+  const normB = normalizeCityName(cityB).toLowerCase();
+  if (normA === normB) return true;
+  const cleanA = cityA.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const cleanB = cityB.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (cleanA && cleanB && cleanA === cleanB) return true;
+  return normA.includes(normB) || normB.includes(normA);
+}
+
 export function resolveCanonicalCountryName(countryOrCode?: string | null): string {
   if (!countryOrCode) return "Unknown";
   const trimmed = countryOrCode.trim();
+  const lower = trimmed.toLowerCase();
   const upper = trimmed.toUpperCase();
   if (CODE_TO_COUNTRY_MAP[upper]) {
     return CODE_TO_COUNTRY_MAP[upper];
   }
   const codeFromMap =
     COUNTRY_CODE_MAP[trimmed] ||
-    COUNTRY_CODE_MAP[trimmed.toLowerCase()] ||
+    NORMALIZED_COUNTRY_MAP[lower] ||
     COUNTRY_CODE_MAP[upper];
   if (codeFromMap && CODE_TO_COUNTRY_MAP[codeFromMap]) {
     return CODE_TO_COUNTRY_MAP[codeFromMap];
@@ -867,7 +907,7 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
 
         const locationMatches =
           Boolean(meta) &&
-          (!p.city || dbCity.toLowerCase() === meta!.city.toLowerCase() || meta!.city.toLowerCase().includes(dbCity.toLowerCase())) &&
+          (!p.city || isSameCity(dbCity, meta!.city)) &&
           (!p.country || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
 
         seenIds.add(String(p.id));
@@ -957,7 +997,7 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
 
           const locationMatches =
             Boolean(meta) &&
-            (!addr?.city || addrCity.toLowerCase() === meta!.city.toLowerCase() || meta!.city.toLowerCase().includes(addrCity.toLowerCase())) &&
+            (!addr?.city || isSameCity(addrCity, meta!.city)) &&
             (!addr?.country_code || resolveCanonicalCountryName(addrCountry).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
 
           seenIds.add(v.id);
@@ -1105,18 +1145,26 @@ export async function getPlaceBySlug(
     if (venueError) throw venueError;
 
     if (p) {
-      const meta = GLOBAL_GAZETTEER_METADATA[String(p.venue || "").toLowerCase()];
+      const vName = String(p.venue || p.city || "");
+      const meta = GLOBAL_GAZETTEER_METADATA[vName.toLowerCase()];
+      const dbCity = String(p.city || "Unknown");
+      const dbCountry = String(p.country || "Unknown");
+      const locationMatches =
+        Boolean(meta) &&
+        (!p.city || isSameCity(dbCity, meta!.city)) &&
+        (!p.country || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
+
       place = {
         id: p.id,
         slug: p.slug,
-        venue: meta?.canonicalVenue || p.venue,
-        city: meta?.city || p.city,
-        country: meta?.country || p.country,
-        latitude: p.latitude ?? (meta?.latitude ?? null),
-        longitude: p.longitude ?? (meta?.longitude ?? null),
-        placeType: meta?.venueType || p.place_type,
-        streetAddress: meta?.streetAddress || null,
-        venueAreas: meta?.venueAreas || [],
+        venue: (locationMatches && meta?.canonicalVenue) || p.venue,
+        city: (locationMatches && meta?.city) || p.city,
+        country: (locationMatches && meta?.country) || p.country,
+        latitude: p.latitude ?? (locationMatches ? (meta?.latitude ?? null) : null),
+        longitude: p.longitude ?? (locationMatches ? (meta?.longitude ?? null) : null),
+        placeType: (locationMatches && meta?.venueType) || p.place_type,
+        streetAddress: (locationMatches && meta?.streetAddress) || null,
+        venueAreas: (locationMatches && meta?.venueAreas) || [],
       };
     } else if (v) {
       let city = "Unknown";
@@ -1136,17 +1184,22 @@ export async function getPlaceBySlug(
         }
       }
       const meta = GLOBAL_GAZETTEER_METADATA[v.name.toLowerCase()];
+      const locationMatches =
+        Boolean(meta) &&
+        (city === "Unknown" || isSameCity(city, meta!.city)) &&
+        (country === "Unknown" || resolveCanonicalCountryName(country).toLowerCase() === resolveCanonicalCountryName(meta!.country).toLowerCase());
+
       place = {
         id: v.id,
         slug: v.id.replace(/^plc-|^ven-/, ""),
-        venue: meta?.canonicalVenue || v.name,
-        city: meta?.city || city,
-        country: meta?.country || country,
-        latitude: v.latitude ?? (meta?.latitude ?? null),
-        longitude: v.longitude ?? (meta?.longitude ?? null),
-        placeType: meta?.venueType || "venue",
-        streetAddress: meta?.streetAddress || streetAddress,
-        venueAreas: meta?.venueAreas || [],
+        venue: (locationMatches && meta?.canonicalVenue) || v.name,
+        city: (locationMatches && meta?.city) || city,
+        country: (locationMatches && meta?.country) || country,
+        latitude: v.latitude ?? (locationMatches ? (meta?.latitude ?? null) : null),
+        longitude: v.longitude ?? (locationMatches ? (meta?.longitude ?? null) : null),
+        placeType: (locationMatches && meta?.venueType) || "venue",
+        streetAddress: (locationMatches && meta?.streetAddress) || streetAddress,
+        venueAreas: (locationMatches && meta?.venueAreas) || [],
       };
     } else {
       // Check if slug matches a Country or City

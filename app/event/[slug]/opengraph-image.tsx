@@ -49,9 +49,9 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
     return null;
   }
 
-  const { data, error } = await supabase
+  const { data: eventRow, error } = await supabase
     .from("events")
-    .select("event_name, start_date, venue_name, city, country, event_types, categories, summary")
+    .select("title, event_type, summary, start_date, place_id, venue_id")
     .or(`slug.eq.${slug},id.eq.${slug}`)
     .eq("publication_status", "published")
     .maybeSingle();
@@ -61,16 +61,53 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
     return getFallbackEventMeta(slug);
   }
 
-  if (data) {
+  if (eventRow) {
+    let venueName: string | null = null;
+    let city: string | null = null;
+    let country: string | null = null;
+
+    if (eventRow.place_id) {
+      const { data: p } = await supabase
+        .from("places")
+        .select("venue, city, country")
+        .eq("id", eventRow.place_id)
+        .maybeSingle();
+      if (p) {
+        venueName = p.venue || null;
+        city = p.city || null;
+        country = p.country || null;
+      }
+    } else if (eventRow.venue_id) {
+      const { data: v } = await supabase
+        .from("venues")
+        .select("name, address_id")
+        .eq("id", eventRow.venue_id)
+        .maybeSingle();
+      if (v) {
+        venueName = v.name || null;
+        if (v.address_id) {
+          const { data: a } = await supabase
+            .from("addresses")
+            .select("city, country_code")
+            .eq("id", v.address_id)
+            .maybeSingle();
+          if (a) {
+            city = a.city || null;
+            country = a.country_code || null;
+          }
+        }
+      }
+    }
+
     return {
-      eventName: data.event_name,
-      startDate: data.start_date,
-      venueName: data.venue_name,
-      city: data.city,
-      country: data.country,
-      eventTypes: data.event_types,
-      categories: data.categories,
-      summary: data.summary,
+      eventName: eventRow.title,
+      startDate: eventRow.start_date,
+      venueName,
+      city,
+      country,
+      eventTypes: eventRow.event_type ? [eventRow.event_type] : null,
+      categories: null,
+      summary: eventRow.summary,
     };
   }
 
