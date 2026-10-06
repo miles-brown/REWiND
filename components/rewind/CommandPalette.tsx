@@ -210,7 +210,7 @@ export function CommandPalette({
     let updatedQuery = "";
 
     if (keyRegex.test(trimmedQuery)) {
-      updatedQuery = trimmedQuery.replace(keyRegex, `${qualifier} `);
+      updatedQuery = trimmedQuery.replace(keyRegex, `${qualifier} `).replace(/\s+/g, " ").trim() + " ";
     } else {
       updatedQuery = trimmedQuery ? `${trimmedQuery} ${qualifier} ` : `${qualifier} `;
     }
