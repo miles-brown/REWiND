@@ -710,169 +710,183 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                     {/* Nested Cities under Country */}
                     {isCountryExpanded && (
                       <div className="tree-cities-list">
-                        {country.cities.map((city) => {
-                          const isCityExpanded = expandedCities.has(city.slug);
-                          return (
-                            <div key={city.slug} className={`tree-city-card ${isCityExpanded ? "expanded" : ""}`}>
-                              {/* City Node Header */}
-                              <div className="tree-node-header city-node">
-                                <button
-                                  type="button"
-                                  className="node-toggle-btn"
-                                  onClick={() => toggleCity(city.slug)}
-                                  aria-expanded={isCityExpanded}
-                                  aria-label={`${isCityExpanded ? "Collapse" : "Expand"} ${city.name} hierarchy`}
-                                >
-                                  <div className="node-toggle-icon" aria-hidden="true">
-                                    {isCityExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                  </div>
-                                  <div className="city-icon-badge" aria-hidden="true">
-                                    <Building2 size={15} />
-                                  </div>
-                                  <div className="node-meta">
-                                    <div className="node-title-row">
-                                      <span className="tier-tag city-tag">CITY · TIER 2</span>
-                                      <h3 className="city-title">{city.name}</h3>
+                        {country.cities.length === 0 ? (
+                          <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                            No cities or municipalities match the active filter criteria for this jurisdiction.
+                          </div>
+                        ) : (
+                          country.cities.map((city) => {
+                            const isCityExpanded = expandedCities.has(city.slug);
+                            return (
+                              <div key={city.slug} className={`tree-city-card ${isCityExpanded ? "expanded" : ""}`}>
+                                {/* City Node Header */}
+                                <div className="tree-node-header city-node">
+                                  <button
+                                    type="button"
+                                    className="node-toggle-btn"
+                                    onClick={() => toggleCity(city.slug)}
+                                    aria-expanded={isCityExpanded}
+                                    aria-label={`${isCityExpanded ? "Collapse" : "Expand"} ${city.name} hierarchy`}
+                                  >
+                                    <div className="node-toggle-icon" aria-hidden="true">
+                                      {isCityExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </div>
-                                    <div className="node-stats-row">
-                                      <span>{city.venues.length} {city.venues.length === 1 ? "Venue" : "Venues"}</span>
-                                      <span>·</span>
-                                      <span>{city.addresses.length} {city.addresses.length === 1 ? "Address" : "Addresses"}</span>
-                                      {city.latitude && city.longitude && (
-                                        <>
-                                          <span>·</span>
-                                          <span className="coord-text">{city.latitude.toFixed(4)}°, {city.longitude.toFixed(4)}°</span>
-                                        </>
-                                      )}
+                                    <div className="city-icon-badge" aria-hidden="true">
+                                      <Building2 size={15} />
                                     </div>
+                                    <div className="node-meta">
+                                      <div className="node-title-row">
+                                        <span className="tier-tag city-tag">CITY · TIER 2</span>
+                                        <h3 className="city-title">{city.name}</h3>
+                                      </div>
+                                      <div className="node-stats-row">
+                                        <span>{city.venues.length} {city.venues.length === 1 ? "Venue" : "Venues"}</span>
+                                        <span>·</span>
+                                        <span>{city.addresses.length} {city.addresses.length === 1 ? "Address" : "Addresses"}</span>
+                                        {city.latitude && city.longitude && (
+                                          <>
+                                            <span>·</span>
+                                            <span className="coord-text">{city.latitude.toFixed(4)}°, {city.longitude.toFixed(4)}°</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                  <div className="node-actions-right">
+                                    <span className="event-count-badge city-badge">{city.eventCount} Events</span>
+                                    <Link href={`/place/${city.slug}`} className="view-place-link" title={`View ${city.name} Chronicles`}>
+                                      <span>View</span>
+                                      <ArrowRight size={14} />
+                                    </Link>
                                   </div>
-                                </button>
-                                <div className="node-actions-right">
-                                  <span className="event-count-badge city-badge">{city.eventCount} Events</span>
-                                  <Link href={`/place/${city.slug}`} className="view-place-link" title={`View ${city.name} Chronicles`}>
-                                    <span>View</span>
-                                    <ArrowRight size={14} />
-                                  </Link>
                                 </div>
-                              </div>
 
-                              {/* Nested Venues & Addresses under City */}
-                              {isCityExpanded && (
-                                <div className="tree-leaves-container">
-                                  {/* Venues Section */}
-                                  {city.venues.length > 0 && (
-                                    <div className="tree-sub-section venues-sub-section">
-                                      <div className="sub-section-header">
-                                        <Building size={14} />
-                                        <h4>Venues & Complexes ({city.venues.length})</h4>
-                                        <small className="sub-section-hint">Institutional locations situated in {city.name}</small>
+                                {/* Nested Venues & Addresses under City */}
+                                {isCityExpanded && (
+                                  <div className="tree-leaves-container">
+                                    {city.venues.length === 0 && city.addresses.length === 0 ? (
+                                      <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                                        No venues or street addresses match the active filter criteria in {city.name}.
                                       </div>
-                                      <div className="venue-leaf-grid">
-                                        {city.venues.map((venue) => {
-                                          const badge = getVenueTypeBadge(venue.venueType);
-                                          return (
-                                            <div key={venue.id} className="venue-leaf-card">
-                                              <div className="venue-leaf-header">
-                                                <div className="venue-leaf-title-wrap">
-                                                  <span className={`venue-type-chip ${badge.className}`}>
-                                                    {badge.label}
-                                                  </span>
-                                                  <Link href={`/place/${venue.slug}`} className="venue-leaf-title">
-                                                    <h5>{venue.name}</h5>
-                                                  </Link>
-                                                </div>
-                                                <span className="event-pill">{venue.eventCount} {venue.eventCount === 1 ? "record" : "records"}</span>
-                                              </div>
+                                    ) : (
+                                      <>
+                                        {/* Venues Section */}
+                                        {city.venues.length > 0 && (
+                                          <div className="tree-sub-section venues-sub-section">
+                                            <div className="sub-section-header">
+                                              <Building size={14} />
+                                              <h4>Venues & Complexes ({city.venues.length})</h4>
+                                              <small className="sub-section-hint">Institutional locations situated in {city.name}</small>
+                                            </div>
+                                            <div className="venue-leaf-grid">
+                                              {city.venues.map((venue) => {
+                                                const badge = getVenueTypeBadge(venue.venueType);
+                                                return (
+                                                  <div key={venue.id} className="venue-leaf-card">
+                                                    <div className="venue-leaf-header">
+                                                      <div className="venue-leaf-title-wrap">
+                                                        <span className={`venue-type-chip ${badge.className}`}>
+                                                          {badge.label}
+                                                        </span>
+                                                        <Link href={`/place/${venue.slug}`} className="venue-leaf-title">
+                                                          <h5>{venue.name}</h5>
+                                                        </Link>
+                                                      </div>
+                                                      <span className="event-pill">{venue.eventCount} {venue.eventCount === 1 ? "record" : "records"}</span>
+                                                    </div>
 
-                                              {/* Street Address Association (CRITICAL) */}
-                                              {venue.streetAddress && (
-                                                <div className="venue-address-row">
-                                                  <MapPin size={13} className="address-pin-icon" />
-                                                  <span className="venue-address-label">Address:</span>
-                                                  <span className="venue-address-val">{venue.streetAddress}</span>
-                                                </div>
-                                              )}
+                                                    {/* Street Address Association (CRITICAL) */}
+                                                    {venue.streetAddress && (
+                                                      <div className="venue-address-row">
+                                                        <MapPin size={13} className="address-pin-icon" />
+                                                        <span className="venue-address-label">Address:</span>
+                                                        <span className="venue-address-val">{venue.streetAddress}</span>
+                                                      </div>
+                                                    )}
 
-                                              {/* Sub-Venue Areas (e.g. Oval Office, Cabinet Room) */}
-                                              {venue.venueAreas && venue.venueAreas.length > 0 && (
-                                                <div className="venue-areas-strip">
-                                                  <span className="areas-label">Areas:</span>
-                                                  <div className="area-tags">
-                                                    {venue.venueAreas.map((area) => (
-                                                      <span key={area.id} className="area-tag">
-                                                        {area.name}
-                                                      </span>
-                                                    ))}
+                                                    {/* Sub-Venue Areas (e.g. Oval Office, Cabinet Room) */}
+                                                    {venue.venueAreas && venue.venueAreas.length > 0 && (
+                                                      <div className="venue-areas-strip">
+                                                        <span className="areas-label">Areas:</span>
+                                                        <div className="area-tags">
+                                                          {venue.venueAreas.map((area) => (
+                                                            <span key={area.id} className="area-tag">
+                                                              {area.name}
+                                                            </span>
+                                                          ))}
+                                                        </div>
+                                                      </div>
+                                                    )}
+
+                                                    <div className="venue-leaf-footer">
+                                                      <Link href={`/place/${venue.slug}`} className="venue-explore-btn">
+                                                        <span>Examine Venue Records</span>
+                                                        <CornerDownRight size={13} />
+                                                      </Link>
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              )}
-
-                                              <div className="venue-leaf-footer">
-                                                <Link href={`/place/${venue.slug}`} className="venue-explore-btn">
-                                                  <span>Examine Venue Records</span>
-                                                  <CornerDownRight size={13} />
-                                                </Link>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Street Addresses Section */}
-                                  {city.addresses.length > 0 && (
-                                    <div className="tree-sub-section addresses-sub-section">
-                                      <div className="sub-section-header">
-                                        <MapPin size={14} />
-                                        <h4>Street Addresses ({city.addresses.length})</h4>
-                                        <small className="sub-section-hint">Physical postal and road locations</small>
-                                      </div>
-                                      <div className="address-leaf-grid">
-                                        {city.addresses.map((address) => (
-                                          <div key={address.id} className="address-leaf-card">
-                                            <div className="address-leaf-header">
-                                              <div className="address-title-wrap">
-                                                <span className="tier-tag address-tag">ADDRESS · TIER 4</span>
-                                                <h5 className="address-text">{address.formattedAddress}</h5>
-                                              </div>
-                                              <span className="event-pill">{address.eventCount} {address.eventCount === 1 ? "record" : "records"}</span>
-                                            </div>
-
-                                            {address.district && (
-                                              <div className="address-district-row">
-                                                <small>District: {address.district}</small>
-                                              </div>
-                                            )}
-
-                                            {/* Venues Located Here */}
-                                            {address.venuesLocatedHere.length > 0 && (
-                                              <div className="venues-at-address-box">
-                                                <span className="at-addr-label">Venues situated here:</span>
-                                                <ul className="at-addr-list">
-                                                  {address.venuesLocatedHere.map((vName, idx) => (
-                                                    <li key={idx}>🏛️ {vName}</li>
-                                                  ))}
-                                                </ul>
-                                              </div>
-                                            )}
-
-                                            <div className="address-leaf-footer">
-                                              <Link href={`/place/${address.slug}`} className="venue-explore-btn">
-                                                <span>Address Events</span>
-                                                <CornerDownRight size={13} />
-                                              </Link>
+                                                );
+                                              })}
                                             </div>
                                           </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                        )}
+
+                                        {/* Street Addresses Section */}
+                                        {city.addresses.length > 0 && (
+                                          <div className="tree-sub-section addresses-sub-section">
+                                            <div className="sub-section-header">
+                                              <MapPin size={14} />
+                                              <h4>Street Addresses ({city.addresses.length})</h4>
+                                              <small className="sub-section-hint">Physical postal and road locations</small>
+                                            </div>
+                                            <div className="address-leaf-grid">
+                                              {city.addresses.map((address) => (
+                                                <div key={address.id} className="address-leaf-card">
+                                                  <div className="address-leaf-header">
+                                                    <div className="address-title-wrap">
+                                                      <span className="tier-tag address-tag">ADDRESS · TIER 4</span>
+                                                      <h5 className="address-text">{address.formattedAddress}</h5>
+                                                    </div>
+                                                    <span className="event-pill">{address.eventCount} {address.eventCount === 1 ? "record" : "records"}</span>
+                                                  </div>
+
+                                                  {address.district && (
+                                                    <div className="address-district-row">
+                                                      <small>District: {address.district}</small>
+                                                    </div>
+                                                  )}
+
+                                                  {/* Venues Located Here */}
+                                                  {address.venuesLocatedHere.length > 0 && (
+                                                    <div className="venues-at-address-box">
+                                                      <span className="at-addr-label">Venues situated here:</span>
+                                                      <ul className="at-addr-list">
+                                                        {address.venuesLocatedHere.map((vName, idx) => (
+                                                          <li key={idx}>🏛️ {vName}</li>
+                                                        ))}
+                                                      </ul>
+                                                    </div>
+                                                  )}
+
+                                                  <div className="address-leaf-footer">
+                                                    <Link href={`/place/${address.slug}`} className="venue-explore-btn">
+                                                      <span>Address Events</span>
+                                                      <CornerDownRight size={13} />
+                                                    </Link>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     )}
                   </div>

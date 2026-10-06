@@ -321,6 +321,18 @@ export function CommandPalette({
                 onClick={() => {
                   setActiveCategory(tab.id);
                   setSelectedIndex(0);
+                  if (tab.id !== "all") {
+                    const hasQualifier = /\b(?:type|kind|category):[a-zA-Z_-]+\b/i.test(query);
+                    if (hasQualifier) {
+                      setQuery(query.replace(/\b(?:type|kind|category):[a-zA-Z_-]+\b/i, `type:${tab.id}`).trim());
+                    }
+                  } else {
+                    const stripped = query.replace(/\b(?:type|kind|category):[a-zA-Z_-]+\b/i, "").replace(/\s+/g, " ").trim();
+                    if (stripped !== query.trim()) {
+                      setQuery(stripped);
+                    }
+                  }
+                  inputRef.current?.focus();
                 }}
               >
                 <Icon size={12} />

@@ -57,7 +57,7 @@ export function MediaDrawer({
         kind: m.kind,
         label: m.label,
         url: m.url,
-        timestamp: (m as { timestamp?: string }).timestamp,
+        timestamp: m.timestamp ?? undefined,
       }));
     }
     if (event.sourceIds && event.sourceIds.length > 0) {

@@ -86,6 +86,13 @@ export interface ClaimRecord {
   evidence?: ClaimEvidenceRecord[];
 }
 
+export interface EventMedia {
+  kind: string;
+  label: string;
+  url: string;
+  timestamp?: string | null | undefined;
+}
+
 export interface EventRecord {
   id: string;
   slug: string;
@@ -162,7 +169,7 @@ export interface EventRecord {
   provenance?: string[] | undefined;
   reviewedAt?: string;
   sources?: SourceRecord[] | undefined;
-  media?: { kind: string; label: string; url: string }[] | undefined;
+  media?: EventMedia[] | undefined;
   conflictingClaims?: string[] | undefined;
   claims?: ClaimRecord[] | undefined;
   quotes?: {

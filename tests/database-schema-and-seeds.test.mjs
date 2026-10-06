@@ -250,3 +250,29 @@ test("verifies PR 33 Codex review fixes: MCP config, milestone date NOT NULL, Pl
   assert.match(goldenFleece.evidence, /30 Jan 2018/);
 });
 
+test("verifies PR 33 review refinements: EventMedia typing, PDF ISO-8601 headers, and PlacesExplorer empty child states", async () => {
+  const fs = await import("node:fs");
+
+  // 1. MediaDrawer uses typed timestamp without type casting
+  const mediaDrawer = fs.readFileSync("components/rewind/MediaDrawer.tsx", "utf8");
+  assert.ok(!mediaDrawer.includes("as { timestamp?: string }"), "MediaDrawer should not contain ad-hoc type assertion");
+
+  // 2. Types define EventMedia
+  const typesContent = fs.readFileSync("lib/rewind/types.ts", "utf8");
+  assert.ok(typesContent.includes("export interface EventMedia"));
+
+  // 3. PDF routes include ISO-8601 header and timestamp
+  const eventPdf = fs.readFileSync("app/api/export/event/[slug]/pdf/route.ts", "utf8");
+  assert.ok(eventPdf.includes('"X-Forensic-Timestamp": exportedAt'));
+  assert.ok(eventPdf.includes("Timestamp (ISO-8601):"));
+
+  const personPdf = fs.readFileSync("app/api/export/person/[slug]/pdf/route.ts", "utf8");
+  assert.ok(personPdf.includes('"X-Forensic-Timestamp": exportedAt'));
+  assert.ok(personPdf.includes("Timestamp (ISO-8601):"));
+
+  // 4. PlacesExplorer has empty nested hints for filtered branches
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes("tree-empty-nested-hint"));
+});
+
+

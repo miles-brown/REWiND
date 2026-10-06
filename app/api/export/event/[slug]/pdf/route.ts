@@ -110,7 +110,8 @@ export async function GET(
       <div class="brand-sub">Forensic Historical Event Attestation</div>
     </div>
     <div class="doc-meta">
-      <div><b>Exported:</b> ${exportedAt.slice(0, 19).replace("T", " ")} UTC</div>
+      <div><b>Exported (UTC):</b> ${exportedAt.slice(0, 19).replace("T", " ")} UTC</div>
+      <div><b>Timestamp (ISO-8601):</b> <code style="font-size:10px;">${exportedAt}</code></div>
       <div><b>Event ID:</b> ${escapeHtml(event.id)}</div>
       <div><b>Canonical Slug:</b> ${escapeHtml(event.slug)}</div>
     </div>
@@ -188,7 +189,7 @@ export async function GET(
   <div class="footer">
     <div>
       <b>REWIND Forensic Evidence Engine</b> · Verifiable Primary Research Catalog
-      <div class="checksum">Payload SHA-256: ${payloadDigest}</div>
+      <div class="checksum">Payload SHA-256: ${payloadDigest} | Strict ISO-8601: ${exportedAt}</div>
     </div>
     <div>Page 1 of 1</div>
   </div>
@@ -201,6 +202,7 @@ export async function GET(
       "Content-Type": "text/html; charset=utf-8",
       "Content-Disposition": `inline; filename="rewind-event-attestation-${safeSlug}.html"`,
       "X-Forensic-Checksum": `sha256:${payloadDigest}`,
+      "X-Forensic-Timestamp": exportedAt,
     },
   });
 }
