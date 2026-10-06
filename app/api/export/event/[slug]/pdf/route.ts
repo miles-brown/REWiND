@@ -19,7 +19,14 @@ export async function GET(
     await getEventBySlug(slug)
   );
 
-  if (isUnavailable || isNotFound || !event) {
+  if (isUnavailable) {
+    return NextResponse.json(
+      { error: "Database error retrieving event record." },
+      { status: 500 }
+    );
+  }
+
+  if (isNotFound || !event) {
     return NextResponse.json(
       { error: "Event record not found or inaccessible for export." },
       { status: 404 }

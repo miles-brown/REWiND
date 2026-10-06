@@ -246,7 +246,7 @@ test("verifies PR 33 Codex review fixes: MCP config, milestone date NOT NULL, Pl
   assert.ok(leonor);
   const goldenFleece = leonor.achievements?.find((a) => a.milestone.includes("Golden Fleece"));
   assert.ok(goldenFleece, "Golden Fleece milestone must be present for Leonor");
-  assert.match(goldenFleece.evidence, /Real Decreto 973\/2015 \(BOE-A-2015-11722, conceded 30 Oct 2015\)/);
+  assert.match(goldenFleece.evidence, /Real Decreto 978\/2015 \(BOE-A-2015-11718, conceded 30 Oct 2015\)/);
   assert.match(goldenFleece.evidence, /30 Jan 2018/);
 });
 
@@ -274,5 +274,29 @@ test("verifies PR 33 review refinements: EventMedia typing, PDF ISO-8601 headers
   const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
   assert.ok(placesExplorer.includes("tree-empty-nested-hint"));
 });
+
+test("verifies CodeRabbit review fixes: evaluateQueryResult falsy values, isSameCity canonical matching, and venue keys", async () => {
+  const { evaluateQueryResult } = await vite.ssrLoadModule("/lib/rewind/result.ts");
+  const { isSameCity } = await vite.ssrLoadModule("/lib/rewind/places.ts");
+  const fs = await import("node:fs");
+
+  // 1. evaluateQueryResult correctly preserves valid falsy data
+  const falsyZeroResult = evaluateQueryResult({ data: 0, error: null });
+  assert.equal(falsyZeroResult.isSuccess, true, "0 should be considered successful data");
+  assert.equal(falsyZeroResult.isNotFound, false);
+
+  const falsyEmptyStrResult = evaluateQueryResult({ data: "", error: null });
+  assert.equal(falsyEmptyStrResult.isSuccess, true, "Empty string should be considered successful data");
+
+  // 2. isSameCity does not match substring containment falsely
+  assert.equal(isSameCity("New York", "York"), false, "New York should not match York");
+  assert.equal(isSameCity("London", "City of Westminster"), true, "London should match Westminster alias");
+  assert.equal(isSameCity("Madrid", "Madrid"), true);
+
+  // 3. PlacesExplorer uses vName as unique React key
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes("<li key={vName}>🏛️ {vName}</li>"));
+});
+
 
 

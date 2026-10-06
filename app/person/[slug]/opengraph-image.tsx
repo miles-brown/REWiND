@@ -50,7 +50,7 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
 
   if (error) {
     console.error(`[OG Image Error] Failed to fetch person metadata for slug "${slug}":`, error.message);
-    return deriveFallbackPersonMeta(slug);
+    return null;
   }
 
   if (data) {

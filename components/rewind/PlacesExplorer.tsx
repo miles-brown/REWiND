@@ -861,8 +861,8 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                     <div className="venues-at-address-box">
                                                       <span className="at-addr-label">Venues situated here:</span>
                                                       <ul className="at-addr-list">
-                                                        {address.venuesLocatedHere.map((vName, idx) => (
-                                                          <li key={idx}>🏛️ {vName}</li>
+                                                        {address.venuesLocatedHere.map((vName) => (
+                                                          <li key={vName}>🏛️ {vName}</li>
                                                         ))}
                                                       </ul>
                                                     </div>

@@ -319,8 +319,11 @@ export function CommandPalette({
                 aria-pressed={isActive}
                 className={`command-filter-pill ${isActive ? "active" : ""}`}
                 onClick={() => {
+                  searchRequestIdRef.current++;
                   setActiveCategory(tab.id);
                   setSelectedIndex(0);
+                  setSearchResults([]);
+                  setSearchError(null);
                   if (tab.id !== "all") {
                     const hasQualifier = /\b(?:type|kind|category):[a-zA-Z_-]+\b/i.test(query);
                     if (hasQualifier) {

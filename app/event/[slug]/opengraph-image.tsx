@@ -57,7 +57,7 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
 
   if (error) {
     console.error(`[OG Image Error] Failed to fetch event metadata for slug "${slug}":`, error.message);
-    return deriveFallbackEventMeta(slug);
+    return null;
   }
 
   if (eventRow) {

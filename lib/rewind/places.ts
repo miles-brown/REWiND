@@ -505,6 +505,11 @@ const CITY_ALIASES: Record<string, string> = {
   "new york city": "New York City",
   "la": "Los Angeles",
   "los angeles": "Los Angeles",
+  "westminster": "London",
+  "city of westminster": "London",
+  "the hague": "The Hague",
+  "'s-gravenhage": "The Hague",
+  "den haag": "The Hague",
 };
 
 export function normalizeCityName(city?: string | null): string {
@@ -524,8 +529,7 @@ export function isSameCity(cityA?: string | null, cityB?: string | null): boolea
   if (normA === normB) return true;
   const cleanA = cityA.toLowerCase().replace(/[^a-z0-9]/g, "");
   const cleanB = cityB.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (cleanA && cleanB && cleanA === cleanB) return true;
-  return normA.includes(normB) || normB.includes(normA);
+  return Boolean(cleanA && cleanB && cleanA === cleanB);
 }
 
 export function resolveCanonicalCountryName(countryOrCode?: string | null): string {

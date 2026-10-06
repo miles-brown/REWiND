@@ -713,7 +713,7 @@ export const royalAwardsSeed: RoyalAwardSeed[] = [
     awardName: "Caballero de la Insigne Orden del Toisón de Oro",
     awardingBody: "Rey Felipe VI de España",
     yearReceived: "2018",
-    citation: "Conceded via Real Decreto 973/2015 (BOE-A-2015-11722) on 30 Oct 2015; solemn collar investiture presented by King Felipe VI on 30 Jan 2018.",
+    citation: "Conceded via Real Decreto 978/2015 (BOE-A-2015-11718) on 30 Oct 2015; solemn collar investiture presented by King Felipe VI on 30 Jan 2018.",
     sourceId: "src-spain-boe-20151031",
   },
   {

@@ -30,9 +30,9 @@ export function evaluateQueryResult<T>(result: QueryResult<T>): EvaluatedQueryRe
   return {
     data: result.data,
     error: result.error,
-    isSuccess: Boolean(result.data && !result.error),
-    isUnavailable: Boolean(result.error && !result.data),
-    isNotFound: !result.data && !result.error,
+    isSuccess: Boolean(result.data !== null && !result.error),
+    isUnavailable: Boolean(result.error && result.data === null),
+    isNotFound: result.data === null && !result.error,
   };
 }
 
@@ -40,7 +40,7 @@ export function evaluateQueryResult<T>(result: QueryResult<T>): EvaluatedQueryRe
  * Unwraps data or returns null if an error or empty state was encountered.
  */
 export function unwrapDataOrNull<T>(result: QueryResult<T>): T | null {
-  if (result.error && !result.data) {
+  if (result.error && result.data === null) {
     return null;
   }
   return result.data;
