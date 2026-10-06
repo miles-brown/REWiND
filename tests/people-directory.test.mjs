@@ -116,5 +116,17 @@ describe("People Directory & Name Parsing Architecture", async () => {
     assert.ok(charles, "King Charles III must exist");
     assert.ok(charles.education && charles.education.length > 0, "Charles III must have education credentials");
     assert.ok(charles.stays && charles.stays.length > 0, "Charles III must have royal residences/stays");
+
+    // Check Tenzin Gyatso (Dalai Lama) clean name, career roles, and milestones
+    const dalaiLama = people.find((p) => p.slug === "dalai-lama");
+    assert.ok(dalaiLama, "Dalai Lama record must exist");
+    assert.equal(dalaiLama.canonicalName, "Tenzin Gyatso", "Canonical name must be clean personal name Tenzin Gyatso");
+    assert.equal(dalaiLama.displayName, "Tenzin Gyatso", "Display name must be clean personal name Tenzin Gyatso");
+    assert.ok(!dalaiLama.displayName.includes("14th Dalai Lama"), "Display name must not contain official numbered role");
+    assert.ok(dalaiLama.career && dalaiLama.career.length > 0, "Dalai Lama must have structured career roles");
+    assert.ok(dalaiLama.career.some((r) => r.positionTitle.includes("14th Dalai Lama")), "14th Dalai Lama must be in structured career roles");
+    assert.ok(dalaiLama.achievements && dalaiLama.achievements.length > 0, "Dalai Lama must have milestones");
+    assert.ok(dalaiLama.achievements.some((m) => m.milestone.includes("Nobel Peace Prize")), "Nobel Peace Prize must be in milestones");
   });
 });
+

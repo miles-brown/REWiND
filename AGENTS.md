@@ -118,6 +118,11 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 3. **Viewport & UI Responsiveness**:
    - The timeline console (`PersonTimeline.tsx` / `RewindExplorer.tsx`) must remain fixed to the viewport bottom with zero-gap clamping and proper padding so content never bleeds or overlaps.
 
+4. **Biographical Naming & Role Separation Invariant**:
+   - Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`).
+   - Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields. Official numbered roles belong strictly in the structured `roles` array (`roles-seed.ts`).
+   - In `primaryRole` and extended summaries, use natural current/former relational descriptors (e.g. `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`).
+
 ---
 
 ## 4. Repository Directory Structure

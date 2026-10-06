@@ -65,5 +65,11 @@ export const officialRolesSeed: OfficialRoleSeed[] = [
   { id: 35, personId: "joe-biden", title: "United States Senator for Delaware", organisationName: "United States Senate", startDate: "1973-01-03", endDate: "2009-01-15", isCurrent: false },
   { id: 36, personId: "joe-biden", title: "Chairman of Senate Foreign Relations Committee", organisationName: "United States Senate", startDate: "2001-06-06", endDate: "2003-01-03", isCurrent: false },
   { id: 37, personId: "joe-biden", title: "47th Vice President of the United States", organisationName: "United States Government", startDate: "2009-01-20", endDate: "2017-01-20", isCurrent: false },
-  { id: 38, personId: "joe-biden", title: "46th President of the United States", organisationName: "United States Government", startDate: "2021-01-20", endDate: "2025-01-20", isCurrent: false }
+  { id: 38, personId: "joe-biden", title: "46th President of the United States", organisationName: "United States Government", startDate: "2021-01-20", endDate: "2025-01-20", isCurrent: false },
+
+  // Tenzin Gyatso (Dalai Lama)
+  { id: 39, personId: "dalai-lama", title: "14th Dalai Lama", organisationName: "Gelug Tibetan Buddhism / Central Tibetan Administration", startDate: "1940-02-22", endDate: null, isCurrent: true },
+  { id: 40, personId: "dalai-lama", title: "Head of State of Tibet", organisationName: "Government of Tibet (Lhasa)", startDate: "1950-11-17", endDate: "1959-03-31", isCurrent: false },
+  { id: 41, personId: "dalai-lama", title: "Leader of Central Tibetan Administration (in exile)", organisationName: "Central Tibetan Administration", startDate: "1959-04-29", endDate: "2011-03-14", isCurrent: false }
 ];
+

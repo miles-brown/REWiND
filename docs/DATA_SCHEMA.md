@@ -123,6 +123,15 @@ export interface PersonRecord {
 }
 ```
 
+#### Biographical Naming & Extended View Style Guidelines
+1. **Strict Separation of Names and Roles**:
+   - `canonicalName` and `displayName` must contain the individual's clean personal name (e.g., `Tenzin Gyatso`, `David Armstrong-Jones`, `Mohammed bin Salman`).
+   - **DO NOT** embed official roles, regnal numbers, or titles into name fields (e.g., do not name a figure `14th Dalai Lama (Tenzin Gyatso)` — `Dalai Lama` is a role, and `14th Dalai Lama` is a historical entry in their roles timeline).
+2. **`primaryRole` & Extended View Descriptions**:
+   - In `primaryRole` and extended card summaries, use relational and current/former descriptive phrasing (e.g., `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`, `Former Prime Minister of Israel`, `Bespoke Furniture Designer`).
+   - Official offices with specific numbers or tenures (such as `14th Dalai Lama`, `46th President of the United States`, `11th Prime Minister of Israel`) belong strictly in the structured `roles` array (`OfficialRoleSeed`) and timeline milestones with start and end dates.
+
+
 ### `PersonStayRecord`
 Represents documented accommodation, official residences, or diplomatic stays.
 ```typescript

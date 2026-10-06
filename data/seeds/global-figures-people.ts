@@ -83,8 +83,8 @@ export const globalFiguresPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "dalai-lama",
     slug: "dalai-lama",
-    canonicalName: "14th Dalai Lama",
-    displayName: "14th Dalai Lama (Tenzin Gyatso)",
+    canonicalName: "Tenzin Gyatso",
+    displayName: "Tenzin Gyatso",
     nativeName: "བསྟན་འཛིན་རྒྱ་མཚོ",
     fullBirthName: "Lhamo Thondup",
     birthDate: "1935-07-06",
@@ -99,7 +99,7 @@ export const globalFiguresPeopleSeed: CanonicalPersonSeed[] = [
     religiousDenomination: "Tibetan Buddhism (Gelug)",
     religionStatus: "self-identified",
     languages: ["Tibetan", "English", "Hindi"],
-    primaryRole: "14th Dalai Lama / Spiritual Leader of Tibetan Buddhism",
+    primaryRole: "Current Dalai Lama & Spiritual Leader of Tibetan Buddhism",
     classification: "religious-leader",
     primaryFigureCategory: "religious-leader",
     notabilityBasis: "14th Dalai Lama and spiritual leader of Tibet (1950–present), 1989 Nobel Peace Prize laureate, leader of Tibetan government-in-exile in Dharamshala, India, advocate of non-violent resolution for Tibetan autonomy and inter-religious dialogue.",
@@ -113,8 +113,8 @@ export const globalFiguresPeopleSeed: CanonicalPersonSeed[] = [
     wikidataId: "Q172",
     viafId: "109605703",
     avatarUrl: null,
-    summary: "Spiritual leader of the Tibetan people and Tibetan Buddhism who received the 1989 Nobel Peace Prize for his non-violent advocacy for human rights and autonomy for Tibet.",
-    aliases: ["Tenzin Gyatso", "Lhamo Thondup", "Kundun"]
+    summary: "Spiritual leader of Tibetan Buddhism and global advocate for secular ethics and Tibetan autonomy who received the 1989 Nobel Peace Prize.",
+    aliases: ["14th Dalai Lama", "Dalai Lama", "Lhamo Thondup", "Kundun", "Gyalwa Rinpoche"]
   },
   {
     id: "theodor-herzl",
