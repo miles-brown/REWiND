@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.person_milestones (
   person_id text NOT NULL REFERENCES public.people(id) ON DELETE CASCADE,
   title text NOT NULL,
   category text NOT NULL,
-  date text,
+  date text NOT NULL,
   year integer NOT NULL,
   description text,
   metric_or_stat text,

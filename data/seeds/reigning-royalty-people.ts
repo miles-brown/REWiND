@@ -618,7 +618,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     inclusionBasis: ["monarch-royal", "head-of-state-or-government", "historical-significance"],
     inclusionRationale: "Future Queen of Spain (first regnant Queen since Isabella II).",
     achievements: [
-      { milestone: "Invested with the Insigne Order of the Golden Fleece", year: 2018, evidence: "Real Decreto 973/2015 (BOE-A-2015-11722); Solemn Collar Investiture by King Felipe VI, Casa Real de España, 30 Jan 2018" },
+      { milestone: "Invested with the Insigne Order of the Golden Fleece", year: 2018, evidence: "Real Decreto 973/2015 (BOE-A-2015-11722, conceded 30 Oct 2015); Solemn Collar Investiture by King Felipe VI, Casa Real de España, 30 Jan 2018" },
       { milestone: "Solemn Constitutional Oath before the Cortes Generales", year: 2023, evidence: "Boletín Oficial del Estado, 31 Oct 2023" },
       { milestone: "Graduated General Military Academy of Zaragoza", year: 2024, evidence: "Ministerio de Defensa de España" }
     ],

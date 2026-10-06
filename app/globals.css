@@ -5197,13 +5197,34 @@ svg { flex: 0 0 auto; }
   align-items: center;
   gap: 14px;
   padding: 16px 20px;
-  cursor: pointer;
   user-select: none;
   transition: background 0.15s ease;
 }
 
 .tree-node-header:hover {
   background: #f8fafc;
+}
+
+.node-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.node-toggle-btn:focus-visible {
+  outline: 2px solid #2789ff;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .country-node {

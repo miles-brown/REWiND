@@ -224,3 +224,29 @@ test("verifies Royal Historical Events Corpus with Co-attendance Rosters", () =>
   assert.ok(dday.participants.some((p) => p.personId === "charles-iii"));
   assert.ok(dday.participants.some((p) => p.personId === "king-frederik-x"));
 });
+
+test("verifies PR 33 Codex review fixes: MCP config, milestone date NOT NULL, PlacesExplorer buttons, and Leonor citation", async () => {
+  const fs = await import("node:fs");
+
+  // 1. .mcp.json has type: http
+  const mcpConfig = JSON.parse(fs.readFileSync(".mcp.json", "utf8"));
+  assert.equal(mcpConfig.mcpServers?.supabase?.type, "http", ".mcp.json supabase server must specify type: http");
+
+  // 2. Migration SQL person_milestones.date NOT NULL
+  const migrationSql = fs.readFileSync("supabase/migrations/20260904040000_schema_perfection_and_travel_corridors.sql", "utf8");
+  assert.match(migrationSql, /CREATE TABLE IF NOT EXISTS public\.person_milestones \([\s\S]*?date text NOT NULL,/);
+
+  // 3. PlacesExplorer tree nodes use separate node-toggle-btn buttons
+  const placesExplorer = fs.readFileSync("components/rewind/PlacesExplorer.tsx", "utf8");
+  assert.ok(placesExplorer.includes('className="node-toggle-btn"'));
+  assert.ok(!placesExplorer.includes('className="tree-node-header country-node"\n                      onClick='));
+
+  // 4. Princess Leonor Golden Fleece citation clarity
+  const leonor = await getPersonBySlug("leonor-princess-of-asturias");
+  assert.ok(leonor);
+  const goldenFleece = leonor.achievements?.find((a) => a.milestone.includes("Golden Fleece"));
+  assert.ok(goldenFleece, "Golden Fleece milestone must be present for Leonor");
+  assert.match(goldenFleece.evidence, /Real Decreto 973\/2015 \(BOE-A-2015-11722, conceded 30 Oct 2015\)/);
+  assert.match(goldenFleece.evidence, /30 Jan 2018/);
+});
+

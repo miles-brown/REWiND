@@ -669,40 +669,36 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                 return (
                   <div key={country.slug} className={`tree-country-card ${isCountryExpanded ? "expanded" : ""}`}>
                     {/* Country Node Header */}
-                    <div
-                      className="tree-node-header country-node"
-                      onClick={() => toggleCountry(country.slug)}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={isCountryExpanded}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleCountry(country.slug);
-                        }
-                      }}
-                    >
-                      <div className="node-toggle-icon">
-                        {isCountryExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                      </div>
-                      <div className="country-flag-badge" aria-hidden="true">
-                        <Globe2 size={16} />
-                      </div>
-                      <div className="node-meta">
-                        <div className="node-title-row">
-                          <span className="tier-tag country-tag">COUNTRY · TIER 1</span>
-                          <h2 className="node-title">{country.name}</h2>
-                          <span className="country-code-chip">{country.code}</span>
+                    <div className="tree-node-header country-node">
+                      <button
+                        type="button"
+                        className="node-toggle-btn"
+                        onClick={() => toggleCountry(country.slug)}
+                        aria-expanded={isCountryExpanded}
+                        aria-label={`${isCountryExpanded ? "Collapse" : "Expand"} ${country.name} hierarchy`}
+                      >
+                        <div className="node-toggle-icon" aria-hidden="true">
+                          {isCountryExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </div>
-                        <div className="node-stats-row">
-                          <span>🏛️ {country.cities.length} {country.cities.length === 1 ? "City" : "Cities"}</span>
-                          <span>·</span>
-                          <span>🏢 {country.venueCount} {country.venueCount === 1 ? "Venue" : "Venues"}</span>
-                          <span>·</span>
-                          <span>📍 {country.addressCount} {country.addressCount === 1 ? "Address" : "Addresses"}</span>
+                        <div className="country-flag-badge" aria-hidden="true">
+                          <Globe2 size={16} />
                         </div>
-                      </div>
-                      <div className="node-actions-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="node-meta">
+                          <div className="node-title-row">
+                            <span className="tier-tag country-tag">COUNTRY · TIER 1</span>
+                            <h2 className="node-title">{country.name}</h2>
+                            <span className="country-code-chip">{country.code}</span>
+                          </div>
+                          <div className="node-stats-row">
+                            <span>🏛️ {country.cities.length} {country.cities.length === 1 ? "City" : "Cities"}</span>
+                            <span>·</span>
+                            <span>🏢 {country.venueCount} {country.venueCount === 1 ? "Venue" : "Venues"}</span>
+                            <span>·</span>
+                            <span>📍 {country.addressCount} {country.addressCount === 1 ? "Address" : "Addresses"}</span>
+                          </div>
+                        </div>
+                      </button>
+                      <div className="node-actions-right">
                         <span className="event-count-badge">{country.eventCount} {country.eventCount === 1 ? "Event" : "Events"}</span>
                         <Link href={`/place/${country.slug}`} className="view-place-link" title={`View ${country.name} Dossier`}>
                           <span>View</span>
@@ -719,43 +715,39 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                           return (
                             <div key={city.slug} className={`tree-city-card ${isCityExpanded ? "expanded" : ""}`}>
                               {/* City Node Header */}
-                              <div
-                                className="tree-node-header city-node"
-                                onClick={() => toggleCity(city.slug)}
-                                role="button"
-                                tabIndex={0}
-                                aria-expanded={isCityExpanded}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    toggleCity(city.slug);
-                                  }
-                                }}
-                              >
-                                <div className="node-toggle-icon">
-                                  {isCityExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                </div>
-                                <div className="city-icon-badge" aria-hidden="true">
-                                  <Building2 size={15} />
-                                </div>
-                                <div className="node-meta">
-                                  <div className="node-title-row">
-                                    <span className="tier-tag city-tag">CITY · TIER 2</span>
-                                    <h3 className="city-title">{city.name}</h3>
+                              <div className="tree-node-header city-node">
+                                <button
+                                  type="button"
+                                  className="node-toggle-btn"
+                                  onClick={() => toggleCity(city.slug)}
+                                  aria-expanded={isCityExpanded}
+                                  aria-label={`${isCityExpanded ? "Collapse" : "Expand"} ${city.name} hierarchy`}
+                                >
+                                  <div className="node-toggle-icon" aria-hidden="true">
+                                    {isCityExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                   </div>
-                                  <div className="node-stats-row">
-                                    <span>{city.venues.length} {city.venues.length === 1 ? "Venue" : "Venues"}</span>
-                                    <span>·</span>
-                                    <span>{city.addresses.length} {city.addresses.length === 1 ? "Address" : "Addresses"}</span>
-                                    {city.latitude && city.longitude && (
-                                      <>
-                                        <span>·</span>
-                                        <span className="coord-text">{city.latitude.toFixed(4)}°, {city.longitude.toFixed(4)}°</span>
-                                      </>
-                                    )}
+                                  <div className="city-icon-badge" aria-hidden="true">
+                                    <Building2 size={15} />
                                   </div>
-                                </div>
-                                <div className="node-actions-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="node-meta">
+                                    <div className="node-title-row">
+                                      <span className="tier-tag city-tag">CITY · TIER 2</span>
+                                      <h3 className="city-title">{city.name}</h3>
+                                    </div>
+                                    <div className="node-stats-row">
+                                      <span>{city.venues.length} {city.venues.length === 1 ? "Venue" : "Venues"}</span>
+                                      <span>·</span>
+                                      <span>{city.addresses.length} {city.addresses.length === 1 ? "Address" : "Addresses"}</span>
+                                      {city.latitude && city.longitude && (
+                                        <>
+                                          <span>·</span>
+                                          <span className="coord-text">{city.latitude.toFixed(4)}°, {city.longitude.toFixed(4)}°</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                                <div className="node-actions-right">
                                   <span className="event-count-badge city-badge">{city.eventCount} Events</span>
                                   <Link href={`/place/${city.slug}`} className="view-place-link" title={`View ${city.name} Chronicles`}>
                                     <span>View</span>
