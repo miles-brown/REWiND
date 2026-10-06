@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { masterPeopleSeed } from "@/data/seeds/index";
 
 export const runtime = "edge";
 export const alt = "REWIND Evidence Atlas — Person Dossier";
@@ -18,12 +19,28 @@ interface PersonMeta {
   classification: string;
 }
 
+function getFallbackPersonMeta(slug: string): PersonMeta | null {
+  const fb = masterPeopleSeed.find(
+    (p) => (p.slug === slug || p.id === slug) && (p.publicationStatus === "published" || !p.publicationStatus)
+  );
+  if (!fb) return null;
+  return {
+    canonicalName: fb.canonicalName || fb.displayName || "",
+    name: fb.displayName || fb.canonicalName || "",
+    description: fb.summary || fb.primaryRole || "",
+    nationality: fb.nationality || "",
+    classification: fb.classification || "public-figure",
+  };
+}
+
 async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
   if (!slug || typeof slug !== "string" || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
     return null;
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) {
+    const fallback = getFallbackPersonMeta(slug);
+    if (fallback) return fallback;
     console.warn("[OG Image] Supabase server client is not configured or unavailable for person OG rendering.");
     return null;
   }
@@ -37,7 +54,7 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
 
   if (error) {
     console.error(`[OG Image Error] Failed to fetch person metadata for slug "${slug}":`, error.message);
-    return null;
+    return getFallbackPersonMeta(slug);
   }
 
   if (data) {

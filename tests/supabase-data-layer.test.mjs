@@ -984,3 +984,31 @@ test("verifies round-37 review fixes: year qualifier fail-closed, category isola
   assert.equal(resolveCanonicalCountryName("United States"), "United States");
   assert.equal(resolveCanonicalCountryName("UK"), "United Kingdom");
 });
+
+test("verifies evaluateQueryResult, unwrapDataOrNull, and query result state transitions", async () => {
+  const { evaluateQueryResult, unwrapDataOrNull } = await vite.ssrLoadModule("/lib/rewind/result.ts");
+
+  // 1. Success state
+  const successRes = evaluateQueryResult({ data: { id: "evt-1" }, error: null });
+  assert.equal(successRes.isSuccess, true);
+  assert.equal(successRes.isUnavailable, false);
+  assert.equal(successRes.isNotFound, false);
+  assert.deepEqual(successRes.data, { id: "evt-1" });
+  assert.deepEqual(unwrapDataOrNull({ data: { id: "evt-1" }, error: null }), { id: "evt-1" });
+
+  // 2. Not Found state
+  const notFoundRes = evaluateQueryResult({ data: null, error: null });
+  assert.equal(notFoundRes.isSuccess, false);
+  assert.equal(notFoundRes.isUnavailable, false);
+  assert.equal(notFoundRes.isNotFound, true);
+  assert.equal(notFoundRes.data, null);
+  assert.equal(unwrapDataOrNull({ data: null, error: null }), null);
+
+  // 3. Unavailable / Error state
+  const errorRes = evaluateQueryResult({ data: null, error: "Database timeout" });
+  assert.equal(errorRes.isSuccess, false);
+  assert.equal(errorRes.isUnavailable, true);
+  assert.equal(errorRes.isNotFound, false);
+  assert.equal(errorRes.error, "Database timeout");
+  assert.equal(unwrapDataOrNull({ data: null, error: "Database timeout" }), null);
+});

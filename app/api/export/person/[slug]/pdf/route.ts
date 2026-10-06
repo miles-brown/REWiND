@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getPersonBySlugWithStatus, getEventsByPersonWithStatus } from "@/lib/rewind";
+import { getPersonBySlugWithStatus, getEventsByPersonWithStatus, evaluateQueryResult } from "@/lib/rewind";
 
 export async function GET(
   request: Request,
@@ -15,16 +15,18 @@ export async function GET(
     );
   }
 
-  const { data: person, error: personError } = await getPersonBySlugWithStatus(slug);
+  const { data: person, isUnavailable: personUnavailable, isNotFound: personNotFound } = evaluateQueryResult(
+    await getPersonBySlugWithStatus(slug)
+  );
 
-  if (personError) {
+  if (personUnavailable) {
     return NextResponse.json(
       { error: "Database error retrieving person record." },
       { status: 500 }
     );
   }
 
-  if (!person) {
+  if (personNotFound || !person) {
     return NextResponse.json(
       { error: "Person record not found or inaccessible for export." },
       { status: 404 }

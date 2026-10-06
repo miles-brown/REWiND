@@ -167,8 +167,33 @@ export function MediaDrawer({
                   {[audioMedia.timestamp, ...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
                 </small>
                 {playbackError && (
-                  <div className="player-error" role="alert" style={{ color: "#f87171", fontSize: "12px", marginTop: "4px" }}>
-                    {playbackError}
+                  <div className="player-error" role="alert" style={{ color: "#f87171", fontSize: "12px", marginTop: "4px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span>{playbackError}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaybackError(null);
+                        if (audioRef.current) {
+                          audioRef.current.load();
+                          audioRef.current.play().catch((err: unknown) => {
+                            setIsPlayingAudio(false);
+                            const detail = err instanceof Error && err.message ? `: ${err.message}` : ". The audio stream may be unavailable.";
+                            setPlaybackError(`Unable to play archival recording${detail}`);
+                          });
+                        }
+                      }}
+                      style={{
+                        background: "rgba(248, 113, 113, 0.1)",
+                        border: "1px solid rgba(248, 113, 113, 0.3)",
+                        color: "#f87171",
+                        borderRadius: "4px",
+                        padding: "1px 6px",
+                        fontSize: "11px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Retry
+                    </button>
                   </div>
                 )}
               </div>

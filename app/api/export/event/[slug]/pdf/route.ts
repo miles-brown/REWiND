@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getEventBySlug } from "@/lib/rewind";
+import { getEventBySlug, evaluateQueryResult } from "@/lib/rewind";
 
 export async function GET(
   request: Request,
@@ -15,9 +15,11 @@ export async function GET(
     );
   }
 
-  const { data: event, error: eventError } = await getEventBySlug(slug);
+  const { data: event, isUnavailable, isNotFound } = evaluateQueryResult(
+    await getEventBySlug(slug)
+  );
 
-  if (eventError || !event) {
+  if (isUnavailable || isNotFound || !event) {
     return NextResponse.json(
       { error: "Event record not found or inaccessible for export." },
       { status: 404 }
