@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { eventsCorpus } from "@/data/seeds/events-corpus";
 
 export const runtime = "edge";
 export const alt = "REWIND Evidence Atlas — Historical Event Record";
@@ -22,18 +21,21 @@ interface EventMeta {
   summary?: string | null;
 }
 
-function getFallbackEventMeta(slug: string): EventMeta | null {
-  const fb = eventsCorpus.find((e) => e.slug === slug || e.id === slug);
-  if (!fb) return null;
+function deriveFallbackEventMeta(slug: string): EventMeta {
+  const formattedTitle = slug
+    .replace(/^evt-\d{4}-\d{2}-\d{2}-|^evt-/, "")
+    .split(/[-_]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
   return {
-    eventName: fb.eventName,
-    startDate: fb.startDate,
-    venueName: fb.venueName || null,
-    city: fb.city || null,
-    country: fb.country || null,
-    eventTypes: fb.eventTypes || null,
-    categories: fb.categories || null,
-    summary: fb.summary || null,
+    eventName: formattedTitle || "Historical Event Record",
+    startDate: "Archival Record",
+    venueName: null,
+    city: null,
+    country: null,
+    eventTypes: ["historical-event"],
+    categories: null,
+    summary: "Temporal evidence and archival event record.",
   };
 }
 
@@ -43,10 +45,7 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    const fallback = getFallbackEventMeta(slug);
-    if (fallback) return fallback;
-    console.warn("[OG Image] Supabase server client is not configured or unavailable for event OG rendering.");
-    return null;
+    return deriveFallbackEventMeta(slug);
   }
 
   const { data: eventRow, error } = await supabase
@@ -58,7 +57,7 @@ async function getEventMeta(slug: string): Promise<EventMeta | null> {
 
   if (error) {
     console.error(`[OG Image Error] Failed to fetch event metadata for slug "${slug}":`, error.message);
-    return getFallbackEventMeta(slug);
+    return deriveFallbackEventMeta(slug);
   }
 
   if (eventRow) {

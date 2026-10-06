@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { masterPeopleSeed } from "@/data/seeds/index";
 
 export const runtime = "edge";
 export const alt = "REWIND Evidence Atlas — Person Dossier";
@@ -19,17 +18,17 @@ interface PersonMeta {
   classification: string;
 }
 
-function getFallbackPersonMeta(slug: string): PersonMeta | null {
-  const fb = masterPeopleSeed.find(
-    (p) => (p.slug === slug || p.id === slug) && (p.publicationStatus === "published" || !p.publicationStatus)
-  );
-  if (!fb) return null;
+function deriveFallbackPersonMeta(slug: string): PersonMeta {
+  const formattedName = slug
+    .split(/[-_]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
   return {
-    canonicalName: fb.canonicalName || fb.displayName || "",
-    name: fb.displayName || fb.canonicalName || "",
-    description: fb.summary || fb.primaryRole || "",
-    nationality: fb.nationality || "",
-    classification: fb.classification || "public-figure",
+    canonicalName: formattedName,
+    name: formattedName,
+    description: "Historical Public Figure Dossier",
+    nationality: "",
+    classification: "PUBLIC FIGURE",
   };
 }
 
@@ -39,10 +38,7 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
   }
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    const fallback = getFallbackPersonMeta(slug);
-    if (fallback) return fallback;
-    console.warn("[OG Image] Supabase server client is not configured or unavailable for person OG rendering.");
-    return null;
+    return deriveFallbackPersonMeta(slug);
   }
 
   const { data, error } = await supabase
@@ -54,7 +50,7 @@ async function getPersonMeta(slug: string): Promise<PersonMeta | null> {
 
   if (error) {
     console.error(`[OG Image Error] Failed to fetch person metadata for slug "${slug}":`, error.message);
-    return getFallbackPersonMeta(slug);
+    return deriveFallbackPersonMeta(slug);
   }
 
   if (data) {
