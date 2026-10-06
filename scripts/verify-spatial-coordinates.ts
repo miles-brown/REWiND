@@ -235,7 +235,9 @@ if (
   if (anomalies.length > 0) {
     console.log("\nDetected Spatial Notices:");
     anomalies.forEach((a, idx) => {
-      const coordText = a.latitude !== null && a.longitude !== null ? `(${a.latitude}, ${a.longitude})` : "(null coordinates)";
+      const latText = a.latitude !== null ? String(a.latitude) : "null";
+      const lngText = a.longitude !== null ? String(a.longitude) : "null";
+      const coordText = `(${latText}, ${lngText})`;
       console.log(`${idx + 1}. [${a.severity.toUpperCase()}] [${a.recordType}: ${a.recordId}] ${a.name} (${a.country ?? "N/A"}) ${coordText} -> ${a.reason}`);
     });
   }

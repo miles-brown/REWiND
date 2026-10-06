@@ -109,8 +109,25 @@ export function CommandPalette({
       if (activeCategory === "all") return DEFAULT_ACTIONS;
       return DEFAULT_ACTIONS.filter((item) => item.type === activeCategory);
     }
-    if (activeCategory === "all") return searchResults;
-    return searchResults.filter((item) => item.type === activeCategory);
+    const explicitTypeMatch = trimmed.match(/\b(?:type|kind|category):([a-zA-Z_-]+)\b/i);
+    const rawCategory = explicitTypeMatch ? explicitTypeMatch[1].toLowerCase() : activeCategory;
+    const categoryMap: Record<string, string> = {
+      events: "event",
+      people: "person",
+      figure: "person",
+      monarch: "person",
+      places: "place",
+      venues: "place",
+      venue: "place",
+      locations: "place",
+      quotes: "quote",
+      statements: "quote",
+      sources: "source",
+      documents: "source",
+    };
+    const effectiveCategory = categoryMap[rawCategory] || rawCategory;
+    if (effectiveCategory === "all") return searchResults;
+    return searchResults.filter((item) => item.type === effectiveCategory);
   }, [trimmed, searchResults, activeCategory]);
 
   useEffect(() => {
@@ -195,6 +212,8 @@ export function CommandPalette({
     } else {
       nextQuery = nextQuery ? `${nextQuery} ${qualifier}` : qualifier;
     }
+    setSelectedIndex(0);
+    setSearchResults([]);
     setQuery(`${nextQuery} `);
     inputRef.current?.focus();
   };

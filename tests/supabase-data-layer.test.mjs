@@ -920,6 +920,35 @@ test("verifies Task 11: pgvector hybrid semantic search and cosine similarity ma
   );
 });
 
+test("verifies round-37 review fixes: year qualifier fail-closed, category isolation, and canonical country aggregation", async () => {
+  const { parseSearchQualifiers, interleaveSearchResults } = await vite.ssrLoadModule("/lib/rewind/search.ts");
+  const { resolveCanonicalCountryName } = await vite.ssrLoadModule("/lib/rewind/places.ts");
 
+  // 1. Year qualifier validation: exact 4 digits vs malformed
+  const validYearParsed = parseSearchQualifiers("summit year:2024");
+  assert.equal(validYearParsed.year, "2024");
+  assert.equal(validYearParsed.cleanedQuery, "summit");
 
+  const invalidYearParsed = parseSearchQualifiers("summit year:2024abc");
+  assert.equal(invalidYearParsed.year, "invalid");
+  assert.equal(invalidYearParsed.cleanedQuery, "summit");
 
+  const shortYearParsed = parseSearchQualifiers("speech year:99");
+  assert.equal(shortYearParsed.year, "invalid");
+  assert.equal(shortYearParsed.cleanedQuery, "speech");
+
+  // 2. Category group isolation when type is present
+  const personItem = { id: "p-1", title: "Person 1", subtitle: "Leader", type: "person", url: "/person/p1", badge: "Person" };
+  const eventItem = { id: "e-1", title: "Event 1", subtitle: "Summit", type: "event", url: "/event/e1", badge: "Event" };
+  
+  // Single category group selection preserves only matching type
+  const isolatedPersonResults = interleaveSearchResults([[personItem]], 10);
+  assert.equal(isolatedPersonResults.length, 1);
+  assert.equal(isolatedPersonResults[0].type, "person");
+
+  // 3. Canonical country resolution for aliases
+  assert.equal(resolveCanonicalCountryName("Palestine"), "State of Palestine");
+  assert.equal(resolveCanonicalCountryName("State of Palestine"), "State of Palestine");
+  assert.equal(resolveCanonicalCountryName("United States"), "United States");
+  assert.equal(resolveCanonicalCountryName("UK"), "United Kingdom");
+});

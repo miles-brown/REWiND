@@ -82,8 +82,7 @@ CREATE TABLE IF NOT EXISTS public.person_milestones (
   description text,
   metric_or_stat text,
   source_id text REFERENCES public.sources(id),
-  created_at timestamp with time zone DEFAULT now() NOT NULL,
-  CONSTRAINT person_milestones_person_title_year_unique UNIQUE (person_id, title, year)
+  created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 -- 3c. Ensure person_career has is_current column
@@ -185,11 +184,20 @@ CREATE POLICY "Allow public read on person works"
 
 DROP POLICY IF EXISTS "Public read event person locations" ON public.event_person_locations;
 DROP POLICY IF EXISTS "Allow public read on event person locations" ON public.event_person_locations;
-CREATE POLICY "Allow public read on event person locations"
+DROP POLICY IF EXISTS "Allow public read on event_person_locations" ON public.event_person_locations;
+CREATE POLICY "Allow public read on event_person_locations"
   ON public.event_person_locations FOR SELECT
   TO anon, authenticated
   USING (
-    public_visibility = 'public-exact' OR public_visibility = 'approximate'
+    public_visibility = 'public-exact'
+    AND EXISTS (
+      SELECT 1 FROM public.event_people ep
+      JOIN public.events e ON e.id = ep.event_id
+      JOIN public.people p ON p.id = ep.person_id
+      WHERE ep.id = event_person_locations.event_person_id
+        AND e.publication_status = 'published'
+        AND p.publication_status = 'published'
+    )
   );
 
 -- 4b. Grant Privileges to Public Client Roles

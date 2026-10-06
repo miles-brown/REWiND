@@ -36,6 +36,7 @@ export function MediaDrawer({
   const [activeMediaIdx, setActiveMediaIdx] = useState(0);
   const [copiedQuote, setCopiedQuote] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [prevEventId, setPrevEventId] = useState(event.id);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -44,6 +45,7 @@ export function MediaDrawer({
     setPrevEventId(event.id);
     setActiveQuoteIdx(0);
     setActiveMediaIdx(0);
+    setPlaybackError(null);
   }
 
   const quotes = event.quotes || [];
@@ -70,13 +72,16 @@ export function MediaDrawer({
     return [];
   }, [event.media, event.sourceIds, event.eventName]);
 
-  const audioMedia = archivalMedia.find((m) => m.kind === "audio" || m.kind.toLowerCase().includes("audio"));
-
   const clampedQuoteIdx = quotes.length > 0 ? Math.min(activeQuoteIdx, quotes.length - 1) : 0;
   const currentQuote = quotes[clampedQuoteIdx];
 
   const clampedMediaIdx = archivalMedia.length > 0 ? Math.min(activeMediaIdx, archivalMedia.length - 1) : 0;
   const currentMedia = archivalMedia[clampedMediaIdx];
+
+  const audioMedia =
+    currentMedia && (currentMedia.kind === "audio" || currentMedia.kind.toLowerCase().includes("audio"))
+      ? currentMedia
+      : archivalMedia.find((m) => m.kind === "audio" || m.kind.toLowerCase().includes("audio"));
 
   // Keyboard navigation: Escape to close, ArrowLeft/Right to navigate active quote or media reel
   useEffect(() => {
@@ -141,7 +146,10 @@ export function MediaDrawer({
               <audio
                 ref={audioRef}
                 src={audioMedia.url}
-                onPlay={() => setIsPlayingAudio(true)}
+                onPlay={() => {
+                  setIsPlayingAudio(true);
+                  setPlaybackError(null);
+                }}
                 onPause={() => setIsPlayingAudio(false)}
                 onEnded={() => setIsPlayingAudio(false)}
                 style={{ display: "none" }}
@@ -158,6 +166,11 @@ export function MediaDrawer({
                 <small>
                   {[audioMedia.timestamp, ...(event.medium || []), event.startDate].filter(Boolean).join(" · ")}
                 </small>
+                {playbackError && (
+                  <div className="player-error" role="alert" style={{ color: "#f87171", fontSize: "12px", marginTop: "4px" }}>
+                    {playbackError}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -167,7 +180,11 @@ export function MediaDrawer({
                     if (isPlayingAudio) {
                       audioRef.current.pause();
                     } else {
-                      audioRef.current.play().catch(() => {});
+                      setPlaybackError(null);
+                      audioRef.current.play().catch(() => {
+                        setIsPlayingAudio(false);
+                        setPlaybackError("Unable to play archival recording. The audio stream may be unavailable.");
+                      });
                     }
                   }
                 }}

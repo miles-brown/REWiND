@@ -219,7 +219,7 @@ export function RelationshipNetworkGraph({
             justifyContent: "center",
           }}
         >
-          <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ maxHeight: "600px" }} role="img" aria-label="Interactive Diplomatic Relationship Topology Graph">
+          <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ maxHeight: "600px" }} role="group" aria-label="Interactive Diplomatic Relationship Topology Graph">
             {/* Draw Links */}
             <g className="graph-links" stroke="rgba(56, 189, 248, 0.25)" role="group" aria-label="Bilateral connection lines">
               {links.map((link) => {

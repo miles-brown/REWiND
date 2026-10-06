@@ -496,6 +496,13 @@ export function resolveCanonicalCountryName(countryOrCode?: string | null): stri
   if (CODE_TO_COUNTRY_MAP[upper]) {
     return CODE_TO_COUNTRY_MAP[upper];
   }
+  const codeFromMap =
+    COUNTRY_CODE_MAP[trimmed] ||
+    COUNTRY_CODE_MAP[trimmed.toLowerCase()] ||
+    COUNTRY_CODE_MAP[upper];
+  if (codeFromMap && CODE_TO_COUNTRY_MAP[codeFromMap]) {
+    return CODE_TO_COUNTRY_MAP[codeFromMap];
+  }
   return trimmed;
 }
 
@@ -593,11 +600,13 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     if (vId) {
       eventCountsByVenueId.set(vId, (eventCountsByVenueId.get(vId) || 0) + 1);
     }
-    const cNorm = (e.city || "Unknown").trim().toLowerCase();
-    if (cNorm) {
-      eventCountsByCity.set(cNorm, (eventCountsByCity.get(cNorm) || 0) + 1);
+    const eventCountryName = resolveCanonicalCountryName(e.country);
+    const eventCityName = (e.city || "Unknown").trim();
+    const cityKey = `${eventCountryName}::${eventCityName}`.toLowerCase();
+    if (eventCityName) {
+      eventCountsByCity.set(cityKey, (eventCountsByCity.get(cityKey) || 0) + 1);
     }
-    const cntryNorm = (e.country || "Unknown").trim().toLowerCase();
+    const cntryNorm = eventCountryName.trim().toLowerCase();
     if (cntryNorm) {
       eventCountsByCountry.set(cntryNorm, (eventCountsByCountry.get(cntryNorm) || 0) + 1);
     }
@@ -629,7 +638,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const streetAddress = meta?.streetAddress || (p.streetAddress || null);
     const venueType = meta?.venueType || p.placeType || "venue";
     const venueAreas = meta?.venueAreas || p.venueAreas || [];
-    const eventCount = eventCountsByVenueId.get(p.id) || (eventCountsByCity.get(cityName.toLowerCase()) || 0);
+    const eventCount = eventCountsByVenueId.get(p.id) || (eventCountsByCity.get(cityCityKey) || 0);
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
@@ -657,7 +666,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         longitude: p.longitude ?? null,
         venueCount: 0,
         addressCount: 0,
-        eventCount: eventCountsByCity.get(cityName.toLowerCase()) || 0,
+        eventCount: eventCountsByCity.get(cityCityKey) || 0,
       };
       citiesMap.set(cityCityKey, cityNode);
 

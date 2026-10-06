@@ -16,7 +16,7 @@
 
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
 import {
@@ -729,8 +729,8 @@ async function syncCorpus() {
         }
       }
 
-      // Reconcile and synchronize claims
-      await tx.delete(schema.claims).where(eq(schema.claims.eventId, evt.id));
+      // Reconcile and synchronize presence claims
+      await tx.delete(schema.claims).where(and(eq(schema.claims.eventId, evt.id), eq(schema.claims.claimType, "presence")));
       for (let idx = 0; idx < (evt.participants || []).length; idx++) {
         const part = evt.participants![idx];
         const canonicalPersonRef = PARTICIPANT_ID_ALIASES[part.personId] || part.personId;

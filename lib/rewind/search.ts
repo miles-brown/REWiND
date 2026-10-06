@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolveCanonicalCountryName } from "./places";
 import type { SearchResultItem } from "./types";
 
 /**
@@ -72,10 +73,15 @@ export function parseSearchQualifiers(query: string): SearchQualifiers {
     }
   }
 
-  const yearMatch = cleaned.match(/\byear:(\d{4})\b/i);
+  const yearMatch = cleaned.match(/\byear:([^\s]+)/i);
   if (yearMatch) {
-    year = yearMatch[1];
     cleaned = cleaned.replace(yearMatch[0], " ");
+    const rawYear = yearMatch[1].trim();
+    if (/^\d{4}$/.test(rawYear)) {
+      year = rawYear;
+    } else {
+      year = "invalid";
+    }
   }
 
   const countryMatch = cleaned.match(/\bcountry:([a-zA-Z_-]+)\b/i);
@@ -145,6 +151,9 @@ export async function searchRewind(
   }
 
   const { cleanedQuery, type, year, country, tier } = parseSearchQualifiers(term);
+  if (year && !/^\d{4}$/.test(year)) {
+    return [];
+  }
   const effectiveTerm = cleanedQuery;
 
   const ilikeEscaped = escapeIlikePattern(effectiveTerm);
@@ -197,7 +206,7 @@ export async function searchRewind(
   if (effectiveTerm) {
     venuesQuery = venuesQuery.ilike("name", `%${ilikeEscaped}%`);
   }
-  venuesQuery = venuesQuery.limit(limit);
+  venuesQuery = venuesQuery.limit(country ? Math.max(limit * 5, 50) : limit);
 
   let sourcesQuery = supabase
     .from("sources")
@@ -366,12 +375,25 @@ export async function searchRewind(
       (addressRows || []).forEach((a: { id: string; city?: string | null; country_code?: string | null }) => addressesMap.set(a.id, a));
     }
 
-    venueRows.forEach((v) => {
+    let addedVenues = 0;
+    for (const v of venueRows) {
+      if (addedVenues >= limit) break;
       const vSlug = v.id.replace(/^plc-|^ven-/, "");
       if (!seenPlaceIds.has(v.id) && !seenPlaceSlugs.has(vSlug)) {
+        const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
+        if (country) {
+          const venueCountry = addr?.country_code ? resolveCanonicalCountryName(addr.country_code).toLowerCase() : "";
+          const venueCountryCode = (addr?.country_code || "").toLowerCase();
+          const targetCountry = country.toLowerCase();
+          const matches =
+            venueCountryCode === targetCountry ||
+            venueCountry === targetCountry ||
+            venueCountry.includes(targetCountry) ||
+            targetCountry.includes(venueCountryCode);
+          if (!matches) continue;
+        }
         seenPlaceIds.add(v.id);
         seenPlaceSlugs.add(vSlug);
-        const addr = v.address_id ? addressesMap.get(v.address_id) : undefined;
         const loc = [addr?.city, addr?.country_code].filter(Boolean).join(", ") || "Venue";
         placeItems.push({
           id: `place-${v.id}`,
@@ -381,8 +403,9 @@ export async function searchRewind(
           url: `/place/${vSlug}`,
           badge: "Place",
         });
+        addedVenues++;
       }
-    });
+    }
   }
 
   const sourceItems: SearchResultItem[] = (sourcesRes.data || []).map((s) => ({
@@ -398,15 +421,15 @@ export async function searchRewind(
 
   if (type) {
     if (type === "person" || type === "people" || type === "figure" || type === "monarch") {
-      categoryGroups = [peopleItems, eventItems, quoteItems, placeItems, sourceItems];
+      categoryGroups = [peopleItems];
     } else if (type === "event" || type === "events") {
-      categoryGroups = [eventItems, peopleItems, placeItems, quoteItems, sourceItems];
+      categoryGroups = [eventItems];
     } else if (type === "place" || type === "places" || type === "venue") {
-      categoryGroups = [placeItems, eventItems, peopleItems, sourceItems, quoteItems];
+      categoryGroups = [placeItems];
     } else if (type === "source" || type === "sources") {
-      categoryGroups = [sourceItems, eventItems, peopleItems, placeItems, quoteItems];
+      categoryGroups = [sourceItems];
     } else if (type === "quote" || type === "quotes") {
-      categoryGroups = [quoteItems, eventItems, peopleItems, placeItems, sourceItems];
+      categoryGroups = [quoteItems];
     }
   }
 
