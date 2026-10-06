@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
+import { officialRolesSeed } from "@/data/seeds/roles-seed";
+import { milestonesSeed } from "@/data/seeds/milestones-seed";
 import {
   royalEducationSeed,
   royalCareerSeed,
@@ -8,7 +10,10 @@ import {
   royalStaysSeed,
 } from "@/data/seeds/royal-bio-details-seed";
 import { getEventsByPersonWithStatus } from "./events";
+import { extractPersonNameParts } from "./utils";
 import type { EventRecord, PersonRecord } from "./types";
+
+export { extractPersonNameParts };
 
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
   const pEdu = royalEducationSeed
@@ -37,6 +42,28 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       notes: c.notes,
       sourceId: c.sourceId,
     }));
+
+  const officialRoles = officialRolesSeed
+    .filter((r) => r.personId === p.id || r.personId === p.slug)
+    .map((r) => ({
+      id: `role-${r.id}`,
+      personId: r.personId,
+      organisationName: r.organisationName,
+      positionTitle: r.title,
+      startDate: r.startDate,
+      endDate: r.endDate ?? undefined,
+    }));
+
+  const allCareer = [...pCareer, ...officialRoles];
+
+  const officialMilestones = milestonesSeed
+    .filter((m) => m.personId === p.id || m.personId === p.slug)
+    .map((m) => ({
+      milestone: m.title,
+      year: m.year || (m.date ? parseInt(m.date.slice(0, 4), 10) : undefined),
+      evidence: m.description,
+    }));
+  const achievements = [...(p.achievements || []), ...officialMilestones];
 
   const pAwards = royalAwardsSeed
     .filter((a) => a.personId === p.id || a.personId === p.slug)
@@ -108,10 +135,10 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     inclusionBasis: p.inclusionBasis,
     inclusionRationale: p.inclusionRationale ?? undefined,
     culturalImpactSummary: p.culturalImpactSummary ?? undefined,
-    achievements: p.achievements,
+    achievements: achievements.length > 0 ? achievements : undefined,
     avatarUrl: p.avatarUrl ?? undefined,
     education: pEdu.length > 0 ? pEdu : undefined,
-    career: pCareer.length > 0 ? pCareer : undefined,
+    career: allCareer.length > 0 ? allCareer : undefined,
     awards: pAwards.length > 0 ? pAwards : undefined,
     works: pWorks.length > 0 ? pWorks : undefined,
     stays: pStays.length > 0 ? pStays : undefined,

@@ -72,6 +72,51 @@ export function formatEventLocation(event: { venueName?: string | null; subvenue
   return parts.filter(Boolean).join(", ") || "Recorded Location";
 }
 
+/**
+ * Extracts first name, last name, and display name for sorting and display.
+ * Handles titular suffixes, commas, and royal honorifics.
+ */
+export function extractPersonNameParts(person: {
+  name?: string;
+  canonicalName?: string;
+  displayName?: string;
+  fullBirthName?: string | null;
+}): { firstName: string; lastName: string; displayName: string } {
+  const displayName = (person.displayName || person.canonicalName || person.name || "").trim();
+
+  if (displayName.includes(",")) {
+    const [firstPart, rest] = displayName.split(",").map((s) => s.trim());
+    const firstName = firstPart.replace(
+      /^(King|Queen|Prince|Princess|Duke|Duchess|Grand Duke|Grand Duchess|Count|Countess|Pope|Archbishop|Infanta|Infante|Rabbi|Sir|Lord|Lady|Dame)\s+/i,
+      ""
+    );
+    const ofTokens = rest.split(/\bof\s+/i);
+    const lastName = ofTokens.length > 1 ? ofTokens[ofTokens.length - 1].trim() : rest;
+    return { firstName, lastName, displayName };
+  }
+
+  const tokens = displayName.split(/\s+/).filter(Boolean);
+  const cleanTokens = tokens.filter(
+    (t) =>
+      !/^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Tsar|Emperor|Empress|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
+        t
+      )
+  );
+
+  if (cleanTokens.length === 0) {
+    return { firstName: tokens[0] || displayName, lastName: tokens[tokens.length - 1] || displayName, displayName };
+  }
+
+  if (cleanTokens.length === 1) {
+    return { firstName: cleanTokens[0], lastName: cleanTokens[0], displayName };
+  }
+
+  const firstName = cleanTokens[0];
+  const lastName = cleanTokens[cleanTokens.length - 1];
+
+  return { firstName, lastName, displayName };
+}
+
 import type { EventRecord, PersonRecord } from "./types";
 
 /**
