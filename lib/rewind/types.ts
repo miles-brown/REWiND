@@ -137,6 +137,7 @@ export interface EventRecord {
   region?: string | null;
   country: string;
   venueName?: string | null;
+  subvenue?: string | null;
   address?: string | null;
   platform?: string | null;
   latitude?: number | null;
