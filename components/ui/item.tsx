@@ -72,14 +72,15 @@ function Item({
 }
 
 const itemMediaVariants = cva(
-  "flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none",
+  "flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none transition-all duration-150",
   {
     variants: {
       variant: {
         default: "bg-transparent",
-        icon: "size-8 rounded-sm border bg-muted [&_svg:not([class*='size-'])]:size-4",
+        icon: "size-10 rounded-md border border-border/80 bg-muted/80 shadow-2xs [&_svg:not([class*='size-'])]:size-5.5",
+        service: "size-11 rounded-lg border border-primary/25 bg-primary/10 text-primary p-2 [&_svg:not([class*='size-'])]:size-6 shadow-xs",
         image:
-          "size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover",
+          "size-11 overflow-hidden rounded-md [&_img]:size-full [&_img]:object-cover",
       },
     },
     defaultVariants: {

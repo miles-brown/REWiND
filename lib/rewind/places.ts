@@ -243,17 +243,6 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-wh-press-room", name: "James S. Brady Press Briefing Room", areaType: "room" },
     ],
   },
-  "white house": {
-    canonicalVenue: "The White House",
-    venueType: "executive-residence",
-    streetAddress: "1600 Pennsylvania Avenue NW",
-    district: "Downtown",
-    city: "Washington, D.C.",
-    country: "United States",
-    countryCode: "US",
-    latitude: 38.8977,
-    longitude: -77.0365,
-  },
   "united states capitol": {
     canonicalVenue: "United States Capitol",
     venueType: "parliament",
@@ -270,17 +259,6 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-capitol-rotunda", name: "Rotunda", areaType: "hall" },
       { id: "area-capitol-statuary-hall", name: "Statuary Hall", areaType: "hall" },
     ],
-  },
-  "us capitol": {
-    canonicalVenue: "United States Capitol",
-    venueType: "parliament",
-    streetAddress: "First Street SE",
-    district: "Capitol Hill",
-    city: "Washington, D.C.",
-    country: "United States",
-    countryCode: "US",
-    latitude: 38.8899,
-    longitude: -77.0090,
   },
   "united nations headquarters": {
     canonicalVenue: "United Nations Headquarters",
@@ -299,17 +277,6 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-un-trusteeship", name: "Trusteeship Council Chamber", areaType: "hall" },
     ],
   },
-  "un headquarters": {
-    canonicalVenue: "United Nations Headquarters",
-    venueType: "international-body",
-    streetAddress: "405 East 42nd Street",
-    district: "Turtle Bay, Manhattan",
-    city: "New York",
-    country: "United States",
-    countryCode: "US",
-    latitude: 40.7499,
-    longitude: -73.9674,
-  },
   "the knesset": {
     canonicalVenue: "The Knesset",
     venueType: "parliament",
@@ -324,17 +291,6 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-knesset-plenary", name: "Knesset Plenary Hall", areaType: "hall" },
       { id: "area-knesset-speakers-chamber", name: "Speaker's Chamber", areaType: "room" },
     ],
-  },
-  "knesset": {
-    canonicalVenue: "The Knesset",
-    venueType: "parliament",
-    streetAddress: "1 Kiryat Ben-Gurion",
-    district: "Givat Ram",
-    city: "Jerusalem",
-    country: "Israel",
-    countryCode: "IL",
-    latitude: 31.7766,
-    longitude: 35.2052,
   },
   "prime minister's office": {
     canonicalVenue: "Prime Minister's Office",
@@ -1548,6 +1504,45 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     ],
   },
 };
+
+const GAZETTEER_ALIASES: Record<string, string> = {
+  "white house": "the white house",
+  "us capitol": "united states capitol",
+  "un headquarters": "united nations headquarters",
+  "knesset": "the knesset",
+  "prime minister’s office": "prime minister's office",
+  "mar-a-lago": "mar-a-lago club",
+  "royal palace of madrid (palacio real)": "royal palace of madrid",
+  "palacio real": "royal palace of madrid",
+  "palacio de las cortes (congreso de los diputados)": "palacio de las cortes",
+  "foreign and commonwealth office": "foreign, commonwealth & development office",
+  "bellevue palace (schloss bellevue)": "bellevue palace",
+  "reichstag building (bundestag)": "reichstag building",
+  "royal palace of brussels (palais royal)": "royal palace of brussels",
+  "palace of the nation (belgian federal parliament)": "palace of the nation",
+  "royal palace of stockholm (stockholms slott)": "royal palace of stockholm",
+  "drottningholm palace (drottningholms slott)": "drottningholm palace",
+  "stockholm concert hall (konserthuset)": "stockholm concert hall",
+  "stockholm city hall (stadshuset)": "stockholm city hall",
+  "palais princier": "palais princier de monaco",
+  "prince's palace of monaco": "palais princier de monaco",
+  "schloss vaduz (vaduz castle)": "schloss vaduz",
+  "royal palace of bucharest (palatul regal)": "royal palace of bucharest",
+  "elisabeta palace (palatul elisabeta)": "elisabeta palace",
+  "national palace of mafra (basilica of mafra)": "national palace of mafra",
+  "metropolitan cathedral of athens (mitropoli)": "metropolitan cathedral of athens",
+  "royal compound (kraljevski dvor)": "the royal palace (kraljevski dvor)",
+  "royal palace of belgrade": "the royal palace (kraljevski dvor)",
+  "oslo city hall (oslo radhus)": "oslo city hall",
+  "ben-gurion international airport": "ben gurion international airport",
+};
+
+for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
+  if (GLOBAL_GAZETTEER_METADATA[canonicalKey]) {
+    GLOBAL_GAZETTEER_METADATA[alias] = GLOBAL_GAZETTEER_METADATA[canonicalKey];
+  }
+}
+
 
 export const COUNTRY_CODE_MAP: Record<string, string> = {
   "United States": "US",

@@ -287,6 +287,7 @@ export function processCandidateEvent(
           placeId: placeResolution.placeId,
           seriesId: null,
           venueId: null,
+          subvenue: ("subvenue" in candidate && typeof (candidate as Record<string, unknown>).subvenue === "string" ? String((candidate as Record<string, unknown>).subvenue) : null),
           addressId: null,
           verificationStatus: policy.lane === "auto-publish" ? "verified" : "provisional",
           confidenceScore: policy.lane === "auto-publish" ? 0.98 : 0.5,

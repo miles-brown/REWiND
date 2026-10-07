@@ -82,6 +82,26 @@ function MessageFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+function MessageUnreadBadge({
+  count,
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { count?: number }) {
+  if (typeof count !== "number" || count <= 0) return null;
+  return (
+    <span
+      data-slot="message-unread-badge"
+      className={cn(
+        "inline-flex items-center justify-center rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold tracking-tight text-white shadow-xs animate-in fade-in zoom-in duration-200",
+        className
+      )}
+      {...props}
+    >
+      {count > 99 ? "99+" : count} unread
+    </span>
+  );
+}
+
 export {
   MessageGroup,
   Message,
@@ -89,4 +109,5 @@ export {
   MessageContent,
   MessageFooter,
   MessageHeader,
+  MessageUnreadBadge,
 }

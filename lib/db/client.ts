@@ -433,6 +433,7 @@ function initializeSeedStore(): MemoryRelationalStore {
       placeId: `plc-${placeSlug}`,
       seriesId: null,
       venueId: null,
+      subvenue: ("subvenue" in e && typeof e.subvenue === "string" ? e.subvenue : null),
       addressId: null,
       verificationStatus: e.verificationStatus,
       confidenceScore: e.verificationStatus === "verified" ? 1.0 : 0.8,

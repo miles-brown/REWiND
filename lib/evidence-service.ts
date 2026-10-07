@@ -736,6 +736,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       placeId: resolvedPlaceId,
       seriesId: null,
       venueId: null,
+      subvenue: data.subvenue || null,
       addressId: null,
       verificationStatus: "verified",
       confidenceScore: 0.98,

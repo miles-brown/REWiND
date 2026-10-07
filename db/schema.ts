@@ -232,6 +232,7 @@ export const events = pgTable("events", {
   placeId: text("place_id").references(() => places.id),
   seriesId: text("series_id").references(() => eventSeries.id),
   venueId: text("venue_id").references(() => venues.id),
+  subvenue: text("subvenue"),
   addressId: text("address_id").references(() => addresses.id),
   verificationStatus: text("verification_status").default("provisional").notNull(), // verified, provisional, disputed
 
