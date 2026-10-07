@@ -18,9 +18,9 @@ const badgeVariants = cva(
           "border-border/80 text-foreground bg-background/50 backdrop-blur-xs [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
-        success: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold",
-        warning: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold",
-        info: "bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 font-bold",
+        success: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 font-bold",
+        warning: "bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 font-bold",
+        info: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold",
       },
     },
     defaultVariants: {

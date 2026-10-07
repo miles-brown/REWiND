@@ -428,6 +428,7 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             endDate: data.endDate || null,
             temporalPrecision: data.temporalPrecision || "exact-day",
             placeId: resolvedPlaceId,
+            subvenue: data?.subvenue || null,
             seriesId: null,
             venueId: null,
             addressId: null,

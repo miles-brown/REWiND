@@ -905,6 +905,7 @@ export function processCandidateEvent(
               endDate: candidate.endDate || null,
               temporalPrecision: candidate.temporalPrecision,
               placeId: effectivePlaceId,
+              subvenue: candidate.subvenue || null,
               seriesId: null,
               venueId: null,
               addressId: null,

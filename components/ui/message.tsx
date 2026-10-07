@@ -87,7 +87,7 @@ function MessageUnreadBadge({
   className,
   ...props
 }: React.ComponentProps<"span"> & { count?: number }) {
-  if (typeof count !== "number" || count <= 0) return null;
+  if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) return null;
   return (
     <span
       data-slot="message-unread-badge"
