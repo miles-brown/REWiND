@@ -282,6 +282,7 @@ export function mapDatabaseEvent(
     city: place.city || rowCity || "Unknown",
     country: place.country || rowCountry || "Unknown",
     venueName: place.venue || rowVenue || undefined,
+    subvenue: row.subvenue ? String(row.subvenue) : undefined,
     latitude: finalLat,
     longitude: finalLng,
     summary: String(row.summary || ""),

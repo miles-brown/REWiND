@@ -131,7 +131,7 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "king hussein international airport": [29.6116, 35.0181],
   "king khalid international airport": [24.9576, 46.6988],
   "cairo international airport": [30.1219, 31.4056],
-  "wadi araba border crossing": [29.5786, 35.0064],
+  "wadi araba border crossing": [29.5786, 34.9781],
   
   // Cities & Districts
   "jerusalem": [31.7683, 35.2137],
@@ -1498,7 +1498,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     country: "Jordan",
     countryCode: "JO",
     latitude: 29.5786,
-    longitude: 35.0064,
+    longitude: 34.9781,
     venueAreas: [
       { id: "area-wadi-araba-pavilion", name: "Plenary Pavilion", areaType: "hall" },
     ],
@@ -1786,18 +1786,18 @@ export function resolveVenueMetadata(venue?: string | null): GazetteerVenueMetad
   if (!venue || !venue.trim()) return null;
   const norm = venue.trim().toLowerCase();
   const clean = normalizeGazetteerKey(venue);
-  if (GLOBAL_GAZETTEER_METADATA[norm]) {
+  if (Object.hasOwn(GLOBAL_GAZETTEER_METADATA, norm)) {
     return GLOBAL_GAZETTEER_METADATA[norm];
   }
-  if (GLOBAL_GAZETTEER_METADATA[clean]) {
+  if (Object.hasOwn(GLOBAL_GAZETTEER_METADATA, clean)) {
     return GLOBAL_GAZETTEER_METADATA[clean];
   }
   const baseNorm = norm.replace(/\s*\([^)]*\)/g, "").trim();
   const baseClean = clean.replace(/\s*\([^)]*\)/g, "").trim();
-  if (GLOBAL_GAZETTEER_METADATA[baseNorm]) {
+  if (Object.hasOwn(GLOBAL_GAZETTEER_METADATA, baseNorm)) {
     return GLOBAL_GAZETTEER_METADATA[baseNorm];
   }
-  if (GLOBAL_GAZETTEER_METADATA[baseClean]) {
+  if (Object.hasOwn(GLOBAL_GAZETTEER_METADATA, baseClean)) {
     return GLOBAL_GAZETTEER_METADATA[baseClean];
   }
   return null;
@@ -1825,7 +1825,9 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   // 1. Fetch all raw places from DB or fallback
   let rawPlaces: PlaceRecord[] = [];
   if (!supabase) {
-    rawPlaces = Object.entries(GLOBAL_GAZETTEER_METADATA).map(([key, meta]) => {
+    rawPlaces = Object.entries(GLOBAL_GAZETTEER_METADATA)
+      .filter(([key]) => !Object.hasOwn(GAZETTEER_ALIASES, key))
+      .map(([key, meta]) => {
       const slug = sanitizePlaceSlug(key);
       return {
         id: `plc-${slug}`,
@@ -2319,9 +2321,16 @@ export async function getPlaceBySlug(
         return { data: { place, events: eventsRes.data || [] }, error: null };
       }
 
-      const matchedVenue = hierarchy.allVenues.find(
-        (v) => v.slug === slug || v.name.toLowerCase().replace(/[^\w]/g, "-") === slug || v.name.toLowerCase().replace(/\s+/g, "-") === slug
-      );
+      const matchedVenue = hierarchy.allVenues.find((v) => {
+        const normName = v.name.toLowerCase().replace(/^(the|a|an)\s+/, "").trim();
+        const normSlug = normName.replace(/[^a-z0-9_-]+/g, "-").replace(/-+/g, "-");
+        return (
+          v.slug === slug ||
+          v.name.toLowerCase().replace(/[^\w]+/g, "-") === slug ||
+          v.name.toLowerCase().replace(/\s+/g, "-") === slug ||
+          normSlug === slug
+        );
+      });
       if (matchedVenue) {
         const place: PlaceRecord = {
           id: matchedVenue.id,

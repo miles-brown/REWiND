@@ -159,6 +159,7 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
       // Venue coordinates resolution
       const resolved = resolveGazetteerCoordinates({ venue: evt.venueName, city: evt.city, country: evt.country });
       assert.ok(resolved, `Event ${evt.id} venue "${evt.venueName}" must resolve coordinates in gazetteer`);
+      assert.equal(resolved.source, "venue", `Event ${evt.id} venue "${evt.venueName}" resolution source must be "venue"`);
 
       // Venue metadata resolution
       const meta = resolveVenueMetadata(evt.venueName);
@@ -178,7 +179,7 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
       assert.ok(meta.city, `Key "${key}" must have city`);
       assert.ok(meta.country, `Key "${key}" must have country`);
       assert.ok(meta.countryCode, `Key "${key}" must have countryCode`);
-      assert.ok(COUNTRY_CODE_MAP[meta.country], `Key "${key}" country "${meta.country}" must be in COUNTRY_CODE_MAP`);
+      assert.equal(meta.countryCode, COUNTRY_CODE_MAP[meta.country], `Key "${key}" countryCode "${meta.countryCode}" must match COUNTRY_CODE_MAP["${meta.country}"]`);
       assert.ok(meta.latitude >= -90 && meta.latitude <= 90, `Key "${key}" latitude out of bounds`);
       assert.ok(meta.longitude >= -180 && meta.longitude <= 180, `Key "${key}" longitude out of bounds`);
       assert.ok(!(meta.latitude === 0 && meta.longitude === 0), `Key "${key}" coordinates must not be Null Island`);

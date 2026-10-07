@@ -606,7 +606,7 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
     platform: "Bilateral Peace Treaty Ceremony",
     address: "Arava Valley Border Site, Aqaba",
     latitude: 29.5786,
-    longitude: 35.0064,
+    longitude: 34.9781,
     locationPrecision: "venue",
     summary: "Israeli Prime Minister Yitzhak Rabin and Jordanian Prime Minister Abdelsalam al-Majali sign the historic Treaty of Peace between Israel and Jordan in the Arava desert, witnessed by US President Bill Clinton and King Hussein I.",
     description: "The treaty normalized relations between the two neighbors, resolved boundary and water disputes, and recognized Jordan's special historic role in the Muslim Holy shrines in Jerusalem.",

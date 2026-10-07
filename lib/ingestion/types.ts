@@ -87,6 +87,7 @@ export const ExtractedCandidateEventSchema = z
       "historical-action",
     ]),
     venue: z.string(),
+    subvenue: z.string().optional(),
     city: z.string(),
     country: z.string(),
     latitude: z.number().min(-90).max(90).optional(),
