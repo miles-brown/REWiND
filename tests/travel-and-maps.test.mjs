@@ -317,14 +317,56 @@ test("verifies PersonTimeline.tsx and MapGraphic.tsx layout non-collision and Ba
     cssContent.includes(".map-floating-controls"),
     "globals.css must define floating vertical navigation controls"
   );
+});
+
+test("verifies forensic venue pin rendering, multi-state contrails, and satellite high-resolution zoom", () => {
+  const mapContent = fs.readFileSync(path.join(root, "components/rewind/MapGraphic.tsx"), "utf-8");
+  const cssContent = fs.readFileSync(path.join(root, "app/globals.css"), "utf-8");
+
+  // 1. MapGraphic multi-state trajectory synchronization
   assert.ok(
-    cssContent.includes(".map-stage-label .base-of-operations-pill"),
-    "globals.css must define Base of Operations styling with high specificity"
+    mapContent.includes("syncMapTrajectories"),
+    "MapGraphic.tsx must define syncMapTrajectories for dynamic timeline contrail management"
   );
   assert.ok(
-    cssContent.includes(".webgl-map-marker.forensic-pin:focus-visible .pin-visual-wrapper"),
-    "globals.css must define high-contrast focus-visible ring for keyboard accessibility on forensic pins"
+    mapContent.includes("trajectories-past") && mapContent.includes("trajectories-future"),
+    "MapGraphic.tsx must support darkened past and ghosted future trajectory layers"
+  );
+  assert.ok(
+    mapContent.includes("active-leg-glow"),
+    "MapGraphic.tsx must render pulsating contrail glow underlay for active journey leg"
+  );
+
+  // 2. Venue pin badge generation
+  assert.ok(
+    mapContent.includes("marker-venue-badge"),
+    "MapGraphic.tsx must generate dedicated marker-venue-badge elements on forensic pins"
+  );
+  assert.ok(
+    mapContent.includes("venue-title-text") && mapContent.includes("venue-sub-text"),
+    "MapGraphic.tsx must render venue title and city/country subtitle on pins"
+  );
+
+  // 3. Satellite detailed zoom and angles
+  assert.ok(
+    mapContent.includes("targetZoom") && mapContent.includes("13.5"),
+    "MapGraphic.tsx must zoom in to ~13.5 on satellite mode to reveal detailed venue features"
+  );
+
+  // 4. Global CSS styling contracts
+  assert.ok(
+    cssContent.includes(".marker-venue-badge"),
+    "globals.css must define .marker-venue-badge styling"
+  );
+  assert.ok(
+    cssContent.includes(".webgl-map-marker.satellite-theme"),
+    "globals.css must define satellite HUD styling for map pins"
+  );
+  assert.ok(
+    cssContent.includes(".svg-trajectory-arc.past") && cssContent.includes(".svg-trajectory-arc.future"),
+    "globals.css must define past (darkened) and future (ghosted) SVG arc styles"
   );
 });
+
 
 

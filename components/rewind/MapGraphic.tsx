@@ -228,21 +228,106 @@ function getThemeCameraSettings(
   };
 }
 
-function addTrajectoriesToMap(
+function syncMapTrajectories(
   map: MapLibreMap,
-  points: EventRecord[],
+  allPoints: EventRecord[],
+  activeIdx: number,
   theme: "geopolitical" | "satellite" | "dark"
 ) {
-  const lineCoordinates =
-    points.length >= 2
-      ? points
-          .filter(
-            (p): p is typeof p & { longitude: number; latitude: number } =>
-              p.longitude != null && p.latitude != null
-          )
-          .map(({ longitude, latitude }) => [longitude, latitude])
-      : [];
+  if (!map.isStyleLoaded()) return;
 
+  const validPoints = allPoints.filter(
+    (p): p is typeof p & { longitude: number; latitude: number } =>
+      p.longitude != null && p.latitude != null
+  );
+
+  const pastPoints = validPoints.slice(0, Math.max(0, activeIdx));
+  const futurePoints = validPoints.slice(Math.max(0, activeIdx));
+
+  const pastCoords = pastPoints.length >= 2 ? pastPoints.map((p) => [p.longitude, p.latitude]) : [];
+  const futureCoords = futurePoints.length >= 2 ? futurePoints.map((p) => [p.longitude, p.latitude]) : [];
+
+  const pastColor =
+    theme === "satellite" ? "#0284c7" : theme === "geopolitical" ? "#64748b" : "#475569";
+  const futureColor =
+    theme === "satellite" ? "#1e293b" : theme === "geopolitical" ? "#94a3b8" : "#334155";
+
+  // 1. Past Trajectory Layer (Darkened / Dimmed trail of historical stops)
+  const pastSource = map.getSource("trajectories-past") as GeoJSONSource | undefined;
+  if (pastSource && "setData" in pastSource) {
+    pastSource.setData({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: pastCoords },
+    });
+  } else if (!pastSource) {
+    map.addSource("trajectories-past", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: pastCoords },
+      },
+    });
+  }
+
+  if (map.getSource("trajectories-past") && !map.getLayer("trajectory-past-line")) {
+    map.addLayer({
+      id: "trajectory-past-line",
+      type: "line",
+      source: "trajectories-past",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": pastColor,
+        "line-width": 2.5,
+        "line-opacity": theme === "satellite" ? 0.6 : 0.5,
+        "line-dasharray": [2, 2],
+      },
+    });
+  } else if (map.getLayer("trajectory-past-line")) {
+    map.setPaintProperty("trajectory-past-line", "line-color", pastColor);
+    map.setPaintProperty("trajectory-past-line", "line-opacity", theme === "satellite" ? 0.6 : 0.5);
+  }
+
+  // 2. Future Trajectory Layer (Subtle unreached timeline stops)
+  const futureSource = map.getSource("trajectories-future") as GeoJSONSource | undefined;
+  if (futureSource && "setData" in futureSource) {
+    futureSource.setData({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: futureCoords },
+    });
+  } else if (!futureSource) {
+    map.addSource("trajectories-future", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: futureCoords },
+      },
+    });
+  }
+
+  if (map.getSource("trajectories-future") && !map.getLayer("trajectory-future-line")) {
+    map.addLayer({
+      id: "trajectory-future-line",
+      type: "line",
+      source: "trajectories-future",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": futureColor,
+        "line-width": 1.8,
+        "line-opacity": theme === "satellite" ? 0.35 : 0.25,
+        "line-dasharray": [1, 2],
+      },
+    });
+  } else if (map.getLayer("trajectory-future-line")) {
+    map.setPaintProperty("trajectory-future-line", "line-color", futureColor);
+    map.setPaintProperty("trajectory-future-line", "line-opacity", theme === "satellite" ? 0.35 : 0.25);
+  }
+
+  // 3. Overall Trajectories compatibility source and layer
+  const lineCoordinates = validPoints.length >= 2 ? validPoints.map((p) => [p.longitude, p.latitude]) : [];
   const existingSource = map.getSource("trajectories") as GeoJSONSource | undefined;
 
   if (existingSource && "setData" in existingSource) {
@@ -312,7 +397,7 @@ function updateActiveLegRoute(
       ? fullLineCoords.slice(0, Math.max(progressIndex + 1, 2))
       : fullLineCoords;
 
-  let color = "#38bdf8"; // cyan for air / flight
+  let color = "#38bdf8"; // vibrant cyan for flight / air
   if (mode === "car" || mode === "bus" || mode === "motorcade" || mode === "police-convoy") {
     color = "#f59e0b"; // gold/amber for road/convoy
   } else if (mode === "boat" || mode === "ship") {
@@ -360,7 +445,44 @@ function updateActiveLegRoute(
     map.setPaintProperty("active-leg-planned-line", "line-opacity", isAir ? 0.35 : 0.25);
   }
 
-  // 2. Active solid drawn path layer
+  // 2. Active Pulsating Contrail Glow Underlay Layer
+  const glowSource = map.getSource("active-leg-glow") as GeoJSONSource | undefined;
+  if (glowSource && "setData" in glowSource) {
+    glowSource.setData({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: activeCoords },
+    });
+  } else if (!glowSource && activeCoords.length >= 2) {
+    map.addSource("active-leg-glow", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: activeCoords },
+      },
+    });
+  }
+
+  if (map.getSource("active-leg-glow") && !map.getLayer("active-leg-glow-line")) {
+    map.addLayer({
+      id: "active-leg-glow-line",
+      type: "line",
+      source: "active-leg-glow",
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": color,
+        "line-width": isAir ? 12.0 : 10.0,
+        "line-opacity": 0.45,
+        "line-blur": 5.0,
+      },
+    });
+  } else if (map.getLayer("active-leg-glow-line")) {
+    map.setPaintProperty("active-leg-glow-line", "line-color", color);
+    map.setPaintProperty("active-leg-glow-line", "line-width", isAir ? 12.0 : 10.0);
+  }
+
+  // 3. Active solid drawn path layer
   const existingSource = map.getSource("active-leg-route") as GeoJSONSource | undefined;
 
   if (existingSource && "setData" in existingSource) {
@@ -397,13 +519,13 @@ function updateActiveLegRoute(
       },
       paint: {
         "line-color": color,
-        "line-width": isAir ? 4.0 : 4.5,
-        "line-opacity": 0.95,
+        "line-width": isAir ? 4.5 : 5.0,
+        "line-opacity": 1.0,
       },
     });
   } else if (map.getLayer("active-leg-line")) {
     map.setPaintProperty("active-leg-line", "line-color", color);
-    map.setPaintProperty("active-leg-line", "line-width", isAir ? 4.0 : 4.5);
+    map.setPaintProperty("active-leg-line", "line-width", isAir ? 4.5 : 5.0);
   }
 }
 
@@ -499,12 +621,14 @@ export function MapGraphic({
   const selectedEventRef = useRef(selectedEvent);
   const activeJourneyRef = useRef(activeJourney);
 
+  const selectedIndexRef = useRef(selectedIndex);
   useEffect(() => {
     pointsRef.current = points;
     mapThemeRef.current = mapTheme;
     selectedEventRef.current = selectedEvent;
     activeJourneyRef.current = activeJourney;
-  }, [points, mapTheme, selectedEvent, activeJourney]);
+    selectedIndexRef.current = selectedIndex;
+  }, [points, mapTheme, selectedEvent, activeJourney, selectedIndex]);
 
   // Escape key collapses expanded map view
   useEffect(() => {
@@ -523,14 +647,16 @@ export function MapGraphic({
   const clusters = useMemo(() => {
     const map = new Map<string, typeof coords>();
     coords.forEach((pt) => {
-      const key = `${pt.x.toFixed(1)}_${pt.y.toFixed(1)}`;
+      const venueKey = pt.e.venueName ? pt.e.venueName.trim().toLowerCase() : "";
+      const key = `${pt.x.toFixed(2)}_${pt.y.toFixed(2)}_${venueKey}`;
       const existing = map.get(key) || [];
       existing.push(pt);
       map.set(key, existing);
     });
     return Array.from(map.values()).map((group) => {
-      const topPt = group.find((p) => p.e.id === selected) || group[group.length - 1];
-      const hasSelected = group.some((p) => p.e.id === selected);
+      const topPt = group.find((p) => p.e.id === selected || p.e.slug === selected) || group[group.length - 1];
+      const hasSelected = group.some((p) => p.e.id === selected || p.e.slug === selected);
+      const isVisited = group.some((p) => chronologicalPoints.some((cp) => cp.id === p.e.id));
       const allVerified = group.every((p) => p.e.verificationStatus === "verified");
       return {
         x: topPt.x,
@@ -538,10 +664,34 @@ export function MapGraphic({
         event: topPt.e,
         count: group.length,
         hasSelected,
+        isVisited,
         allVerified,
       };
     });
-  }, [coords, selected]);
+  }, [coords, selected, chronologicalPoints]);
+
+  const { pastArcs, futureArcs } = useMemo(() => {
+    if (coords.length < 2) return { pastArcs: "", futureArcs: "" };
+    const pastIdx = Math.max(0, selectedIndex);
+    const pastCoords = coords.slice(0, pastIdx + 1);
+    const futureCoords = coords.slice(pastIdx);
+
+    const buildArcString = (pts: typeof coords) => {
+      if (pts.length < 2) return "";
+      return pts.reduce((acc, curr, i, arr) => {
+        if (i === 0) return `M ${curr.x} ${curr.y}`;
+        const prev = arr[i - 1];
+        const mx = (prev.x + curr.x) / 2;
+        const my = Math.min(prev.y, curr.y) - 6;
+        return `${acc} Q ${mx} ${my} ${curr.x} ${curr.y}`;
+      }, "");
+    };
+
+    return {
+      pastArcs: buildArcString(pastCoords),
+      futureArcs: buildArcString(futureCoords),
+    };
+  }, [coords, selectedIndex]);
 
   const arcs = useMemo(() => {
     if (coords.length < 2) return "";
@@ -620,11 +770,15 @@ export function MapGraphic({
         const isAir = isAirTransport(activeJourneyRef.current.mode);
         const cam = getThemeCameraSettings(mapThemeRef.current, isAir, activeJourneyRef.current.bearing);
 
+        const initialZoom = selectedEventRef.current?.venueName
+          ? (mapThemeRef.current === "satellite" ? 13.0 : 11.5)
+          : (mapThemeRef.current === "satellite" ? 6.5 : 5.0);
+
         const map = new Map({
           container: mapContainerRef.current,
           style: initialStyle,
           center: initialCenter,
-          zoom: 4.2,
+          zoom: initialZoom,
           pitch: cam.pitch,
           bearing: cam.bearing,
           attributionControl: { compact: true },
@@ -662,7 +816,7 @@ export function MapGraphic({
         const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-          addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
+          syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
           if (activeLegRouteRef.current) {
             updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
           }
@@ -672,7 +826,7 @@ export function MapGraphic({
         map.on("load", setupMapLayers);
         map.on("style.load", () => {
           if (!isCancelled) {
-            addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
+            syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
             if (activeLegRouteRef.current) {
               updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
             }
@@ -767,10 +921,11 @@ export function MapGraphic({
     import("maplibre-gl").then(async ({ Marker }) => {
       if (isCancelled) return;
 
-      // Group points by location proximity for clean clustering
+      // Group points by location and venue identity so distinct venues receive distinct pins
       const grouped = new Map<string, typeof points>();
       points.forEach((p) => {
-        const key = `${p.latitude?.toFixed(2)}_${p.longitude?.toFixed(2)}`;
+        const venueKey = p.venueName ? p.venueName.trim().toLowerCase() : (p.city || "").toLowerCase();
+        const key = `${p.latitude?.toFixed(4)}_${p.longitude?.toFixed(4)}_${venueKey}`;
         const list = grouped.get(key) || [];
         list.push(p);
         grouped.set(key, list);
@@ -779,11 +934,11 @@ export function MapGraphic({
       const visitedIdSet = new Set(chronologicalPoints.map((cp) => cp.id));
 
       grouped.forEach((eventList) => {
-        const rep = eventList.find((e) => e.id === selected) || eventList[eventList.length - 1];
+        const rep = eventList.find((e) => e.id === selected || e.slug === selected) || eventList[eventList.length - 1];
         if (rep.latitude == null || rep.longitude == null) return;
         const { longitude, latitude } = rep;
 
-        const isSelected = eventList.some((e) => e.id === selected);
+        const isSelected = eventList.some((e) => e.id === selected || e.slug === selected);
         const isVisited = eventList.some((e) => visitedIdSet.has(e.id));
         const isVerified = eventList.every((e) => e.verificationStatus === "verified");
 
@@ -791,15 +946,15 @@ export function MapGraphic({
         el.type = "button";
         el.className = `webgl-map-marker forensic-pin ${isSelected ? "selected active-focus" : isVisited ? "visited" : "future-location"} ${
           isVerified ? "verified" : "provisional"
-        } ${mapTheme === "satellite" ? "satellite-theme" : mapTheme === "geopolitical" ? "geopolitical-theme" : ""}`;
-        const tooltipText = `${rep.city} · ${
+        } ${mapTheme === "satellite" ? "satellite-theme" : mapTheme === "geopolitical" ? "geopolitical-theme" : "dark-theme"}`;
+
+        const venueDisplayName = rep.venueName || rep.city;
+        const tooltipText = `${venueDisplayName} · ${
           eventList.length > 1 ? `${eventList.length} events` : rep.eventName
         }`;
-        const ariaLabelText = `${isSelected ? "Selected location: " : ""}${rep.eventName}, ${
-          rep.city
-        } (${eventList.length} documented record${eventList.length > 1 ? "s" : ""})${
-          rep.venueName ? `, Venue: ${rep.venueName}` : ""
-        }`;
+        const ariaLabelText = `${isSelected ? "Active stop: " : ""}${rep.eventName}, ${
+          rep.venueName ? `Venue: ${rep.venueName}, ` : ""
+        }${rep.city}, ${rep.country} (${eventList.length} documented record${eventList.length > 1 ? "s" : ""})`;
 
         el.setAttribute("aria-label", ariaLabelText);
         el.setAttribute("aria-pressed", isSelected ? "true" : "false");
@@ -811,8 +966,8 @@ export function MapGraphic({
         const pinSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         pinSvg.setAttribute("class", "forensic-pin-svg");
         pinSvg.setAttribute("viewBox", "0 0 24 32");
-        pinSvg.setAttribute("width", isSelected ? "26" : "22");
-        pinSvg.setAttribute("height", isSelected ? "34" : "30");
+        pinSvg.setAttribute("width", isSelected ? "28" : "22");
+        pinSvg.setAttribute("height", isSelected ? "36" : "30");
         pinSvg.setAttribute("fill", "none");
         pinSvg.setAttribute("aria-hidden", "true");
 
@@ -861,11 +1016,24 @@ export function MapGraphic({
         tooltip.setAttribute("aria-hidden", "true");
         el.appendChild(tooltip);
 
-        const cityLabel = document.createElement("span");
-        cityLabel.className = "marker-city-pill";
-        cityLabel.textContent = rep.city;
-        cityLabel.setAttribute("aria-hidden", "true");
-        el.appendChild(cityLabel);
+        // Venue and City Badge displaying rich venue details
+        const venuePill = document.createElement("div");
+        venuePill.className = "marker-city-pill marker-venue-badge";
+
+        const venueTitleSpan = document.createElement("span");
+        venueTitleSpan.className = "venue-title-text";
+        venueTitleSpan.textContent = venueDisplayName;
+        venuePill.appendChild(venueTitleSpan);
+
+        if (rep.venueName && rep.venueName !== rep.city) {
+          const venueSubSpan = document.createElement("small");
+          venueSubSpan.className = "venue-sub-text";
+          venueSubSpan.textContent = rep.city;
+          venuePill.appendChild(venueSubSpan);
+        }
+
+        venuePill.setAttribute("aria-hidden", "true");
+        el.appendChild(venuePill);
 
         const handleActivate = () => {
           onSelect?.(rep.id);
@@ -885,6 +1053,9 @@ export function MapGraphic({
 
         markersRef.current.push(marker);
       });
+
+      // Synchronize darkened past trails and future trajectories
+      syncMapTrajectories(map, points, selectedIndex, mapTheme);
 
       // Dynamic Transit Animation: Air/Helicopter 3D Arc vs Ground Progressively Drawn Network Path
       if (
@@ -949,7 +1120,7 @@ export function MapGraphic({
               pitch: themeCam.pitch,
               bearing: themeCam.bearing,
               duration: themeCam.duration,
-              maxZoom: 13,
+              maxZoom: mapTheme === "satellite" ? 14 : 12,
               essential: true,
             }
           );
@@ -1115,28 +1286,6 @@ export function MapGraphic({
           animFrameRef.current = requestAnimationFrame(animateLeg);
         }
       }
-
-      // Update trajectory line coordinates for chronological route
-      const source = map.getSource("trajectories") as GeoJSONSource | undefined;
-      if (source && "setData" in source) {
-        const lineCoords =
-          chronologicalPoints.length >= 2
-            ? chronologicalPoints
-                .filter(
-                  (p): p is typeof p & { longitude: number; latitude: number } =>
-                    p.longitude != null && p.latitude != null
-                )
-                .map(({ longitude, latitude }) => [longitude, latitude])
-            : [];
-        source.setData({
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: lineCoords,
-          },
-        });
-      }
     });
 
     return () => {
@@ -1148,9 +1297,9 @@ export function MapGraphic({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [points, chronologicalPoints, selected, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
+  }, [points, chronologicalPoints, selected, selectedIndex, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
 
-  // Smooth fly-to camera movement on selection change when not in active multi-city journey
+  // Smooth fly-to camera movement on selection change with high-resolution venue zoom
   useEffect(() => {
     if (mapMode !== "webgl" || !mapInstanceRef.current || !selectedEvent) return;
     if (selectedEvent.longitude == null || selectedEvent.latitude == null) return;
@@ -1159,9 +1308,14 @@ export function MapGraphic({
     const isAir = isAirTransport(activeJourney.mode);
     const cam = getThemeCameraSettings(mapTheme, isAir, 0);
 
+    const targetZoom =
+      mapTheme === "satellite"
+        ? (selectedEvent.venueName ? 13.5 : 11.0)
+        : (selectedEvent.venueName ? 12.0 : 7.0);
+
     mapInstanceRef.current.flyTo({
       center: [selectedEvent.longitude, selectedEvent.latitude],
-      zoom: 5.5,
+      zoom: targetZoom,
       pitch: cam.pitch,
       bearing: cam.bearing,
       duration: 1100,
@@ -1387,8 +1541,14 @@ export function MapGraphic({
             <line x1="50" y1="0" x2="50" y2="100" className="grid-lon prime-meridian" aria-hidden="true" />
             <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" aria-hidden="true" />
 
-            {/* Geodesic Flight & Transit Arcs */}
-            {arcs && <path d={arcs} className="svg-trajectory-arc" />}
+            {/* Future Geodesic Flight & Transit Arcs (Subtle Ghosted) */}
+            {futureArcs && <path d={futureArcs} className="svg-trajectory-arc future" />}
+
+            {/* Past Geodesic Flight & Transit Arcs (Darkened) */}
+            {pastArcs && <path d={pastArcs} className="svg-trajectory-arc past" />}
+
+            {/* Complete trajectory arc fallback */}
+            {arcs && !pastArcs && <path d={arcs} className="svg-trajectory-arc" />}
 
             {/* Active Highlighted Journey Arc */}
             {activeSvgArc && (
@@ -1399,24 +1559,26 @@ export function MapGraphic({
           {/* SVG Cluster Pins */}
           {clusters.map((c) => {
             const isSelected = c.hasSelected;
+            const isVisited = c.isVisited;
+            const venueLabel = c.event.venueName || c.event.city;
             return (
               <button
                 key={`${c.x}-${c.y}`}
                 type="button"
-                className={`forensic-svg-pin ${isSelected ? "selected" : ""} ${
+                className={`forensic-svg-pin ${isSelected ? "selected active-focus" : isVisited ? "visited" : "future-location"} ${
                   c.allVerified ? "verified" : "provisional"
                 }`}
                 style={{ left: `${c.x}%`, top: `${c.y}%` }}
                 onClick={() => onSelect?.(c.event.id)}
-                aria-label={`${isSelected ? "Selected: " : ""}${c.event.city}, ${c.event.eventName} (${c.count} records)`}
+                aria-label={`${isSelected ? "Active stop: " : ""}${c.event.venueName ? `${c.event.venueName}, ` : ""}${c.event.city}, ${c.event.eventName} (${c.count} records)`}
                 aria-pressed={isSelected}
               >
                 <div className="svg-pin-wrapper">
                   <svg
                     className="svg-pin-graphic"
                     viewBox="0 0 24 32"
-                    width={isSelected ? 22 : 16}
-                    height={isSelected ? 28 : 22}
+                    width={isSelected ? 24 : 18}
+                    height={isSelected ? 30 : 24}
                     aria-hidden="true"
                   >
                     <path
@@ -1427,9 +1589,12 @@ export function MapGraphic({
                   </svg>
                   {isSelected && <span className="svg-pulse-wave" aria-hidden="true" />}
                 </div>
-                <span className="svg-pin-city" aria-hidden="true">
-                  {c.event.city}
-                </span>
+                <div className="svg-pin-city" aria-hidden="true">
+                  <span className="svg-venue-name">{venueLabel}</span>
+                  {c.event.venueName && c.event.venueName !== c.event.city && (
+                    <small className="svg-city-sub">{c.event.city}</small>
+                  )}
+                </div>
               </button>
             );
           })}
