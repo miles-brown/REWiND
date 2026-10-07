@@ -381,14 +381,6 @@ function syncMapTrajectories(
   }
 }
 
-function addTrajectoriesToMap(
-  map: MapLibreMap,
-  points: EventRecord[],
-  theme: "geopolitical" | "satellite" | "dark"
-) {
-  syncMapTrajectories(map, points, points.length, theme);
-}
-
 function updateActiveLegRoute(
   map: MapLibreMap,
   curvePoints: Array<{ lng: number; lat: number }>,
@@ -824,7 +816,6 @@ export function MapGraphic({
         const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-          addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
           syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
           if (activeLegRouteRef.current) {
             updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
@@ -835,7 +826,6 @@ export function MapGraphic({
         map.on("load", setupMapLayers);
         map.on("style.load", () => {
           if (!isCancelled) {
-            addTrajectoriesToMap(map, pointsRef.current, mapThemeRef.current);
             syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
             if (activeLegRouteRef.current) {
               updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
