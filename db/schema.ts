@@ -275,6 +275,10 @@ export const eventPeople = pgTable("event_people", {
   presenceConfidence: text("presence_confidence").default("limited").notNull(),
   roleConfidence: text("role_confidence").default("limited").notNull(),
   notes: text("notes"),
+  isCentralFigure: boolean("is_central_figure").default(false).notNull(),
+  precedenceOrder: integer("precedence_order"),
+  prominence: text("prominence").default("participant").notNull(),
+  remoteLocation: jsonb("remote_location"),
 });
 
 export const eventOrganisations = pgTable("event_organisations", {

@@ -495,7 +495,8 @@ export function resolvePlace(
   const store = getRelationalStore();
   const safeCity = city || "";
   const safeVenue = venue || "";
-  const safeCountry = country || "";
+  const rawCountry = (country || "").trim();
+  const safeCountry = rawCountry.includes("/") || rawCountry.includes(";") ? rawCountry.split(/[/;]/)[0].trim() : rawCountry;
   const coords = sanitizeCoordinates(latitude, longitude);
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
@@ -631,7 +632,8 @@ export async function resolvePlaceAsync(
   const db = dbInstance !== undefined ? dbInstance : getDb();
   const safeCity = city || "";
   const safeVenue = venue || "";
-  const safeCountry = country || "";
+  const rawCountry = (country || "").trim();
+  const safeCountry = rawCountry.includes("/") || rawCountry.includes(";") ? rawCountry.split(/[/;]/)[0].trim() : rawCountry;
   const coords = sanitizeCoordinates(latitude, longitude);
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
