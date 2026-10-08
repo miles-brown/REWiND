@@ -122,4 +122,101 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     const invalidResult = await placesModule.getPlaceBySlug("non-existent-xyz-slug-999");
     assert.equal(invalidResult.data, null);
   });
+
+  it("strictly verifies that 100% of historical events have valid single countries and exact coordinates", async () => {
+    const eventsModule = await vite.ssrLoadModule("/data/seeds/events-corpus.ts");
+    const { eventsCorpus } = eventsModule;
+    const { COUNTRY_CODE_MAP, resolveGazetteerCoordinates, resolveVenueMetadata } = placesModule;
+
+    assert.ok(eventsCorpus.length >= 60, "Must have all 60 primary historical events loaded");
+
+    for (const evt of eventsCorpus) {
+      // Single sovereign country check
+      assert.ok(evt.country, `Event ${evt.id} must have country`);
+      assert.ok(!evt.country.includes("/"), `Event ${evt.id} country cannot contain slash: "${evt.country}"`);
+      assert.ok(!evt.country.includes("&"), `Event ${evt.id} country cannot contain ampersand: "${evt.country}"`);
+      assert.ok(!evt.country.includes(" and "), `Event ${evt.id} country cannot contain 'and': "${evt.country}"`);
+      assert.ok(COUNTRY_CODE_MAP[evt.country], `Event ${evt.id} country must be recognized in COUNTRY_CODE_MAP: "${evt.country}"`);
+
+      // Coordinates bounds and non-null-island check
+      assert.equal(typeof evt.latitude, "number", `Event ${evt.id} latitude must be number`);
+      assert.equal(typeof evt.longitude, "number", `Event ${evt.id} longitude must be number`);
+      assert.ok(!isNaN(evt.latitude) && !isNaN(evt.longitude), `Event ${evt.id} coordinates cannot be NaN`);
+      assert.ok(evt.latitude >= -90 && evt.latitude <= 90, `Event ${evt.id} latitude out of bounds: ${evt.latitude}`);
+      assert.ok(evt.longitude >= -180 && evt.longitude <= 180, `Event ${evt.id} longitude out of bounds: ${evt.longitude}`);
+      assert.ok(!(evt.latitude === 0 && evt.longitude === 0), `Event ${evt.id} coordinates cannot be Null Island [0, 0]`);
+
+      // Non-compound primary venue name check
+      assert.ok(evt.venueName, `Event ${evt.id} must have venueName`);
+      if (!evt.venueName.includes("Food and Agriculture Organization")) {
+        assert.ok(!evt.venueName.includes(" and "), `Event ${evt.id} venueName must not be compound with 'and': "${evt.venueName}"`);
+      }
+      assert.ok(!evt.venueName.includes(" / "), `Event ${evt.id} venueName must not contain ' / ': "${evt.venueName}"`);
+
+      // Physical street address presence
+      assert.ok(evt.address && evt.address.trim().length > 0, `Event ${evt.id} must have physical street address: "${evt.address}"`);
+
+      // Venue coordinates resolution
+      const resolved = resolveGazetteerCoordinates({ venue: evt.venueName, city: evt.city, country: evt.country });
+      assert.ok(resolved, `Event ${evt.id} venue "${evt.venueName}" must resolve coordinates in gazetteer`);
+      assert.equal(resolved.source, "venue", `Event ${evt.id} venue "${evt.venueName}" resolution source must be "venue"`);
+
+      // Venue metadata resolution
+      const meta = resolveVenueMetadata(evt.venueName);
+      assert.ok(meta, `Event ${evt.id} venue "${evt.venueName}" must resolve metadata in gazetteer`);
+    }
+  });
+
+  it("strictly validates gazetteer metadata integrity and subvenue room/hall hierarchies", () => {
+    const { GLOBAL_GAZETTEER_METADATA, COUNTRY_CODE_MAP } = placesModule;
+    const entries = Object.entries(GLOBAL_GAZETTEER_METADATA);
+
+    assert.ok(entries.length >= 70, "Gazetteer must contain at least 70 canonical venue metadata entries");
+
+    for (const [key, meta] of entries) {
+      assert.ok(meta.canonicalVenue, `Key "${key}" must have canonicalVenue`);
+      assert.ok(meta.streetAddress, `Key "${key}" must have streetAddress`);
+      assert.ok(meta.city, `Key "${key}" must have city`);
+      assert.ok(meta.country, `Key "${key}" must have country`);
+      assert.ok(meta.countryCode, `Key "${key}" must have countryCode`);
+      assert.equal(meta.countryCode, COUNTRY_CODE_MAP[meta.country], `Key "${key}" countryCode "${meta.countryCode}" must match COUNTRY_CODE_MAP["${meta.country}"]`);
+      assert.ok(meta.latitude >= -90 && meta.latitude <= 90, `Key "${key}" latitude out of bounds`);
+      assert.ok(meta.longitude >= -180 && meta.longitude <= 180, `Key "${key}" longitude out of bounds`);
+      assert.ok(!(meta.latitude === 0 && meta.longitude === 0), `Key "${key}" coordinates must not be Null Island`);
+
+      if (meta.venueAreas) {
+        for (const area of meta.venueAreas) {
+          assert.ok(area.id, `Venue "${key}" area must have id`);
+          assert.ok(area.name, `Venue "${key}" area must have name`);
+          assert.ok(area.areaType, `Venue "${key}" area must have areaType`);
+        }
+      }
+    }
+  });
+
+  it("verifies read-side subvenue display formatting with formatEventVenue and formatEventLocation", async () => {
+    const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
+    const { formatEventVenue, formatEventLocation } = eventsModule;
+
+    assert.equal(typeof formatEventVenue, "function");
+    assert.equal(typeof formatEventLocation, "function");
+
+    // Case 1: Venue with distinct subvenue
+    const evt1 = { venueName: "The White House", subvenue: "East Room", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt1), "The White House (East Room)");
+    assert.equal(formatEventLocation(evt1), "The White House (East Room), Washington, D.C., United States");
+
+    // Case 2: Subvenue already embedded in venueName
+    const evt2 = { venueName: "The White House - East Room", subvenue: "East Room", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt2), "The White House - East Room");
+
+    // Case 3: Venue without subvenue
+    const evt3 = { venueName: "The White House", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt3), "The White House");
+    assert.equal(formatEventLocation(evt3), "The White House, Washington, D.C., United States");
+
+    // Case 4: Venue proper name containing country name (e.g. United States Capitol)
+    const evt4 = { venueName: "United States Capitol", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventLocation(evt4), "United States Capitol, Washington, D.C., United States");
+  });
 });

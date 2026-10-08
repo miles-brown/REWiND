@@ -21,6 +21,57 @@ export function getMonogram(name?: string | null): string {
   return res || "—";
 }
 
+/**
+ * Formats the venue and subvenue details for display across UI components and PDF exports.
+ * E.g., venue: "The White House", subvenue: "East Room" => "The White House (East Room)"
+ */
+export function formatEventVenue(event: { venueName?: string | null; subvenue?: string | null; city?: string | null }): string {
+  const venue = event.venueName?.trim();
+  const sub = event.subvenue?.trim();
+  const city = event.city?.trim() || "";
+
+  if (venue && sub) {
+    if (venue.toLowerCase().includes(sub.toLowerCase())) {
+      return venue;
+    }
+    return `${venue} (${sub})`;
+  }
+  return venue || city || "Unspecified Location";
+}
+
+/**
+ * Formats the complete event location including venue, subvenue, city, and country.
+ */
+export function formatEventLocation(event: { venueName?: string | null; subvenue?: string | null; city?: string | null; country?: string | null }): string {
+  const venueStr = formatEventVenue(event);
+  const cityStr = event.city?.trim();
+  const countryStr = event.country?.trim();
+
+  const parts: string[] = [];
+  if (venueStr) {
+    parts.push(venueStr);
+  }
+
+  if (
+    cityStr &&
+    cityStr.toLowerCase() !== venueStr.toLowerCase() &&
+    !venueStr.toLowerCase().endsWith(`, ${cityStr.toLowerCase()}`)
+  ) {
+    parts.push(cityStr);
+  }
+
+  if (
+    countryStr &&
+    countryStr.toLowerCase() !== venueStr.toLowerCase() &&
+    countryStr.toLowerCase() !== cityStr?.toLowerCase() &&
+    !venueStr.toLowerCase().endsWith(`, ${countryStr.toLowerCase()}`)
+  ) {
+    parts.push(countryStr);
+  }
+
+  return parts.filter(Boolean).join(", ") || "Recorded Location";
+}
+
 import type { EventRecord, PersonRecord } from "./types";
 
 /**

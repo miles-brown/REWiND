@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getEventBySlug, evaluateQueryResult } from "@/lib/rewind";
+import { getEventBySlug, evaluateQueryResult, formatEventLocation } from "@/lib/rewind";
 
 export async function GET(
   request: Request,
@@ -39,7 +39,7 @@ export async function GET(
     .digest("hex");
 
   const exportedAt = new Date().toISOString();
-  const location = [event.venueName, event.city, event.country].filter(Boolean).join(", ") || "Recorded Location";
+  const location = formatEventLocation(event);
 
   const url = new URL(request.url);
   const autoPrint = url.searchParams.get("print") === "true" || url.searchParams.get("auto") === "true";

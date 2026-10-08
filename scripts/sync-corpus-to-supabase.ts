@@ -647,6 +647,7 @@ async function syncCorpus() {
       journeyLegs: evt.journeyLegs || null,
 
       placeId,
+      subvenue: evt.subvenue || null,
       verificationStatus: evt.verificationStatus || "verified",
       confidenceScore: evt.confidenceScore ?? (evt.confidence === "confirmed" ? 1.0 : (evt.confidence === "strong" ? 0.85 : 0.7)),
       publicationStatus: "published",
