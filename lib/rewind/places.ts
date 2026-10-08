@@ -323,7 +323,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     venueType: "summit-center",
     streetAddress: "Naval Support Facility Thurmont, Catoctin Mountain Park",
     district: "Frederick County",
-    city: "Thurmont, Maryland",
+    city: "Thurmont",
     country: "United States",
     countryCode: "US",
     latitude: 39.6483,
@@ -339,7 +339,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     venueType: "summit-center",
     streetAddress: "600 Wye River Road",
     district: "Queenstown",
-    city: "Queenstown, Maryland",
+    city: "Queenstown",
     country: "United States",
     countryCode: "US",
     latitude: 38.9440,
@@ -1400,7 +1400,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     venueType: "university",
     streetAddress: "121 Blake Rd",
     district: "Annapolis",
-    city: "Annapolis, Maryland",
+    city: "Annapolis",
     country: "United States",
     countryCode: "US",
     latitude: 38.9822,
@@ -1688,7 +1688,8 @@ const CITY_ALIASES: Record<string, string> = {
 
 export function normalizeCityName(city?: string | null): string {
   if (!city) return "";
-  const trimmed = city.trim();
+  let trimmed = city.trim();
+  trimmed = trimmed.replace(/,\s*(?:[A-Z]{2}|[A-Z][a-z]+)$/i, "").trim();
   const lower = trimmed.toLowerCase();
   const cleaned = lower.replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
   if (CITY_ALIASES[lower]) return CITY_ALIASES[lower];

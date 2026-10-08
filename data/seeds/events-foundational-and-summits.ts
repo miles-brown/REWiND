@@ -1082,7 +1082,6 @@ export const foundationalAndSummitsEvents: EventRecord[] = [
     city: "Sde Boker",
     country: "Israel",
     venueName: "Kedma Hotel Isrotel",
-    subvenue: "Ben-Gurion Gravesite Pavilion",
     platform: "Negev Ministerial Forum",
     address: "Midreshet Ben-Gurion, 8499000",
     latitude: 30.8715,

@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, Participant } from "@/lib/rewind";
-import { formatEventVenue } from "@/lib/rewind/utils";
+import { formatEventLocation } from "@/lib/rewind/utils";
 import type { TopicRecord } from "@/lib/rewind/topics";
 
 export function TopicTimeline({
@@ -130,7 +130,7 @@ export function TopicTimeline({
 
               <div style={{ fontSize: "0.8rem", color: "var(--muted, #64747a)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                 <MapPin size={13} />
-                <span>{formatEventVenue(evt)}, {evt.city}, {evt.country}</span>
+                <span>{formatEventLocation(evt)}</span>
               </div>
             </div>
 
