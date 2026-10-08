@@ -25,6 +25,19 @@ import {
   royalWorksSeed,
   royalStaysSeed,
 } from "./royal-bio-details-seed";
+import {
+  figuresEducationSeed,
+  figuresCareerSeed,
+  figuresAwardsSeed,
+  figuresWorksSeed,
+  figuresStaysSeed,
+} from "./figures-bio-details-seed";
+
+export const allEducationSeed = [...royalEducationSeed, ...figuresEducationSeed];
+export const allCareerSeed = [...royalCareerSeed, ...figuresCareerSeed];
+export const allAwardsSeed = [...royalAwardsSeed, ...figuresAwardsSeed];
+export const allWorksSeed = [...royalWorksSeed, ...figuresWorksSeed];
+export const allStaysSeed = [...royalStaysSeed, ...figuresStaysSeed];
 
 export type { CanonicalPersonSeed };
 export {
@@ -51,6 +64,11 @@ export {
   royalAwardsSeed,
   royalWorksSeed,
   royalStaysSeed,
+  figuresEducationSeed,
+  figuresCareerSeed,
+  figuresAwardsSeed,
+  figuresWorksSeed,
+  figuresStaysSeed,
 };
 
 export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [
