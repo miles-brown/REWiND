@@ -47,13 +47,28 @@ export function formatEventLocation(event: { venueName?: string | null; subvenue
   const cityStr = event.city?.trim();
   const countryStr = event.country?.trim();
 
-  const parts: string[] = [venueStr];
-  if (cityStr && cityStr !== venueStr && !venueStr.toLowerCase().includes(cityStr.toLowerCase())) {
+  const parts: string[] = [];
+  if (venueStr) {
+    parts.push(venueStr);
+  }
+
+  if (
+    cityStr &&
+    cityStr.toLowerCase() !== venueStr.toLowerCase() &&
+    !venueStr.toLowerCase().endsWith(`, ${cityStr.toLowerCase()}`)
+  ) {
     parts.push(cityStr);
   }
-  if (countryStr && !venueStr.toLowerCase().includes(countryStr.toLowerCase())) {
+
+  if (
+    countryStr &&
+    countryStr.toLowerCase() !== venueStr.toLowerCase() &&
+    countryStr.toLowerCase() !== cityStr?.toLowerCase() &&
+    !venueStr.toLowerCase().endsWith(`, ${countryStr.toLowerCase()}`)
+  ) {
     parts.push(countryStr);
   }
+
   return parts.filter(Boolean).join(", ") || "Recorded Location";
 }
 

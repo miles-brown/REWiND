@@ -214,5 +214,9 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     const evt3 = { venueName: "The White House", city: "Washington, D.C.", country: "United States" };
     assert.equal(formatEventVenue(evt3), "The White House");
     assert.equal(formatEventLocation(evt3), "The White House, Washington, D.C., United States");
+
+    // Case 4: Venue proper name containing country name (e.g. United States Capitol)
+    const evt4 = { venueName: "United States Capitol", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventLocation(evt4), "United States Capitol, Washington, D.C., United States");
   });
 });
