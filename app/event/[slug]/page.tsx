@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult, formatEventVenue } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult, formatEventVenue, sortParticipantsByPrecedence } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
@@ -167,31 +167,72 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <span className="eyebrow">PARTICIPANTS</span>
             <h2>People in this event</h2>
             <div className="participant-list">
-              {participants.map((participant) => {
+              {sortParticipantsByPrecedence(participants).map((participant) => {
                 const participantSlug = participant.slug || participant.personId.replace(/^p-/, "");
+                const isRemote =
+                  participant.attendanceMode === "remote-live" ||
+                  participant.attendanceMode === "telephone" ||
+                  participant.attendanceMode === "remote-recorded" ||
+                  Boolean(participant.remoteLocation);
+                const remoteLabel =
+                  participant.remoteLocation?.label ||
+                  (participant.remoteLocation?.city
+                    ? `Live from ${participant.remoteLocation.city}`
+                    : "Remote Appearance");
+                const overlayText = participant.remoteLocation?.overlayText;
+                const capacityTitle = participant.capacityTitle;
+
                 return (
                   <Link
                     href={`/person/${participantSlug}`}
                     key={participant.personId}
+                    className="participant-card-link"
                   >
-                  <span className="person-monogram" aria-hidden="true">
-                    {participant.name
-                      .split(" ")
-                      .map((name) => name[0])
-                      .slice(0, 2)
-                      .join("")}
-                  </span>
-                  <div>
-                    <b>{participant.name}</b>
-                    <small>
-                      {participant.role || "Participant"}
-                      {participant.presenceConfidence ? ` · ${participant.presenceConfidence}` : ""}
-                    </small>
-                  </div>
-                  <ArrowRight />
-                </Link>
-              );
-            })}
+                    <span className="person-monogram" aria-hidden="true">
+                      {participant.name
+                        .split(" ")
+                        .map((name) => name[0])
+                        .slice(0, 2)
+                        .join("")}
+                    </span>
+                    <div className="participant-meta-col">
+                      <div className="participant-title-row">
+                        <b>{participant.name}</b>
+                        {participant.isCentralFigure && (
+                          <span
+                            className="central-figure-badge"
+                            title="Central Figure: Core protagonist / host / key subject"
+                          >
+                            ★ Central Figure
+                          </span>
+                        )}
+                        {isRemote && (
+                          <span
+                            className="remote-attendee-tag"
+                            title={
+                              participant.remoteLocation?.visibleLocationNotes ||
+                              `Remote appearance via telecommunication${overlayText ? ` (on-screen caption: "${overlayText}")` : ""}`
+                            }
+                          >
+                            📡 Remote • {remoteLabel}
+                            {overlayText ? ` ["${overlayText}"]` : ""}
+                          </span>
+                        )}
+                      </div>
+                      <small>
+                        <span className="capacity-text">
+                          {capacityTitle ? `Capacity: ${capacityTitle}` : (participant.role || "Participant")}
+                        </span>
+                        {participant.presenceConfidence ? ` · ${participant.presenceConfidence}` : ""}
+                        {isRemote && participant.remoteLocation?.connectionType
+                          ? ` · via ${participant.remoteLocation.connectionType.replace("-", " ")}`
+                          : ""}
+                      </small>
+                    </div>
+                    <ArrowRight />
+                  </Link>
+                );
+              })}
             </div>
           </section>
 

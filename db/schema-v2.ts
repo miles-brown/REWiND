@@ -5,6 +5,7 @@ import {
   check,
   doublePrecision,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -74,6 +75,10 @@ export const venues = pgTable("venues", {
   parentVenueId: text("parent_venue_id").references((): AnyPgColumn => venues.id),
   organisationId: text("organisation_id").references(() => organisations.id),
   addressId: text("address_id").references(() => addresses.id),
+  isMobileVessel: boolean("is_mobile_vessel").default(false).notNull(),
+  homeBasePlaceId: text("home_base_place_id").references(() => places.id),
+  vesselType: text("vessel_type"), // aircraft, train, ship, motorcade, submarine
+  callsignOrRegistration: text("callsign_or_registration"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
 });
@@ -112,6 +117,10 @@ export const eventPeople = pgTable("event_people", {
   presenceConfidence: text("presence_confidence").default("limited").notNull(),
   roleConfidence: text("role_confidence").default("limited").notNull(),
   notes: text("notes"),
+  isCentralFigure: boolean("is_central_figure").default(false).notNull(),
+  precedenceOrder: integer("precedence_order"),
+  prominence: text("prominence").default("participant").notNull(),
+  remoteLocation: jsonb("remote_location"),
 });
 
 // Individual Person's Documented Coordinates within Event

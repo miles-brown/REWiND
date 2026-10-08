@@ -35,6 +35,33 @@ export type AttendanceMode =
   | "written"
   | "proxy";
 
+export type RemoteConnectionType =
+  | "video-link"
+  | "skype"
+  | "satellite-feed"
+  | "telephone"
+  | "zoom"
+  | "broadcast-link";
+
+export interface RemoteLocation {
+  venueName?: string;
+  city?: string;
+  country?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  label?: string; // e.g. "Live from Burbank", "Via satellite from Westminster"
+  overlayText?: string; // on-screen overlay / lower-third: "Westminster", "London", "Burbank"
+  connectionType?: RemoteConnectionType;
+  visibleLocationNotes?: string;
+}
+
+export type ParticipantProminence =
+  | "central"       // Central figure / primary protagonist / host / key interviewee
+  | "featured"      // Featured guest / co-signatory / keynote speaker
+  | "panelist"      // Panelist / secondary contributor
+  | "participant"   // Standard participant
+  | "observer";     // Observer / attendant / witness
+
 export interface Participant {
   personId: string;
   slug?: string;
@@ -44,9 +71,132 @@ export interface Participant {
   roleConfidence?: Confidence;
   capacityTitle?: string;
   attendanceMode?: AttendanceMode;
+  isCentralFigure?: boolean;
+  precedenceOrder?: number;
+  prominence?: ParticipantProminence;
+  remoteLocation?: RemoteLocation;
   latitude?: number | null;
   longitude?: number | null;
   coordinatePrecision?: string;
+}
+
+export const STANDARD_CAPACITIES = [
+  // Media & Broadcast
+  "Host / Anchor",
+  "Co-Host",
+  "Interviewee",
+  "Correspondent / Reporter",
+  "Panelist / Commentator",
+  "Moderator",
+  "Keynote Speaker",
+  "Special Contributor",
+  // Diplomatic & State
+  "Head of State",
+  "Head of Government",
+  "Foreign Minister",
+  "Special Envoy / Diplomat",
+  "Ambassador",
+  "Chief Negotiator",
+  "Treaty Signatory",
+  "Official Delegate",
+  // Legal & Official
+  "Presiding Judge",
+  "Prosecutor / Counsel",
+  "Defense Counsel",
+  "Testifying Witness",
+  "Deponent",
+  "Investigator / Inspector",
+  // Civil & Organizational
+  "Organizer / Convener",
+  "Chairperson",
+  "Executive / Director",
+  "Observer / Attendant",
+] as const;
+
+export type StandardCapacity = (typeof STANDARD_CAPACITIES)[number];
+
+export function validateCapacityTitle(capacity?: string | null): string | undefined {
+  if (!capacity) return undefined;
+  const trimmed = capacity.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, 100);
+}
+
+export function sortParticipantsByPrecedence(participants: Participant[]): Participant[] {
+  return [...participants].sort((a, b) => {
+    // 1. Central figure flag
+    if (Boolean(a.isCentralFigure) !== Boolean(b.isCentralFigure)) {
+      return a.isCentralFigure ? -1 : 1;
+    }
+    // 2. Explicit precedenceOrder (lower numbers first: 1, 2, 3...)
+    if (typeof a.precedenceOrder === "number" && typeof b.precedenceOrder === "number") {
+      if (a.precedenceOrder !== b.precedenceOrder) {
+        return a.precedenceOrder - b.precedenceOrder;
+      }
+    } else if (typeof a.precedenceOrder === "number") {
+      return -1;
+    } else if (typeof b.precedenceOrder === "number") {
+      return 1;
+    }
+    // 3. Prominence rank
+    const prominenceRank: Record<ParticipantProminence, number> = {
+      central: 1,
+      featured: 2,
+      panelist: 3,
+      participant: 4,
+      observer: 5,
+    };
+    const rankA = a.prominence ? (prominenceRank[a.prominence] ?? 4) : 4;
+    const rankB = b.prominence ? (prominenceRank[b.prominence] ?? 4) : 4;
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+    // 4. Alphabetical tie-breaker
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function formatParticipantTimelineNarrative(
+  participant: Participant,
+  event: {
+    eventName?: string | null;
+    venueName?: string | null;
+    city?: string | null;
+    country?: string | null;
+    mainVenueName?: string | null;
+    mainCity?: string | null;
+    mainCountry?: string | null;
+  }
+): string {
+  const capacity = participant.capacityTitle || participant.role || "participant";
+  const isRemote =
+    participant.attendanceMode === "remote-live" ||
+    participant.attendanceMode === "telephone" ||
+    participant.attendanceMode === "remote-recorded" ||
+    Boolean(participant.remoteLocation);
+
+  if (isRemote) {
+    const loc = participant.remoteLocation;
+    const remotePlace = loc?.city
+      ? loc.country
+        ? `${loc.city}, ${loc.country}`
+        : loc.city
+      : loc?.label || "remote location";
+    const connectionNote = loc?.connectionType
+      ? ` via ${loc.connectionType.replace("-", " ")}`
+      : "";
+    const overlayNote = loc?.overlayText ? ` (on-screen overlay: "${loc.overlayText}")` : "";
+    const mainVenue = event.mainVenueName || event.venueName;
+    const mainCity = event.mainCity || event.city;
+    const mainLoc = mainVenue && mainCity ? ` at ${mainVenue}, ${mainCity}` : mainVenue ? ` at ${mainVenue}` : "";
+
+    return `Appeared remotely as ${capacity} live from ${remotePlace}${connectionNote}${overlayNote} during "${event.eventName || "event"}"${mainLoc}.`;
+  }
+
+  const venue = event.venueName ? ` at ${event.venueName}` : "";
+  const city = event.city ? `, ${event.city}` : "";
+  const country = event.country ? `, ${event.country}` : "";
+  return `Participated as ${capacity}${venue}${city}${country} in "${event.eventName || "event"}".`;
 }
 
 export interface ClaimEvidenceRecord {
@@ -207,6 +357,12 @@ export interface EventRecord {
   stayId?: string;
   stayName?: string;
   activeStayLocation?: PersonStayRecord;
+  isRemoteAttendance?: boolean;
+  remoteLocationLabel?: string;
+  mainVenueName?: string;
+  mainCity?: string;
+  mainCountry?: string;
+  participantNarrative?: string;
 }
 
 export type TravelInferenceType =
@@ -599,10 +755,24 @@ export interface VenueNode {
   countryCode: string;
   addressId?: string | null;
   streetAddress?: string | null;
+  isMobileVessel?: boolean;
+  homeBasePlaceId?: string | null;
+  vesselType?: string | null; // aircraft, train, ship, motorcade, submarine
+  callsignOrRegistration?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   venueAreas?: VenueAreaNode[];
   eventCount: number;
+}
+
+/**
+ * Checks if a venue represents a mobile vehicle or airborne/maritime vessel.
+ */
+export function isMobileVenue(venue: Partial<VenueNode> | null | undefined): boolean {
+  if (!venue) return false;
+  if (venue.isMobileVessel) return true;
+  const vt = (venue.vesselType || "").toLowerCase();
+  return vt === "aircraft" || vt === "train" || vt === "ship" || vt === "motorcade" || vt === "submarine";
 }
 
 export interface AddressNode {

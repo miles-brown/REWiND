@@ -6,7 +6,24 @@ import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
 import { resolveGazetteerCoordinates } from "./places";
-import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
+import type {
+  AttendanceMode,
+  Confidence,
+  EventFilters,
+  EventRecord,
+  LocationPrecision,
+  PaginatedResult,
+  Participant,
+  ParticipantProminence,
+  Precision,
+  RemoteLocation,
+  SourceRecord,
+} from "./types";
+import {
+  formatParticipantTimelineNarrative,
+  sortParticipantsByPrecedence,
+  validateCapacityTitle,
+} from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
 
@@ -23,6 +40,13 @@ const VALID_ATTENDANCE_MODES = new Set<AttendanceMode>([
   "written",
   "proxy",
 ]);
+const VALID_PROMINENCES = new Set<ParticipantProminence>([
+  "central",
+  "featured",
+  "panelist",
+  "participant",
+  "observer",
+]);
 
 function isConfidence(value: unknown): value is Confidence {
   return typeof value === "string" && VALID_CONFIDENCES.has(value as Confidence);
@@ -30,6 +54,10 @@ function isConfidence(value: unknown): value is Confidence {
 
 function isAttendanceMode(value: unknown): value is AttendanceMode {
   return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
+}
+
+function isParticipantProminence(value: unknown): value is ParticipantProminence {
+  return typeof value === "string" && VALID_PROMINENCES.has(value as ParticipantProminence);
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
@@ -70,14 +98,23 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
     confidenceScore,
     sourceIds: e.sourceIds || [],
     sources: sources.length > 0 ? sources : (e.sources || []),
-    participants: (e.participants || []).map((p) => ({
-      personId: p.personId,
-      slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
-      name: p.name,
-      role: p.role,
-      presenceConfidence: p.presenceConfidence,
-      attendanceMode: p.attendanceMode,
-    })),
+    participants: sortParticipantsByPrecedence(
+      (e.participants || []).map((p) => ({
+        personId: p.personId,
+        slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
+        name: p.name,
+        role: p.role,
+        presenceConfidence: p.presenceConfidence,
+        capacityTitle: validateCapacityTitle(p.capacityTitle),
+        attendanceMode: p.attendanceMode,
+        isCentralFigure: p.isCentralFigure,
+        precedenceOrder: p.precedenceOrder,
+        prominence: p.prominence,
+        remoteLocation: p.remoteLocation,
+        latitude: p.remoteLocation?.latitude ?? p.latitude ?? null,
+        longitude: p.remoteLocation?.longitude ?? p.longitude ?? null,
+      }))
+    ),
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
     quotes: e.quotes,
@@ -428,7 +465,7 @@ async function hydrateEventRows(
       const to = from + batchSize - 1;
       const { data, error } = await supabase
         .from("event_people")
-        .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
+        .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode, is_central_figure, precedence_order, prominence, remote_location")
         .in("event_id", eventIdChunk)
         .order("event_id", { ascending: true })
         .order("person_id", { ascending: true })
@@ -455,6 +492,10 @@ async function hydrateEventRows(
     presence_confidence?: string;
     capacity_title?: string;
     attendance_mode?: string;
+    is_central_figure?: boolean;
+    precedence_order?: number | null;
+    prominence?: string;
+    remote_location?: RemoteLocation | null;
   }[];
 
   const personIds = Array.from(new Set(typedParticipants.map((p) => p.person_id)));
@@ -486,10 +527,16 @@ async function hydrateEventRows(
       name: personNames.get(p.person_id) || p.person_id,
       role: p.role_label,
       presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
-      capacityTitle: p.capacity_title || undefined,
+      capacityTitle: validateCapacityTitle(p.capacity_title),
       attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
+      isCentralFigure: Boolean(p.is_central_figure),
+      precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
+      prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
+      remoteLocation: p.remote_location || undefined,
+      latitude: p.remote_location?.latitude ?? null,
+      longitude: p.remote_location?.longitude ?? null,
     });
-    participantsMap.set(p.event_id, list);
+    participantsMap.set(p.event_id, sortParticipantsByPrecedence(list));
   });
 
   // Fetch source IDs and source records with bounded eventId chunking
@@ -1299,6 +1346,86 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 }
 
 /**
+ * Localizes an EventRecord for a specific person's timeline.
+ * If the person participated remotely (e.g. video link, phone, satellite feed),
+ * their timeline displays their verified remote venue/city/country and coordinates,
+ * while preserving the broadcast studio/stage as mainVenueName.
+ */
+export function localizeEventForPersonParticipant(
+  event: EventRecord,
+  personSlug: string,
+  personDbId?: string
+): EventRecord {
+  const participant = event.participants?.find(
+    (p) =>
+      p.slug === personSlug ||
+      p.personId === personSlug ||
+      (personDbId && (p.personId === personDbId || p.slug === personDbId))
+  );
+  if (!participant) return event;
+
+  const isRemote =
+    participant.attendanceMode === "remote-live" ||
+    participant.attendanceMode === "telephone" ||
+    participant.attendanceMode === "remote-recorded" ||
+    Boolean(participant.remoteLocation);
+
+  if (isRemote) {
+    const loc = participant.remoteLocation;
+    const remoteLabel =
+      loc?.label ||
+      (loc?.city ? `Live from ${loc.city}` : "Remote Appearance");
+    const remoteVenue =
+      loc?.venueName ||
+      (loc?.city ? `Remote: ${loc.city}` : "Remote Location");
+    const remoteCity = loc?.city || event.city;
+    const remoteCountry = loc?.country || event.country;
+    const remoteLat =
+      typeof loc?.latitude === "number"
+        ? loc.latitude
+        : typeof participant.latitude === "number"
+        ? participant.latitude
+        : event.latitude;
+    const remoteLng =
+      typeof loc?.longitude === "number"
+        ? loc.longitude
+        : typeof participant.longitude === "number"
+        ? participant.longitude
+        : event.longitude;
+
+    const narrative = formatParticipantTimelineNarrative(participant, {
+      eventName: event.eventName,
+      venueName: remoteVenue,
+      city: remoteCity,
+      country: remoteCountry,
+      mainVenueName: event.venueName ?? undefined,
+      mainCity: event.city,
+      mainCountry: event.country,
+    });
+
+    return {
+      ...event,
+      isRemoteAttendance: true,
+      remoteLocationLabel: remoteLabel,
+      mainVenueName: event.venueName ?? undefined,
+      mainCity: event.city,
+      mainCountry: event.country,
+      venueName: remoteVenue,
+      city: remoteCity,
+      country: remoteCountry,
+      latitude: remoteLat,
+      longitude: remoteLng,
+      participantNarrative: narrative,
+    };
+  }
+
+  return {
+    ...event,
+    participantNarrative: formatParticipantTimelineNarrative(participant, event),
+  };
+}
+
+/**
  * Retrieves events associated with a specific person slug, fully hydrated.
  */
 export async function getEventsByPersonWithStatus(
@@ -1387,7 +1514,10 @@ export async function getEventsByPersonWithStatus(
       for (let i = 0; i < eventRows.length; i += HYDRATE_CHUNK_SIZE) {
         const batch = eventRows.slice(i, i + HYDRATE_CHUNK_SIZE);
         const hydratedBatch = await hydrateEventRows(supabase, batch);
-        hydratedEvents.push(...hydratedBatch);
+        const localizedBatch = hydratedBatch.map((e) =>
+          localizeEventForPersonParticipant(e, personSlug, person.id)
+        );
+        hydratedEvents.push(...localizedBatch);
       }
       return { data: hydratedEvents, error: null };
     }
@@ -1401,6 +1531,7 @@ export async function getEventsByPersonWithStatus(
           )
         )
         .map(mapFallbackEvent)
+        .map((e) => localizeEventForPersonParticipant(e, personSlug, fbPerson.id))
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
       return { data: fbEvents, error: null };
     }

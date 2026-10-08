@@ -553,7 +553,8 @@ async function syncCorpus() {
   for (const e of allRawEvents) {
     const city = (e.city || "Unknown").trim();
     const venue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || city).trim();
-    const country = (e.country || "Unknown").trim();
+    const rawCountry = (e.country || "Unknown").trim();
+    const country = rawCountry.includes("/") || rawCountry.includes(";") ? rawCountry.split(/[/;]/)[0].trim() : rawCountry;
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
 
@@ -695,10 +696,14 @@ async function syncCorpus() {
             personId: dbPersonId,
             involvementType: part.role === "attendee" ? "attendee" : "principal",
             roleLabel: part.role || "Participant",
-            capacityTitle: part.role || "Delegate",
+            capacityTitle: part.capacityTitle || part.role || "Delegate",
             attendanceMode: part.attendanceMode || "physical",
             presenceConfidence: part.presenceConfidence || "confirmed",
             roleConfidence: "confirmed",
+            isCentralFigure: Boolean(part.isCentralFigure),
+            precedenceOrder: part.precedenceOrder || null,
+            prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
+            remoteLocation: part.remoteLocation || null,
           });
       }
 

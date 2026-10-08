@@ -1709,7 +1709,17 @@ export function isSameCity(cityA?: string | null, cityB?: string | null): boolea
 
 export function resolveCanonicalCountryName(countryOrCode?: string | null): string {
   if (!countryOrCode) return "Unknown";
-  const trimmed = countryOrCode.trim();
+  let trimmed = countryOrCode.trim();
+  if (trimmed.includes("/") || trimmed.includes(";")) {
+    const parts = trimmed.split(/[/;]/).map((p) => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      const partCanonical = resolveCanonicalCountryName(part);
+      if (partCanonical !== "Unknown" && COUNTRY_CODE_MAP[partCanonical]) {
+        return partCanonical;
+      }
+    }
+    trimmed = parts[0] || "Unknown";
+  }
   const lower = trimmed.toLowerCase();
   const upper = trimmed.toUpperCase();
   if (CODE_TO_COUNTRY_MAP[upper]) {

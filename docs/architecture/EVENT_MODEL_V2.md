@@ -217,3 +217,23 @@ Internal workflow controls isolate research management from public output:
    - `canonicalTitle` is populated with neutral descriptive names, while legacy `eventName` is maintained as a fallback.
 3. **Database Schema Harmonization**:
    - `db/schema-v2.ts` introduces normalized relational tables for Postgres/Supabase without destroying legacy table structures.
+
+---
+
+## 8. Mobile Vessels, Multi-Stage Festivals & Remote Localization
+
+### 8.1 Mobile Vessels as Venues (`is_mobile_vessel = true`)
+- Vehicles and aircraft (e.g. *Air Force One*, *Marine One*, *British Royal Train*) are modeled as venues with `addressId: null`, `isMobileVessel: true`, and an optional `homeBasePlaceId`.
+- Internal compartments are represented via `venue_areas` (`area-afo-presidential-suite`, `area-afo-conference-room`, `area-afo-press-cabin`).
+- Geolocation resolves dynamically: on tarmac/ground it points to the airport/station `places` record; in flight it resolves to the flight arc trajectory coordinate at that timestamp.
+
+### 8.2 Multi-Stage Umbrella Festivals & Summits (Glastonbury / Davos / UNGA)
+- Umbrella events use `event_series` (e.g. `series-glastonbury-2024`).
+- Physical stages/salons are mapped to `venue_areas` with discrete GPS coordinates.
+- Every set/panel is an atomic sub-event to prevent false co-presence inferences across different stages or time slots.
+
+### 8.3 Remote Attendance Localization & Narrative Generation
+- Remote attendees receive `RemoteLocation` metadata documenting connection type, remote city/country, and lower-third on-screen overlay text (*"Live from Burbank"*).
+- On the remote attendee's timeline, coordinates and venue map to their remote location, while preserving host studio context in secondary fields.
+- Automated narrative generator (`formatParticipantTimelineNarrative`) outputs grammatically precise evidentiary statements for biographical reconstruction.
+
