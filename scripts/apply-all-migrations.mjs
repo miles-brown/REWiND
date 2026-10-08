@@ -58,6 +58,7 @@ const migrationFiles = [
   "20260904040000_schema_perfection_and_travel_corridors.sql",
   "20260904050000_add_subvenue_to_events.sql",
   "20260904060000_remote_attendance_and_places_fix.sql",
+  "20260904070000_mobile_venues_and_vessel_architecture.sql",
 ];
 
 /**

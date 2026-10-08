@@ -264,4 +264,65 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(remotePerspective.participantNarrative.includes("BBC Television Centre, London"));
     });
   });
+
+  describe("5. Mobile Vessels as Venues Architecture", () => {
+    it("isMobileVenue helper accurately identifies aircraft, trains, ships, motorcades", () => {
+      const { isMobileVenue } = typesModule;
+
+      assert.equal(isMobileVenue(null), false);
+      assert.equal(isMobileVenue(undefined), false);
+      assert.equal(isMobileVenue({ name: "White House", isMobileVessel: false }), false);
+      assert.equal(isMobileVenue({ name: "Air Force One", isMobileVessel: true }), true);
+      assert.equal(isMobileVenue({ name: "Marine One", vesselType: "aircraft" }), true);
+      assert.equal(isMobileVenue({ name: "Royal Train", vesselType: "train" }), true);
+      assert.equal(isMobileVenue({ name: "Royal Yacht Britannia", vesselType: "ship" }), true);
+      assert.equal(isMobileVenue({ name: "Presidential Limousine", vesselType: "motorcade" }), true);
+    });
+  });
+
+  describe("6. Documentation & 10 Golden Edge-Case Standard Invariants", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
+    it("EVENT_AND_VENUE_STANDARD.md codifies Mobile Vessels and all 10 Golden Edge-Case Rules", () => {
+      const standardPath = path.join(root, "docs/standards/EVENT_AND_VENUE_STANDARD.md");
+      const content = fs.readFileSync(standardPath, "utf-8");
+
+      assert.ok(content.includes("5. Mobile Vessels as Venues"), "Must document Mobile Vessels");
+      assert.ok(content.includes("ven-usaf-air-force-one"), "Must document Air Force One venue model");
+      assert.ok(content.includes("area-afo-presidential-suite"), "Must document interior venue areas");
+      assert.ok(content.includes("6. Multi-Stage & Multi-Day Umbrella Events"), "Must document Multi-Stage Festivals");
+      assert.ok(content.includes("Glastonbury"), "Must reference Glastonbury pattern");
+      assert.ok(content.includes("7. The 10 Golden Evidentiary Edge-Case Rules"), "Must document 10 Golden Rules");
+      assert.ok(content.includes("Rule 1: Moving & Transit Events"), "Must document Rule 1");
+      assert.ok(content.includes("Rule 2: Multi-Stage Festivals & Summits"), "Must document Rule 2");
+      assert.ok(content.includes("Rule 3: Remote, Virtual & Hybrid Appearances"), "Must document Rule 3");
+      assert.ok(content.includes("Rule 4: Sessions Crossing Midnight"), "Must document Rule 4");
+      assert.ok(content.includes("Rule 5: Disputed, Contradictory, or Competing Location Claims"), "Must document Rule 5");
+      assert.ok(content.includes("Rule 6: Secret Safehouses"), "Must document Rule 6");
+      assert.ok(content.includes("Rule 7: Proxy & Representative Attendance"), "Must document Rule 7");
+      assert.ok(content.includes("Rule 8: Multi-Leg Journeys & Emergency Flight Diversions"), "Must document Rule 8");
+      assert.ok(content.includes("Rule 9: Shared Hotel Buildings"), "Must document Rule 9");
+      assert.ok(content.includes("Rule 10: In-Transit Incidents & Briefings"), "Must document Rule 10");
+    });
+
+    it("LOCATION_STANDARD.md codifies Mobile Vessels and Dynamic Geocoding", () => {
+      const locPath = path.join(root, "docs/standards/LOCATION_STANDARD.md");
+      const content = fs.readFileSync(locPath, "utf-8");
+
+      assert.ok(content.includes("5. Mobile Vessels & Dynamic Geocoding Architecture"), "Must document Mobile Vessels in Location Standard");
+      assert.ok(content.includes("address_id` is strictly `null`"), "Must enforce address nullability invariant");
+      assert.ok(content.includes("home_base_place_id"), "Must document home base anchor");
+    });
+
+    it("EVENT_MODEL_V2.md codifies Section 8 on Mobile Vessels, Multi-Stage Festivals, and Remote Localization", () => {
+      const v2Path = path.join(root, "docs/architecture/EVENT_MODEL_V2.md");
+      const content = fs.readFileSync(v2Path, "utf-8");
+
+      assert.ok(content.includes("8. Mobile Vessels, Multi-Stage Festivals & Remote Localization"), "Must document Section 8");
+      assert.ok(content.includes("is_mobile_vessel = true"), "Must specify is_mobile_vessel");
+      assert.ok(content.includes("formatParticipantTimelineNarrative"), "Must document narrative formulation");
+    });
+  });
 });
+

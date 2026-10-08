@@ -755,10 +755,24 @@ export interface VenueNode {
   countryCode: string;
   addressId?: string | null;
   streetAddress?: string | null;
+  isMobileVessel?: boolean;
+  homeBasePlaceId?: string | null;
+  vesselType?: string | null; // aircraft, train, ship, motorcade, submarine
+  callsignOrRegistration?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   venueAreas?: VenueAreaNode[];
   eventCount: number;
+}
+
+/**
+ * Checks if a venue represents a mobile vehicle or airborne/maritime vessel.
+ */
+export function isMobileVenue(venue: Partial<VenueNode> | null | undefined): boolean {
+  if (!venue) return false;
+  if (venue.isMobileVessel) return true;
+  const vt = (venue.vesselType || "").toLowerCase();
+  return vt === "aircraft" || vt === "train" || vt === "ship" || vt === "motorcade" || vt === "submarine";
 }
 
 export interface AddressNode {

@@ -75,6 +75,10 @@ export const venues = pgTable("venues", {
   parentVenueId: text("parent_venue_id").references((): AnyPgColumn => venues.id),
   organisationId: text("organisation_id").references(() => organisations.id),
   addressId: text("address_id").references(() => addresses.id),
+  isMobileVessel: boolean("is_mobile_vessel").default(false).notNull(),
+  homeBasePlaceId: text("home_base_place_id").references(() => places.id),
+  vesselType: text("vessel_type"), // aircraft, train, ship, motorcade, submarine
+  callsignOrRegistration: text("callsign_or_registration"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
 });
