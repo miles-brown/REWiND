@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { EventRecord, PersonRecord, SourceRecord } from "@/lib/rewind/types";
+import { formatEventVenue } from "@/lib/rewind/utils";
 import { formatTimelineDate, isStandardIsoDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { findTopCoAttendee, isPhysicalConfirmedParticipant } from "@/lib/rewind/utils";
 import { MapGraphic } from "./MapGraphic";
@@ -610,7 +611,7 @@ export function TimelineComparison({
 
                             <p className="encounter-place">
                               <MapPin size={14} />
-                              <span>{event.venueName || event.city}, {event.country}</span>
+                              <span>{formatEventVenue(event)}, {event.country}</span>
                             </p>
 
                             <p className="encounter-summary">{event.summary}</p>

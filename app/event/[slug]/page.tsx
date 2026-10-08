@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult, formatEventVenue } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
@@ -127,7 +127,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </div>
           <div>
             <dt><MapPin size={16} /> Location</dt>
-            <dd>{event.venueName || event.city}</dd>
+            <dd>{formatEventVenue(event)}</dd>
             <small>{event.country}</small>
           </div>
           <div>

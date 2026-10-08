@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
+import { formatEventVenue } from "@/lib/rewind/utils";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
 import { resolveActiveStay } from "@/lib/rewind/travel";
@@ -338,7 +339,7 @@ export function PersonTimeline({
           <h2>{event.eventName}</h2>
           <p className="event-place">
             <MapPin />
-            {event.venueName || event.city}
+            {formatEventVenue(event)}
             <small>
               {event.city}, {event.country} · {event.locationPrecision || "unestablished"} precision
             </small>

@@ -2,6 +2,7 @@ import { memo, useId } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, CircleDashed, MapPin } from "lucide-react";
 import { formatTimelineDate, isStandardIsoDate } from "@/lib/rewind/dates";
+import { formatEventVenue } from "@/lib/rewind/utils";
 import type { EventRecord } from "@/lib/rewind/types";
 
 export const EventCard = memo(function EventCard({
@@ -55,7 +56,7 @@ export const EventCard = memo(function EventCard({
       <h3>{event.eventName}</h3>
       <p>
         <MapPin size={13} />
-        {event.venueName || event.city}, {event.country}
+        {formatEventVenue(event)}, {event.country}
       </p>
       <div className="card-tags">
         {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).slice(0, 3).map((t) => (

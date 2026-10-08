@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, SourceRecord } from "@/lib/rewind";
+import { formatEventVenue } from "@/lib/rewind/utils";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { MapGraphic } from "./MapGraphic";
 import { CitationModal } from "./CitationModal";
@@ -240,7 +241,7 @@ export function RewindExplorer({
             <h1>{event.eventName}</h1>
             <p className="event-place">
               <MapPin />
-              {event.venueName || event.city}
+              {formatEventVenue(event)}
               <small>
                 {event.city}, {event.country} · {event.locationPrecision} precision
               </small>

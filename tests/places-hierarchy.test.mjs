@@ -193,4 +193,26 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
       }
     }
   });
+
+  it("verifies read-side subvenue display formatting with formatEventVenue and formatEventLocation", async () => {
+    const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
+    const { formatEventVenue, formatEventLocation } = eventsModule;
+
+    assert.equal(typeof formatEventVenue, "function");
+    assert.equal(typeof formatEventLocation, "function");
+
+    // Case 1: Venue with distinct subvenue
+    const evt1 = { venueName: "The White House", subvenue: "East Room", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt1), "The White House (East Room)");
+    assert.equal(formatEventLocation(evt1), "The White House (East Room), Washington, D.C., United States");
+
+    // Case 2: Subvenue already embedded in venueName
+    const evt2 = { venueName: "The White House - East Room", subvenue: "East Room", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt2), "The White House - East Room");
+
+    // Case 3: Venue without subvenue
+    const evt3 = { venueName: "The White House", city: "Washington, D.C.", country: "United States" };
+    assert.equal(formatEventVenue(evt3), "The White House");
+    assert.equal(formatEventLocation(evt3), "The White House, Washington, D.C., United States");
+  });
 });

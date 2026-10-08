@@ -311,6 +311,8 @@ export function mapDatabaseEvent(
   };
 }
 
+export { formatEventVenue, formatEventLocation } from "./utils";
+
 /**
  * Hydrates an array of raw event rows with places, venues, addresses, participants, and source references.
  */

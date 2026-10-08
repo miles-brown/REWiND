@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getPersonBySlugWithStatus, getEventsByPersonWithStatus, evaluateQueryResult } from "@/lib/rewind";
+import { getPersonBySlugWithStatus, getEventsByPersonWithStatus, evaluateQueryResult, formatEventLocation } from "@/lib/rewind";
 
 export async function GET(
   request: Request,
@@ -171,7 +171,7 @@ export async function GET(
         <tr>
           <td><b>${escapeHtml(e.startDate)}</b></td>
           <td><b>${escapeHtml(e.eventName)}</b><br/><small style="color: #64748b;">${escapeHtml(e.summary || "")}</small></td>
-          <td>${escapeHtml([e.venueName, e.city, e.country].filter(Boolean).join(", ") || "Recorded Location")}</td>
+          <td>${escapeHtml(formatEventLocation(e))}</td>
           <td><span class="badge">${escapeHtml(e.confidence || (e.verificationStatus === "verified" ? "confirmed" : "limited"))}</span></td>
           <td>${e.sourceIds?.length || 0} primary</td>
         </tr>
