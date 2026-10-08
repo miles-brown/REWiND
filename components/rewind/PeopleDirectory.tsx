@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import type { PersonRecord } from "@/lib/rewind";
-import { extractPersonNameParts } from "@/lib/rewind/utils";
+import { extractPersonNameParts, getMonogram } from "@/lib/rewind/utils";
 
 export type PeopleViewMode = "extended" | "list" | "badge";
 
@@ -73,9 +73,8 @@ function getClassificationMeta(classification?: string) {
 
 function getInitials(name: string): string {
   if (!name) return "?";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const mono = getMonogram(name);
+  return mono !== "—" ? mono : "?";
 }
 
 function extractBirthYear(birth?: string | null): number | null {
@@ -188,7 +187,8 @@ export function PeopleDirectory({
           const descMatch = p.description.toLowerCase().includes(q);
           const natMatch = p.nationality ? p.nationality.toLowerCase().includes(q) : false;
           const birthNameMatch = p.fullBirthName ? p.fullBirthName.toLowerCase().includes(q) : false;
-          if (!nameMatch && !canonicalMatch && !descMatch && !natMatch && !birthNameMatch) {
+          const aliasMatch = Array.isArray(p.aliases) ? p.aliases.some((alias) => alias.toLowerCase().includes(q)) : false;
+          if (!nameMatch && !canonicalMatch && !descMatch && !natMatch && !birthNameMatch && !aliasMatch) {
             return false;
           }
         }

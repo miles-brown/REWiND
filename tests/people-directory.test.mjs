@@ -155,6 +155,75 @@ describe("People Directory & Name Parsing Architecture", async () => {
     const res4 = parseParticipantRoleAndAssociation(undefined, "interviewee");
     assert.deepEqual(res4, { role: undefined, association: "interviewee" });
   });
+
+  it("generates clean 2-character monograms stripping honorifics and regnal ordinals", async () => {
+    const utilsModule = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+    const { getMonogram } = utilsModule;
+
+    assert.equal(typeof getMonogram, "function");
+
+    // Standard names
+    assert.equal(getMonogram("Benjamin Netanyahu"), "BN");
+    assert.equal(getMonogram("David Ben-Gurion"), "DB");
+    assert.equal(getMonogram("Arafat"), "AR");
+    assert.equal(getMonogram("Bill Clinton"), "BC");
+
+    // Regnal and titular names
+    assert.equal(getMonogram("King Charles III"), "CH");
+    assert.equal(getMonogram("Queen Elizabeth II"), "EL");
+    assert.equal(getMonogram("Pope John Paul II"), "JP");
+    assert.equal(getMonogram("King Felipe VI"), "FE");
+    assert.equal(getMonogram("Margareta, Custodian of the Crown of Romania"), "MR");
+
+    // Edge cases
+    assert.equal(getMonogram(""), "—");
+    assert.equal(getMonogram(null), "—");
+  });
+
+  it("exposes aliases on person records for directory search", async () => {
+    const { data: people } = await getPeopleWithStatus();
+    const kissinger = people.find((p) => p.slug === "henry-kissinger");
+    assert.ok(kissinger, "Henry Kissinger must exist");
+    assert.ok(Array.isArray(kissinger.aliases), "Kissinger must have aliases array");
+    assert.ok(kissinger.aliases.includes("Heinz Alfred Kissinger"), "Kissinger aliases must include birth alias");
+
+    const dalaiLama = people.find((p) => p.slug === "dalai-lama");
+    assert.ok(dalaiLama, "Dalai Lama must exist");
+    assert.ok(Array.isArray(dalaiLama.aliases), "Dalai Lama must have aliases array");
+    assert.ok(dalaiLama.aliases.includes("Kundun"), "Dalai Lama aliases must include Kundun");
+  });
+
+  it("enriches people seed records with demonym nationalities correctly", async () => {
+    const enrichModule = await vite.ssrLoadModule("/scripts/enrich-seed-people.ts");
+    const { enrichPersonSeed } = enrichModule;
+
+    assert.equal(typeof enrichPersonSeed, "function");
+
+    // Israeli demonym
+    const enrichedIsraeli = enrichPersonSeed({
+      id: "test-israeli",
+      slug: "test-israeli",
+      canonicalName: "Test Israeli",
+      displayName: "Test Israeli",
+      nationality: "Israeli",
+      birthDate: "1970-01-01",
+      classification: "public-figure",
+    });
+    assert.deepEqual(enrichedIsraeli.languages, ["Hebrew", "English"]);
+    assert.equal(enrichedIsraeli.religion, "Judaism");
+
+    // American demonym
+    const enrichedAmerican = enrichPersonSeed({
+      id: "test-american",
+      slug: "test-american",
+      canonicalName: "Test American",
+      displayName: "Test American",
+      nationality: "American",
+      birthDate: "1980-01-01",
+      classification: "public-figure",
+    });
+    assert.deepEqual(enrichedAmerican.languages, ["English"]);
+  });
 });
 
 

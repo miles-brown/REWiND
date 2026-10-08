@@ -571,6 +571,7 @@ export interface PersonRecord {
   canonicalName: string;
   displayName: string;
   description: string;
+  aliases?: string[];
   fullBirthName?: string;
   birth?: string;
   death?: string;

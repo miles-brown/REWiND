@@ -118,6 +118,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     canonicalName: p.canonicalName,
     displayName: p.displayName || p.canonicalName,
     description: p.primaryRole || p.summary || "",
+    aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : undefined,
     fullBirthName: p.fullBirthName ?? undefined,
     birth: p.birthDate,
     death: p.deathDate ?? undefined,
@@ -153,6 +154,11 @@ function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
     canonicalName: String(p.canonical_name || ""),
     displayName: String(p.display_name || p.canonical_name || ""),
     description: String(p.primary_role || p.summary || ""),
+    aliases: Array.isArray(p.aliases)
+      ? (p.aliases as unknown[]).map(String)
+      : Array.isArray(p.person_aliases)
+      ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
+      : undefined,
     fullBirthName: p.full_birth_name ? String(p.full_birth_name) : undefined,
     birth: p.birth_date ? String(p.birth_date) : undefined,
     death: p.death_date ? String(p.death_date) : undefined,
