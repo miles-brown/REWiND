@@ -23,16 +23,12 @@ export function enrichPersonSeed(p: CanonicalPersonSeed): CanonicalPersonSeed {
     ["English"]
   );
 
-  let religion = p.religion ?? null;
-  let religiousDenomination = p.religiousDenomination ?? null;
+  const religion = p.religion ?? null;
+  const religiousDenomination = p.religiousDenomination ?? null;
   let religionStatus = p.religionStatus;
 
   if (!religionStatus) {
     if (religion) {
-      religionStatus = "self-identified";
-    } else if (nationality === "Israel" || nationality === "Israeli") {
-      religion = "Judaism";
-      religiousDenomination = null;
       religionStatus = "self-identified";
     } else {
       religionStatus = "not-publicly-stated";

@@ -127,7 +127,7 @@ export function extractPersonNameParts(person: {
     (t) =>
       !/^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Tsar|Emperor|Empress|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
         t
-      )
+      ) && !REGNAL_ORDINAL_REGEX.test(t)
   );
 
   if (cleanTokens.length === 0) {

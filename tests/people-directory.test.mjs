@@ -70,11 +70,11 @@ describe("People Directory & Name Parsing Architecture", async () => {
 
     const charles = extractPersonNameParts({ canonicalName: "King Charles III" });
     assert.equal(charles.firstName, "Charles");
-    assert.equal(charles.lastName, "III");
+    assert.equal(charles.lastName, "Charles");
 
     const felipe = extractPersonNameParts({ canonicalName: "King Felipe VI" });
     assert.equal(felipe.firstName, "Felipe");
-    assert.equal(felipe.lastName, "VI");
+    assert.equal(felipe.lastName, "Felipe");
   });
 
   it("strictly validates that 100% of people seed records have valid birth dates and clean demonym nationalities", () => {
@@ -139,9 +139,21 @@ describe("People Directory & Name Parsing Architecture", async () => {
     const res1 = parseParticipantRoleAndAssociation("British Foreign Secretary", "Author");
     assert.deepEqual(res1, { role: "British Foreign Secretary", association: "Author" });
 
-    // Combined case: "Official Title (Event Capacity)"
+    // Combined case: "Official Title (Event Capacity)" without explicit capacity
     const res2 = parseParticipantRoleAndAssociation("British Foreign Secretary (Author)");
     assert.deepEqual(res2, { role: "British Foreign Secretary", association: "Author" });
+
+    // Combined case with matching explicit capacity
+    const res2b = parseParticipantRoleAndAssociation("British Foreign Secretary (Author)", "Author");
+    assert.deepEqual(res2b, { role: "British Foreign Secretary", association: "Author" });
+
+    // Composite capacity: "Official Title (Host / Witness)"
+    const resComposite = parseParticipantRoleAndAssociation("President of the United States (Host / Witness)");
+    assert.deepEqual(resComposite, { role: "President of the United States", association: "Host / Witness" });
+
+    // Composite capacity: "Speaker (Co-Presiding)"
+    const resCoPresiding = parseParticipantRoleAndAssociation("Speaker of the House (Co-Presiding)");
+    assert.deepEqual(resCoPresiding, { role: "Speaker of the House", association: "Co-Presiding" });
 
     // Plain role without parentheses or capacityTitle
     const res3 = parseParticipantRoleAndAssociation("President of the United States");
@@ -193,13 +205,13 @@ describe("People Directory & Name Parsing Architecture", async () => {
     assert.ok(dalaiLama.aliases.includes("Kundun"), "Dalai Lama aliases must include Kundun");
   });
 
-  it("enriches people seed records with demonym nationalities correctly", async () => {
+  it("enriches people seed records with demonym nationalities correctly without guessing religion", async () => {
     const enrichModule = await vite.ssrLoadModule("/scripts/enrich-seed-people.ts");
     const { enrichPersonSeed } = enrichModule;
 
     assert.equal(typeof enrichPersonSeed, "function");
 
-    // Israeli demonym
+    // Israeli demonym without explicit religion
     const enrichedIsraeli = enrichPersonSeed({
       id: "test-israeli",
       slug: "test-israeli",
@@ -210,7 +222,8 @@ describe("People Directory & Name Parsing Architecture", async () => {
       classification: "public-figure",
     });
     assert.deepEqual(enrichedIsraeli.languages, ["Hebrew", "English"]);
-    assert.equal(enrichedIsraeli.religion, "Judaism");
+    assert.equal(enrichedIsraeli.religion, null);
+    assert.equal(enrichedIsraeli.religionStatus, "not-publicly-stated");
 
     // American demonym
     const enrichedAmerican = enrichPersonSeed({

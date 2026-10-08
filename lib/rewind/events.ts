@@ -56,6 +56,8 @@ const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
   "presiding officer",
   "presiding judge",
   "presiding",
+  "co-presiding",
+  "co presiding",
   "lead prosecutor",
   "prosecutor",
   "signatory",
@@ -79,10 +81,43 @@ const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
   "prosecution counsel",
 ]);
 
+function isRecognizedCapacity(candidate: string): boolean {
+  const trimmed = candidate.trim();
+  const lower = trimmed.toLowerCase();
+  const normalized = lower.replace(/[\-_]/g, " ").trim();
+
+  if (RECOGNIZED_EVENT_CAPACITIES.has(lower) || RECOGNIZED_EVENT_CAPACITIES.has(normalized)) {
+    return true;
+  }
+
+  // Handle composite capacities: e.g. "Host / Witness", "Host, Moderator", "Co-Host & Moderator"
+  const subparts = trimmed
+    .split(/[\/,&\+]/)
+    .map((s) => s.trim().toLowerCase().replace(/[\-_]/g, " "))
+    .filter(Boolean);
+
+  if (
+    subparts.length > 1 &&
+    subparts.every(
+      (sub) =>
+        RECOGNIZED_EVENT_CAPACITIES.has(sub) ||
+        sub.startsWith("co ") ||
+        sub.startsWith("co-") ||
+        RECOGNIZED_EVENT_CAPACITIES.has(sub.replace(/^co\s+/, ""))
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Splits role_label and capacity_title into distinct official title (role) and event capacity (association).
- * Moves a parenthetical qualifier into association only when the parenthetical value is a recognized event capacity
- * (e.g. "British Foreign Secretary (Author)" -> role: "British Foreign Secretary", association: "Author");
+ * Moves a parenthetical qualifier into association when the parenthetical value is a recognized event capacity
+ * (e.g. "British Foreign Secretary (Author)" -> role: "British Foreign Secretary", association: "Author",
+ *  "President of the United States (Host / Witness)" -> role: "President of the United States", association: "Host / Witness");
+ * removes matching parentheticals when capacityTitle is explicitly provided;
  * otherwise preserves the full official title including qualifiers such as "Prime Minister (Acting)".
  */
 export function parseParticipantRoleAndAssociation(
@@ -92,17 +127,20 @@ export function parseParticipantRoleAndAssociation(
   let role = roleLabel?.trim() || undefined;
   let association: ParticipantAssociation | string | undefined = capacityTitle?.trim() || undefined;
 
-  if (role && !association) {
+  if (role) {
     const match = role.match(/^(.*?)\s*\(([^)]+)\)$/);
     if (match) {
       const candidateCapacity = match[2].trim();
-      const normalizedCapacity = candidateCapacity.toLowerCase().replace(/[\-_]/g, " ").trim();
-      if (
-        RECOGNIZED_EVENT_CAPACITIES.has(candidateCapacity.toLowerCase()) ||
-        RECOGNIZED_EVENT_CAPACITIES.has(normalizedCapacity)
-      ) {
+      const isCapacity = isRecognizedCapacity(candidateCapacity);
+      const matchesExplicit = Boolean(
+        association && candidateCapacity.toLowerCase() === association.toLowerCase()
+      );
+
+      if (isCapacity || matchesExplicit) {
         role = match[1].trim() || undefined;
-        association = candidateCapacity;
+        if (!association) {
+          association = candidateCapacity;
+        }
       }
     }
   }
