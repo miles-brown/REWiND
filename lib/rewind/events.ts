@@ -32,9 +32,58 @@ function isAttendanceMode(value: unknown): value is AttendanceMode {
   return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
 }
 
+const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
+  "author",
+  "co-author",
+  "speaker",
+  "keynote-speaker",
+  "keynote speaker",
+  "guest",
+  "host",
+  "co-host",
+  "interviewer",
+  "interviewee",
+  "moderator",
+  "panelist",
+  "participant",
+  "contestant",
+  "expert-contributor",
+  "expert contributor",
+  "attendee",
+  "delegate",
+  "witness",
+  "presiding-officer",
+  "presiding officer",
+  "presiding judge",
+  "presiding",
+  "lead prosecutor",
+  "prosecutor",
+  "signatory",
+  "honoree",
+  "investigator",
+  "observer",
+  "organizer",
+  "greeting dignitary",
+  "dissenting",
+  "dissenting in part",
+  "concurring",
+  "concurring in part",
+  "testifier",
+  "complainant",
+  "defendant",
+  "appellant",
+  "respondent",
+  "petitioner",
+  "counsel",
+  "defense counsel",
+  "prosecution counsel",
+]);
+
 /**
  * Splits role_label and capacity_title into distinct official title (role) and event capacity (association).
- * Separates composite values such as "British Foreign Secretary (Author)" into role: "British Foreign Secretary", association: "Author".
+ * Moves a parenthetical qualifier into association only when the parenthetical value is a recognized event capacity
+ * (e.g. "British Foreign Secretary (Author)" -> role: "British Foreign Secretary", association: "Author");
+ * otherwise preserves the full official title including qualifiers such as "Prime Minister (Acting)".
  */
 export function parseParticipantRoleAndAssociation(
   roleLabel?: string | null,
@@ -46,8 +95,15 @@ export function parseParticipantRoleAndAssociation(
   if (role && !association) {
     const match = role.match(/^(.*?)\s*\(([^)]+)\)$/);
     if (match) {
-      role = match[1].trim() || undefined;
-      association = match[2].trim() || undefined;
+      const candidateCapacity = match[2].trim();
+      const normalizedCapacity = candidateCapacity.toLowerCase().replace(/[\-_]/g, " ").trim();
+      if (
+        RECOGNIZED_EVENT_CAPACITIES.has(candidateCapacity.toLowerCase()) ||
+        RECOGNIZED_EVENT_CAPACITIES.has(normalizedCapacity)
+      ) {
+        role = match[1].trim() || undefined;
+        association = candidateCapacity;
+      }
     }
   }
 

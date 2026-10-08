@@ -19,8 +19,10 @@ after(async () => {
 describe("People Directory & Name Parsing Architecture", async () => {
   const peopleModule = await vite.ssrLoadModule("/lib/rewind/people.ts");
   const seedsModule = await vite.ssrLoadModule("/data/seeds/index.ts");
+  const datesModule = await vite.ssrLoadModule("/lib/rewind/dates.ts");
   const { extractPersonNameParts, getPeopleWithStatus } = peopleModule;
   const { masterPeopleSeed } = seedsModule;
+  const { isStandardIsoDate } = datesModule;
 
   it("exports extractPersonNameParts and getPeopleWithStatus", () => {
     assert.equal(typeof extractPersonNameParts, "function");
@@ -84,7 +86,7 @@ describe("People Directory & Name Parsing Architecture", async () => {
       assert.ok(p.canonicalName, `Person ${p.slug} must have canonicalName`);
       assert.ok(p.displayName, `Person ${p.slug} must have displayName`);
       assert.ok(p.birthDate, `Person ${p.slug} must have birthDate`);
-      assert.match(p.birthDate, /^\d{4}/, `Person ${p.slug} birthDate must start with 4-digit year: "${p.birthDate}"`);
+      assert.ok(isStandardIsoDate(p.birthDate), `Person ${p.slug} birthDate must be a valid ISO date: "${p.birthDate}"`);
 
       // Single clean demonym nationality check
       assert.ok(p.nationality, `Person ${p.slug} must have nationality`);
@@ -144,6 +146,10 @@ describe("People Directory & Name Parsing Architecture", async () => {
     // Plain role without parentheses or capacityTitle
     const res3 = parseParticipantRoleAndAssociation("President of the United States");
     assert.deepEqual(res3, { role: "President of the United States", association: undefined });
+
+    // Role with non-capacity qualifier like (Acting) or (Interim)
+    const resActing = parseParticipantRoleAndAssociation("Prime Minister (Acting)");
+    assert.deepEqual(resActing, { role: "Prime Minister (Acting)", association: undefined });
 
     // Only capacityTitle
     const res4 = parseParticipantRoleAndAssociation(undefined, "interviewee");
