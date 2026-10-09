@@ -754,7 +754,7 @@ export const royalSourcesCorpus: SourceRecord[] = [
     classification: "primary",
     sourceLevel: "primary",
     tier: "tier-a",
-    url: "https://www.boe.es/buscar/doc.php?id=BOE-A-1975-23847",
+    url: "https://www.boe.es/buscar/doc.php?id=BOE-A-1975-23896",
     publicationDate: "1975-11-22",
     accessedDate: "2024-09-01",
     language: "es",

@@ -471,7 +471,7 @@ const baseSourcesCorpus: SourceRecord[] = [
     url: "https://main.knesset.gov.il/EN/members/Pages/default.aspx",
     publicationDate: "2024-01-01",
     accessedDate: "2024-09-01",
-    language: "he",
+    language: "en",
     trustScore: 1.0,
     independenceStatus: "official self-report"
   },
