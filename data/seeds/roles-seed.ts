@@ -1,3 +1,10 @@
+/**
+ * REWIND EVIDENCE ATLAS — CANONICAL SEED REGISTER: OFFICIAL ROLES
+ *
+ * Forensically documented constitutional, governmental, military, and diplomatic roles.
+ * Note: OfficialRoleSeed.id is typed as an integer (number) for direct 1:1 parity with
+ * PostgreSQL public.person_roles (id serial PRIMARY KEY) across database migrations and syncs.
+ */
 export interface OfficialRoleSeed {
   id: number;
   personId: string;

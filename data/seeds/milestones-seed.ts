@@ -11,7 +11,7 @@ export interface MilestoneSeed {
 }
 
 export const milestonesSeed: MilestoneSeed[] = [
-  // 1. Benjamin Netanyahu
+  // 1. Benjamin Netanyahu (ID Prefix: mlst-netanyahu-)
   {
     id: "mlst-netanyahu-1972-operation-isotope",
     personId: "benjamin-netanyahu",
@@ -83,7 +83,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "4 Joint Congressional Addresses"
   },
 
-  // 2. Ehud Barak
+  // 2. Ehud Barak (ID Prefix: mlst-barak-)
   {
     id: "mlst-barak-most-decorated",
     personId: "ehud-barak",
@@ -105,7 +105,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "14-Day Trilateral Peace Summit"
   },
 
-  // 3. Yitzhak Rabin
+  // 3. Yitzhak Rabin (ID Prefix: mlst-rabin-)
   {
     id: "mlst-rabin-nobel-1994",
     personId: "yitzhak-rabin",
@@ -127,7 +127,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Sovereign Peace Treaty Signed"
   },
 
-  // 4. Shimon Peres
+  // 4. Shimon Peres (ID Prefix: mlst-peres-)
   {
     id: "mlst-peres-nobel-1994",
     personId: "shimon-peres",
@@ -149,7 +149,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Triple Historic Honors"
   },
 
-  // 5. Avigdor Lieberman
+  // 5. Avigdor Lieberman (ID Prefix: mlst-lieberman-)
   {
     id: "mlst-lieberman-yisrael-beiteinu-2009",
     personId: "avigdor-lieberman",
@@ -161,7 +161,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "15 Parliamentary Seats"
   },
 
-  // 6. Ron Dermer
+  // 6. Ron Dermer (ID Prefix: mlst-dermer-)
   {
     id: "mlst-dermer-mou-2016",
     personId: "ron-dermer",
@@ -173,7 +173,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "$38 Billion Defense Agreement"
   },
 
-  // 7. Mahmoud Abbas
+  // 7. Mahmoud Abbas (ID Prefix: mlst-abbas-)
   {
     id: "mlst-abbas-un-upgrade-2012",
     personId: "mahmoud-abbas",
@@ -185,7 +185,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "138 UNGA Member Votes"
   },
 
-  // 8. Yasser Arafat
+  // 8. Yasser Arafat (ID Prefix: mlst-arafat-)
   {
     id: "mlst-arafat-nobel-1994",
     personId: "yasser-arafat",
@@ -207,7 +207,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "First Non-State UNGA Plenary"
   },
 
-  // 9. Saeb Erekat
+  // 9. Saeb Erekat (ID Prefix: mlst-erekat-)
   {
     id: "mlst-erekat-25-years-negotiator",
     personId: "saeb-erekat",
@@ -219,7 +219,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "25+ Years Chief Negotiator"
   },
 
-  // 10. Ismail Haniyeh
+  // 10. Ismail Haniyeh (ID Prefix: mlst-haniyeh-)
   {
     id: "mlst-haniyeh-2006-election",
     personId: "ismail-haniyeh",
@@ -231,7 +231,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "74 of 132 PLC Seats"
   },
 
-  // 11. Khaled Mashal
+  // 11. Khaled Mashal (ID Prefix: mlst-mashal-)
   {
     id: "mlst-mashal-1997-assassination-survival",
     personId: "khaled-mashal",
@@ -243,7 +243,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Major Geopolitical Crisis"
   },
 
-  // 12. Marwan Barghouti
+  // 12. Marwan Barghouti (ID Prefix: mlst-barghouti-)
   {
     id: "mlst-barghouti-central-committee-vote",
     personId: "marwan-barghouti",
@@ -255,7 +255,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Top Vote at 6th Fatah Congress"
   },
 
-  // 13. Joe Biden
+  // 13. Joe Biden (ID Prefix: mlst-biden-)
   {
     id: "mlst-biden-2020-record-votes",
     personId: "joe-biden",
@@ -277,7 +277,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Landmark Federal Statute"
   },
 
-  // 14. Donald Trump
+  // 14. Donald Trump (ID Prefix: mlst-trump-)
   {
     id: "mlst-trump-2016-electoral-victory",
     personId: "donald-trump",
@@ -309,7 +309,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "312 Electoral Votes"
   },
 
-  // 15. Barack Obama
+  // 15. Barack Obama (ID Prefix: mlst-obama-)
   {
     id: "mlst-obama-2009-nobel",
     personId: "barack-obama",
@@ -331,7 +331,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "20+ Million Americans Insured"
   },
 
-  // 16. Bill Clinton
+  // 16. Bill Clinton (ID Prefix: mlst-bill-clinton-)
   {
     id: "mlst-bill-clinton-longest-expansion",
     personId: "bill-clinton",
@@ -353,7 +353,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Historic South Lawn Accord"
   },
 
-  // 17. Hillary Clinton
+  // 17. Hillary Clinton (ID Prefix: mlst-hillary-beijing-)
   {
     id: "mlst-hillary-beijing-1995",
     personId: "hillary-clinton",
@@ -375,7 +375,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "65.8 Million General Election Votes"
   },
 
-  // 18. Kamala Harris
+  // 18. Kamala Harris (ID Prefix: mlst-harris-)
   {
     id: "mlst-harris-first-female-vp",
     personId: "kamala-harris",
@@ -397,7 +397,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "33 Senate Tie-Breakers (All-Time Record)"
   },
 
-  // 19. Dick Cheney
+  // 19. Dick Cheney (ID Prefix: mlst-cheney-)
   {
     id: "mlst-cheney-desert-storm",
     personId: "dick-cheney",
@@ -409,7 +409,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "35-Nation Coalition Campaign"
   },
 
-  // 20. Mike Pompeo
+  // 20. Mike Pompeo (ID Prefix: mlst-pompeo-)
   {
     id: "mlst-pompeo-pyongyang-2018",
     personId: "mike-pompeo",
@@ -421,7 +421,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "3 Detainees Liberated"
   },
 
-  // 21. Nancy Pelosi
+  // 21. Nancy Pelosi (ID Prefix: mlst-pelosi-)
   {
     id: "mlst-pelosi-first-female-speaker",
     personId: "nancy-pelosi",
@@ -433,7 +433,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "52nd Speaker of the House"
   },
 
-  // 22. Chuck Schumer
+  // 22. Chuck Schumer (ID Prefix: mlst-schumer-)
   {
     id: "mlst-schumer-ira-2022",
     personId: "chuck-schumer",
@@ -445,7 +445,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "$369 Billion Climate & Energy Statute"
   },
 
-  // 23. Mitch McConnell
+  // 23. Mitch McConnell (ID Prefix: mlst-mcconnell-)
   {
     id: "mlst-mcconnell-longest-serving-leader",
     personId: "mitch-mcconnell",
@@ -457,7 +457,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "18+ Years Senate Party Leadership"
   },
 
-  // 24. Bernie Sanders
+  // 24. Bernie Sanders (ID Prefix: mlst-sanders-)
   {
     id: "mlst-sanders-grassroots-fundraising",
     personId: "bernie-sanders",
@@ -469,7 +469,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "8+ Million Individual Contributions"
   },
 
-  // 25. Thomas Massie
+  // 25. Thomas Massie (ID Prefix: mlst-massie-)
   {
     id: "mlst-massie-lemelson-mit",
     personId: "thomas-massie",
@@ -481,7 +481,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Lemelson-MIT Invention Prize"
   },
 
-  // 26. Randy Fine
+  // 26. Randy Fine (ID Prefix: mlst-fine-)
   {
     id: "mlst-fine-anti-bds-legislation",
     personId: "randy-fine",
@@ -493,7 +493,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Statewide Enacted Statute"
   },
 
-  // 27. Jared Kushner
+  // 27. Jared Kushner (ID Prefix: mlst-kushner-)
   {
     id: "mlst-kushner-abraham-accords",
     personId: "jared-kushner",
@@ -505,7 +505,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "5 Sovereign Accord Signatories"
   },
 
-  // 28. Sir Keir Starmer
+  // 28. Sir Keir Starmer (ID Prefix: mlst-starmer-)
   {
     id: "mlst-starmer-2024-landslide",
     personId: "keir-starmer",
@@ -517,7 +517,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "412 Parliamentary Seats Won"
   },
 
-  // 29. Tony Blair
+  // 29. Tony Blair (ID Prefix: mlst-blair-)
   {
     id: "mlst-blair-good-friday-1998",
     personId: "tony-blair",
@@ -529,7 +529,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Belfast Agreement Ratified (71.1% Yes)"
   },
 
-  // 30. Jeremy Corbyn
+  // 30. Jeremy Corbyn (ID Prefix: mlst-corbyn-)
   {
     id: "mlst-corbyn-2015-landslide",
     personId: "jeremy-corbyn",
@@ -541,7 +541,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "59.5% First-Round Mandate"
   },
 
-  // 31. George Galloway
+  // 31. George Galloway (ID Prefix: mlst-galloway-)
   {
     id: "mlst-galloway-senate-2005",
     personId: "george-galloway",
@@ -553,7 +553,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Televised Senate Hearing"
   },
 
-  // 32. Ken Livingstone
+  // 32. Ken Livingstone (ID Prefix: mlst-livingstone-)
   {
     id: "mlst-livingstone-congestion-charge",
     personId: "ken-livingstone",
@@ -565,7 +565,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "15% Traffic Reduction in Central London"
   },
 
-  // 33. Jack Straw
+  // 33. Jack Straw (ID Prefix: mlst-straw-)
   {
     id: "mlst-straw-human-rights-act",
     personId: "jack-straw",
@@ -577,7 +577,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Foundational Constitutional Statute"
   },
 
-  // 34. Elon Musk
+  // 34. Elon Musk (ID Prefix: mlst-musk-)
   {
     id: "mlst-musk-doge-2025",
     personId: "elon-musk",
@@ -599,7 +599,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "First Orbital Class Landing"
   },
 
-  // 35. Michael Bloomberg
+  // 35. Michael Bloomberg (ID Prefix: mlst-bloomberg-)
   {
     id: "mlst-bloomberg-three-terms",
     personId: "michael-bloomberg",
@@ -611,7 +611,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "12 Continuous Years Mayoral Service"
   },
 
-  // 36. Larry King
+  // 36. Larry King (ID Prefix: mlst-larry-king-)
   {
     id: "mlst-larry-king-50k-interviews",
     personId: "larry-king",
@@ -623,7 +623,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "50,000+ Interviews Conducted"
   },
 
-  // 37. Barbara Walters
+  // 37. Barbara Walters (ID Prefix: mlst-walters-)
   {
     id: "mlst-walters-first-evening-co-anchor",
     personId: "barbara-walters",
@@ -635,7 +635,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "First Female Network Evening Anchor"
   },
 
-  // 38. Christiane Amanpour
+  // 38. Christiane Amanpour (ID Prefix: mlst-amanpour-)
   {
     id: "mlst-amanpour-four-peabody-awards",
     personId: "christiane-amanpour",
@@ -646,7 +646,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     description: "Honored for coverage across the Balkans, Middle East, Rwanda, and global women's rights.",
     metricOrStat: "4 Peabody Awards"
   },
-  // 39. Tucker Carlson
+  // 39. Tucker Carlson (ID Prefix: mlst-carlson-)
   {
     id: "mlst-carlson-highest-cable-rating",
     personId: "tucker-carlson",
@@ -658,7 +658,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "4.33 Million Nightly Viewers"
   },
 
-  // 40. Candace Owens
+  // 40. Candace Owens (ID Prefix: mlst-owens-)
   {
     id: "mlst-owens-blexit-foundation",
     personId: "candace-owens",
@@ -670,7 +670,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "National Grassroots Non-Profit"
   },
 
-  // 41. Charlie Kirk
+  // 41. Charlie Kirk (ID Prefix: mlst-kirk-)
   {
     id: "mlst-kirk-tpusa-expansion",
     personId: "charlie-kirk",
@@ -682,7 +682,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "3,500+ Active Student Chapters"
   },
 
-  // 42. Ben Shapiro
+  // 42. Ben Shapiro (ID Prefix: mlst-shapiro-)
   {
     id: "mlst-shapiro-youngest-syndicated",
     personId: "ben-shapiro",
@@ -694,7 +694,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Age 17 National Syndication"
   },
 
-  // 43. Andrew Neil
+  // 43. Andrew Neil (ID Prefix: mlst-neil-)
   {
     id: "mlst-neil-sky-launch-1989",
     personId: "andrew-neil",
@@ -706,7 +706,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "4-Channel Satellite Network Launch"
   },
 
-  // 44. Anderson Cooper
+  // 44. Anderson Cooper (ID Prefix: mlst-cooper-)
   {
     id: "mlst-cooper-18-emmy-awards",
     personId: "anderson-cooper",
@@ -718,7 +718,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "18 Emmy Awards"
   },
 
-  // 45. Tom Brokaw
+  // 45. Tom Brokaw (ID Prefix: mlst-brokaw-)
   {
     id: "mlst-brokaw-berlin-wall",
     personId: "tom-brokaw",
@@ -742,7 +742,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "25+ Continuous Broadcast Hours"
   },
 
-  // 47. Lester Holt
+  // 47. Lester Holt (ID Prefix: mlst-holt-)
   {
     id: "mlst-holt-record-debate-viewers",
     personId: "lester-holt",
@@ -754,7 +754,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "84 Million Live Viewers"
   },
 
-  // 48. Diane Sawyer
+  // 48. Diane Sawyer (ID Prefix: mlst-sawyer-)
   {
     id: "mlst-sawyer-first-female-60-minutes",
     personId: "diane-sawyer",
@@ -766,7 +766,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Historic First for Flagship News Magazine"
   },
 
-  // 49. Emmanuel Macron
+  // 49. Emmanuel Macron (ID Prefix: mlst-macron-)
   {
     id: "mlst-macron-youngest-french-president",
     personId: "emmanuel-macron",
@@ -778,7 +778,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Age 39 (66.1% Second-Round Vote)"
   },
 
-  // 50. Vladimir Putin
+  // 50. Vladimir Putin (ID Prefix: mlst-putin-)
   {
     id: "mlst-putin-longest-serving-leader",
     personId: "vladimir-putin",
@@ -790,7 +790,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "24+ Years Supreme State Leadership"
   },
 
-  // 51. Jeffrey Epstein
+  // 51. Jeffrey Epstein (ID Prefix: mlst-epstein-)
   {
     id: "mlst-epstein-2019-indictment",
     personId: "jeffrey-epstein",
@@ -802,7 +802,7 @@ export const milestonesSeed: MilestoneSeed[] = [
     metricOrStat: "Federal Grand Jury Indictment"
   },
 
-  // 52. Tenzin Gyatso (Dalai Lama)
+  // 52. Tenzin Gyatso (Dalai Lama) (ID Prefix: mlst-dalai-lama-)
   {
     id: "mlst-dalai-lama-1940-enthronement",
     personId: "dalai-lama",
