@@ -18,6 +18,7 @@ import { extendedHistoricHousesPeopleSeed } from "./extended-historic-houses-see
 import { officialRolesSeed } from "./roles-seed";
 import { milestonesSeed } from "./milestones-seed";
 import { topicsSeed } from "./topics-seed";
+import { sourcesCorpus } from "./sources-corpus";
 import {
   royalEducationSeed,
   royalCareerSeed,
@@ -59,6 +60,7 @@ export {
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
+  sourcesCorpus,
   royalEducationSeed,
   royalCareerSeed,
   royalAwardsSeed,

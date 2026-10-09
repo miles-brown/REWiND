@@ -20,7 +20,7 @@ after(async () => {
 const { getPersonRoles } = await vite.ssrLoadModule("/lib/rewind/roles.ts");
 const { getPersonMilestones } = await vite.ssrLoadModule("/lib/rewind/milestones.ts");
 const { getPersonBySlugWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
-const { officialRolesSeed, milestonesSeed, allEducationSeed, allCareerSeed, allAwardsSeed, allWorksSeed, allStaysSeed } = await vite.ssrLoadModule("/data/seeds/index.ts");
+const { officialRolesSeed, milestonesSeed, allEducationSeed, allCareerSeed, allAwardsSeed, allWorksSeed, allStaysSeed, sourcesCorpus } = await vite.ssrLoadModule("/data/seeds/index.ts");
 
 const TEST_SET_50_SLUGS = [
   "ehud-barak", "yitzhak-rabin", "shimon-peres", "avigdor-lieberman", "ron-dermer",
@@ -122,4 +122,35 @@ test("Seeds integrity, ID uniqueness, and collection exports consistency", async
 
   const stayIds = allStaysSeed.map((s) => s.id);
   assert.equal(new Set(stayIds).size, stayIds.length, "All allStaysSeed IDs must be unique");
+
+  // Strict 4-digit year format consistency (^\d{4}$)
+  const fourDigitYearRegex = /^\d{4}$/;
+  for (const edu of allEducationSeed) {
+    if (edu.startYear) assert.match(edu.startYear, fourDigitYearRegex, `Invalid startYear format in edu ${edu.id}: ${edu.startYear}`);
+    if (edu.endYear) assert.match(edu.endYear, fourDigitYearRegex, `Invalid endYear format in edu ${edu.id}: ${edu.endYear}`);
+  }
+  for (const awd of allAwardsSeed) {
+    if (awd.yearReceived) assert.match(awd.yearReceived, fourDigitYearRegex, `Invalid yearReceived format in award ${awd.id}: ${awd.yearReceived}`);
+  }
+  for (const wrk of allWorksSeed) {
+    if (wrk.publicationYear) assert.match(wrk.publicationYear, fourDigitYearRegex, `Invalid publicationYear format in work ${wrk.id}: ${wrk.publicationYear}`);
+  }
+
+  // Sourcing integrity: all assigned sourceIds resolve in sourcesCorpus
+  const sourceIdSet = new Set(sourcesCorpus.map((s) => s.id));
+  for (const edu of allEducationSeed) {
+    if (edu.sourceId) assert.ok(sourceIdSet.has(edu.sourceId), `Source ${edu.sourceId} in edu ${edu.id} must exist in sourcesCorpus`);
+  }
+  for (const car of allCareerSeed) {
+    if (car.sourceId) assert.ok(sourceIdSet.has(car.sourceId), `Source ${car.sourceId} in career ${car.id} must exist in sourcesCorpus`);
+  }
+  for (const awd of allAwardsSeed) {
+    if (awd.sourceId) assert.ok(sourceIdSet.has(awd.sourceId), `Source ${awd.sourceId} in award ${awd.id} must exist in sourcesCorpus`);
+  }
+  for (const wrk of allWorksSeed) {
+    if (wrk.sourceId) assert.ok(sourceIdSet.has(wrk.sourceId), `Source ${wrk.sourceId} in work ${wrk.id} must exist in sourcesCorpus`);
+  }
+  for (const stay of allStaysSeed) {
+    if (stay.sourceId) assert.ok(sourceIdSet.has(stay.sourceId), `Source ${stay.sourceId} in stay ${stay.id} must exist in sourcesCorpus`);
+  }
 });
