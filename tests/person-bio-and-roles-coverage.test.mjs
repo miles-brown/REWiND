@@ -136,21 +136,26 @@ test("Seeds integrity, ID uniqueness, and collection exports consistency", async
     if (wrk.publicationYear) assert.match(wrk.publicationYear, fourDigitYearRegex, `Invalid publicationYear format in work ${wrk.id}: ${wrk.publicationYear}`);
   }
 
-  // Sourcing integrity: all assigned sourceIds resolve in sourcesCorpus
+  // Sourcing integrity: 100% of seed entities have valid sourceIds resolving in sourcesCorpus
   const sourceIdSet = new Set(sourcesCorpus.map((s) => s.id));
   for (const edu of allEducationSeed) {
-    if (edu.sourceId) assert.ok(sourceIdSet.has(edu.sourceId), `Source ${edu.sourceId} in edu ${edu.id} must exist in sourcesCorpus`);
+    assert.ok(edu.sourceId, `Edu ${edu.id} must have a valid sourceId`);
+    assert.ok(sourceIdSet.has(edu.sourceId), `Source ${edu.sourceId} in edu ${edu.id} must exist in sourcesCorpus`);
   }
   for (const car of allCareerSeed) {
-    if (car.sourceId) assert.ok(sourceIdSet.has(car.sourceId), `Source ${car.sourceId} in career ${car.id} must exist in sourcesCorpus`);
+    assert.ok(car.sourceId, `Career ${car.id} must have a valid sourceId`);
+    assert.ok(sourceIdSet.has(car.sourceId), `Source ${car.sourceId} in career ${car.id} must exist in sourcesCorpus`);
   }
   for (const awd of allAwardsSeed) {
-    if (awd.sourceId) assert.ok(sourceIdSet.has(awd.sourceId), `Source ${awd.sourceId} in award ${awd.id} must exist in sourcesCorpus`);
+    assert.ok(awd.sourceId, `Award ${awd.id} must have a valid sourceId`);
+    assert.ok(sourceIdSet.has(awd.sourceId), `Source ${awd.sourceId} in award ${awd.id} must exist in sourcesCorpus`);
   }
   for (const wrk of allWorksSeed) {
-    if (wrk.sourceId) assert.ok(sourceIdSet.has(wrk.sourceId), `Source ${wrk.sourceId} in work ${wrk.id} must exist in sourcesCorpus`);
+    assert.ok(wrk.sourceId, `Work ${wrk.id} must have a valid sourceId`);
+    assert.ok(sourceIdSet.has(wrk.sourceId), `Source ${wrk.sourceId} in work ${wrk.id} must exist in sourcesCorpus`);
   }
   for (const stay of allStaysSeed) {
-    if (stay.sourceId) assert.ok(sourceIdSet.has(stay.sourceId), `Source ${stay.sourceId} in stay ${stay.id} must exist in sourcesCorpus`);
+    assert.ok(stay.sourceId, `Stay ${stay.id} must have a valid sourceId`);
+    assert.ok(sourceIdSet.has(stay.sourceId), `Source ${stay.sourceId} in stay ${stay.id} must exist in sourcesCorpus`);
   }
 });

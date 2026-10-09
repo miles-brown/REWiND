@@ -64,7 +64,14 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       year: m.year || (m.date ? parseInt(m.date.slice(0, 4), 10) : undefined),
       evidence: m.description,
     }));
-  const achievements = [...(p.achievements || []), ...officialMilestones];
+  const rawAchievements = [...(p.achievements || []), ...officialMilestones];
+  const seenMilestones = new Set<string>();
+  const achievements = rawAchievements.filter((ach) => {
+    const key = (ach.milestone || "").trim().toLowerCase();
+    if (!key || seenMilestones.has(key)) return false;
+    seenMilestones.add(key);
+    return true;
+  });
 
   const pAwards = allAwardsSeed
     .filter((a) => a.personId === p.id || a.personId === p.slug)
