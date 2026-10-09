@@ -6,7 +6,7 @@ import { mapDatabaseSource } from "./sources";
 import { normalizeIsoDate } from "./dates";
 import { escapePostgrestValue } from "./search";
 import { resolveGazetteerCoordinates } from "./places";
-import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, Precision, SourceRecord } from "./types";
+import type { AttendanceMode, Confidence, EventFilters, EventRecord, LocationPrecision, PaginatedResult, Participant, ParticipantAssociation, Precision, SourceRecord } from "./types";
 import { deriveDayOfWeek } from "./temporal";
 import { getClaimsByEvent } from "./claims";
 
@@ -30,6 +30,122 @@ function isConfidence(value: unknown): value is Confidence {
 
 function isAttendanceMode(value: unknown): value is AttendanceMode {
   return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
+}
+
+const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
+  "author",
+  "co-author",
+  "speaker",
+  "keynote-speaker",
+  "keynote speaker",
+  "guest",
+  "host",
+  "co-host",
+  "interviewer",
+  "interviewee",
+  "moderator",
+  "panelist",
+  "participant",
+  "contestant",
+  "expert-contributor",
+  "expert contributor",
+  "attendee",
+  "delegate",
+  "witness",
+  "presiding-officer",
+  "presiding officer",
+  "presiding judge",
+  "presiding",
+  "co-presiding",
+  "co presiding",
+  "lead prosecutor",
+  "prosecutor",
+  "signatory",
+  "honoree",
+  "investigator",
+  "observer",
+  "organizer",
+  "greeting dignitary",
+  "dissenting",
+  "dissenting in part",
+  "concurring",
+  "concurring in part",
+  "testifier",
+  "complainant",
+  "defendant",
+  "appellant",
+  "respondent",
+  "petitioner",
+  "counsel",
+  "defense counsel",
+  "prosecution counsel",
+]);
+
+function isRecognizedCapacity(candidate: string): boolean {
+  const trimmed = candidate.trim();
+  const lower = trimmed.toLowerCase();
+  const normalized = lower.replace(/[\-_]/g, " ").trim();
+
+  if (RECOGNIZED_EVENT_CAPACITIES.has(lower) || RECOGNIZED_EVENT_CAPACITIES.has(normalized)) {
+    return true;
+  }
+
+  // Handle composite capacities: e.g. "Host / Witness", "Host, Moderator", "Co-Host & Moderator"
+  const subparts = trimmed
+    .split(/[\/,&\+]/)
+    .map((s) => s.trim().toLowerCase().replace(/[\-_]/g, " "))
+    .filter(Boolean);
+
+  if (
+    subparts.length > 1 &&
+    subparts.every(
+      (sub) =>
+        RECOGNIZED_EVENT_CAPACITIES.has(sub) ||
+        sub.startsWith("co ") ||
+        sub.startsWith("co-") ||
+        RECOGNIZED_EVENT_CAPACITIES.has(sub.replace(/^co\s+/, ""))
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Splits role_label and capacity_title into distinct official title (role) and event capacity (association).
+ * Moves a parenthetical qualifier into association when the parenthetical value is a recognized event capacity
+ * (e.g. "British Foreign Secretary (Author)" -> role: "British Foreign Secretary", association: "Author",
+ *  "President of the United States (Host / Witness)" -> role: "President of the United States", association: "Host / Witness");
+ * removes matching parentheticals when capacityTitle is explicitly provided;
+ * otherwise preserves the full official title including qualifiers such as "Prime Minister (Acting)".
+ */
+export function parseParticipantRoleAndAssociation(
+  roleLabel?: string | null,
+  capacityTitle?: string | null
+): { role?: string; association?: ParticipantAssociation | string } {
+  let role = roleLabel?.trim() || undefined;
+  let association: ParticipantAssociation | string | undefined = capacityTitle?.trim() || undefined;
+
+  if (role) {
+    const match = role.match(/^(.*?)\s*\(([^)]+)\)$/);
+    if (match) {
+      const candidateCapacity = match[2].trim();
+      const isCapacity = isRecognizedCapacity(candidateCapacity);
+      const matchesExplicit = Boolean(
+        association && candidateCapacity.toLowerCase() === association.toLowerCase()
+      );
+
+      if (isCapacity || matchesExplicit) {
+        role = match[1].trim() || undefined;
+        if (!association) {
+          association = candidateCapacity;
+        }
+      }
+    }
+  }
+
+  return { role, association };
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
@@ -70,14 +186,19 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
     confidenceScore,
     sourceIds: e.sourceIds || [],
     sources: sources.length > 0 ? sources : (e.sources || []),
-    participants: (e.participants || []).map((p) => ({
-      personId: p.personId,
-      slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
-      name: p.name,
-      role: p.role,
-      presenceConfidence: p.presenceConfidence,
-      attendanceMode: p.attendanceMode,
-    })),
+    participants: (e.participants || []).map((p) => {
+      const parsed = parseParticipantRoleAndAssociation(p.role, p.association || p.capacityTitle);
+      return {
+        personId: p.personId,
+        slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
+        name: p.name,
+        role: parsed.role,
+        association: parsed.association,
+        presenceConfidence: p.presenceConfidence,
+        capacityTitle: p.capacityTitle,
+        attendanceMode: p.attendanceMode,
+      };
+    }),
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
     quotes: e.quotes,
@@ -480,11 +601,13 @@ async function hydrateEventRows(
 
   typedParticipants.forEach((p) => {
     const list = participantsMap.get(p.event_id) || [];
+    const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
     list.push({
       personId: p.person_id,
       slug: personSlugs.get(p.person_id),
       name: personNames.get(p.person_id) || p.person_id,
-      role: p.role_label,
+      role,
+      association,
       presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
       capacityTitle: p.capacity_title || undefined,
       attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
@@ -1067,11 +1190,13 @@ export async function getEventBySlug(
 
       const participants: Participant[] = participantRows.map((p) => {
         const loc = locationsMap.get(p.id);
+        const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
         return {
           personId: p.person_id,
           slug: personSlugs.get(p.person_id),
           name: personNames.get(p.person_id) || p.person_id,
-          role: p.role_label || undefined,
+          role,
+          association,
           presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
           capacityTitle: p.capacity_title || undefined,
           attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,

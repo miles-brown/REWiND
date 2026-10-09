@@ -35,11 +35,30 @@ export type AttendanceMode =
   | "written"
   | "proxy";
 
+export type ParticipantAssociation =
+  | "interviewee"
+  | "host"
+  | "moderator"
+  | "participant"
+  | "contestant"
+  | "expert-contributor"
+  | "attendee"
+  | "keynote-speaker"
+  | "delegate"
+  | "witness"
+  | "presiding-officer"
+  | "signatory"
+  | "honoree"
+  | "panelist"
+  | "investigator"
+  | "observer";
+
 export interface Participant {
   personId: string;
   slug?: string;
   name: string;
-  role?: string;
+  role?: string;                         // Official public title or office (e.g. "President of the United States", "London Borough of Lambeth Presiding Officer")
+  association?: ParticipantAssociation | string; // Specific event participation capacity (e.g. "host", "interviewee", "contestant", "expert-contributor", "attendee")
   presenceConfidence?: Confidence;
   roleConfidence?: Confidence;
   capacityTitle?: string;
@@ -552,6 +571,7 @@ export interface PersonRecord {
   canonicalName: string;
   displayName: string;
   description: string;
+  aliases?: string[];
   fullBirthName?: string;
   birth?: string;
   death?: string;

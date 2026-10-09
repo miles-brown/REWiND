@@ -6042,6 +6042,45 @@ svg { flex: 0 0 auto; }
   stroke-width: 3px;
 }
 
+/* People Directory Interactive Multi-View Styling */
+.person-extended-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 0 15px rgba(56, 189, 248, 0.15);
+}
+
+.person-extended-card:focus-visible,
+.person-badge-card:focus-visible,
+.people-list-row a:focus-visible {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 3px;
+}
+
+.people-list-row:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.person-badge-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3), 0 0 12px rgba(56, 189, 248, 0.12);
+}
+
+@media (max-width: 640px) {
+  .people-toolbar {
+    padding: 0.85rem !important;
+  }
+  .hide-mobile {
+    display: none !important;
+  }
+  .people-extended-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .people-badge-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
 
 
 

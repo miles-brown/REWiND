@@ -143,5 +143,38 @@ export const milestonesSeed: MilestoneSeed[] = [
     year: 2009,
     description: "Awarded the Nobel Peace Prize for extraordinary efforts to strengthen international diplomacy and cooperation between peoples.",
     metricOrStat: "2009 Nobel Peace Prize"
+  },
+
+  // Tenzin Gyatso (Dalai Lama)
+  {
+    id: "mlst-dalai-lama-1940-enthronement",
+    personId: "dalai-lama",
+    title: "Formally Enthroned as 14th Dalai Lama in Lhasa",
+    category: "achievement",
+    date: "1940-02-22",
+    year: 1940,
+    description: "Formally enthroned as the spiritual and temporal leader of Tibet at the Potala Palace in Lhasa.",
+    metricOrStat: "Enthroned at Age 4"
+  },
+  {
+    id: "mlst-dalai-lama-1989-nobel",
+    personId: "dalai-lama",
+    title: "Awarded 1989 Nobel Peace Prize for Non-Violent Advocacy",
+    category: "honor",
+    date: "1989-12-10",
+    year: 1989,
+    description: "Awarded the Nobel Peace Prize in Oslo for his consistent opposition to the use of violence in his struggle for Tibetan autonomy.",
+    metricOrStat: "1989 Nobel Peace Prize"
+  },
+  {
+    id: "mlst-dalai-lama-2007-gold-medal",
+    personId: "dalai-lama",
+    title: "Awarded US Congressional Gold Medal in Washington, D.C.",
+    category: "honor",
+    date: "2007-10-17",
+    year: 2007,
+    description: "Conferred the highest civilian honor bestowed by the United States Congress in recognition of his human rights and interfaith leadership.",
+    metricOrStat: "US Congressional Gold Medal"
   }
 ];
+

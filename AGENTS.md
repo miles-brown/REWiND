@@ -118,6 +118,11 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 3. **Viewport & UI Responsiveness**:
    - The timeline console (`PersonTimeline.tsx` / `RewindExplorer.tsx`) must remain fixed to the viewport bottom with zero-gap clamping and proper padding so content never bleeds or overlaps.
 
+4. **Biographical Naming & Role Separation Invariant**:
+   - Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`).
+   - Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields. Official numbered roles belong strictly in the structured `roles` array (`roles-seed.ts`).
+   - In `primaryRole` and extended summaries, use natural current/former relational descriptors (e.g. `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`).
+
 ---
 
 ## 4. Repository Directory Structure
@@ -162,4 +167,17 @@ All code interacting with the Supabase / PostgreSQL data layer, ingestion pipeli
 5. **Transactional Claim Synchronization & Relationship Integrity**:
    - Synchronize claims using `persistedClaimIds` to prevent duplicate claim creation across adapters and services.
    - Route figures in comparison views (`/relationship/[a]/[b]`) must guard against self-pairs (`slugA !== slugB`) and preserve authoritative references across navigation.
+
+6. **Permanent Addition & Non-Deletion Rule (Strict Invariant)**:
+   - Once an entity (Person, Event, Place/Venue, Source, Timeline Milestone, Career Role, or Bio Record) has been added to the REWiND Evidence Atlas, it must **NEVER be deleted**.
+   - Data is strictly additive and progressive. Records must only be improved, extended, enriched, modified, or merged under strict audited conditions:
+     - **True Duplication**: When two records represent the exact same historical event or entity, perform live database deduplication (`findDuplicateEventAsync`), merging all attached claims, quotes, and co-attendees without losing context.
+     - **Sparse / Incomplete Records**: Records with minimal info must NEVER be deleted for lack of information; they must be queued for automated enrichment and populated with verified primary sources, coordinates, dates, and biographical roles.
+     - **Erroneous / Disputed Data**: Correct factual details in place or mark status as `"disputed"` / `"limited"`, maintaining archival provenance audit logs rather than removing records.
+
+7. **Multi-Source Vacuum Crawlers & Participant Completeness**:
+   - Ingestion crawlers and vacuum scrapers continuously index primary/secondary sources across official transcripts, parliamentary records, unedited broadcast audio/video, gazettes, and press archives.
+   - Every ingested event must be verified for participant completeness: no confirmed attendees or participants may be omitted.
+   - Every participant attached to an event must distinguish their **official title/office** (`role`, e.g. *"President of the United States"*, *"London Borough of Lambeth Presiding Officer"*) from their **event capacity** (`association`, e.g. *"interviewee"*, *"host"*, *"moderator"*, *"participant"*, *"contestant"*, *"expert-contributor"*, *"attendee"*).
+
 

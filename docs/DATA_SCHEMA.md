@@ -60,7 +60,8 @@ export interface EventRecord {
   participants: Array<{
     personId: string;                           // Referenced Person ID
     name: string;                               // Full name
-    role: string;                               // Capacity in event (e.g. "Prime Minister")
+    role?: string;                              // Official public title/office (e.g. "President of the United States", "London Borough of Lambeth Presiding Officer")
+    association?: string;                       // Specific capacity in event (e.g. "host", "interviewee", "contestant", "expert-contributor", "attendee", "moderator")
     presenceConfidence: Confidence;             // Confidence of physical attendance
   }>;
   organisations: string[];                      // Involved entities (e.g. ["Likud", "United Nations"])
@@ -122,6 +123,15 @@ export interface PersonRecord {
   stays?: PersonStayRecord[];                   // Documented residences & accommodation
 }
 ```
+
+#### Biographical Naming & Extended View Style Guidelines
+1. **Strict Separation of Names and Roles**:
+   - `canonicalName` and `displayName` must contain the individual's clean personal name (e.g., `Tenzin Gyatso`, `David Armstrong-Jones`, `Mohammed bin Salman`).
+   - **DO NOT** embed official roles, regnal numbers, or titles into name fields (e.g., do not name a figure `14th Dalai Lama (Tenzin Gyatso)` — `Dalai Lama` is a role, and `14th Dalai Lama` is a historical entry in their roles timeline).
+2. **`primaryRole` & Extended View Descriptions**:
+   - In `primaryRole` and extended card summaries, use relational and current/former descriptive phrasing (e.g., `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`, `Former Prime Minister of Israel`, `Bespoke Furniture Designer`).
+   - Official offices with specific numbers or tenures (such as `14th Dalai Lama`, `46th President of the United States`, `11th Prime Minister of Israel`) belong strictly in the structured `roles` array (`OfficialRoleSeed`) and timeline milestones with start and end dates.
+
 
 ### `PersonStayRecord`
 Represents documented accommodation, official residences, or diplomatic stays.
@@ -202,6 +212,19 @@ All ingestion, data modeling, API querying, and visualization modules MUST stric
 5. **Transactional Claim Synchronization & Relationship Integrity**:
    - Synchronize claims using `persistedClaimIds` to prevent duplicate claim creation across adapters and services.
    - Route figures in comparison views (`/relationship/[a]/[b]`) must guard against self-pairs (`slugA !== slugB`) and preserve authoritative references across navigation.
+
+6. **Permanent Addition & Non-Deletion Rule (Strict Invariant)**:
+   - Once an entity (Person, Event, Place/Venue, Source, Timeline Role, Milestone, or Biography) has been added to the atlas, it must **NEVER be deleted**.
+   - The database is strictly additive and progressive: records must only be improved, enriched, extended, corrected, or merged under strict conditions:
+     - **True Duplication**: When two records represent the exact same event/entity, perform live database deduplication (`findDuplicateEventAsync`), merging all attached sources, claims, and co-attendees without losing context.
+     - **Sparse / Low-Information Records**: Records with minimal info must NEVER be deleted; they must be queued for automated enrichment and populated with verified primary sources, coordinates, dates, and biographical roles.
+     - **Erroneous / Disputed Data**: Correct the factual details in place or mark status as `"disputed"` / `"limited"`, preserving the archival audit provenance trail.
+
+7. **Multi-Source Vacuum Crawlers & Participant Completeness**:
+   - Ingestion scrapers and web crawlers index primary/secondary sources across official transcripts, gazettes, parliamentary records, news archives, and broadcast video.
+   - Every ingested event must be verified for participant completeness: no confirmed attendees or participants may be omitted.
+   - Every participant attached to an event must distinguish their **official title/office** (`role`, e.g. *"President of the United States"*, *"London Borough of Lambeth Presiding Officer"*) from their **event capacity** (`association`, e.g. *"interviewee"*, *"host"*, *"moderator"*, *"participant"*, *"contestant"*, *"expert-contributor"*, *"attendee"*).
+
 
 
 
