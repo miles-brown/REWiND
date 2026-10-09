@@ -530,7 +530,6 @@ export const figuresAwardsSeed: BioAwardSeed[] = [
 
   // Yitzhak Rabin
   { id: "awd-rabin-1", personId: "yitzhak-rabin", awardName: "Nobel Peace Prize", awardingBody: "Norwegian Nobel Committee", yearReceived: "1994", citation: "For political efforts to create peace in the Middle East", sourceId: "src-nobel-prize-official" },
-  { id: "awd-rabin-2", personId: "yitzhak-rabin", awardName: "Presidential Medal of Freedom", awardingBody: "President of the United States", yearReceived: "1995", citation: "Posthumous award for relentless dedication to Middle East peace", sourceId: "src-knesset-official-bio-registry" },
 
   // Shimon Peres
   { id: "awd-peres-1", personId: "shimon-peres", awardName: "Nobel Peace Prize", awardingBody: "Norwegian Nobel Committee", yearReceived: "1994", citation: "For diplomatic efforts leading to the Oslo Peace Accords", sourceId: "src-nobel-prize-official" },
