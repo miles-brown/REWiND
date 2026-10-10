@@ -832,6 +832,74 @@ export const milestonesSeed: MilestoneSeed[] = [
     year: 2007,
     description: "Conferred the highest civilian honor bestowed by the United States Congress in recognition of his human rights and interfaith leadership.",
     metricOrStat: "US Congressional Gold Medal"
+  },
+
+  // 53. Rabbi Shmuley Boteach (ID Prefix: mlst-boteach-)
+  {
+    id: "mlst-boteach-1988-oxford-lchaim",
+    personId: "shmuley-boteach",
+    title: "Founded Oxford University L'Chaim Society",
+    category: "achievement",
+    date: "1988-10-01",
+    year: 1988,
+    description: "Established the Oxford L'Chaim Society as an official university society attracting prominent student leaders, international scholars, and visiting statesmen.",
+    metricOrStat: "Over 5,000 student members during tenure",
+    sourceId: "src-oxford-union-boteach-jackson-2001"
+  },
+  {
+    id: "mlst-boteach-1999-kosher-sex-bestseller",
+    personId: "shmuley-boteach",
+    title: "Published International Bestseller Kosher Sex",
+    category: "achievement",
+    date: "1999-01-01",
+    year: 1999,
+    description: "Authored globally acclaimed treatise on marital intimacy and relationships, published by Doubleday and translated into 20+ languages.",
+    metricOrStat: "International Bestseller in 20+ Languages",
+    sourceId: "src-loc-boteach-kosher-sex-1999"
+  },
+  {
+    id: "mlst-boteach-2001-oxford-union-jackson",
+    personId: "shmuley-boteach",
+    title: "Co-Organized and Introduced Oxford Union Address on Children's Rights",
+    category: "landmark-fact",
+    date: "2001-03-06",
+    year: 2001,
+    description: "Introduced Michael Jackson before an overflow audience at the Oxford Union for a historic address launching the 'Heal the Kids' charitable initiative.",
+    metricOrStat: "Capacity Oxford Union Audience of 1,200+",
+    sourceId: "src-oxford-union-boteach-jackson-2001"
+  },
+  {
+    id: "mlst-boteach-2006-shalom-in-the-home",
+    personId: "shmuley-boteach",
+    title: "Premiered National Television Series Shalom in the Home on TLC",
+    category: "achievement",
+    date: "2006-04-10",
+    year: 2006,
+    description: "Hosted two seasons of family counseling and conflict resolution broadcast across North America on TLC, winning the National Fatherhood Award.",
+    metricOrStat: "2 National Television Seasons",
+    sourceId: "src-wvn-official-registry"
+  },
+  {
+    id: "mlst-boteach-2012-congressional-nominee",
+    personId: "shmuley-boteach",
+    title: "Won Republican Nomination for US Congress in New Jersey's 9th District",
+    category: "achievement",
+    date: "2012-06-05",
+    year: 2012,
+    description: "Won the primary election to become the certified major-party nominee for the United States House of Representatives in New Jersey's 9th Congressional District.",
+    metricOrStat: "Certified Congressional Nominee (55,000+ General Election Votes)",
+    sourceId: "src-nj-dos-election-results-2012"
+  },
+  {
+    id: "mlst-boteach-2015-senate-iran-panel",
+    personId: "shmuley-boteach",
+    title: "Convened US Capitol Hill Panel with Elie Wiesel on Iran Nuclear Agreement",
+    category: "landmark-fact",
+    date: "2015-03-02",
+    year: 2015,
+    description: "Organized historic public bipartisan briefing in the Dirksen Senate Office Building featuring Nobel laureate Elie Wiesel and US senators on international security.",
+    metricOrStat: "Congressional Dirksen Senate Briefing",
+    sourceId: "src-cspan-boteach-wiesel-2015"
   }
 ];
 

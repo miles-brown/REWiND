@@ -225,5 +225,115 @@ export const techMediaCultureEvents: EventRecord[] = [
         attendanceMode: "physical"
       }
     ]
+  },
+  {
+    id: "evt-2001-03-06-oxford-union-jackson-boteach",
+    slug: "2001-03-06-michael-jackson-and-rabbi-shmuley-boteach-oxford-union-address",
+    eventName: "Michael Jackson and Rabbi Shmuley Boteach Address the Oxford Union on Children's Rights",
+    startDate: "2001-03-06T19:30:00Z",
+    endDate: "2001-03-06T21:30:00Z",
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    city: "Oxford",
+    country: "United Kingdom",
+    venueName: "The Oxford Union Society",
+    subvenue: "Debating Chamber",
+    platform: "Oxford Union Presidential Address",
+    address: "Frewin Court, Oxford OX1 3JB",
+    latitude: 51.7533,
+    longitude: -1.2602,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach introduces Michael Jackson before an overflow audience at the Oxford Union Debating Chamber, where Jackson delivers a landmark address inaugurating the 'Heal the Kids' initiative advocating parent-child reconciliation and emotional support.",
+    description: "Organized by the Oxford Union and Rabbi Shmuley Boteach, the address was Jackson's first major British university appearance and outlined a universal Children's Bill of Rights.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["culture", "advocacy", "speech"],
+    eventTypes: ["speech-plenary", "public-forum"],
+    sourceIds: ["src-oxford-union-boteach-jackson-2001"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder of Oxford L'Chaim Society (Host & Introducer)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ]
+  },
+  {
+    id: "evt-2012-11-06-nj-09-congressional-general-election",
+    slug: "2012-11-06-shmuley-boteach-nj-09-congressional-general-election",
+    eventName: "2012 United States House of Representatives General Election in New Jersey's 9th District",
+    startDate: "2012-11-06T11:00:00Z",
+    endDate: "2012-11-06T23:00:00Z",
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Hackensack",
+    country: "United States",
+    venueName: "Bergen County Board of Elections",
+    platform: "US House General Election (NJ-09)",
+    address: "1 Bergen County Plaza, Hackensack, NJ 07601",
+    latitude: 40.8804,
+    longitude: -74.0435,
+    locationPrecision: "city",
+    summary: "Rabbi Shmuley Boteach contests the general election for the United States House of Representatives representing New Jersey's 9th Congressional District following his certified primary victory, garnering over 55,000 votes in a major-party campaign centered on core family values and fiscal reform.",
+    description: "Certified election results tabulated across Bergen, Passaic, and Hudson counties by the New Jersey Division of Elections.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["politics", "elections"],
+    eventTypes: ["general-election", "congressional-contest"],
+    sourceIds: ["src-fec-boteach-candidate-2012", "src-nj-dos-election-results-2012"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Republican Congressional Nominee (NJ-09)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ]
+  },
+  {
+    id: "evt-2015-03-02-capitol-hill-iran-briefing-wiesel-boteach",
+    slug: "2015-03-02-elie-wiesel-and-rabbi-shmuley-boteach-capitol-hill-iran-briefing",
+    eventName: "Capitol Hill Briefing on the Iran Nuclear Agreement with Elie Wiesel and Rabbi Shmuley Boteach",
+    startDate: "2015-03-02T16:00:00Z",
+    endDate: "2015-03-02T18:00:00Z",
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    city: "Washington, D.C.",
+    country: "United States",
+    venueName: "Dirksen Senate Office Building",
+    subvenue: "Room SD-G50",
+    platform: "Senate Bipartisan Educational Forum",
+    address: "Constitution Ave & 1st St NE, Washington, DC 20002",
+    latitude: 38.8929,
+    longitude: -77.0049,
+    locationPrecision: "venue",
+    summary: "Nobel Peace laureate Elie Wiesel and Rabbi Shmuley Boteach convene a major bipartisan congressional panel in the Dirksen Senate Office Building alongside sitting United States Senators to discuss nuclear non-proliferation and international commitments regarding Iran.",
+    description: "Broadcast nationally on C-SPAN, the panel examined moral imperatives in international statecraft, regional security, and the preservation of historical treaties.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["diplomacy", "security", "congressional-briefing"],
+    eventTypes: ["speech-plenary", "public-forum"],
+    sourceIds: ["src-cspan-boteach-wiesel-2015"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Executive Director, The World Values Network (Moderator)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ]
   }
 ];

@@ -19,7 +19,7 @@ after(async () => {
 
 const { getPersonRoles } = await vite.ssrLoadModule("/lib/rewind/roles.ts");
 const { getPersonMilestones } = await vite.ssrLoadModule("/lib/rewind/milestones.ts");
-const { getPersonBySlugWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
+const { getPersonBySlugWithStatus, getPersonTimeline } = await vite.ssrLoadModule("/lib/rewind/people.ts");
 const { officialRolesSeed, milestonesSeed, allEducationSeed, allCareerSeed, allAwardsSeed, allWorksSeed, allStaysSeed, sourcesCorpus } = await vite.ssrLoadModule("/data/seeds/index.ts");
 
 const TEST_SET_50_SLUGS = [
@@ -60,6 +60,48 @@ test("Benjamin Netanyahu biographical dossier, official roles, and milestones ar
   assert.ok(person.stays && person.stays.length >= 2, "Must have verified residences (Balfour / Caesarea)");
   assert.ok(person.stays.some((s) => s.venueName.includes("Balfour") || s.venueName.includes("Beit Aghion")));
   assert.ok(person.awards && person.awards.length >= 2, "Must have awards / valor commendations");
+});
+
+test("Rabbi Shmuley Boteach complete dossier, timeline events, milestones, career, and bio fields are thoroughly populated", async () => {
+  const roles = await getPersonRoles("shmuley-boteach");
+  assert.ok(roles.length >= 4, `Boteach must have at least 4 official roles, got ${roles.length}`);
+  assert.ok(roles.some((r) => r.title.includes("Oxford L'Chaim Society")), "Must include Oxford L'Chaim Society role");
+  assert.ok(roles.some((r) => r.title.includes("Executive Director") || r.organisationName?.includes("World Values Network")), "Must include World Values Network role");
+  assert.ok(roles.some((r) => r.title.includes("Shalom in the Home")), "Must include Shalom in the Home role");
+  assert.ok(roles.some((r) => r.title.includes("House of Representatives")), "Must include Congressional nominee role");
+  assert.ok(roles.every((r) => typeof r.organisationName === "string" && r.organisationName.length > 0));
+
+  const milestones = await getPersonMilestones("shmuley-boteach");
+  assert.ok(milestones.length >= 6, `Boteach must have at least 6 milestones, got ${milestones.length}`);
+  assert.ok(milestones.some((m) => m.title.includes("Kosher Sex")), "Must include Kosher Sex milestone");
+  assert.ok(milestones.some((m) => m.title.includes("Oxford Union")), "Must include Oxford Union milestone");
+  assert.ok(milestones.some((m) => m.title.includes("Republican Nomination")), "Must include Congressional nomination milestone");
+  assert.ok(milestones.every((m) => m.sourceId && m.sourceId.startsWith("src-")));
+
+  const { data: person } = await getPersonBySlugWithStatus("shmuley-boteach", null);
+  assert.ok(person, "Must retrieve Shmuley Boteach person record");
+  assert.equal(person.canonicalName, "Shmuley Boteach");
+  assert.equal(person.displayName, "Rabbi Shmuley Boteach");
+  assert.equal(person.nationality, "American");
+  assert.equal(person.fullBirthName, "Shmuel Boteach");
+  assert.equal(person.ethnicity, "Jewish");
+  assert.ok(person.achievements && person.achievements.length >= 4, "Must have achievements array");
+
+  assert.ok(person.education && person.education.length >= 3, "Must have Rabbinical ordination and education credentials");
+  assert.ok(person.education.some((e) => e.degree?.includes("Rabbinical Ordination") || e.institution.includes("Machon LeHora'ah")));
+  assert.ok(person.career && person.career.length >= 4, "Must have career records");
+  assert.ok(person.career.some((c) => c.organisationName.includes("World Values Network")));
+  assert.ok(person.works && person.works.length >= 6, "Must have authored treatises and books");
+  assert.ok(person.works.some((w) => w.workTitle.includes("Kosher Sex")));
+  assert.ok(person.stays && person.stays.length >= 3, "Must have residences (Oxford, Englewood, Manhattan)");
+  assert.ok(person.awards && person.awards.length >= 3, "Must have awards (London Times Preacher, Fatherhood Award)");
+
+  const timeline = await getPersonTimeline("shmuley-boteach");
+  assert.ok(timeline, "Must resolve person timeline");
+  assert.ok(timeline.events.length >= 3, `Must have at least 3 timeline events, got ${timeline.events.length}`);
+  assert.ok(timeline.events.some((e) => e.eventName.includes("Oxford Union")), "Must include Oxford Union event in timeline");
+  assert.ok(timeline.events.some((e) => e.eventName.includes("General Election")), "Must include General Election event in timeline");
+  assert.ok(timeline.events.some((e) => e.eventName.includes("Capitol Hill Briefing")), "Must include Capitol Hill panel in timeline");
 });
 
 test("Test set of 50 core figures across the site have fully populated roles, milestones, and education/career", async () => {
