@@ -810,6 +810,16 @@ async function syncCorpus() {
       });
   }
 
+  if (!isDryRun && rolesToInsert.length > 0) {
+    try {
+      await db.execute(
+        sql`SELECT setval(pg_get_serial_sequence('public.person_roles', 'id'), COALESCE(max(id), 1) + 1, false) FROM public.person_roles;`
+      );
+    } catch {
+      // Sequence alignment warning non-blocking if permissions restricted
+    }
+  }
+
   const milestonesToInsert = (milestonesSeed || [])
     .map((m) => {
       const dbPersonId = resolvedPersonIdMap.get(m.personId);
