@@ -53,7 +53,7 @@ export function RolesTimeline({
                 </div>
                 <div style={{ color: "#94a3b8", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "4px" }}>
                   <Building2 size={14} />
-                  <span>{role.organisationId || "Government & Public Office"}</span>
+                  <span>{role.organisationName || role.organisationId || "Government & Public Office"}</span>
                 </div>
               </div>
 

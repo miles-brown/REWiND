@@ -41,13 +41,14 @@ test("Benjamin Netanyahu biographical dossier, official roles, and milestones ar
   assert.ok(roles.some((r) => r.title.includes("Prime Minister of Israel")), "Must include Prime Minister role");
   assert.ok(roles.some((r) => r.title.includes("Permanent Representative")), "Must include UN Ambassador role");
   assert.ok(roles.some((r) => r.title.includes("Minister of Finance")), "Must include Minister of Finance role");
+  assert.ok(roles.some((r) => r.organisationName === "Government of Israel"), "Must include Government of Israel organisationName");
 
   const milestones = await getPersonMilestones("benjamin-netanyahu");
   assert.ok(milestones.length >= 5, `Netanyahu must have at least 5 milestones, got ${milestones.length}`);
   assert.ok(milestones.some((m) => m.title.includes("Abraham Accords")), "Must include Abraham Accords milestone");
   assert.ok(milestones.some((m) => m.title.includes("Longest-Serving")), "Must include Longest-Serving PM record");
 
-  const { data: person } = await getPersonBySlugWithStatus("benjamin-netanyahu");
+  const { data: person } = await getPersonBySlugWithStatus("benjamin-netanyahu", null);
   assert.ok(person, "Must retrieve Netanyahu person record");
   assert.equal(person.nationality, "Israeli");
   assert.ok(person.education && person.education.length >= 3, "Must have MIT education records");
@@ -70,6 +71,10 @@ test("Test set of 50 core figures across the site have fully populated roles, mi
       roles.length > 0,
       `Figure '${slug}' must have at least one registered official role in officialRolesSeed`
     );
+    assert.ok(
+      roles.every((r) => typeof r.organisationName === "string" && r.organisationName.length > 0),
+      `Figure '${slug}' roles must propagate non-empty organisationName`
+    );
 
     const milestones = await getPersonMilestones(slug);
     assert.ok(
@@ -77,7 +82,7 @@ test("Test set of 50 core figures across the site have fully populated roles, mi
       `Figure '${slug}' must have at least one registered personal milestone in milestonesSeed`
     );
 
-    const { data: person } = await getPersonBySlugWithStatus(slug);
+    const { data: person } = await getPersonBySlugWithStatus(slug, null);
     assert.ok(person, `Figure '${slug}' must resolve a valid PersonRecord`);
 
     assert.ok(

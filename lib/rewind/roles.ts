@@ -5,6 +5,7 @@ export interface PersonRoleRecord {
   personId: string;
   title: string;
   organisationId: string | null;
+  organisationName?: string | null;
   startDate: string | null;
   endDate: string | null;
   isCurrent: boolean;
@@ -21,6 +22,7 @@ export async function getPersonRoles(personSlugOrId: string): Promise<PersonRole
     personId: r.personId,
     title: r.title,
     organisationId: r.organisationId,
+    organisationName: r.organisationName || null,
     startDate: r.startDate,
     endDate: r.endDate,
     isCurrent: r.isCurrent,

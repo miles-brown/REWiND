@@ -95,11 +95,15 @@ export type RelationalEventRecord = typeof schema.events.$inferSelect & {
   participants?: Array<{ personId?: string | null; name?: string; role?: string; presenceMode?: string }>;
 };
 
+export type MemoryPersonRoleRecord = typeof schema.personRoles.$inferSelect & {
+  organisationName?: string | null;
+};
+
 // In-memory relational state cache used when a live PostgreSQL instance is not configured
 export interface MemoryRelationalStore {
   people: (typeof schema.people.$inferSelect)[];
   personAliases: (typeof schema.personAliases.$inferSelect)[];
-  personRoles: (typeof schema.personRoles.$inferSelect)[];
+  personRoles: MemoryPersonRoleRecord[];
   personMilestones: (typeof schema.personMilestones.$inferSelect)[];
   topics: (typeof schema.topics.$inferSelect)[];
   eventTopics: (typeof schema.eventTopics.$inferSelect)[];
@@ -476,11 +480,12 @@ function initializeSeedStore(): MemoryRelationalStore {
     })
   );
 
-  const seedRoles: (typeof schema.personRoles.$inferSelect)[] = (officialRolesSeed || []).map((r) => ({
+  const seedRoles: MemoryPersonRoleRecord[] = (officialRolesSeed || []).map((r) => ({
     id: r.id,
     personId: r.personId,
     title: r.title,
     organisationId: null,
+    organisationName: r.organisationName || null,
     startDate: r.startDate,
     endDate: r.endDate,
     isCurrent: r.isCurrent,
