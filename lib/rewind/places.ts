@@ -202,6 +202,15 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "ottawa": [45.4215, -75.6972],
   "canberra": [-35.2809, 149.1300],
   "sydney": [-33.8688, 151.2093],
+  "oxford": [51.7520, -1.2577],
+  "hackensack": [40.8859, -74.0435],
+  "englewood": [40.8929, -73.9726],
+  "the oxford union society": [51.7533, -1.2602],
+  "the oxford union": [51.7533, -1.2602],
+  "oxford union": [51.7533, -1.2602],
+  "bergen county board of elections": [40.8804, -74.0435],
+  "dirksen senate office building": [38.8929, -77.0049],
+  "dirksen building": [38.8929, -77.0049],
 };
 
 /**
@@ -1503,6 +1512,53 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-wadi-araba-pavilion", name: "Plenary Pavilion", areaType: "hall" },
     ],
   },
+  "the oxford union society": {
+    canonicalVenue: "The Oxford Union Society",
+    venueType: "academic-institution",
+    streetAddress: "Frewin Court",
+    district: "City Centre",
+    city: "Oxford",
+    country: "United Kingdom",
+    countryCode: "GB",
+    latitude: 51.7533,
+    longitude: -1.2602,
+    venueAreas: [
+      { id: "area-oxford-union-chamber", name: "Debating Chamber", areaType: "hall" },
+      { id: "area-oxford-union-library", name: "Old Library", areaType: "hall" },
+      { id: "area-oxford-union-macmillan", name: "Macmillan Room", areaType: "room" },
+    ],
+  },
+  "bergen county board of elections": {
+    canonicalVenue: "Bergen County Board of Elections",
+    venueType: "civic-center",
+    streetAddress: "1 Bergen County Plaza",
+    district: "Bergen County Complex",
+    city: "Hackensack",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.8804,
+    longitude: -74.0435,
+    venueAreas: [
+      { id: "area-bergen-elections-canvassing", name: "Canvassing & Commissioners Hearing Room", areaType: "room" },
+      { id: "area-bergen-elections-plaza", name: "County Plaza Public Concourse", areaType: "hall" },
+    ],
+  },
+  "dirksen senate office building": {
+    canonicalVenue: "Dirksen Senate Office Building",
+    venueType: "parliament",
+    streetAddress: "Constitution Avenue & 1st Street NE",
+    district: "Capitol Hill",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8929,
+    longitude: -77.0049,
+    venueAreas: [
+      { id: "area-dirksen-sd-g50", name: "Room SD-G50 (Hearing Room)", areaType: "room" },
+      { id: "area-dirksen-sd-106", name: "Room SD-106 (Judiciary Committee)", areaType: "room" },
+      { id: "area-dirksen-auditorium", name: "Dirksen Auditorium", areaType: "hall" },
+    ],
+  },
 };
 
 const GAZETTEER_ALIASES: Record<string, string> = {
@@ -1535,6 +1591,9 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "royal palace of belgrade": "the royal palace (kraljevski dvor)",
   "oslo city hall (oslo radhus)": "oslo city hall",
   "ben-gurion international airport": "ben gurion international airport",
+  "the oxford union": "the oxford union society",
+  "oxford union": "the oxford union society",
+  "dirksen building": "dirksen senate office building",
 };
 
 for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
