@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
+import {
+  masterPeopleSeed,
+  type CanonicalPersonSeed,
+  allEducationSeed,
+  allCareerSeed,
+  allAwardsSeed,
+  allWorksSeed,
+  allStaysSeed,
+} from "@/data/seeds/index";
 import { officialRolesSeed } from "@/data/seeds/roles-seed";
 import { milestonesSeed } from "@/data/seeds/milestones-seed";
-import {
-  royalEducationSeed,
-  royalCareerSeed,
-  royalAwardsSeed,
-  royalWorksSeed,
-  royalStaysSeed,
-} from "@/data/seeds/royal-bio-details-seed";
 import { getEventsByPersonWithStatus } from "./events";
 import { extractPersonNameParts } from "./utils";
 import type { EventRecord, PersonRecord } from "./types";
@@ -16,7 +17,7 @@ import type { EventRecord, PersonRecord } from "./types";
 export { extractPersonNameParts };
 
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
-  const pEdu = royalEducationSeed
+  const pEdu = allEducationSeed
     .filter((e) => e.personId === p.id || e.personId === p.slug)
     .map((e) => ({
       id: e.id,
@@ -30,7 +31,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: e.sourceId,
     }));
 
-  const pCareer = royalCareerSeed
+  const pCareer = allCareerSeed
     .filter((c) => c.personId === p.id || c.personId === p.slug)
     .map((c) => ({
       id: c.id,
@@ -63,9 +64,16 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       year: m.year || (m.date ? parseInt(m.date.slice(0, 4), 10) : undefined),
       evidence: m.description,
     }));
-  const achievements = [...(p.achievements || []), ...officialMilestones];
+  const rawAchievements = [...(p.achievements || []), ...officialMilestones];
+  const seenMilestones = new Set<string>();
+  const achievements = rawAchievements.filter((ach) => {
+    const key = (ach.milestone || "").trim().toLowerCase();
+    if (!key || seenMilestones.has(key)) return false;
+    seenMilestones.add(key);
+    return true;
+  });
 
-  const pAwards = royalAwardsSeed
+  const pAwards = allAwardsSeed
     .filter((a) => a.personId === p.id || a.personId === p.slug)
     .map((a) => ({
       id: a.id,
@@ -78,7 +86,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: a.sourceId,
     }));
 
-  const pWorks = royalWorksSeed
+  const pWorks = allWorksSeed
     .filter((w) => w.personId === p.id || w.personId === p.slug)
     .map((w) => ({
       id: w.id,
@@ -91,7 +99,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: w.sourceId,
     }));
 
-  const pStays = royalStaysSeed
+  const pStays = allStaysSeed
     .filter((s) => s.personId === p.id || s.personId === p.slug)
     .map((s) => ({
       id: s.id,

@@ -24,11 +24,11 @@ import {
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
-  royalEducationSeed,
-  royalCareerSeed,
-  royalAwardsSeed,
-  royalWorksSeed,
-  royalStaysSeed,
+  allEducationSeed,
+  allCareerSeed,
+  allAwardsSeed,
+  allWorksSeed,
+  allStaysSeed,
 } from "../data/seeds/index";
 import { eventsCorpus } from "../data/seeds/events-corpus";
 import { sourcesCorpus } from "../data/seeds/sources-corpus";
@@ -182,11 +182,11 @@ async function syncCorpus() {
     console.log(`- People Records:         ${masterPeopleSeed.length} valid`);
     console.log(`- Events Records:         ${allEvents.length} valid`);
     console.log(`- Sources Catalog:        ${validSourceIds.size} valid`);
-    console.log(`- Bio Education:          ${royalEducationSeed.length} valid`);
-    console.log(`- Bio Careers:            ${royalCareerSeed.length} valid`);
-    console.log(`- Bio Awards:             ${royalAwardsSeed.length} valid`);
-    console.log(`- Bio Works:              ${royalWorksSeed.length} valid`);
-    console.log(`- Bio Stays:              ${royalStaysSeed.length} valid`);
+    console.log(`- Bio Education:          ${allEducationSeed.length} valid`);
+    console.log(`- Bio Careers:            ${allCareerSeed.length} valid`);
+    console.log(`- Bio Awards:             ${allAwardsSeed.length} valid`);
+    console.log(`- Bio Works:              ${allWorksSeed.length} valid`);
+    console.log(`- Bio Stays:              ${allStaysSeed.length} valid`);
     console.log(`- Validation Anomalies:   ${validationErrors}`);
     console.log(`- Unmapped Source Refs:   ${missingSourceRefs}`);
     console.log(`- Unmapped Participants:  ${missingParticipantRefs}`);
@@ -810,6 +810,16 @@ async function syncCorpus() {
       });
   }
 
+  if (!isDryRun && rolesToInsert.length > 0) {
+    try {
+      await db.execute(
+        sql`SELECT setval(pg_get_serial_sequence('public.person_roles', 'id'), COALESCE(max(id), 1) + 1, false) FROM public.person_roles;`
+      );
+    } catch {
+      // Sequence alignment warning non-blocking if permissions restricted
+    }
+  }
+
   const milestonesToInsert = (milestonesSeed || [])
     .map((m) => {
       const dbPersonId = resolvedPersonIdMap.get(m.personId);
@@ -838,7 +848,7 @@ async function syncCorpus() {
 
   // Synchronize Structured Biographical Dossiers
   console.log(`   Synchronizing Structured Biographical Records (Education, Career, Awards, Works, Stays)...`);
-  const eduList = (royalEducationSeed || [])
+  const eduList = (allEducationSeed || [])
     .map((edu) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[edu.personId] || edu.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(edu.personId);
@@ -880,7 +890,7 @@ async function syncCorpus() {
       });
   }
 
-  const careerList = (royalCareerSeed || [])
+  const careerList = (allCareerSeed || [])
     .map((car) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[car.personId] || car.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(car.personId);
@@ -920,7 +930,7 @@ async function syncCorpus() {
       });
   }
 
-  const awardsList = (royalAwardsSeed || [])
+  const awardsList = (allAwardsSeed || [])
     .map((awd) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[awd.personId] || awd.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(awd.personId);
@@ -958,7 +968,7 @@ async function syncCorpus() {
       });
   }
 
-  const worksList = (royalWorksSeed || [])
+  const worksList = (allWorksSeed || [])
     .map((wrk) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[wrk.personId] || wrk.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(wrk.personId);
@@ -996,7 +1006,7 @@ async function syncCorpus() {
       });
   }
 
-  const staysList = (royalStaysSeed || [])
+  const staysList = (allStaysSeed || [])
     .map((sty) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[sty.personId] || sty.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(sty.personId);

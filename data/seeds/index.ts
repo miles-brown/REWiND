@@ -18,6 +18,7 @@ import { extendedHistoricHousesPeopleSeed } from "./extended-historic-houses-see
 import { officialRolesSeed } from "./roles-seed";
 import { milestonesSeed } from "./milestones-seed";
 import { topicsSeed } from "./topics-seed";
+import { sourcesCorpus } from "./sources-corpus";
 import {
   royalEducationSeed,
   royalCareerSeed,
@@ -25,6 +26,19 @@ import {
   royalWorksSeed,
   royalStaysSeed,
 } from "./royal-bio-details-seed";
+import {
+  figuresEducationSeed,
+  figuresCareerSeed,
+  figuresAwardsSeed,
+  figuresWorksSeed,
+  figuresStaysSeed,
+} from "./figures-bio-details-seed";
+
+export const allEducationSeed = [...royalEducationSeed, ...figuresEducationSeed];
+export const allCareerSeed = [...royalCareerSeed, ...figuresCareerSeed];
+export const allAwardsSeed = [...royalAwardsSeed, ...figuresAwardsSeed];
+export const allWorksSeed = [...royalWorksSeed, ...figuresWorksSeed];
+export const allStaysSeed = [...royalStaysSeed, ...figuresStaysSeed];
 
 export type { CanonicalPersonSeed };
 export {
@@ -46,11 +60,17 @@ export {
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
+  sourcesCorpus,
   royalEducationSeed,
   royalCareerSeed,
   royalAwardsSeed,
   royalWorksSeed,
   royalStaysSeed,
+  figuresEducationSeed,
+  figuresCareerSeed,
+  figuresAwardsSeed,
+  figuresWorksSeed,
+  figuresStaysSeed,
 };
 
 export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [

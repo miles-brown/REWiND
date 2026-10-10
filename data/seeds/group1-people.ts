@@ -44,6 +44,15 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
     "religion": "Judaism",
     "religiousDenomination": "Traditional / Zionist",
     "religionStatus": "self-identified",
+    "fullBirthName": "Benjamin Netanyahu",
+    "ethnicity": "Jewish (Ashkenazi)",
+    "ancestry": "Polish-Lithuanian Jewish",
+    "nationalIdentity": "Israeli",
+    "achievements": [
+      { "milestone": "Longest-serving Prime Minister of Israel (surpassed David Ben-Gurion in 2019)", "year": 2019, "evidence": "Official Knesset records (src-knesset-official-bio-registry)" },
+      { "milestone": "Co-signatory to 2020 Abraham Accords normalizing relations with UAE, Bahrain, Sudan, Morocco", "year": 2020, "evidence": "White House Diplomatic Treaty Records (src-wh-historical-association)" },
+      { "milestone": "Record four addresses to Joint Meetings of the United States Congress", "year": 2024, "evidence": "US Congressional Record (src-us-congress-bioguide)" }
+    ],
     "inclusionBasis": [
       "head-of-state-or-government",
       "central-nexus-to-historical-events",
