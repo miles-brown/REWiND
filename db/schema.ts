@@ -68,14 +68,20 @@ export const people = pgTable("people", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const personAliases = pgTable("person_aliases", {
-  id: serial("id").primaryKey(),
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  alias: text("alias").notNull(),
-  aliasType: text("alias_type").default("transliteration").notNull(), // transliteration, former-name, misspelling, title
-});
+export const personAliases = pgTable(
+  "person_aliases",
+  {
+    id: serial("id").primaryKey(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    alias: text("alias").notNull(),
+    aliasType: text("alias_type").default("transliteration").notNull(), // transliteration, former-name, misspelling, title
+  },
+  (t) => [
+    uniqueIndex("person_aliases_person_id_alias_key").on(t.personId, t.alias),
+  ]
+);
 
 export const organisations = pgTable("organisations", {
   id: text("id").primaryKey(),

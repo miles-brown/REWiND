@@ -656,6 +656,11 @@ svg { flex: 0 0 auto; }
   padding: 2px 8px;
   border-radius: 999px;
 }
+.telemetry-pct-badge.pending-badge {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
 .telemetry-accuracy-gauge {
   display: flex;
   height: 6px;
@@ -669,6 +674,35 @@ svg { flex: 0 0 auto; }
 }
 .gauge-fill.provisional {
   background: #f59e0b;
+}
+.gauge-fill.pending {
+  background: rgba(148, 163, 184, 0.25);
+}
+.person-timeline-zero-state {
+  margin: 40px auto;
+  padding: 50px 24px;
+  max-width: 580px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+.person-timeline-zero-state .zero-state-icon {
+  margin: 0 auto 16px;
+  color: #94a3b8;
+}
+.person-timeline-zero-state h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 8px;
+}
+.person-timeline-zero-state p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #94a3b8;
+  margin: 0;
 }
 .telemetry-grid {
   display: grid;
