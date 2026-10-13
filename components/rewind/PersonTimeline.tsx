@@ -10,6 +10,7 @@ import {
   CirclePause,
   CirclePlay,
   ExternalLink,
+  Film,
   Gauge,
   HelpCircle,
   MapPin,
@@ -20,6 +21,7 @@ import {
   ShieldAlert,
   SkipBack,
   SkipForward,
+  Volume2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
@@ -66,6 +68,7 @@ export function PersonTimeline({
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [citeOpen, setCiteOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaInitialMode, setMediaInitialMode] = useState<"video" | "quotes" | "audio">("video");
   const [auditOpen, setAuditOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -166,6 +169,23 @@ export function PersonTimeline({
       } else if (e.key.toLowerCase() === "r") {
         e.preventDefault();
         setDirection((prev) => (prev === "forward" ? "backward" : "forward"));
+      } else if (e.key.toLowerCase() === "v") {
+        const ev = ordered[safeIndex];
+        const vCount = (ev?.media || []).filter(
+          (m) => m.kind === "video" || m.kind.toLowerCase().includes("video") || Boolean((m as { embedUrl?: string }).embedUrl)
+        ).length;
+        if (vCount > 0) {
+          e.preventDefault();
+          setMediaInitialMode("video");
+          setMediaOpen(true);
+        }
+      } else if (e.key.toLowerCase() === "q") {
+        const ev = ordered[safeIndex];
+        if (ev?.quotes && ev.quotes.length > 0) {
+          e.preventDefault();
+          setMediaInitialMode("quotes");
+          setMediaOpen(true);
+        }
       } else if (e.key === "?") {
         e.preventDefault();
         setShowHelp((prev) => !prev);
@@ -301,6 +321,8 @@ export function PersonTimeline({
           <span><kbd>←</kbd> / <kbd>→</kbd> Prev/Next</span>
           <span><kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 Events</span>
           <span><kbd>Space</kbd> Play/Pause</span>
+          <span><kbd>V</kbd> Watch Footage</span>
+          <span><kbd>Q</kbd> View Quotes</span>
           <span><kbd>Home</kbd> / <kbd>End</kbd> First/Last</span>
           <span><kbd>R</kbd> {direction === "forward" ? "Switch to Rewind" : "Switch to Forward"}</span>
           <button onClick={() => setShowHelp(false)} aria-label="Hide shortcuts">×</button>
@@ -398,22 +420,56 @@ export function PersonTimeline({
                   <span>Cite</span>
                 </button>
               )}
-              {((event.quotes && event.quotes.length > 0) || (event.media && event.media.length > 0)) && (
+              {/* Dedicated Footage CTA Button */}
+              {(event.media || []).some(
+                (m) => m.kind === "video" || m.kind.toLowerCase().includes("video") || Boolean((m as { embedUrl?: string }).embedUrl)
+              ) && (
                 <button
-                  className="cite-btn highlight"
-                  onClick={() => setMediaOpen(true)}
-                  aria-label={
-                    event.quotes && event.quotes.length > 0
-                      ? "Open speech quotes and audio excerpts"
-                      : "Open archival video and media footage"
-                  }
+                  className="cite-btn video-highlight"
+                  onClick={() => {
+                    setMediaInitialMode("video");
+                    setMediaOpen(true);
+                  }}
+                  aria-label="Open archival video footage"
+                >
+                  <Film size={14} className="video-btn-icon" />
+                  <span>
+                    Footage (
+                    {(event.media || []).filter(
+                      (m) => m.kind === "video" || m.kind.toLowerCase().includes("video") || Boolean((m as { embedUrl?: string }).embedUrl)
+                    ).length}
+                    )
+                  </span>
+                </button>
+              )}
+              {/* Verbatim Quotes Button */}
+              {event.quotes && event.quotes.length > 0 && (
+                <button
+                  className="cite-btn highlight quote-highlight"
+                  onClick={() => {
+                    setMediaInitialMode("quotes");
+                    setMediaOpen(true);
+                  }}
+                  aria-label="Open speech quotes and audio excerpts"
                 >
                   <MessageSquareQuote size={14} />
-                  <span>
-                    {event.quotes && event.quotes.length > 0
-                      ? `Quotes (${event.quotes.length})`
-                      : `Media (${event.media?.length || 0})`}
-                  </span>
+                  <span>Quotes ({event.quotes.length})</span>
+                </button>
+              )}
+              {/* Fallback Media Button if only non-video media and no quotes */}
+              {!(event.media || []).some(
+                (m) => m.kind === "video" || m.kind.toLowerCase().includes("video") || Boolean((m as { embedUrl?: string }).embedUrl)
+              ) && (!event.quotes || event.quotes.length === 0) && event.media && event.media.length > 0 && (
+                <button
+                  className="cite-btn highlight"
+                  onClick={() => {
+                    setMediaInitialMode("audio");
+                    setMediaOpen(true);
+                  }}
+                  aria-label="Open archival media and audio records"
+                >
+                  <Volume2 size={14} />
+                  <span>Media ({event.media.length})</span>
                 </button>
               )}
               <button
@@ -642,6 +698,7 @@ export function PersonTimeline({
         event={event}
         isOpen={mediaOpen}
         onClose={() => setMediaOpen(false)}
+        initialMode={mediaInitialMode}
       />
 
       <DiscrepancyViewer
