@@ -261,6 +261,32 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
   assert.ok(ferrara, "Must include Ferrara synagogue quarter encounter");
   assert.equal(ferrara.city, "Ferrara");
   assert.equal(ferrara.country, "Italy");
+  assert.ok(ferrara.subvenue?.includes("Bar Mazzini"), "Ferrara event must designate Bar Mazzini as lead candidate subvenue");
+  assert.ok(ferrara.sourceIds.includes("src-museo-ferrara-synagogue"), "Ferrara event must cite MuseoFerrara");
+
+  // Refined October 13 evidence assertions
+  const timesSquareRally = timeline.find((e) => e.slug.includes("2024-07-31-rabbi-shmuley-times-square-pro-israel-rally"));
+  assert.ok(timesSquareRally, "Must include 31 July 2024 Times Square pro-Israel rally as distinct event");
+  assert.equal(timesSquareRally.confidence, "confirmed");
+  assert.ok(timesSquareRally.sourceIds.includes("src-jns-times-square-rally-2024"));
+
+  const vienna = timeline.find((e) => e.slug.includes("stephansplatz"));
+  assert.ok(vienna, "Must include Vienna Stephansplatz confrontation");
+  assert.equal(vienna.confidence, "confirmed", "Vienna event must be promoted to confirmed confidence");
+  assert.ok(vienna.sourceIds.includes("src-euronews-vienna-boteach-2025"), "Vienna must include Euronews citation");
+  assert.ok(vienna.sourceIds.includes("src-x-boteach-vienna-post-2025"), "Vienna must include primary X post citation");
+
+  const pier45 = timeline.find((e) => e.slug.includes("nyc-waterfront-park-confrontation"));
+  assert.ok(pier45, "Must include Pier 45 waterfront confrontation");
+  assert.equal(pier45.confidence, "confirmed", "Pier 45 must be confirmed confidence");
+  assert.equal(pier45.timezone, "America/New_York");
+  assert.equal(pier45.localStartTime, "21:51");
+  assert.ok(pier45.sourceIds.includes("src-rumble-sperg-archives-pier-45"), "Pier 45 must cite Sperg Archives");
+
+  const nypdEncounter = timeline.find((e) => e.slug.includes("nypd-verbal-complaint-encounter"));
+  assert.ok(nypdEncounter, "Must include Midtown NYPD encounter");
+  assert.ok(nypdEncounter.participants.some((p) => p.name.includes("Salvo")), "NYPD encounter must identify Salvo in participants");
+  assert.ok(nypdEncounter.sourceIds.includes("src-podawful-salvo-boteach-2026"), "NYPD encounter must cite PODAWFUL investigation");
 
   // All events have non-empty sourceIds resolving in sourcesCorpus
   const sourceIdSet = new Set(sourcesCorpus.map((s) => s.id));

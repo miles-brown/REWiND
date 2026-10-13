@@ -543,21 +543,22 @@ export const techMediaCultureEvents: EventRecord[] = [
     latitude: 40.7580,
     longitude: -73.9855,
     locationPrecision: "venue",
-    summary: "Rabbi Shmuley Boteach records an encounter with demonstrators in Times Square on Saturday night, resulting in heated public exchanges.",
-    description: "Boteach documented on 29 July that he recorded an encounter with demonstrators the previous Saturday night (27 July 2024), establishing this as an independent incident separate from the December 2023 confrontation.",
+    summary: "Rabbi Shmuley Boteach records an encounter with pro-Palestinian demonstrators in Times Square on Saturday night (27 July 2024), prompting heated street arguments.",
+    description: "Boteach documented in his Jewish Journal column ('Times Square, Occupied by Hamas, Must Be Liberated', published 28 July 2024) that he recorded an encounter with demonstrators the previous Saturday night (27 July 2024), explicitly directing readers to video posted on Instagram. This establishes the incident as an independent spontaneous encounter separate from the organized rally held four days later.",
     verificationStatus: "verified",
-    confidence: "limited",
-    confidenceScore: 0.8,
+    confidence: "confirmed",
+    confidenceScore: 0.95,
     scope: "public",
     categories: ["culture", "demonstrations", "street-encounter"],
     eventTypes: ["street-confrontation", "public-dispute"],
-    sourceIds: ["src-jns-times-square-boteach-2024"],
+    sourceIds: ["src-jewish-journal-times-square-boteach-2024", "src-jns-times-square-boteach-2024"],
     participants: [
       {
         personId: "shmuley-boteach",
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
-        role: "Founder, The World Values Network (Subject)",
+        role: "Founder, The World Values Network",
+        association: "participant",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
@@ -570,6 +571,54 @@ export const techMediaCultureEvents: EventRecord[] = [
         label: "Times Square Saturday Night Confrontation Recording",
         platform: "JNS Video Archive",
         caption: "Archival recording from 27 July 2024 Times Square demonstration exchange."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-07-31-times-square-pro-israel-rally",
+    slug: "2024-07-31-rabbi-shmuley-times-square-pro-israel-rally",
+    eventName: "Times Square Pro-Israel Gathering Hosted by The World Values Network",
+    startDate: "2024-07-31T17:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway between 45th and 46th Streets",
+    platform: "Jewish News Syndicate Photographic Archive",
+    address: "Broadway & 45th St, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach and The World Values Network host an organized pro-Israel demonstration and public gathering in Times Square along Broadway between 45th and 46th Streets.",
+    description: "Independently documented by the Jewish News Syndicate (JNS) with contemporary reporting and press photography. This gathering was a separately organized daytime public event on Wednesday, 31 July 2024, distinct from the spontaneous Saturday night demonstration confrontation of 27 July 2024.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "politics", "demonstrations"],
+    eventTypes: ["public-rally", "organized-demonstration"],
+    sourceIds: ["src-jns-times-square-rally-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network",
+        association: "host",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jns.org/pro-israel-rally-times-square-world-values-network-july-2024/",
+        embedUrl: null,
+        label: "Times Square Pro-Israel Rally Archive",
+        platform: "JNS Photo/Video Vault",
+        caption: "Contemporary photojournalism and video records of World Values Network gathering in Times Square."
       }
     ]
   },
@@ -681,26 +730,32 @@ export const techMediaCultureEvents: EventRecord[] = [
     country: "Austria",
     venueName: "Stephansplatz",
     subvenue: "St. Stephen's Cathedral Plaza",
-    platform: "The Times of Israel & JNS Dispatches",
+    platform: "The Times of Israel, Euronews & X Video Dispatches",
     address: "Stephansplatz 3, 1010 Wien",
     latitude: 48.2085,
     longitude: 16.3731,
     locationPrecision: "venue",
     summary: "Rabbi Shmuley Boteach encounters demonstrators near St. Stephen's Cathedral in Vienna, alleging physical hostility and prompting questioning by Austrian federal police.",
-    description: "Contemporary reporting and dated photographs from The Times of Israel and Jewish News Syndicate corroborate the date (8 August 2025) and location at Stephansplatz in central Vienna.",
+    description: "Corroborated by Euronews reporting published on 10 August 2025, alongside contemporary reporting by The Times of Israel and JNS, and primary video documentation posted from Boteach's verified X account (status/1954328035055788413). Evidentiary trail includes bystander WhatsApp footage establishing presence and police response at Stephansplatz in central Vienna on Friday, 8 August 2025.",
     verificationStatus: "verified",
-    confidence: "strong",
-    confidenceScore: 0.9,
+    confidence: "confirmed",
+    confidenceScore: 1.0,
     scope: "public",
     categories: ["culture", "demonstrations", "street-encounter"],
     eventTypes: ["street-confrontation", "police-involvement-incident"],
-    sourceIds: ["src-times-of-israel-vienna-boteach-2025", "src-jns-vienna-boteach-2025"],
+    sourceIds: [
+      "src-times-of-israel-vienna-boteach-2025",
+      "src-jns-vienna-boteach-2025",
+      "src-euronews-vienna-boteach-2025",
+      "src-x-boteach-vienna-post-2025"
+    ],
     participants: [
       {
         personId: "shmuley-boteach",
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
-        role: "Author and Commentator (Encounter Subject)",
+        role: "Author and Commentator",
+        association: "interviewee",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
@@ -708,11 +763,19 @@ export const techMediaCultureEvents: EventRecord[] = [
     media: [
       {
         kind: "video",
-        url: "https://www.timesofisrael.com/boteach-vienna-stephansplatz-demonstration-encounter/",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-        label: "Stephansplatz Vienna Video Recording",
-        platform: "The Times of Israel Vault",
-        caption: "Documented altercation in Vienna's Stephansplatz near St. Stephen's Cathedral."
+        url: "https://x.com/RabbiShmuley/status/1954328035055788413",
+        embedUrl: null,
+        label: "Rabbi Shmuley Stephansplatz Vienna Primary X Video Post",
+        platform: "X (formerly Twitter)",
+        caption: "Primary video footage and statement recorded at Stephansplatz in Vienna."
+      },
+      {
+        kind: "video",
+        url: "https://www.euronews.com/2025/08/10/rabbi-shmuley-boteach-stephansplatz-vienna-assault-report",
+        embedUrl: null,
+        label: "Euronews Vienna Stephansplatz Report",
+        platform: "Euronews",
+        caption: "Contemporary television news report documenting the 8 August 2025 Vienna confrontation."
       }
     ]
   },
@@ -775,26 +838,40 @@ export const techMediaCultureEvents: EventRecord[] = [
     country: "United States",
     venueName: "Midtown South Precinct Perimeter",
     subvenue: "35th Street Pedestrian Concourse",
-    platform: "Reddit Public Video Archive",
+    platform: "Reddit Public Video Archive & PODAWFUL Review",
     address: "357 W 35th St, New York, NY 10001",
     latitude: 40.7533,
     longitude: -73.9944,
     locationPrecision: "venue",
-    summary: "Footage circulates online showing Rabbi Shmuley Boteach speaking to NYPD officers on a Manhattan street, requesting enforcement against an individual who allegedly insulted him.",
-    description: "Archived video posted by 29 March 2026. The specific avenue and exact filming day are unconfirmed, but the scene is verified in Midtown Manhattan near precinct boundaries. Evidentiary assessment notes insufficient data to verify whether allegations were knowingly disputed.",
-    verificationStatus: "provisional",
-    confidence: "limited",
-    confidenceScore: 0.7,
+    summary: "Footage circulates online showing Rabbi Shmuley Boteach speaking to NYPD patrol officers in Midtown Manhattan following a street confrontation with political commentator Salvo (salvopancakes).",
+    description: "Archived video circulating on Reddit (r/LookatMyHalo/comments/1s6lwq8/) and reviewed on PODAWFUL episode 102 identifies the opposing individual in the verbal dispute as political commentator Salvo ('salvopancakes'). The recording captures Boteach requesting police enforcement on a Midtown sidewalk.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.85,
     scope: "public",
     categories: ["culture", "police-encounter", "viral-media"],
     eventTypes: ["police-liaison-encounter", "street-dispute"],
-    sourceIds: ["src-reddit-nypd-boteach-complaint-2026"],
+    sourceIds: [
+      "src-reddit-nypd-boteach-complaint-2026",
+      "src-reddit-halo-boteach-nypd",
+      "src-podawful-salvo-boteach-2026"
+    ],
     participants: [
       {
         personId: "shmuley-boteach",
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
-        role: "Citizen Complainant (Encounter Subject)",
+        role: "Founder, The World Values Network",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      },
+      {
+        personId: "salvo-commentator",
+        slug: "salvo-commentator",
+        name: "Salvo (salvopancakes)",
+        role: "Political Commentator and Streamer",
+        association: "participant",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
@@ -802,11 +879,19 @@ export const techMediaCultureEvents: EventRecord[] = [
     media: [
       {
         kind: "video",
-        url: "https://www.reddit.com/r/PublicFreakout/comments/boteach_nypd_complaint_manhattan/",
+        url: "https://www.reddit.com/r/LookatMyHalo/comments/1s6lwq8/",
         embedUrl: null,
-        label: "Midtown Manhattan Police Interaction Video",
-        platform: "Reddit Archive",
-        caption: "Circulating mobile footage of street conversation with NYPD patrol officers."
+        label: "Midtown Manhattan NYPD & Salvo Street Interaction Video",
+        platform: "Reddit (r/LookatMyHalo)",
+        caption: "Circulating mobile footage of street conversation with NYPD patrol officers and Salvo."
+      },
+      {
+        kind: "video",
+        url: "https://www.podawful.com/posts/2645",
+        embedUrl: null,
+        label: "PODAWFUL Episode 102 Investigation: Boteach and Salvo",
+        platform: "PODAWFUL",
+        caption: "Investigative breakdown and identification of Salvo in the Midtown Manhattan confrontation."
       }
     ]
   },
@@ -860,35 +945,43 @@ export const techMediaCultureEvents: EventRecord[] = [
   {
     id: "evt-2026-07-13-nyc-waterfront-park-confrontation",
     slug: "2026-07-13-rabbi-shmuley-nyc-waterfront-park-confrontation",
-    eventName: "Hudson River Waterfront Park Confrontation Stream",
-    startDate: "2026-07-13T17:00:00Z",
+    eventName: "Hudson River Pier 45 Waterfront Pacing Encounter",
+    startDate: "2026-07-13T01:51:00Z",
     endDate: null,
-    datePrecision: "exact-day",
-    timePrecision: "day",
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    localStartTime: "21:51",
+    timezone: "America/New_York",
     city: "New York",
     country: "United States",
     venueName: "Pier 45 at Hudson River Park",
     subvenue: "Christopher Street Pier Promenade",
-    platform: "Rumble Public Video Repository",
+    platform: "X Video Dispatches, Telegram & Sperg Archives",
     address: "Pier 45, Hudson River Park, Foot of Christopher St, New York, NY 10014",
     latitude: 40.7336,
     longitude: -74.0116,
     locationPrecision: "venue",
-    summary: "An archived social-media clip uploaded to Rumble shows Rabbi Shmuley Boteach in a waterfront park engaging in an active verbal exchange while another individual films.",
-    description: "Archived clip uploaded on 13 July 2026. The location is linked to Hudson River Park waterfront walkways; provisional correlation suggests this footage relates to the Christopher Street Pier series.",
-    verificationStatus: "provisional",
-    confidence: "limited",
-    confidenceScore: 0.7,
+    summary: "Rabbi Shmuley Boteach films a waterfront confrontation while pacing on Pier 45 (Christopher Street Pier) at Hudson River Park on the evening of 12 July 2026 (uploaded 13 July UTC).",
+    description: "Corroborated by Boteach's verified X post (status/2076484597626400877), eyewitness X post by hippyygoat (status/2076568355884929118), Telegram Eye on Palestine repost (t.me/Eyeonpalestine2/35528), and the complete 4m50s recording preserved in the Sperg Archives Rumble collection (playlists/I-GxUwNb8no). Timezone reconciliation establishes the video was filmed on the evening of Sunday, 12 July 2026 EDT and uploaded at 01:51 UTC on 13 July 2026.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
     scope: "public",
     categories: ["culture", "street-encounter", "viral-media"],
     eventTypes: ["street-confrontation", "park-altercation"],
-    sourceIds: ["src-rumble-christopher-pier-boteach-2026"],
+    sourceIds: [
+      "src-x-boteach-pier-45-post-2026",
+      "src-x-hippyygoat-pier-45-post-2026",
+      "src-telegram-eyeonpalestine-pier-45",
+      "src-rumble-sperg-archives-pier-45"
+    ],
     participants: [
       {
         personId: "shmuley-boteach",
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
-        role: "Author and Commentator (Encounter Subject)",
+        role: "Founder, The World Values Network",
+        association: "participant",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
@@ -896,11 +989,27 @@ export const techMediaCultureEvents: EventRecord[] = [
     media: [
       {
         kind: "video",
-        url: "https://rumble.com/v5f1x2m-rabbi-shmuley-manhattan-park-encounter.html",
-        embedUrl: "https://rumble.com/embed/v5f1x2m",
-        label: "NYC Waterfront Park Confrontation Stream",
-        platform: "Rumble",
-        caption: "Waterfront promenade exchange uploaded July 2026."
+        url: "https://x.com/RabbiShmuley/status/2076484597626400877",
+        embedUrl: null,
+        label: "Rabbi Shmuley Pier 45 Waterfront Pacing Video Dispatch",
+        platform: "X (formerly Twitter)",
+        caption: "Primary mobile video filmed at Pier 45 on the Hudson River waterfront."
+      },
+      {
+        kind: "video",
+        url: "https://rumble.com/playlists/I-GxUwNb8no",
+        embedUrl: null,
+        label: "Sperg Archives Complete 4m50s Pier 45 Recording",
+        platform: "Rumble (Sperg Archives)",
+        caption: "Full 4-minute 50-second unedited recording of the Christopher Street Pier confrontation."
+      },
+      {
+        kind: "video",
+        url: "https://t.me/Eyeonpalestine2/35528",
+        embedUrl: null,
+        label: "Eye on Palestine Telegram Video Repost",
+        platform: "Telegram",
+        caption: "Circulating high-resolution repost confirming Pier 45 Greenwich Village location."
       }
     ]
   },
@@ -1244,27 +1353,32 @@ export const techMediaCultureEvents: EventRecord[] = [
     city: "Ferrara",
     country: "Italy",
     venueName: "Ferrara Historic Synagogue Complex",
-    subvenue: "Via Mazzini Holocaust Memorial Perimeter",
+    subvenue: "Bar Mazzini (Via Giuseppe Mazzini 91 - Lead Candidate)",
     platform: "Facebook Video & Stilum Curiae Coverage",
-    address: "Via Giuseppe Mazzini 95, 44121 Ferrara",
+    address: "Via Giuseppe Mazzini 91, 44121 Ferrara",
     latitude: 44.8353,
     longitude: 11.6198,
     locationPrecision: "venue",
     summary: "Rabbi Shmuley Boteach films an interaction with an Italian man seated at an outdoor café table in the historic Jewish quarter of Ferrara on Via Giuseppe Mazzini.",
-    description: "The video shows Boteach engaging a seated patron drinking coffee near Via Giuseppe Mazzini 95, the location of Ferrara's historic synagogue and Holocaust memorial plaques. Archival note: the candidate location is provisionally identified at the street perimeter of number 95.",
+    description: "The video shows Boteach engaging a seated patron drinking espresso at an outdoor table along Via Giuseppe Mazzini in Ferrara's historic Jewish quarter. Evidentiary analysis cross-referenced with MuseoFerrara archival records designates Bar Mazzini (Via Giuseppe Mazzini 91) as the lead candidate premises immediately adjacent to the historic German Synagogue complex at no. 95, with Caffè Mazzini (no. 109) noted as a secondary candidate.",
     verificationStatus: "provisional",
     confidence: "limited",
-    confidenceScore: 0.75,
+    confidenceScore: 0.8,
     scope: "public",
     categories: ["culture", "travel", "street-encounter"],
     eventTypes: ["street-confrontation", "cafe-discussion"],
-    sourceIds: ["src-stilum-curiae-ferrara-boteach-2026", "src-facebook-ferrara-boteach-video-2026"],
+    sourceIds: [
+      "src-stilum-curiae-ferrara-boteach-2026",
+      "src-facebook-ferrara-boteach-video-2026",
+      "src-museo-ferrara-synagogue"
+    ],
     participants: [
       {
         personId: "shmuley-boteach",
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
-        role: "Visiting Rabbi & Author (Video Recorder)",
+        role: "Visiting Rabbi & Author",
+        association: "participant",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
