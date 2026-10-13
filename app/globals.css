@@ -1668,6 +1668,199 @@ svg { flex: 0 0 auto; }
 .vehicle-altitude-shadow { position: absolute; bottom: -8px; left: 50%; width: 26px; height: 9px; margin-left: -13px; background: radial-gradient(ellipse at center, rgba(0,0,0,0.75) 0%, transparent 70%); border-radius: 50%; pointer-events: none; transition: transform 0.08s linear, opacity 0.08s linear; z-index: -1; }
 .event-journey-banner { display: inline-flex; align-items: center; gap: 6px; }
 
+/* Atmospheric Contrail Particle Pulse Emitter */
+.vehicle-contrail-emitter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  margin-left: -22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(56, 189, 248, 0.5);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 75%);
+  animation: contrail-vapor-pulse 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes contrail-vapor-pulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Floating Forensic Transit Telemetry HUD */
+.map-transit-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 25;
+  background: rgba(8, 14, 26, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 16px rgba(56, 189, 248, 0.12);
+  width: 290px;
+  max-width: calc(100% - 28px);
+  color: #f8fafc;
+  pointer-events: auto;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.map-transit-hud.collapsed {
+  padding: 8px 12px;
+  width: auto;
+  min-width: 220px;
+}
+.transit-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.transit-hud-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.transit-live-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: transit-hud-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes transit-hud-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.transit-mode-name {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+}
+.transit-hud-toggle-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border-radius: 5px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.transit-hud-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+.transit-hud-toggle-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+.transit-corridor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.city-endpoint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.city-endpoint.origin {
+  color: #cbd5e1;
+}
+.city-endpoint.dest {
+  color: #38bdf8;
+}
+.corridor-arrow {
+  color: #60a5fa;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.transit-telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.telemetry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.telemetry-cell.full-width {
+  grid-column: span 2;
+}
+.telemetry-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.telemetry-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: var(--mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+.telemetry-value.highlight-cyan {
+  color: #38bdf8;
+}
+.telemetry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 5px;
+  margin-top: 2px;
+}
+.telemetry-badge.verified {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+.telemetry-badge.provisional {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+.badge-shield-icon {
+  flex-shrink: 0;
+}
+
+/* Ghost Waypoints (Refined Historical Stops) */
+.webgl-map-marker.visited:not(.selected) .pin-drop-body {
+  fill: #475569;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5));
+}
+.webgl-map-marker.visited:not(.selected) .marker-venue-badge {
+  opacity: 0.82;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(8, 16, 26, 0.85);
+}
+.webgl-map-marker.visited:not(.selected):hover .marker-venue-badge {
+  opacity: 1;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
 /* Floating Vertical Navigation Controls */
 .map-floating-controls { position: absolute; bottom: 20px; right: 14px; z-index: 25; display: flex; flex-direction: column; gap: 4px; background: rgba(8,14,26,0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 4px; box-shadow: 0 4px 18px rgba(0,0,0,0.55); }
 .map-float-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: none; color: #cbd5e1; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; }
