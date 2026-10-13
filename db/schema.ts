@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 
 // ==========================================
@@ -68,14 +69,21 @@ export const people = pgTable("people", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const personAliases = pgTable("person_aliases", {
-  id: serial("id").primaryKey(),
-  personId: text("person_id")
-    .references(() => people.id, { onDelete: "cascade" })
-    .notNull(),
-  alias: text("alias").notNull(),
-  aliasType: text("alias_type").default("transliteration").notNull(), // transliteration, former-name, misspelling, title
-});
+export const personAliases = pgTable(
+  "person_aliases",
+  {
+    id: serial("id").primaryKey(),
+    personId: text("person_id")
+      .references(() => people.id, { onDelete: "cascade" })
+      .notNull(),
+    alias: text("alias").notNull(),
+    aliasType: text("alias_type").default("transliteration").notNull(), // transliteration, former-name, misspelling, title
+  },
+  (t) => [
+    uniqueIndex("person_aliases_person_id_alias_key").on(t.personId, t.alias),
+    uniqueIndex("idx_person_aliases_unique_lower").on(t.personId, sql`lower(${t.alias})`),
+  ]
+);
 
 export const organisations = pgTable("organisations", {
   id: text("id").primaryKey(),

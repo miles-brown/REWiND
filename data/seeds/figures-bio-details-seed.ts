@@ -270,7 +270,12 @@ export const figuresEducationSeed: BioEducationSeed[] = [
   // Jeffrey Epstein
   { id: "edu-epstein-1", personId: "jeffrey-epstein", institution: "Lafayette High School, Brooklyn", degree: "High School Diploma", fieldOfStudy: "Secondary Education", startYear: "1965", endYear: "1969", sourceId: "src-us-congress-bioguide" },
   { id: "edu-epstein-2", personId: "jeffrey-epstein", institution: "Cooper Union for the Advancement of Science and Art", degree: "Undergraduate Coursework", fieldOfStudy: "Mathematics and Physics", startYear: "1969", endYear: "1971", sourceId: "src-us-congress-bioguide" },
-  { id: "edu-epstein-3", personId: "jeffrey-epstein", institution: "New York University Courant Institute of Mathematical Sciences", degree: "Coursework (did not graduate)", fieldOfStudy: "Mathematics", startYear: "1971", endYear: "1974", sourceId: "src-us-congress-bioguide" }
+  { id: "edu-epstein-3", personId: "jeffrey-epstein", institution: "New York University Courant Institute of Mathematical Sciences", degree: "Coursework (did not graduate)", fieldOfStudy: "Mathematics", startYear: "1971", endYear: "1974", sourceId: "src-us-congress-bioguide" },
+
+  // Rabbi Shmuley Boteach
+  { id: "edu-boteach-1", personId: "shmuley-boteach", institution: "Toras Emes Academy", degree: "Primary Education", fieldOfStudy: "Torah and General Studies", startYear: "1972", endYear: "1980", sourceId: "src-wvn-official-registry" },
+  { id: "edu-boteach-2", personId: "shmuley-boteach", institution: "Rabbinical College of America", degree: "Bachelor of Religious Studies", fieldOfStudy: "Talmudic and Rabbinical Literature", startYear: "1982", endYear: "1986", sourceId: "src-wvn-official-registry" },
+  { id: "edu-boteach-3", personId: "shmuley-boteach", institution: "Machon LeHora'ah Kollel", degree: "Rabbinical Ordination (Semikhah)", fieldOfStudy: "Jewish Law and Pastoral Ethics", startYear: "1986", endYear: "1988", sourceId: "src-wvn-official-registry" }
 ];
 
 // ==========================================
@@ -513,7 +518,13 @@ export const figuresCareerSeed: BioCareerSeed[] = [
   // Jeffrey Epstein
   { id: "car-epstein-1", personId: "jeffrey-epstein", organisationName: "The Dalton School", roleTitle: "Mathematics and Physics Teacher", startDate: "1974-09-01", endDate: "1976-06-01", isCurrent: false, sourceId: "src-us-congress-bioguide" },
   { id: "car-epstein-2", personId: "jeffrey-epstein", organisationName: "Bear Stearns", roleTitle: "Options Trader and Limited Partner", startDate: "1976-08-01", endDate: "1981-05-01", isCurrent: false, sourceId: "src-us-congress-bioguide" },
-  { id: "car-epstein-3", personId: "jeffrey-epstein", organisationName: "J. Epstein & Co. / Financial Trust Company", roleTitle: "President and Founder", startDate: "1982-01-01", endDate: "2019-07-06", isCurrent: false, sourceId: "src-us-congress-bioguide" }
+  { id: "car-epstein-3", personId: "jeffrey-epstein", organisationName: "J. Epstein & Co. / Financial Trust Company", roleTitle: "President and Founder", startDate: "1982-01-01", endDate: "2019-07-06", isCurrent: false, sourceId: "src-us-congress-bioguide" },
+
+  // Rabbi Shmuley Boteach
+  { id: "car-boteach-1", personId: "shmuley-boteach", organisationName: "Chabad-Lubavitch of Oxford / L'Chaim Society", roleTitle: "Rabbinic Emissary (Shliach) & Director", startDate: "1988-10-01", endDate: "1999-12-31", isCurrent: false, notes: "Established Oxford L'Chaim Society attracting prominent international university and civic leaders", sourceId: "src-oxford-union-boteach-jackson-2001" },
+  { id: "car-boteach-2", personId: "shmuley-boteach", organisationName: "The World Values Network", roleTitle: "Founder and Executive Director", startDate: "2000-01-01", endDate: undefined, isCurrent: true, notes: "International educational and human-rights organization promoting universal values and interfaith dialogue", sourceId: "src-wvn-official-registry" },
+  { id: "car-boteach-3", personId: "shmuley-boteach", organisationName: "TLC / Discovery Communications", roleTitle: "Television Host & Executive Producer (Shalom in the Home)", startDate: "2006-04-10", endDate: "2007-12-31", isCurrent: false, notes: "National prime-time family counseling television series across North America", sourceId: "src-wvn-official-registry" },
+  { id: "car-boteach-4", personId: "shmuley-boteach", organisationName: "United States House of Representatives (New Jersey 9th District)", roleTitle: "Republican Nominee for US Congress", startDate: "2012-06-05", endDate: "2012-11-06", isCurrent: false, notes: "Certified Republican congressional candidate following primary victory", sourceId: "src-fec-boteach-candidate-2012" }
 ];
 
 // ==========================================
@@ -605,7 +616,12 @@ export const figuresAwardsSeed: BioAwardSeed[] = [
   { id: "awd-holt-1", personId: "lester-holt", awardName: "Walter Cronkite Award for Excellence in Journalism", awardingBody: "Arizona State University", yearReceived: "2021", citation: "For distinguished broadcast news anchoring and debate moderation", sourceId: "src-us-congress-bioguide" },
 
   // Diane Sawyer
-  { id: "awd-sawyer-1", personId: "diane-sawyer", awardName: "Television Hall of Fame", awardingBody: "Academy of Television Arts & Sciences", yearReceived: "1997", citation: "For groundbreaking investigative reporting and news magazine hosting", sourceId: "src-us-congress-bioguide" }
+  { id: "awd-sawyer-1", personId: "diane-sawyer", awardName: "Television Hall of Fame", awardingBody: "Academy of Television Arts & Sciences", yearReceived: "1997", citation: "For groundbreaking investigative reporting and news magazine hosting", sourceId: "src-us-congress-bioguide" },
+
+  // Rabbi Shmuley Boteach
+  { id: "awd-boteach-1", personId: "shmuley-boteach", awardName: "London Times Preacher of the Year Award", awardingBody: "The Times (London)", yearReceived: "1999", citation: "Commended for interfaith oratory and public ethics lectures at Oxford University", sourceId: "src-oxford-union-boteach-jackson-2001" },
+  { id: "awd-boteach-2", personId: "shmuley-boteach", awardName: "National Fatherhood Award", awardingBody: "National Fatherhood Initiative", yearReceived: "2007", citation: "For broadcast counseling and family reconciliation advocacy on Shalom in the Home", sourceId: "src-wvn-official-registry" },
+  { id: "awd-boteach-3", personId: "shmuley-boteach", awardName: "Simon Wiesenthal Center Champion of Jewish Values Citation", awardingBody: "The World Values Network & Allied Foundations", yearReceived: "2015", citation: "For international defense of human rights and memory of the Holocaust", sourceId: "src-cspan-boteach-wiesel-2015" }
 ];
 
 // ==========================================
@@ -715,7 +731,15 @@ export const figuresWorksSeed: BioWorkSeed[] = [
   { id: "wrk-macron-1", personId: "emmanuel-macron", title: "Révolution", workType: "book", publicationYear: "2016", publisher: "XO Éditions", sourceId: "src-un-delegates-registry" },
 
   // Vladimir Putin
-  { id: "wrk-putin-1", personId: "vladimir-putin", title: "First Person: An Astonishingly Frank Self-Portrait by Russia's President", workType: "book", publicationYear: "2000", publisher: "PublicAffairs", sourceId: "src-un-delegates-registry" }
+  { id: "wrk-putin-1", personId: "vladimir-putin", title: "First Person: An Astonishingly Frank Self-Portrait by Russia's President", workType: "book", publicationYear: "2000", publisher: "PublicAffairs", sourceId: "src-un-delegates-registry" },
+
+  // Rabbi Shmuley Boteach
+  { id: "wrk-boteach-1", personId: "shmuley-boteach", title: "Kosher Sex: A Recipe for Passion and Intimacy", workType: "book", publicationYear: "1999", publisher: "Doubleday", notes: "Groundbreaking international bestseller on relationship ethics and marital intimacy", sourceId: "src-loc-boteach-kosher-sex-1999" },
+  { id: "wrk-boteach-2", personId: "shmuley-boteach", title: "Dating Secrets of the Ten Commandments", workType: "book", publicationYear: "2000", publisher: "Doubleday", notes: "Theological treatise on timeless moral guidelines for contemporary relationships", sourceId: "src-loc-boteach-kosher-sex-1999" },
+  { id: "wrk-boteach-3", personId: "shmuley-boteach", title: "The Michael Jackson Tapes: A Tragic Icon Reveals His Soul in Intimate Conversation", workType: "book", publicationYear: "2009", publisher: "Vanguard Press", notes: "Documented conversations recorded during Jackson's Heal the Kids initiative", sourceId: "src-oxford-union-boteach-jackson-2001" },
+  { id: "wrk-boteach-4", personId: "shmuley-boteach", title: "Kosher Jesus", workType: "book", publicationYear: "2012", publisher: "Gefen Publishing House", notes: "Historical analysis tracing the Jewish context and teachings of Jesus of Nazareth", sourceId: "src-wvn-official-registry" },
+  { id: "wrk-boteach-5", personId: "shmuley-boteach", title: "The Fed-Up Man of Faith: Challenging God in the Face of Tragedy and Suffering", workType: "book", publicationYear: "2013", publisher: "BenBella Books", notes: "Theological inquiry into the Jewish tradition of defiant prayer in the face of tragedy", sourceId: "src-wvn-official-registry" },
+  { id: "wrk-boteach-6", personId: "shmuley-boteach", title: "Holocaust Holiday: One Family's Hidden History", workType: "book", publicationYear: "2021", publisher: "Skyhorse Publishing", notes: "Historical travelogue documenting European Holocaust sites and archival family records", sourceId: "src-wvn-official-registry" }
 ];
 
 // ==========================================
@@ -1082,5 +1106,58 @@ export const figuresStaysSeed: BioStaySeed[] = [
     isPrimaryResidence: false,
     notes: "Private waterfront estate in Palm Beach, Florida",
     sourceId: "src-us-congress-bioguide"
+  },
+
+  // Rabbi Shmuley Boteach
+  {
+    id: "stay-boteach-oxford",
+    personId: "shmuley-boteach",
+    venueName: "Oxford L'Chaim Society Chabad House",
+    stayName: "Oxford Residence & Society Headquarters",
+    stayType: "private_home",
+    city: "Oxford",
+    country: "United Kingdom",
+    latitude: 51.7520,
+    longitude: -1.2577,
+    startDate: "1988-10-01",
+    endDate: "1999-12-31",
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    notes: "Residence and society headquarters during Oxford University chaplaincy",
+    sourceId: "src-oxford-union-boteach-jackson-2001"
+  },
+  {
+    id: "stay-boteach-englewood",
+    personId: "shmuley-boteach",
+    venueName: "Boteach Family Residence & World Values Network Headquarters",
+    stayName: "Englewood Residence",
+    stayType: "private_home",
+    city: "Englewood",
+    country: "United States",
+    latitude: 40.8929,
+    longitude: -73.9726,
+    startDate: "2000-01-01",
+    endDate: null,
+    isBaseOfOperations: true,
+    isPrimaryResidence: true,
+    notes: "Primary family residence and base of operations for The World Values Network in Bergen County, New Jersey",
+    sourceId: "src-wvn-official-registry"
+  },
+  {
+    id: "stay-boteach-manhattan",
+    personId: "shmuley-boteach",
+    venueName: "The World Values Network Executive Office",
+    stayName: "Manhattan Working Office",
+    stayType: "private_home",
+    city: "New York",
+    country: "United States",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    startDate: "2005-01-01",
+    endDate: null,
+    isBaseOfOperations: true,
+    isPrimaryResidence: false,
+    notes: "Working office for international campaigns, symposiums, and cultural outreach in Manhattan",
+    sourceId: "src-wvn-official-registry"
   }
 ];

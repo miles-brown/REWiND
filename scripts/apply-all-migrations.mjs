@@ -57,6 +57,8 @@ const migrationFiles = [
   "20260904030000_quote_and_claim_rls_hardening.sql",
   "20260904040000_schema_perfection_and_travel_corridors.sql",
   "20260904050000_add_subvenue_to_events.sql",
+  "20260904060000_deduplicate_aliases_and_harden_rls.sql",
+  "20260904080000_add_claim_contestation_columns.sql",
 ];
 
 /**

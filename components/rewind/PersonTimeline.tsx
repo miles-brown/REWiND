@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  Calendar,
   ChevronLeft,
   ChevronRight,
   CirclePause,
@@ -220,9 +221,12 @@ export function PersonTimeline({
 
   if (!ordered.length || !event) {
     return (
-      <div className="zero-state">
-        <h2>No timeline records yet</h2>
-        <p>This edition does not yet contain a dated event for {person.name}.</p>
+      <div className="person-timeline-zero-state" role="region" aria-label="Chronology status">
+        <Calendar className="zero-state-icon" size={28} />
+        <h3>No Chronology Added Yet</h3>
+        <p>
+          This biographical profile is published in the directory, but dated chronological timeline events have not yet been ingested into this edition for {person.name}.
+        </p>
       </div>
     );
   }
@@ -394,14 +398,22 @@ export function PersonTimeline({
                   <span>Cite</span>
                 </button>
               )}
-              {event.quotes && event.quotes.length > 0 && (
+              {((event.quotes && event.quotes.length > 0) || (event.media && event.media.length > 0)) && (
                 <button
                   className="cite-btn highlight"
                   onClick={() => setMediaOpen(true)}
-                  aria-label="Open speech quotes and audio excerpts"
+                  aria-label={
+                    event.quotes && event.quotes.length > 0
+                      ? "Open speech quotes and audio excerpts"
+                      : "Open archival video and media footage"
+                  }
                 >
                   <MessageSquareQuote size={14} />
-                  <span>Quotes ({event.quotes.length})</span>
+                  <span>
+                    {event.quotes && event.quotes.length > 0
+                      ? `Quotes (${event.quotes.length})`
+                      : `Media (${event.media?.length || 0})`}
+                  </span>
                 </button>
               )}
               <button

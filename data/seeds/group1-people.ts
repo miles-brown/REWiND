@@ -346,6 +346,16 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
     "religion": "Judaism",
     "religiousDenomination": "Traditional / Zionist",
     "religionStatus": "self-identified",
+    "fullBirthName": "Shmuel Boteach",
+    "ethnicity": "Jewish",
+    "ancestry": "Persian Jewish / Moroccan Jewish",
+    "nationalIdentity": "American",
+    "achievements": [
+      { "milestone": "Founder and Director of the Oxford University L'Chaim Society (1988–1999)", "year": 1988, "evidence": "The Oxford Union Society & Oxford Chabad Archives (src-oxford-union-boteach-jackson-2001)" },
+      { "milestone": "Author of international bestselling treatise Kosher Sex (Doubleday, 1999)", "year": 1999, "evidence": "Library of Congress Catalog (src-loc-boteach-kosher-sex-1999)" },
+      { "milestone": "Republican Nominee for United States Congress in New Jersey's 9th Congressional District", "year": 2012, "evidence": "Federal Election Commission Candidate Registry (src-fec-boteach-candidate-2012)" },
+      { "milestone": "Founder and Executive Director of The World Values Network advocating human rights and public ethics", "year": 2014, "evidence": "The World Values Network Registry (src-wvn-official-registry)" }
+    ],
     "inclusionBasis": [
       "major-religious-authority",
       "central-nexus-to-historical-events"

@@ -176,11 +176,13 @@ async function syncCorpus() {
       });
     });
 
+    const totalMediaAssets = eventsCorpus.reduce((acc, e) => acc + (e.media?.length || 0), 0);
     console.log("================================================================================");
     console.log("📊 DRY-RUN INTEGRITY SIMULATION REPORT:");
     console.log("================================================================================");
     console.log(`- People Records:         ${masterPeopleSeed.length} valid`);
     console.log(`- Events Records:         ${allEvents.length} valid`);
+    console.log(`- Media Assets:           ${totalMediaAssets} valid`);
     console.log(`- Sources Catalog:        ${validSourceIds.size} valid`);
     console.log(`- Bio Education:          ${allEducationSeed.length} valid`);
     console.log(`- Bio Careers:            ${allCareerSeed.length} valid`);
@@ -510,6 +512,7 @@ async function syncCorpus() {
   ];
 
   const uniqueSources = Array.from(new Map(allSources.map((s) => [s.id, s])).values());
+  const validSourceIdSet = new Set(uniqueSources.map((s) => s.id));
   const sourceList = uniqueSources.map((src) => ({
     id: src.id,
     title: src.title,
@@ -754,6 +757,29 @@ async function syncCorpus() {
             claimStatus: "ESTABLISHED",
             epistemicClass: "documented fact",
             supportingExcerpt: evt.summary,
+          });
+      }
+
+      // Reconcile and synchronize media assets (media_assets)
+      await tx.delete(schema.mediaAssets).where(eq(schema.mediaAssets.eventId, evt.id));
+      const mediaList = evt.media || [];
+      for (let mIdx = 0; mIdx < mediaList.length; mIdx++) {
+        const m = mediaList[mIdx];
+        const assignedSourceId = m.sourceId && validSourceIdSet.has(m.sourceId)
+          ? m.sourceId
+          : (evt.sourceIds?.[0] && validSourceIdSet.has(evt.sourceIds[0]) ? evt.sourceIds[0] : null);
+
+        await tx
+          .insert(schema.mediaAssets)
+          .values({
+            id: `med-${evt.id}-${mIdx}`,
+            eventId: evt.id,
+            mediaType: m.kind || "video",
+            url: m.url,
+            thumbnailUrl: m.thumbnailUrl || null,
+            caption: m.caption || m.label || null,
+            sourceId: assignedSourceId,
+            durationSeconds: m.durationSeconds || null,
           });
       }
     });
@@ -1074,6 +1100,7 @@ async function syncCorpus() {
     [{ count: eventPeopleCount }],
     [{ count: quotesCount }],
     [{ count: claimsCount }],
+    [{ count: mediaAssetsCount }],
     [{ count: eduCount }],
     [{ count: careerCount }],
     [{ count: awardsCount }],
@@ -1087,6 +1114,7 @@ async function syncCorpus() {
     db.select({ count: sql<number>`count(*)::int` }).from(schema.eventPeople),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.quotes),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.claims),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.mediaAssets),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personEducation),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personCareer),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personAwards),
@@ -1096,6 +1124,7 @@ async function syncCorpus() {
 
   console.log(`- People:        ${peopleCount}`);
   console.log(`- Events:        ${eventsCount}`);
+  console.log(`- Media Assets:  ${mediaAssetsCount}`);
   console.log(`- Sources:       ${sourcesCount}`);
   console.log(`- Places:        ${placesCount}`);
   console.log(`- Participants:  ${eventPeopleCount}`);

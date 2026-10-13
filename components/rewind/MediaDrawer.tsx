@@ -15,12 +15,17 @@ import {
   X,
 } from "lucide-react";
 import type { EventRecord } from "@/lib/rewind";
+import { EmbeddedVideoPlayer } from "./EmbeddedVideoPlayer";
 
 interface ArchivalMediaItem {
   kind: string;
   label: string;
   url: string;
   timestamp?: string;
+  embedUrl?: string | null;
+  thumbnailUrl?: string | null;
+  platform?: string | null;
+  caption?: string | null;
 }
 
 export function MediaDrawer({
@@ -65,6 +70,10 @@ export function MediaDrawer({
         label: m.label,
         url: m.url,
         timestamp: m.timestamp ?? undefined,
+        embedUrl: (m as { embedUrl?: string }).embedUrl ?? null,
+        thumbnailUrl: (m as { thumbnailUrl?: string }).thumbnailUrl ?? null,
+        platform: (m as { platform?: string }).platform ?? null,
+        caption: (m as { caption?: string }).caption ?? null,
       }));
     }
     if (event.sourceIds && event.sourceIds.length > 0) {
@@ -336,12 +345,18 @@ export function MediaDrawer({
                   <p style={{ margin: "0 0 10px", fontSize: "13px", color: "#f1f5f9", lineHeight: 1.45 }}>
                     {currentMedia.label}
                   </p>
+
+                  {/* Embedded Video Player if current asset is video or embed */}
+                  {(currentMedia.kind === "video" || currentMedia.embedUrl || currentMedia.kind.includes("video")) && currentMedia.url && (
+                    <EmbeddedVideoPlayer media={currentMedia} title={currentMedia.label} />
+                  )}
+
                   {currentMedia.url && (
                     <a
                       href={currentMedia.url}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#38bdf8", textDecoration: "none" }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#38bdf8", textDecoration: "none", marginTop: "8px" }}
                     >
                       <span>Open primary archival asset</span>
                       <ExternalLink size={12} />

@@ -309,5 +309,11 @@ export const officialRolesSeed: OfficialRoleSeed[] = [
   // Tenzin Gyatso (Dalai Lama)
   { id: 39, personId: "dalai-lama", title: "14th Dalai Lama", organisationName: "Gelug Tibetan Buddhism / Central Tibetan Administration", startDate: "1940-02-22", endDate: null, isCurrent: true },
   { id: 40, personId: "dalai-lama", title: "Head of State of Tibet", organisationName: "Government of Tibet (Lhasa)", startDate: "1950-11-17", endDate: "1959-03-31", isCurrent: false },
-  { id: 41, personId: "dalai-lama", title: "Leader of Central Tibetan Administration (in exile)", organisationName: "Central Tibetan Administration", startDate: "1959-04-29", endDate: "2011-03-14", isCurrent: false }
+  { id: 41, personId: "dalai-lama", title: "Leader of Central Tibetan Administration (in exile)", organisationName: "Central Tibetan Administration", startDate: "1959-04-29", endDate: "2011-03-14", isCurrent: false },
+
+  // 52. Rabbi Shmuley Boteach
+  { id: 185, personId: "shmuley-boteach", title: "Founder and Director of Oxford L'Chaim Society", organisationName: "Oxford University Chabad / L'Chaim Society", startDate: "1988-10-01", endDate: "1999-12-31", isCurrent: false },
+  { id: 186, personId: "shmuley-boteach", title: "Founder and Executive Director", organisationName: "The World Values Network", startDate: "2000-01-01", endDate: null, isCurrent: true },
+  { id: 187, personId: "shmuley-boteach", title: "Host and Executive Producer of Shalom in the Home", organisationName: "TLC / Discovery Communications", startDate: "2006-04-10", endDate: "2007-12-31", isCurrent: false },
+  { id: 188, personId: "shmuley-boteach", title: "Republican Nominee for the United States House of Representatives (NJ-09)", organisationName: "United States House of Representatives", startDate: "2012-06-05", endDate: "2012-11-06", isCurrent: false }
 ];

@@ -79,7 +79,8 @@ export default async function PersonPage({
   const cities = Array.from(new Set(linked.map((e) => e.city).filter(Boolean)));
   const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
   const provisionalCount = linked.filter((e) => e.verificationStatus !== "verified").length;
-  const verifiedPercent = linked.length > 0 ? Math.round((verifiedCount / linked.length) * 100) : 0;
+  const hasChronology = linked.length > 0;
+  const verifiedPercent = hasChronology ? Math.round((verifiedCount / linked.length) * 100) : null;
 
   const startYear = years[0];
   const endYear = years[years.length - 1];
@@ -172,12 +173,22 @@ export default async function PersonPage({
               <Sparkles size={14} className="telemetry-sparkle" />
               <span>EVIDENTIARY ACCURACY INDEX</span>
             </div>
-            <span className="telemetry-pct-badge">{verifiedPercent}% VERIFIED</span>
+            {hasChronology ? (
+              <span className="telemetry-pct-badge">{verifiedPercent}% VERIFIED</span>
+            ) : (
+              <span className="telemetry-pct-badge pending-badge">NO CHRONOLOGY ADDED YET</span>
+            )}
           </div>
 
           <div className="telemetry-accuracy-gauge" aria-hidden="true">
-            <div className="gauge-fill verified" style={{ width: `${verifiedPercent}%` }} />
-            <div className="gauge-fill provisional" style={{ width: `${100 - verifiedPercent}%` }} />
+            {hasChronology ? (
+              <>
+                <div className="gauge-fill verified" style={{ width: `${verifiedPercent}%` }} />
+                <div className="gauge-fill provisional" style={{ width: `${100 - (verifiedPercent ?? 0)}%` }} />
+              </>
+            ) : (
+              <div className="gauge-fill pending" style={{ width: "100%" }} />
+            )}
           </div>
 
           <div className="telemetry-grid">
