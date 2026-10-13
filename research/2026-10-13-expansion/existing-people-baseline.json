@@ -1,0 +1,1424 @@
+{
+  "baseline": "GitHub repository seed data only; NOT a live Supabase census",
+  "date": "2026-10-13",
+  "repository": "miles-brown/REWiND",
+  "failures": [],
+  "people": [
+    {
+      "slug": "benjamin-netanyahu",
+      "name": "Benjamin Netanyahu"
+    },
+    {
+      "slug": "ehud-barak",
+      "name": "Ehud Barak"
+    },
+    {
+      "slug": "jared-kushner",
+      "name": "Jared Kushner"
+    },
+    {
+      "slug": "randy-fine",
+      "name": "Randy Fine"
+    },
+    {
+      "slug": "charlie-kirk",
+      "name": "Charlie Kirk"
+    },
+    {
+      "slug": "candace-owens",
+      "name": "Candace Owens"
+    },
+    {
+      "slug": "tucker-carlson",
+      "name": "Tucker Carlson"
+    },
+    {
+      "slug": "shmuley-boteach",
+      "name": "Shmuley Boteach"
+    },
+    {
+      "slug": "keir-starmer",
+      "name": "Sir Keir Starmer"
+    },
+    {
+      "slug": "george-galloway",
+      "name": "George Galloway"
+    },
+    {
+      "slug": "ken-livingstone",
+      "name": "Ken Livingstone"
+    },
+    {
+      "slug": "michael-bloomberg",
+      "name": "Michael Bloomberg"
+    },
+    {
+      "slug": "erika-kirk",
+      "name": "Erika Kirk"
+    },
+    {
+      "slug": "jeremy-corbyn",
+      "name": "Jeremy Corbyn"
+    },
+    {
+      "slug": "jeffrey-epstein",
+      "name": "Jeffrey Epstein"
+    },
+    {
+      "slug": "elon-musk",
+      "name": "Elon Musk"
+    },
+    {
+      "slug": "marjorie-taylor-greene",
+      "name": "Marjorie Taylor Greene"
+    },
+    {
+      "slug": "brigitte-macron",
+      "name": "Brigitte Macron"
+    },
+    {
+      "slug": "melania-trump",
+      "name": "Melania Trump"
+    },
+    {
+      "slug": "donald-trump",
+      "name": "Donald Trump"
+    },
+    {
+      "slug": "thomas-massie",
+      "name": "Thomas Massie"
+    },
+    {
+      "slug": "bernie-sanders",
+      "name": "Bernie Sanders"
+    },
+    {
+      "slug": "joe-biden",
+      "name": "Joe Biden"
+    },
+    {
+      "slug": "hillary-clinton",
+      "name": "Hillary Clinton"
+    },
+    {
+      "slug": "yasser-arafat",
+      "name": "Yasser Arafat"
+    },
+    {
+      "slug": "tony-blair",
+      "name": "Tony Blair"
+    },
+    {
+      "slug": "jack-straw",
+      "name": "Jack Straw"
+    },
+    {
+      "slug": "donald-rumsfeld",
+      "name": "Donald Rumsfeld"
+    },
+    {
+      "slug": "princess-diana",
+      "name": "Diana, Princess of Wales"
+    },
+    {
+      "slug": "jill-dando",
+      "name": "Jill Dando"
+    },
+    {
+      "slug": "andrew-neil",
+      "name": "Andrew Neil"
+    },
+    {
+      "slug": "anderson-cooper",
+      "name": "Anderson Cooper"
+    },
+    {
+      "slug": "tom-brokaw",
+      "name": "Tom Brokaw"
+    },
+    {
+      "slug": "peter-jennings",
+      "name": "Peter Jennings"
+    },
+    {
+      "slug": "lester-holt",
+      "name": "Lester Holt"
+    },
+    {
+      "slug": "diane-sawyer",
+      "name": "Diane Sawyer"
+    },
+    {
+      "slug": "les-wexner",
+      "name": "Les Wexner"
+    },
+    {
+      "slug": "ben-shapiro",
+      "name": "Ben Shapiro"
+    },
+    {
+      "slug": "shimon-peres",
+      "name": "Shimon Peres"
+    },
+    {
+      "slug": "yitzhak-rabin",
+      "name": "Yitzhak Rabin"
+    },
+    {
+      "slug": "avigdor-lieberman",
+      "name": "Avigdor Lieberman"
+    },
+    {
+      "slug": "ron-dermer",
+      "name": "Ron Dermer"
+    },
+    {
+      "slug": "mahmoud-abbas",
+      "name": "Mahmoud Abbas"
+    },
+    {
+      "slug": "ahmed-yassin",
+      "name": "Sheikh Ahmed Yassin"
+    },
+    {
+      "slug": "ismail-haniyeh",
+      "name": "Ismail Haniyeh"
+    },
+    {
+      "slug": "khaled-mashal",
+      "name": "Khaled Mashal"
+    },
+    {
+      "slug": "marwan-barghouti",
+      "name": "Marwan Barghouti"
+    },
+    {
+      "slug": "saeb-erekat",
+      "name": "Saeb Erekat"
+    },
+    {
+      "slug": "yahya-sinwar",
+      "name": "Yahya Sinwar"
+    },
+    {
+      "slug": "mohammed-deif",
+      "name": "Mohammed Deif"
+    },
+    {
+      "slug": "bill-clinton",
+      "name": "Bill Clinton"
+    },
+    {
+      "slug": "kamala-harris",
+      "name": "Kamala Harris"
+    },
+    {
+      "slug": "dick-cheney",
+      "name": "Dick Cheney"
+    },
+    {
+      "slug": "mike-pompeo",
+      "name": "Mike Pompeo"
+    },
+    {
+      "slug": "nancy-pelosi",
+      "name": "Nancy Pelosi"
+    },
+    {
+      "slug": "chuck-schumer",
+      "name": "Chuck Schumer"
+    },
+    {
+      "slug": "mitch-mcconnell",
+      "name": "Mitch McConnell"
+    },
+    {
+      "slug": "larry-king",
+      "name": "Larry King"
+    },
+    {
+      "slug": "barbara-walters",
+      "name": "Barbara Walters"
+    },
+    {
+      "slug": "christiane-amanpour",
+      "name": "Christiane Amanpour"
+    },
+    {
+      "slug": "wolf-blitzer",
+      "name": "Wolf Blitzer"
+    },
+    {
+      "slug": "jake-tapper",
+      "name": "Jake Tapper"
+    },
+    {
+      "slug": "rachel-maddow",
+      "name": "Rachel Maddow"
+    },
+    {
+      "slug": "sean-hannity",
+      "name": "Sean Hannity"
+    },
+    {
+      "slug": "piers-morgan",
+      "name": "Piers Morgan"
+    },
+    {
+      "slug": "rupert-murdoch",
+      "name": "Rupert Murdoch"
+    },
+    {
+      "slug": "jon-stewart",
+      "name": "Jon Stewart"
+    },
+    {
+      "slug": "samuel-gudmundsson",
+      "name": "Samúel Guðmundsson"
+    },
+    {
+      "slug": "bill-gates",
+      "name": "Bill Gates"
+    },
+    {
+      "slug": "peter-thiel",
+      "name": "Peter Thiel"
+    },
+    {
+      "slug": "mark-zuckerberg",
+      "name": "Mark Zuckerberg"
+    },
+    {
+      "slug": "jeff-bezos",
+      "name": "Jeff Bezos"
+    },
+    {
+      "slug": "sam-altman",
+      "name": "Sam Altman"
+    },
+    {
+      "slug": "larry-ellison",
+      "name": "Larry Ellison"
+    },
+    {
+      "slug": "marc-andreessen",
+      "name": "Marc Andreessen"
+    },
+    {
+      "slug": "jack-dorsey",
+      "name": "Jack Dorsey"
+    },
+    {
+      "slug": "sergey-brin",
+      "name": "Sergey Brin"
+    },
+    {
+      "slug": "eric-schmidt",
+      "name": "Eric Schmidt"
+    },
+    {
+      "slug": "tim-cook",
+      "name": "Tim Cook"
+    },
+    {
+      "slug": "satya-nadella",
+      "name": "Satya Nadella"
+    },
+    {
+      "slug": "sundar-pichai",
+      "name": "Sundar Pichai"
+    },
+    {
+      "slug": "jensen-huang",
+      "name": "Jensen Huang"
+    },
+    {
+      "slug": "demis-hassabis",
+      "name": "Sir Demis Hassabis"
+    },
+    {
+      "slug": "prince-andrew",
+      "name": "Prince Andrew, Duke of York"
+    },
+    {
+      "slug": "ghislaine-maxwell",
+      "name": "Ghislaine Maxwell"
+    },
+    {
+      "slug": "alan-dershowitz",
+      "name": "Alan Dershowitz"
+    },
+    {
+      "slug": "virginia-giuffre",
+      "name": "Virginia Giuffre"
+    },
+    {
+      "slug": "maria-farmer",
+      "name": "Maria Farmer"
+    },
+    {
+      "slug": "lesley-groff",
+      "name": "Lesley Groff"
+    },
+    {
+      "slug": "sarah-kellen",
+      "name": "Sarah Kellen"
+    },
+    {
+      "slug": "darren-indyke",
+      "name": "Darren Indyke"
+    },
+    {
+      "slug": "richard-kahn",
+      "name": "Richard Kahn"
+    },
+    {
+      "slug": "alexander-acosta",
+      "name": "Alexander Acosta"
+    },
+    {
+      "slug": "bradley-edwards",
+      "name": "Bradley Edwards"
+    },
+    {
+      "slug": "sigrid-mccawley",
+      "name": "Sigrid McCawley"
+    },
+    {
+      "slug": "david-boies",
+      "name": "David Boies"
+    },
+    {
+      "slug": "barry-krischer",
+      "name": "Barry Krischer"
+    },
+    {
+      "slug": "michael-reiter",
+      "name": "Michael Reiter"
+    },
+    {
+      "slug": "woodrow-wilson",
+      "name": "Woodrow Wilson"
+    },
+    {
+      "slug": "franklin-d-roosevelt",
+      "name": "Franklin D. Roosevelt"
+    },
+    {
+      "slug": "harry-s-truman",
+      "name": "Harry S. Truman"
+    },
+    {
+      "slug": "dwight-d-eisenhower",
+      "name": "Dwight D. Eisenhower"
+    },
+    {
+      "slug": "john-f-kennedy",
+      "name": "John F. Kennedy"
+    },
+    {
+      "slug": "lyndon-b-johnson",
+      "name": "Lyndon B. Johnson"
+    },
+    {
+      "slug": "richard-nixon",
+      "name": "Richard Nixon"
+    },
+    {
+      "slug": "gerald-ford",
+      "name": "Gerald Ford"
+    },
+    {
+      "slug": "jimmy-carter",
+      "name": "Jimmy Carter"
+    },
+    {
+      "slug": "ronald-reagan",
+      "name": "Ronald Reagan"
+    },
+    {
+      "slug": "george-h-w-bush",
+      "name": "George H. W. Bush"
+    },
+    {
+      "slug": "george-w-bush",
+      "name": "George W. Bush"
+    },
+    {
+      "slug": "barack-obama",
+      "name": "Barack Obama"
+    },
+    {
+      "slug": "winston-churchill",
+      "name": "Winston Churchill"
+    },
+    {
+      "slug": "clement-attlee",
+      "name": "Clement Attlee"
+    },
+    {
+      "slug": "harold-macmillan",
+      "name": "Harold Macmillan"
+    },
+    {
+      "slug": "margaret-thatcher",
+      "name": "Margaret Thatcher"
+    },
+    {
+      "slug": "john-major",
+      "name": "John Major"
+    },
+    {
+      "slug": "gordon-brown",
+      "name": "Gordon Brown"
+    },
+    {
+      "slug": "david-cameron",
+      "name": "David Cameron"
+    },
+    {
+      "slug": "theresa-may",
+      "name": "Theresa May"
+    },
+    {
+      "slug": "boris-johnson",
+      "name": "Boris Johnson"
+    },
+    {
+      "slug": "rishi-sunak",
+      "name": "Rishi Sunak"
+    },
+    {
+      "slug": "charles-de-gaulle",
+      "name": "Charles de Gaulle"
+    },
+    {
+      "slug": "francois-mitterrand",
+      "name": "François Mitterrand"
+    },
+    {
+      "slug": "jacques-chirac",
+      "name": "Jacques Chirac"
+    },
+    {
+      "slug": "nicolas-sarkozy",
+      "name": "Nicolas Sarkozy"
+    },
+    {
+      "slug": "emmanuel-macron",
+      "name": "Emmanuel Macron"
+    },
+    {
+      "slug": "konrad-adenauer",
+      "name": "Konrad Adenauer"
+    },
+    {
+      "slug": "willy-brandt",
+      "name": "Willy Brandt"
+    },
+    {
+      "slug": "helmut-schmidt",
+      "name": "Helmut Schmidt"
+    },
+    {
+      "slug": "helmut-kohl",
+      "name": "Helmut Kohl"
+    },
+    {
+      "slug": "gerhard-schroder",
+      "name": "Gerhard Schröder"
+    },
+    {
+      "slug": "angela-merkel",
+      "name": "Angela Merkel"
+    },
+    {
+      "slug": "olaf-scholz",
+      "name": "Olaf Scholz"
+    },
+    {
+      "slug": "vladimir-putin",
+      "name": "Vladimir Putin"
+    },
+    {
+      "slug": "boris-yeltsin",
+      "name": "Boris Yeltsin"
+    },
+    {
+      "slug": "mikhail-gorbachev",
+      "name": "Mikhail Gorbachev"
+    },
+    {
+      "slug": "xi-jinping",
+      "name": "Xi Jinping"
+    },
+    {
+      "slug": "deng-xiaoping",
+      "name": "Deng Xiaoping"
+    },
+    {
+      "slug": "nelson-mandela",
+      "name": "Nelson Mandela"
+    },
+    {
+      "slug": "f-w-de-klerk",
+      "name": "F. W. de Klerk"
+    },
+    {
+      "slug": "indira-gandhi",
+      "name": "Indira Gandhi"
+    },
+    {
+      "slug": "narendra-modi",
+      "name": "Narendra Modi"
+    },
+    {
+      "slug": "shinzo-abe",
+      "name": "Shinzo Abe"
+    },
+    {
+      "slug": "fidel-castro",
+      "name": "Fidel Castro"
+    },
+    {
+      "slug": "recep-tayyip-erdogan",
+      "name": "Recep Tayyip Erdoğan"
+    },
+    {
+      "slug": "mustafa-kemal-ataturk",
+      "name": "Mustafa Kemal Atatürk"
+    },
+    {
+      "slug": "king-abdullah-ii",
+      "name": "King Abdullah II"
+    },
+    {
+      "slug": "king-salman",
+      "name": "King Salman"
+    },
+    {
+      "slug": "mohammed-bin-salman",
+      "name": "Mohammed bin Salman"
+    },
+    {
+      "slug": "mohammed-bin-zayed",
+      "name": "Mohammed bin Zayed Al Nahyan"
+    },
+    {
+      "slug": "abdel-fattah-el-sisi",
+      "name": "Abdel Fattah el-Sisi"
+    },
+    {
+      "slug": "tamim-bin-hamad",
+      "name": "Sheikh Tamim bin Hamad Al Thani"
+    },
+    {
+      "slug": "ali-khamenei",
+      "name": "Ayatollah Ali Khamenei"
+    },
+    {
+      "slug": "masoud-pezeshkian",
+      "name": "Masoud Pezeshkian"
+    },
+    {
+      "slug": "volodymyr-zelenskyy",
+      "name": "Volodymyr Zelenskyy"
+    },
+    {
+      "slug": "viktor-orban",
+      "name": "Viktor Orbán"
+    },
+    {
+      "slug": "javier-milei",
+      "name": "Javier Milei"
+    },
+    {
+      "slug": "lula-da-silva",
+      "name": "Luiz Inácio Lula da Silva"
+    },
+    {
+      "slug": "justin-trudeau",
+      "name": "Justin Trudeau"
+    },
+    {
+      "slug": "anthony-albanese",
+      "name": "Anthony Albanese"
+    },
+    {
+      "slug": "henry-kissinger",
+      "name": "Henry Kissinger"
+    },
+    {
+      "slug": "madeleine-albright",
+      "name": "Madeleine Albright"
+    },
+    {
+      "slug": "colin-powell",
+      "name": "Colin Powell"
+    },
+    {
+      "slug": "condoleezza-rice",
+      "name": "Condoleezza Rice"
+    },
+    {
+      "slug": "john-kerry",
+      "name": "John Kerry"
+    },
+    {
+      "slug": "antony-blinken",
+      "name": "Antony Blinken"
+    },
+    {
+      "slug": "dag-hammarskjold",
+      "name": "Dag Hammarskjöld"
+    },
+    {
+      "slug": "kofi-annan",
+      "name": "Kofi Annan"
+    },
+    {
+      "slug": "ban-ki-moon",
+      "name": "Ban Ki-moon"
+    },
+    {
+      "slug": "antonio-guterres",
+      "name": "António Guterres"
+    },
+    {
+      "slug": "george-mitchell",
+      "name": "George Mitchell"
+    },
+    {
+      "slug": "dennis-ross",
+      "name": "Dennis Ross"
+    },
+    {
+      "slug": "martin-indyk",
+      "name": "Martin Indyk"
+    },
+    {
+      "slug": "abba-eban",
+      "name": "Abba Eban"
+    },
+    {
+      "slug": "arthur-balfour",
+      "name": "Arthur Balfour"
+    },
+    {
+      "slug": "ralph-bunche",
+      "name": "Ralph Bunche"
+    },
+    {
+      "slug": "richard-holbrooke",
+      "name": "Richard Holbrooke"
+    },
+    {
+      "slug": "samantha-power",
+      "name": "Samantha Power"
+    },
+    {
+      "slug": "linda-thomas-greenfield",
+      "name": "Linda Thomas-Greenfield"
+    },
+    {
+      "slug": "karim-khan",
+      "name": "Karim Khan"
+    },
+    {
+      "slug": "william-burns",
+      "name": "William J. Burns"
+    },
+    {
+      "slug": "jake-sullivan",
+      "name": "Jake Sullivan"
+    },
+    {
+      "slug": "zbigniew-brzezinski",
+      "name": "Zbigniew Brzezinski"
+    },
+    {
+      "slug": "david-barnea",
+      "name": "David Barnea"
+    },
+    {
+      "slug": "yossi-cohen",
+      "name": "Yossi Cohen"
+    },
+    {
+      "slug": "ronen-bar",
+      "name": "Ronen Bar"
+    },
+    {
+      "slug": "aharon-barak",
+      "name": "Aharon Barak"
+    },
+    {
+      "slug": "robert-mueller",
+      "name": "Robert Mueller"
+    },
+    {
+      "slug": "jack-smith",
+      "name": "Jack Smith"
+    },
+    {
+      "slug": "pope-francis",
+      "name": "Pope Francis"
+    },
+    {
+      "slug": "pope-john-paul-ii",
+      "name": "Pope John Paul II"
+    },
+    {
+      "slug": "dalai-lama",
+      "name": "Tenzin Gyatso"
+    },
+    {
+      "slug": "theodor-herzl",
+      "name": "Theodor Herzl"
+    },
+    {
+      "slug": "david-ben-gurion",
+      "name": "David Ben-Gurion"
+    },
+    {
+      "slug": "golda-meir",
+      "name": "Golda Meir"
+    },
+    {
+      "slug": "moshe-dayan",
+      "name": "Moshe Dayan"
+    },
+    {
+      "slug": "elizabeth-ii",
+      "name": "Queen Elizabeth II"
+    },
+    {
+      "slug": "king-charles-iii",
+      "name": "King Charles III"
+    },
+    {
+      "slug": "elie-wiesel",
+      "name": "Elie Wiesel"
+    },
+    {
+      "slug": "menachem-begin",
+      "name": "Menachem Begin"
+    },
+    {
+      "slug": "anwar-sadat",
+      "name": "Anwar Sadat"
+    },
+    {
+      "slug": "king-hussein",
+      "name": "King Hussein"
+    },
+    {
+      "slug": "yitzhak-shamir",
+      "name": "Yitzhak Shamir"
+    },
+    {
+      "slug": "ariel-sharon",
+      "name": "Ariel Sharon"
+    },
+    {
+      "slug": "ehud-olmert",
+      "name": "Ehud Olmert"
+    },
+    {
+      "slug": "tzipi-livni",
+      "name": "Tzipi Livni"
+    },
+    {
+      "slug": "naftali-bennett",
+      "name": "Naftali Bennett"
+    },
+    {
+      "slug": "yair-lapid",
+      "name": "Yair Lapid"
+    },
+    {
+      "slug": "benny-gantz",
+      "name": "Benny Gantz"
+    },
+    {
+      "slug": "yoav-gallant",
+      "name": "Yoav Gallant"
+    },
+    {
+      "slug": "isaac-herzog",
+      "name": "Isaac Herzog"
+    },
+    {
+      "slug": "chaim-weizmann",
+      "name": "Chaim Weizmann"
+    },
+    {
+      "slug": "charles-iii",
+      "name": "Charles III"
+    },
+    {
+      "slug": "queen-camilla",
+      "name": "Queen Camilla"
+    },
+    {
+      "slug": "prince-philip",
+      "name": "Prince Philip, Duke of Edinburgh"
+    },
+    {
+      "slug": "prince-william",
+      "name": "Prince William"
+    },
+    {
+      "slug": "catherine-princess-of-wales",
+      "name": "Catherine, Princess of Wales"
+    },
+    {
+      "slug": "prince-george-of-wales",
+      "name": "Prince George of Wales"
+    },
+    {
+      "slug": "princess-charlotte-of-wales",
+      "name": "Princess Charlotte of Wales"
+    },
+    {
+      "slug": "prince-louis-of-wales",
+      "name": "Prince Louis of Wales"
+    },
+    {
+      "slug": "prince-harry",
+      "name": "Prince Harry"
+    },
+    {
+      "slug": "meghan-duchess-of-sussex",
+      "name": "Meghan, Duchess of Sussex"
+    },
+    {
+      "slug": "princess-anne",
+      "name": "Princess Anne"
+    },
+    {
+      "slug": "prince-edward-duke-of-edinburgh",
+      "name": "Prince Edward"
+    },
+    {
+      "slug": "sophie-duchess-of-edinburgh",
+      "name": "Sophie, Duchess of Edinburgh"
+    },
+    {
+      "slug": "felipe-vi-spain",
+      "name": "Felipe VI"
+    },
+    {
+      "slug": "queen-letizia-spain",
+      "name": "Queen Letizia of Spain"
+    },
+    {
+      "slug": "leonor-princess-of-asturias",
+      "name": "Leonor, Princess of Asturias"
+    },
+    {
+      "slug": "infanta-sofia-spain",
+      "name": "Infanta Sofía of Spain"
+    },
+    {
+      "slug": "philippe-belgium",
+      "name": "King Philippe of Belgium"
+    },
+    {
+      "slug": "queen-mathilde-belgium",
+      "name": "Queen Mathilde of Belgium"
+    },
+    {
+      "slug": "princess-elisabeth-belgium",
+      "name": "Princess Elisabeth, Duchess of Brabant"
+    },
+    {
+      "slug": "willem-alexander-netherlands",
+      "name": "Willem-Alexander of the Netherlands"
+    },
+    {
+      "slug": "queen-maxima-netherlands",
+      "name": "Queen Máxima of the Netherlands"
+    },
+    {
+      "slug": "catharina-amalia-netherlands",
+      "name": "Catharina-Amalia, Princess of Orange"
+    },
+    {
+      "slug": "carl-xvi-gustaf-sweden",
+      "name": "Carl XVI Gustaf of Sweden"
+    },
+    {
+      "slug": "queen-silvia-sweden",
+      "name": "Queen Silvia of Sweden"
+    },
+    {
+      "slug": "victoria-crown-princess-sweden",
+      "name": "Victoria, Crown Princess of Sweden"
+    },
+    {
+      "slug": "harald-v-norway",
+      "name": "Harald V of Norway"
+    },
+    {
+      "slug": "queen-sonja-norway",
+      "name": "Queen Sonja of Norway"
+    },
+    {
+      "slug": "haakon-crown-prince-norway",
+      "name": "Haakon, Crown Prince of Norway"
+    },
+    {
+      "slug": "frederik-x-denmark",
+      "name": "Frederik X of Denmark"
+    },
+    {
+      "slug": "queen-mary-denmark",
+      "name": "Queen Mary of Denmark"
+    },
+    {
+      "slug": "margrethe-ii-denmark",
+      "name": "Margrethe II of Denmark"
+    },
+    {
+      "slug": "albert-ii-monaco",
+      "name": "Albert II, Prince of Monaco"
+    },
+    {
+      "slug": "princess-charlene-monaco",
+      "name": "Princess Charlene of Monaco"
+    },
+    {
+      "slug": "henri-luxembourg",
+      "name": "Grand Duke Henri of Luxembourg"
+    },
+    {
+      "slug": "maria-teresa-luxembourg",
+      "name": "Grand Duchess Maria Teresa of Luxembourg"
+    },
+    {
+      "slug": "guillaume-hereditary-grand-duke-luxembourg",
+      "name": "Hereditary Grand Duke Guillaume of Luxembourg"
+    },
+    {
+      "slug": "hans-adam-ii-liechtenstein",
+      "name": "Hans-Adam II, Prince of Liechtenstein"
+    },
+    {
+      "slug": "alois-hereditary-prince-liechtenstein",
+      "name": "Alois, Hereditary Prince of Liechtenstein"
+    },
+    {
+      "slug": "joan-enric-vives-sicilia",
+      "name": "Joan-Enric Vives i Sicília"
+    },
+    {
+      "slug": "jean-count-of-paris",
+      "name": "Jean, Count of Paris"
+    },
+    {
+      "slug": "jean-christophe-prince-napoleon",
+      "name": "Jean-Christophe, Prince Napoléon"
+    },
+    {
+      "slug": "louis-alphonse-duke-of-anjou",
+      "name": "Louis Alphonse, Duke of Anjou"
+    },
+    {
+      "slug": "georg-friedrich-prince-of-prussia",
+      "name": "Georg Friedrich, Prince of Prussia"
+    },
+    {
+      "slug": "franz-duke-of-bavaria",
+      "name": "Franz, Duke of Bavaria"
+    },
+    {
+      "slug": "ernst-august-prince-of-hanover",
+      "name": "Ernst August, Prince of Hanover"
+    },
+    {
+      "slug": "aimone-duke-of-aosta",
+      "name": "Prince Aimone of Savoy, Duke of Aosta"
+    },
+    {
+      "slug": "emanuele-filiberto-of-savoy",
+      "name": "Emanuele Filiberto of Savoy"
+    },
+    {
+      "slug": "pedro-duke-of-calabria",
+      "name": "Prince Pedro, Duke of Calabria"
+    },
+    {
+      "slug": "karl-von-habsburg",
+      "name": "Karl von Habsburg"
+    },
+    {
+      "slug": "georg-von-habsburg",
+      "name": "Georg von Habsburg"
+    },
+    {
+      "slug": "ferdinand-zvonimir-habsburg",
+      "name": "Ferdinand Zvonimir Habsburg-Lothringen"
+    },
+    {
+      "slug": "maria-vladimirovna-russia",
+      "name": "Grand Duchess Maria Vladimirovna of Russia"
+    },
+    {
+      "slug": "george-mikhailovich-russia",
+      "name": "Grand Duke George Mikhailovich of Russia"
+    },
+    {
+      "slug": "pavlos-crown-prince-greece",
+      "name": "Pavlos, Crown Prince of Greece"
+    },
+    {
+      "slug": "anne-marie-queen-of-greece",
+      "name": "Queen Anne-Marie of Greece"
+    },
+    {
+      "slug": "duarte-pio-duke-of-braganza",
+      "name": "Duarte Pio, Duke of Braganza"
+    },
+    {
+      "slug": "bertrand-prince-of-brazil",
+      "name": "Bertrand, Prince of Brazil"
+    },
+    {
+      "slug": "margareta-custodian-of-the-crown-romania",
+      "name": "Margareta, Custodian of the Crown of Romania"
+    },
+    {
+      "slug": "simeon-ii-bulgaria",
+      "name": "Simeon II of Bulgaria"
+    },
+    {
+      "slug": "alexander-crown-prince-yugoslavia",
+      "name": "Alexander, Crown Prince of Yugoslavia"
+    },
+    {
+      "slug": "philip-hereditary-prince-yugoslavia",
+      "name": "Philip, Hereditary Prince of Yugoslavia"
+    },
+    {
+      "slug": "prince-archie-of-sussex",
+      "name": "Prince Archie of Sussex"
+    },
+    {
+      "slug": "princess-lilibet-of-sussex",
+      "name": "Princess Lilibet of Sussex"
+    },
+    {
+      "slug": "prince-andrew-duke-of-york",
+      "name": "Prince Andrew, Duke of York"
+    },
+    {
+      "slug": "princess-beatrice",
+      "name": "Princess Beatrice, Mrs Edoardo Mapelli Mozzi"
+    },
+    {
+      "slug": "princess-eugenie",
+      "name": "Princess Eugenie, Mrs Jack Brooksbank"
+    },
+    {
+      "slug": "lady-louise-windsor",
+      "name": "Lady Louise Mountbatten-Windsor"
+    },
+    {
+      "slug": "james-earl-of-wessex",
+      "name": "James, Earl of Wessex"
+    },
+    {
+      "slug": "peter-phillips",
+      "name": "Peter Phillips"
+    },
+    {
+      "slug": "zara-tindall",
+      "name": "Zara Tindall"
+    },
+    {
+      "slug": "david-armstrong-jones-snowdon",
+      "name": "David Armstrong-Jones, 2nd Earl of Snowdon"
+    },
+    {
+      "slug": "lady-sarah-chatto",
+      "name": "Lady Sarah Chatto"
+    },
+    {
+      "slug": "prince-richard-duke-of-gloucester",
+      "name": "Prince Richard, Duke of Gloucester"
+    },
+    {
+      "slug": "prince-edward-duke-of-kent",
+      "name": "Prince Edward, Duke of Kent"
+    },
+    {
+      "slug": "princess-alexandra-ogilvy",
+      "name": "Princess Alexandra, The Honourable Lady Ogilvy"
+    },
+    {
+      "slug": "juan-carlos-i-spain",
+      "name": "Juan Carlos I of Spain"
+    },
+    {
+      "slug": "queen-sofia-spain",
+      "name": "Queen Sofía of Spain"
+    },
+    {
+      "slug": "infanta-elena-spain",
+      "name": "Infanta Elena, Duchess of Lugo"
+    },
+    {
+      "slug": "infanta-cristina-spain",
+      "name": "Infanta Cristina of Spain"
+    },
+    {
+      "slug": "albert-ii-belgium",
+      "name": "Albert II of Belgium"
+    },
+    {
+      "slug": "queen-paola-belgium",
+      "name": "Queen Paola of Belgium"
+    },
+    {
+      "slug": "prince-gabriel-belgium",
+      "name": "Prince Gabriel of Belgium"
+    },
+    {
+      "slug": "princess-astrid-belgium",
+      "name": "Princess Astrid of Belgium, Archduchess of Austria-Este"
+    },
+    {
+      "slug": "prince-laurent-belgium",
+      "name": "Prince Laurent of Belgium"
+    },
+    {
+      "slug": "princess-beatrix-netherlands",
+      "name": "Princess Beatrix of the Netherlands"
+    },
+    {
+      "slug": "princess-alexia-netherlands",
+      "name": "Princess Alexia of the Netherlands"
+    },
+    {
+      "slug": "princess-ariane-netherlands",
+      "name": "Princess Ariane of the Netherlands"
+    },
+    {
+      "slug": "prince-constantijn-netherlands",
+      "name": "Prince Constantijn of the Netherlands"
+    },
+    {
+      "slug": "prince-carl-philip-sweden",
+      "name": "Prince Carl Philip, Duke of Värmland"
+    },
+    {
+      "slug": "princess-madeleine-sweden",
+      "name": "Princess Madeleine, Duchess of Hälsingland and Gästrikland"
+    },
+    {
+      "slug": "princess-estelle-sweden",
+      "name": "Princess Estelle, Duchess of Östergötland"
+    },
+    {
+      "slug": "crown-princess-mette-marit-norway",
+      "name": "Crown Princess Mette-Marit of Norway"
+    },
+    {
+      "slug": "princess-ingrid-alexandra-norway",
+      "name": "Princess Ingrid Alexandra of Norway"
+    },
+    {
+      "slug": "princess-martha-louise-norway",
+      "name": "Princess Märtha Louise of Norway"
+    },
+    {
+      "slug": "crown-prince-christian-denmark",
+      "name": "Crown Prince Christian of Denmark, Count of Monpezat"
+    },
+    {
+      "slug": "prince-joachim-denmark",
+      "name": "Prince Joachim of Denmark, Count of Monpezat"
+    },
+    {
+      "slug": "princess-benedikte-denmark",
+      "name": "Princess Benedikte of Denmark, Princess of Sayn-Wittgenstein-Berleburg"
+    },
+    {
+      "slug": "hereditary-prince-jacques-monaco",
+      "name": "Jacques, Hereditary Prince of Monaco, Marquis of Baux"
+    },
+    {
+      "slug": "princess-gabriella-monaco",
+      "name": "Princess Gabriella of Monaco, Countess of Carladès"
+    },
+    {
+      "slug": "caroline-princess-of-monaco",
+      "name": "Caroline, Princess of Hanover"
+    },
+    {
+      "slug": "princess-stephanie-monaco",
+      "name": "Princess Stéphanie of Monaco"
+    },
+    {
+      "slug": "stephanie-hereditary-grand-duchess-luxembourg",
+      "name": "Stéphanie, Hereditary Grand Duchess of Luxembourg"
+    },
+    {
+      "slug": "prince-charles-luxembourg",
+      "name": "Prince Charles of Luxembourg"
+    },
+    {
+      "slug": "sophie-hereditary-princess-liechtenstein",
+      "name": "Sophie, Hereditary Princess of Liechtenstein, Duchess in Bavaria"
+    },
+    {
+      "slug": "prince-joseph-wenzel-liechtenstein",
+      "name": "Prince Joseph Wenzel of Liechtenstein, Count of Rietberg"
+    },
+    {
+      "slug": "archduke-eduard-of-austria",
+      "name": "Eduard Habsburg-Lothringen"
+    },
+    {
+      "slug": "archduke-lorenz-of-austria-este",
+      "name": "Prince Lorenz of Belgium, Archduke of Austria-Este"
+    },
+    {
+      "slug": "archduke-martin-of-austria-este",
+      "name": "Archduke Martin of Austria-Este"
+    },
+    {
+      "slug": "sophie-princess-of-prussia",
+      "name": "Sophie, Princess of Prussia"
+    },
+    {
+      "slug": "prince-luitpold-of-bavaria",
+      "name": "Prince Luitpold of Bavaria"
+    },
+    {
+      "slug": "prince-ludwig-of-bavaria",
+      "name": "Prince Ludwig of Bavaria"
+    },
+    {
+      "slug": "prince-christian-of-hanover",
+      "name": "Prince Christian of Hanover"
+    },
+    {
+      "slug": "bernhard-margrave-of-baden",
+      "name": "Bernhard, Margrave of Baden"
+    },
+    {
+      "slug": "heinrich-donatus-landgrave-of-hesse",
+      "name": "Heinrich Donatus, Landgrave of Hesse"
+    },
+    {
+      "slug": "philomena-countess-of-paris",
+      "name": "Philomena, Countess of Paris"
+    },
+    {
+      "slug": "prince-gaston-of-orleans",
+      "name": "Prince Gaston of Orléans, Dauphin of France"
+    },
+    {
+      "slug": "marie-marguerite-duchess-of-anjou",
+      "name": "Marie-Marguerite, Duchess of Anjou"
+    },
+    {
+      "slug": "olympia-princess-napoleon",
+      "name": "Olympia, Princess Napoléon"
+    },
+    {
+      "slug": "princess-olga-of-savoy-aosta",
+      "name": "Princess Olga of Savoy, Duchess of Aosta"
+    },
+    {
+      "slug": "carlo-duke-of-castro",
+      "name": "Prince Carlo, Duke of Castro"
+    },
+    {
+      "slug": "camilla-duchess-of-castro",
+      "name": "Princess Camilla, Duchess of Castro"
+    },
+    {
+      "slug": "carlos-duke-of-parma",
+      "name": "Carlos, Duke of Parma"
+    },
+    {
+      "slug": "crown-princess-marie-chantal-greece",
+      "name": "Marie-Chantal, Crown Princess of Greece"
+    },
+    {
+      "slug": "princess-maria-olympia-greece",
+      "name": "Princess Maria-Olympia of Greece and Denmark"
+    },
+    {
+      "slug": "prince-constantine-alexios-greece",
+      "name": "Prince Constantine-Alexios of Greece and Denmark"
+    },
+    {
+      "slug": "prince-nikolaos-greece",
+      "name": "Prince Nikolaos of Greece and Denmark"
+    },
+    {
+      "slug": "princess-theodora-greece",
+      "name": "Princess Theodora of Greece and Denmark"
+    },
+    {
+      "slug": "prince-philippos-greece",
+      "name": "Prince Philippos of Greece and Denmark"
+    },
+    {
+      "slug": "isabel-duchess-of-braganza",
+      "name": "Isabel, Duchess of Braganza"
+    },
+    {
+      "slug": "afonso-prince-of-beira",
+      "name": "Afonso, Prince of Beira, Duke of Barcelos"
+    },
+    {
+      "slug": "infanta-maria-francisca-portugal",
+      "name": "Infanta Maria Francisca, Duchess of Coimbra"
+    },
+    {
+      "slug": "prince-rafael-of-brazil",
+      "name": "Prince Rafael of Brazil"
+    },
+    {
+      "slug": "prince-radu-of-romania",
+      "name": "Prince Radu of Romania"
+    },
+    {
+      "slug": "princess-elena-of-romania",
+      "name": "Princess Elena of Romania"
+    },
+    {
+      "slug": "nicholas-medforth-mills",
+      "name": "Nicholas de Roumanie Medforth-Mills"
+    },
+    {
+      "slug": "princess-miriam-of-turnovo",
+      "name": "Miriam, Princess of Turnovo, Princess Ghazi of Jordan"
+    },
+    {
+      "slug": "prince-boris-of-turnovo",
+      "name": "Boris, Prince of Turnovo, Duke in Saxony"
+    },
+    {
+      "slug": "prince-kyril-of-preslav",
+      "name": "Kyril, Prince of Preslav, Duke in Saxony"
+    },
+    {
+      "slug": "crown-princess-katherine-yugoslavia",
+      "name": "Crown Princess Katherine of Yugoslavia"
+    },
+    {
+      "slug": "princess-danica-of-yugoslavia",
+      "name": "Princess Danica of Yugoslavia"
+    },
+    {
+      "slug": "prince-peter-of-yugoslavia",
+      "name": "Prince Peter of Yugoslavia"
+    }
+  ]
+}
