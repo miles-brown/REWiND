@@ -1,0 +1,273 @@
+{
+  "status": "MANDATORY RECONCILIATION OVERLAY; merge before any publication",
+  "createdAt": "2026-10-13",
+  "issues": [
+    "Nobel CSV has organisation laureates; award-event draft excluded them when selecting individual people, which makes certain recipient lists incomplete.",
+    "2007 Peace Prize original Nobel Committee announcement provides exact event-day and city.",
+    "Scientist/author profiles were initially assigned generic placeholder classifications; all new profiles need verified category taxonomy before publication."
+  ],
+  "institutionalLaureates": [
+    {
+      "candidateEventId": "candidate-award-1904-peace",
+      "organisationName": "Institute of International Law",
+      "laureateId": "467",
+      "awardShare": "1",
+      "awardMotivation": "\"for its striving in public law to develop peaceful ties between nations and to make the laws of war more humane\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1910-peace",
+      "organisationName": "Permanent International Peace Bureau",
+      "laureateId": "477",
+      "awardShare": "1",
+      "awardMotivation": "\"for acting as a link between the peace societies of the various countries and helping them to organize the world rallies of the international peace movement\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1917-peace",
+      "organisationName": "International Committee of the Red Cross",
+      "laureateId": "482",
+      "awardShare": "1",
+      "awardMotivation": "\"for the efforts to take care of wounded soldiers and prisoners of war and their families\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1944-peace",
+      "organisationName": "International Committee of the Red Cross",
+      "laureateId": "482",
+      "awardShare": "1",
+      "awardMotivation": "\"for the great work it has performed during the war on behalf of humanity\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1963-peace",
+      "organisationName": "International Committee of the Red Cross",
+      "laureateId": "482",
+      "awardShare": "2",
+      "awardMotivation": "\"for promoting the principles of the Geneva Convention and cooperation with the UN\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1938-peace",
+      "organisationName": "Nansen International Office for Refugees",
+      "laureateId": "503",
+      "awardShare": "1",
+      "awardMotivation": "\"for having carried on the work of Fridtjof Nansen to the benefit of refugees across Europe\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1947-peace",
+      "organisationName": "Friends Service Council",
+      "laureateId": "508",
+      "awardShare": "2",
+      "awardMotivation": "\"for their pioneering work in the international peace movement and compassionate effort to relieve human suffering thereby promoting the fraternity between nations\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1947-peace",
+      "organisationName": "American Friends Service Committee",
+      "laureateId": "509",
+      "awardShare": "2",
+      "awardMotivation": "\"for their pioneering work in the international peace movement and compassionate effort to relieve human suffering thereby promoting the fraternity between nations\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1954-peace",
+      "organisationName": "Office of the United Nations High Commissioner for Refugees",
+      "laureateId": "515",
+      "awardShare": "1",
+      "awardMotivation": "\"for its efforts to heal the wounds of war by providing help and protection to refugees all over the world\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1981-peace",
+      "organisationName": "Office of the United Nations High Commissioner for Refugees",
+      "laureateId": "515",
+      "awardShare": "1",
+      "awardMotivation": "\"for promoting the fundamental rights of refugees\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1963-peace",
+      "organisationName": "League of Red Cross Societies",
+      "laureateId": "523",
+      "awardShare": "2",
+      "awardMotivation": "\"for promoting the principles of the Geneva Convention and cooperation with the UN\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1965-peace",
+      "organisationName": "United Nations Children's Fund",
+      "laureateId": "525",
+      "awardShare": "1",
+      "awardMotivation": "\"for its effort to enhance solidarity between nations and reduce the difference between rich and poor states\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1969-peace",
+      "organisationName": "International Labour Organization",
+      "laureateId": "527",
+      "awardShare": "1",
+      "awardMotivation": "\"for creating international legislation insuring certain norms for working conditions in every country\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1977-peace",
+      "organisationName": "Amnesty International",
+      "laureateId": "537",
+      "awardShare": "1",
+      "awardMotivation": "\"for worldwide respect for human rights\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1985-peace",
+      "organisationName": "International Physicians for the Prevention of Nuclear War",
+      "laureateId": "547",
+      "awardShare": "1",
+      "awardMotivation": "\"for spreading authoritative information and by creating awareness of the catastrophic consequences of  nuclear  war\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1988-peace",
+      "organisationName": "United Nations Peacekeeping Forces",
+      "laureateId": "550",
+      "awardShare": "1",
+      "awardMotivation": "\"for preventing armed clashes and creating conditions for negotiations\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1995-peace",
+      "organisationName": "Pugwash Conferences on Science and World Affairs",
+      "laureateId": "561",
+      "awardShare": "2",
+      "awardMotivation": "\"for their efforts to diminish the part played by nuclear arms in international politics and in the longer run to eliminate such arms\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1997-peace",
+      "organisationName": "International Campaign to Ban Landmines",
+      "laureateId": "564",
+      "awardShare": "2",
+      "awardMotivation": "\"for their efforts to ban and remove anti-personnel landmines\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-1999-peace",
+      "organisationName": "Médecins Sans Frontières",
+      "laureateId": "568",
+      "awardShare": "1",
+      "awardMotivation": "\"in recognition of the organisation's pioneering humanitarian work on several continents\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2001-peace",
+      "organisationName": "United Nations",
+      "laureateId": "748",
+      "awardShare": "2",
+      "awardMotivation": "\"for their work for a better organized and more peaceful world\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2005-peace",
+      "organisationName": "International Atomic Energy Agency",
+      "laureateId": "797",
+      "awardShare": "2",
+      "awardMotivation": "\"for their efforts to prevent nuclear energy from being used for military purposes and to ensure that nuclear energy for peaceful purposes is used in the safest possible way\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2006-peace",
+      "organisationName": "Grameen Bank",
+      "laureateId": "810",
+      "awardShare": "2",
+      "awardMotivation": "\"for their efforts to create economic and social development from below\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2007-peace",
+      "organisationName": "Intergovernmental Panel on Climate Change",
+      "laureateId": "818",
+      "awardShare": "2",
+      "awardMotivation": "\"for their efforts to build up and disseminate greater knowledge about man-made climate change and to lay the foundations for the measures that are needed to counteract such change\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2012-peace",
+      "organisationName": "European Union (EU)",
+      "laureateId": "881",
+      "awardShare": "1",
+      "awardMotivation": "\"for over six decades contributed to the advancement of peace and reconciliation democracy and human rights in Europe\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2013-peace",
+      "organisationName": "Organisation for the Prohibition of Chemical Weapons",
+      "laureateId": "893",
+      "awardShare": "1",
+      "awardMotivation": "\"for its extensive efforts to eliminate chemical weapons\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2015-peace",
+      "organisationName": "National Dialogue Quartet",
+      "laureateId": "925",
+      "awardShare": "1",
+      "awardMotivation": "\"for its decisive contribution to the building of a pluralistic democracy in Tunisia in the wake of the Jasmine Revolution of 2011\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2017-peace",
+      "organisationName": "International Campaign to Abolish Nuclear Weapons (ICAN)",
+      "laureateId": "948",
+      "awardShare": "1",
+      "awardMotivation": "\"for its work to draw attention to the catastrophic humanitarian consequences of any use of nuclear weapons and for its ground-breaking efforts to achieve a treaty-based prohibition of such weapons\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    },
+    {
+      "candidateEventId": "candidate-award-2020-peace",
+      "organisationName": "World Food Programme",
+      "laureateId": "994",
+      "awardShare": "1",
+      "awardMotivation": "\"for its efforts to combat hunger for its contribution to bettering conditions for peace in conflict-affected areas and for acting as a driving force in efforts to prevent the use of hunger as a weapon of war and conflict\"",
+      "notes": "Organisation is a laureate but never to be inserted into public.people."
+    }
+  ],
+  "verifiedEventOverrides": [
+    {
+      "candidateId": "candidate-award-2007-peace",
+      "canonicalTitle": "Norwegian Nobel Committee announces the 2007 Nobel Peace Prize for Al Gore and the IPCC",
+      "startDate": "2007-10-12",
+      "datePrecision": "day",
+      "city": "Oslo",
+      "country": "Norway",
+      "locationPrecision": "city",
+      "locationBasis": "original-announcement-dateline",
+      "locationType": "fixed",
+      "institutionalLaureates": [
+        "Intergovernmental Panel on Climate Change"
+      ],
+      "sourceCandidates": [
+        {
+          "url": "https://www.nobelprize.org/prizes/peace/2007/9368-engelsk/",
+          "publisher": "Norwegian Nobel Committee",
+          "date": "2007-10-12",
+          "primary": true,
+          "individuallyChecked": true
+        }
+      ],
+      "attendanceMode": "unknown (recipient status only; no claim of physical attendance)",
+      "verificationNote": "Original press release dates prize announcement Oslo 12 Oct 2007; event is announcement, not Dec prize ceremony."
+    }
+  ],
+  "profileCorrections": [
+    {
+      "condition": "classification=academic-historian AND category physics/chemistry/medicine/economics",
+      "instruction": "Replace category with a validated scientist/academic category after schema migration, or use generic public-figure until explicit classification is supported; do not call scientists historians."
+    },
+    {
+      "condition": "person shares full name with existing entry but alternate spelling",
+      "instruction": "Wikidata/VIAF + Nobel laureate ID manual disambiguation; do not create a second person by name alone."
+    }
+  ],
+  "ingestionRequirement": "Apply this overlay before final event/person merge. Institutional co-laureates must be stored as organisation relationships, not as Person records. Do not claim recipients were physically present at the announcement."
+}
