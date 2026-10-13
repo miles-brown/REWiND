@@ -4,11 +4,16 @@ This document is the **highest-priority operational guideline** for AI coding as
 
 ---
 
-## 1. Repository Identity & Remote Binding
+## 1. Repository Identity, Remote Binding & Strict Workspace Isolation
 
 - **Canonical Repository**: `https://github.com/miles-brown/REWiND.git`
 - **Primary Git Remote**: `origin` (points strictly to `miles-brown/REWiND`)
 - **NEVER** push, branch, or open PRs against any secondary or external repository.
+- **STRICT REPOSITORY ISOLATION & ZERO EXTERNAL ACCESS (MANDATORY INVARIANT)**:
+  - The **REWIND Evidence Atlas** is strictly isolated, independent, and self-contained.
+  - Any AI assistant, agent, reviewer, or automated system operating in or on this repository is **STRICTLY PROHIBITED** from checking, opening, reading, executing, mentioning, involving, including, or referencing any other repository, project, or directory in the user's filesystem or GitHub folder (including, without limitation, `TS-Now` or any other sibling repository under `~/Github/`).
+  - Operational scope is rigidly constrained to `/Users/milesbrown/Github/REWiND` (`~/Github/REWiND`).
+  - Never inspect external files, never infer dependencies or features from other projects, and never cite or name any external repository in chat responses, code comments, commit messages, PR titles/descriptions, or documentation.
 
 ---
 
