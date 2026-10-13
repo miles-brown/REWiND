@@ -417,5 +417,48 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
     "inclusionRationale": null,
     "culturalImpactSummary": null,
     "primaryFigureCategory": "media-journalist"
+  },
+  {
+    "id": "samuel-gudmundsson",
+    "slug": "samuel-gudmundsson",
+    "canonicalName": "Samúel Guðmundsson",
+    "displayName": "Samúel Guðmundsson",
+    "nativeName": null,
+    "birthDate": "1998-01-01",
+    "deathDate": null,
+    "datePrecision": "year",
+    "nationality": "Icelandic",
+    "primaryRole": "Icelandic Interlocutor & Public Commentator",
+    "classification": "public-figure",
+    "notabilityBasis": "Participant in the viral August 2026 Akureyri street debate with Rabbi Shmuley Boteach and follow-up broadcast debate on Piers Morgan Uncensored.",
+    "programmeId": null,
+    "isLiving": true,
+    "monitoringPriority": "normal",
+    "publicationStatus": "published",
+    "wikidataId": null,
+    "viafId": null,
+    "avatarUrl": null,
+    "summary": "Icelandic resident known for his impromptu political discussion with Rabbi Shmuley Boteach in Akureyri and subsequent follow-up appearance on Piers Morgan Uncensored.",
+    "aliases": [
+      "Samúel Gudmundsson"
+    ],
+    "citizenship": [
+      "Iceland"
+    ],
+    "languages": [
+      "Icelandic",
+      "English"
+    ],
+    "religion": null,
+    "religiousDenomination": null,
+    "religionStatus": "not-publicly-stated",
+    "inclusionBasis": [
+      "substantial-independent-coverage",
+      "central-nexus-to-historical-events"
+    ],
+    "inclusionRationale": "Key participant in documented viral international discourse and broadcast follow-up debates.",
+    "culturalImpactSummary": "Participant in widely circulated international cultural and political debate in August 2026.",
+    "primaryFigureCategory": "public-figure"
   }
 ];
+

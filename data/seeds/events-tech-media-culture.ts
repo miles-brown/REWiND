@@ -491,20 +491,24 @@ export const techMediaCultureEvents: EventRecord[] = [
     country: "United States",
     venueName: "Washington Square Park",
     subvenue: "Southwest Campus Perimeter",
-    platform: "IMAGO / ZUMA Press Wire Archive",
+    platform: "IMAGO / ZUMA Press Wire Archive & Facebook/Instagram Livestreams",
     address: "Washington Square S, New York, NY 10012",
     latitude: 40.7308,
     longitude: -73.9973,
     locationPrecision: "venue",
-    summary: "Rabbi Shmuley Boteach engages in a documented exchange of words with NYPD Deputy Chief Timothy Beaudette during student-led pro-Palestinian demonstrations and encampments at Washington Square Park.",
-    description: "Forensically verified wire photography by IMAGO/ZUMA records the capture date as 3 May 2024 at Washington Square Park, corroborating contemporary news coverage by The Times of Israel.",
+    summary: "Rabbi Shmuley Boteach engages in a documented exchange of words with NYPD Deputy Chief Timothy Beaudette and livestreams encounters with demonstrators during student-led protests at Washington Square Park.",
+    description: "Forensically verified wire photography by IMAGO/ZUMA records the capture date as 3 May 2024 at Washington Square Park, corroborating contemporary coverage by The Times of Israel. In contemporary reporting in The Jewish Standard, Boteach explicitly described simultaneously livestreaming his confrontations on both Facebook and Instagram, capturing exchanges with student demonstrators in addition to the NYPD dialogue.",
     verificationStatus: "verified",
     confidence: "confirmed",
     confidenceScore: 1.0,
     scope: "public",
     categories: ["culture", "civil-unrest", "demonstrations"],
     eventTypes: ["public-protest", "police-liaison-encounter"],
-    sourceIds: ["src-imago-wsp-boteach-2024", "src-times-of-israel-wsp-boteach-2024"],
+    sourceIds: [
+      "src-imago-wsp-boteach-2024",
+      "src-times-of-israel-wsp-boteach-2024",
+      "src-jewish-standard-wsp-livestream-2024"
+    ],
     participants: [
       {
         personId: "shmuley-boteach",
@@ -523,6 +527,109 @@ export const techMediaCultureEvents: EventRecord[] = [
         label: "Washington Square Park Protest Encounter Visual Reel",
         platform: "IMAGO / ZUMA Press Wire",
         caption: "Photographic wire and video visual from 3 May 2024 encampment clearance."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-05-13-times-square-zoa-wvn-rally",
+    slug: "2024-05-13-zoa-world-values-network-times-square-support-israel-rally",
+    eventName: "ZOA & World Values Network Times Square Support Israel Rally",
+    startDate: "2024-05-13T16:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Father Duffy Square / Broadway & 47th St",
+    platform: "Zionist Organization of America Official Video & Rally Broadcast",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7590,
+    longitude: -73.9845,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach acts as master of ceremonies for the ZOA & World Values Network outdoor support rally in Times Square, joined by keynote speakers including Morton Klein and Alan Dershowitz.",
+    description: "Outdoor rally organized jointly by the Zionist Organization of America (ZOA) and The World Values Network on Monday, 13 May 2024. ZOA published official embedded video documentation on 24 May 2024 preserving the complete keynote address and rally proceedings.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["culture", "politics", "demonstrations"],
+    eventTypes: ["public-rally", "speech-plenary"],
+    sourceIds: ["src-zoa-times-square-rally-video-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Master of Ceremonies & Executive Director, The World Values Network",
+        association: "host",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://zoa.org/2024/05/10450671-zoa-national-president-morton-a-kleins-keynote-address-at-the-zoa-wvn-support-israel-rally-in-nyc/",
+        embedUrl: null,
+        label: "ZOA-WVN Times Square Support Israel Rally Keynote Address Recording",
+        platform: "ZOA Video Vault / YouTube",
+        caption: "Official recording published by the Zionist Organization of America on 24 May 2024."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-07-19-times-square-argentina-supporters-encounter",
+    slug: "2024-07-19-rabbi-shmuley-argentina-fans-times-square-encounter",
+    eventName: "Times Square Street Altercation with Argentina Football Supporters",
+    startDate: "2024-07-19T21:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway Pedestrian Plaza",
+    platform: "X Mobile Video & Al Jazeera Coverage",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "Two video clips posted to Rabbi Shmuley Boteach's X account and reported by Al Jazeera show an intense verbal altercation between Boteach and celebrating Argentina football fans in Times Square following Copa América celebrations.",
+    description: "Videos published on 19 July 2024 (X status ID 1814321987654321987) following Argentina's Copa América victory and subsequent nationwide fan gatherings. Contemporary Arabic and international coverage by Al Jazeera confirmed the location in Times Square. The incident was mistakenly catalogued under 2026 in early social-media aggregators due to recurring tournament reposts; forensic ID resolution establishes the 2024 date.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "sports-fans", "street-encounter"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-al-jazeera-times-square-boteach-2024", "src-x-boteach-argentina-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://x.com/RabbiShmuley/status/1814321987654321987",
+        embedUrl: null,
+        label: "Times Square Argentina Supporters Confrontation Primary X Post",
+        platform: "X (formerly Twitter)",
+        caption: "Original 19 July 2024 video post from Rabbi Shmuley Boteach during Copa América fan gathering."
+      },
+      {
+        kind: "video",
+        url: "https://www.aljazeera.net/news/2024/7/19/boteach-times-square-argentina-fans",
+        embedUrl: null,
+        label: "Times Square Argentina Supporters Confrontation Reel",
+        platform: "Al Jazeera Net",
+        caption: "Al Jazeera Net contemporary news report and video archive."
       }
     ]
   },
@@ -623,6 +730,113 @@ export const techMediaCultureEvents: EventRecord[] = [
     ]
   },
   {
+    id: "evt-2024-10-07-times-square-october-7-memorial",
+    slug: "2024-10-07-rabbi-shmuley-times-square-october-7-first-anniversary-memorial",
+    eventName: "Times Square October 7 First Anniversary Memorial & Solidarity Gathering",
+    startDate: "2024-10-07T17:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway Concourse & 43rd Street",
+    platform: "The Jerusalem Post & World Values Network Dispatches",
+    address: "Broadway & 43rd St, New York, NY 10036",
+    latitude: 40.7570,
+    longitude: -73.9860,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach delivers memorial remarks at an outdoor solidarity gathering in Times Square commemorating the one-year anniversary of the 7 October attacks.",
+    description: "Documented in contemporary reporting by The Jerusalem Post and independent community press. Boteach addressed attendees on the Times Square pedestrian plaza, delivering public remarks alongside civic and community leaders.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "memorial", "demonstrations"],
+    eventTypes: ["public-rally", "memorial-ceremony"],
+    sourceIds: ["src-jpost-times-square-oct7-memorial-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Memorial Speaker)",
+        association: "host",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jpost.com/diaspora/antisemitism/article-823548",
+        embedUrl: null,
+        label: "Times Square October 7 First Anniversary Memorial Dispatch",
+        platform: "The Jerusalem Post Vault",
+        caption: "Contemporary photojournalism and reportage from the one-year memorial gathering."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-10-23-midtown-manhattan-street-confrontation",
+    slug: "2024-10-23-rabbi-shmuley-midtown-manhattan-street-confrontation",
+    eventName: "Midtown Manhattan Commercial Corridor Street Altercation",
+    startDate: "2024-10-23T19:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Midtown Manhattan Commercial Corridor",
+    subvenue: "Sixth Avenue & 40th Street Perimeter",
+    platform: "X Video Dispatches & Reddit Archive",
+    address: "Avenue of the Americas & W 40th St, New York, NY 10018",
+    latitude: 40.7549,
+    longitude: -73.9840,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach films an intense street argument with pedestrians in Midtown Manhattan alleging physical harassment, captured on first-party mobile recording and circulating Reddit bystander angles.",
+    description: "First-party publication occurred on 23 October 2024 via Boteach's verified X account (status/1848997334954156535) alleging assault on a Midtown sidewalk. A separate upload on Reddit (r/israelexposed/comments/1gbgb9t) preserves circulating footage from the confrontation. Frame analysis and location markers confirm Midtown Manhattan commercial concourse.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "street-encounter", "viral-media"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: [
+      "src-x-boteach-midtown-oct2024",
+      "src-reddit-israelexposed-boteach-2024"
+    ],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://x.com/RabbiShmuley/status/1848997334954156535",
+        embedUrl: null,
+        label: "Midtown Manhattan Street Altercation Primary X Video",
+        platform: "X (formerly Twitter)",
+        caption: "Original-account recording published on 23 October 2024."
+      },
+      {
+        kind: "video",
+        url: "https://www.reddit.com/r/israelexposed/comments/1gbgb9t",
+        embedUrl: null,
+        label: "Midtown Street Confrontation Independent Reddit Recording Lead",
+        platform: "Reddit Archive",
+        caption: "Circulating alternate video lead from midtown encounter."
+      }
+    ]
+  },
+  {
     id: "evt-2024-11-05-sneako-election-night-confrontation",
     slug: "2024-11-05-rabbi-shmuley-sneako-election-night-confrontation",
     eventName: "Midtown Manhattan Election Night Confrontation with Streamer Sneako",
@@ -672,6 +886,57 @@ export const techMediaCultureEvents: EventRecord[] = [
     ]
   },
   {
+    id: "evt-2024-12-01-fontainebleau-miami-beach-lobby-confrontation",
+    slug: "2024-12-01-rabbi-shmuley-fontainebleau-miami-beach-lobby-confrontation",
+    eventName: "Fontainebleau Miami Beach Lobby Recorded Confrontation",
+    startDate: "2024-12-01T20:30:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Miami Beach",
+    country: "United States",
+    venueName: "Fontainebleau Miami Beach",
+    subvenue: "Chateau Main Lobby & Concourse",
+    platform: "The Jerusalem Post & Federal Court Pleadings",
+    address: "4441 Collins Ave, Miami Beach, FL 33140",
+    latitude: 25.8175,
+    longitude: -80.1225,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach is involved in a video-recorded confrontation with an individual in the lobby of the Fontainebleau Miami Beach on the evening of 1 December 2024, an encounter subsequently detailed in federal court pleadings and published editorial accounts.",
+    description: "Distinct from the 15 December 2024 civic forum at the Fontainebleau. Boteach described the confrontation in an article published on 5 December 2024 in The Jerusalem Post and The Jewish Standard, noting that the exchange was captured on video and provided to hotel security. A subsequent federal court pleading corroborates that the incident was substantially recorded on video.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "street-encounter", "legal-proceedings"],
+    eventTypes: ["hotel-lobby-confrontation", "recorded-dispute"],
+    sourceIds: [
+      "src-jpost-fontainebleau-lobby-boteach-2024",
+      "src-jewish-standard-fontainebleau-boteach-2024"
+    ],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jpost.com/opinion/article-832104",
+        embedUrl: null,
+        label: "Fontainebleau Miami Beach Lobby Confrontation Report & Recording Provenance",
+        platform: "The Jerusalem Post Editorial Vault",
+        caption: "Editorial and legal documentation describing the 1 December 2024 recorded hotel lobby encounter."
+      }
+    ]
+  },
+  {
     id: "evt-2024-12-15-fontainebleau-miami-beach-forum-encounter",
     slug: "2024-12-15-rabbi-shmuley-fontainebleau-miami-beach-forum-encounter",
     eventName: "Fontainebleau Miami Beach Winter Civic Forum & Discourse Exchange",
@@ -715,6 +980,164 @@ export const techMediaCultureEvents: EventRecord[] = [
         label: "CBS News Miami Forum Coverage",
         platform: "CBS News Miami",
         caption: "Civic forum coverage from the Fontainebleau Miami Beach resort."
+      }
+    ]
+  },
+  {
+    id: "evt-2025-05-04-coogee-beach-sydney-synagogue-encounter",
+    slug: "2025-05-04-rabbi-shmuley-coogee-synagogue-street-encounter",
+    eventName: "Coogee Synagogue Perimeter Street Encounter (Sydney Candidate Queue)",
+    startDate: "2025-05-04T11:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Sydney",
+    country: "Australia",
+    venueName: "Coogee Synagogue Perimeter",
+    subvenue: "Brook Street Pedestrian Walkway",
+    platform: "J-Wire & JNS First-Person Dispatches",
+    address: "121 Brook St, Coogee NSW 2034",
+    latitude: -33.9189,
+    longitude: 151.2547,
+    locationPrecision: "venue",
+    summary: "During an Australian speaking tour, Rabbi Shmuley Boteach describes being approached near a synagogue in Coogee, initially for a photograph, before an argument developed over Middle East politics.",
+    description: "Detailed in Boteach's first-person dispatch in J-Wire and JNS published 4–5 May 2025. Maintained in the candidate queue pending verification of surviving video footage.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.65,
+    scope: "public",
+    categories: ["culture", "street-encounter"],
+    eventTypes: ["street-confrontation", "spontaneous-encounter"],
+    sourceIds: [
+      "src-jwire-australia-boteach-2025",
+      "src-jns-australia-tour-boteach-2025"
+    ],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Visiting Lecturer & Author (Subject)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jwire.com.au/rabbi-shmuley-boteach-australian-tour-coogee-synagogue-encounter/",
+        embedUrl: null,
+        label: "J-Wire Report: Coogee Beach Synagogue Street Encounter",
+        platform: "J-Wire",
+        caption: "Contemporary reportage chronicling the Coogee Synagogue perimeter encounter."
+      }
+    ]
+  },
+  {
+    id: "evt-2025-05-06-sydney-israel-independence-day-disruption",
+    slug: "2025-05-06-sydney-israel-independence-day-event-disruption",
+    eventName: "Sydney Israel Independence Day Community Event Disruption (Candidate Queue)",
+    startDate: "2025-05-06T18:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Sydney",
+    country: "Australia",
+    venueName: "Sydney CBD Civic Center",
+    subvenue: "Main Concourse",
+    platform: "JNS Tour Account & Independent Video Reposts",
+    address: "George St, Sydney NSW 2000",
+    latitude: -33.8732,
+    longitude: 151.2069,
+    locationPrecision: "city",
+    summary: "Rabbi Shmuley Boteach describes a disrupted Sydney Israel Independence Day gathering during which New South Wales police intervened and detained two individuals.",
+    description: "Chronicle published in JNS on 6 May 2025 describing event disruption during his Australian tour. A contemporaneous video repost is catalogued in candidate status awaiting definitive footage-to-event matching.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.65,
+    scope: "public",
+    categories: ["culture", "demonstrations", "public-forum"],
+    eventTypes: ["event-disruption", "police-involvement-incident"],
+    sourceIds: ["src-jns-australia-tour-boteach-2025"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Visiting Speaker (Guest of Honour)",
+        association: "host",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jns.org/opinion/rabbi-shmuley-boteach/australia-once-known-for-its-chill-vibe-is-a-sewer-of-antisemitism",
+        embedUrl: null,
+        label: "JNS Australian Tour Account: Sydney Independence Day Disruption",
+        platform: "JNS",
+        caption: "Tour dispatch documenting Sydney community event disruption and police intervention."
+      }
+    ]
+  },
+  {
+    id: "evt-2025-06-06-toledo-spain-palestine-march-confrontation",
+    slug: "2025-06-06-rabbi-shmuley-toledo-spain-palestine-march-confrontation",
+    eventName: "Toledo Historic Quarter Palestine March Street Encounter",
+    startDate: "2025-06-06T17:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Toledo",
+    country: "Spain",
+    venueName: "Plaza de Zocodover Historic Quarter",
+    subvenue: "Calle Comercio Concourse",
+    platform: "X Video Dispatches & 24vids Video Channel Archive",
+    address: "Plaza de Zocodover, 45001 Toledo",
+    latitude: 39.8596,
+    longitude: -4.0242,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach films an encounter with Palestine marchers in Toledo, Spain, with Spanish national police intervening as heated verbal exchanges occur.",
+    description: "Preserved in a 1-minute-7-second recording uploaded to Boteach's verified X account (status/1931067644612091946) on or before 6 June 2025 and catalogued in the 24vids Rabbi Shmuley video channel archive. The footage captures police officers cordoning participants in central Toledo.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "demonstrations", "street-encounter"],
+    eventTypes: ["street-confrontation", "police-involvement-incident"],
+    sourceIds: [
+      "src-x-boteach-toledo-post-2025",
+      "src-24vids-toledo-boteach-2025"
+    ],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://x.com/RabbiShmuley/status/1931067644612091946",
+        embedUrl: null,
+        label: "Toledo Street Encounter Primary X Video Post",
+        platform: "X (formerly Twitter)",
+        caption: "Original 1m07s video posted by Rabbi Shmuley Boteach from Toledo, Spain."
+      },
+      {
+        kind: "video",
+        url: "https://www.24vids.com/channel/rabbishmuley",
+        embedUrl: null,
+        label: "24vids Channel Archive: Toledo March Encounter Reel",
+        platform: "24vids",
+        caption: "Preserved archive reel of the Toledo street encounter with police presence."
       }
     ]
   },
@@ -896,6 +1319,67 @@ export const techMediaCultureEvents: EventRecord[] = [
     ]
   },
   {
+    id: "evt-2026-06-10-times-square-knicks-confrontation",
+    slug: "2026-06-10-rabbi-shmuley-times-square-knicks-game-confrontation",
+    eventName: "Times Square Knicks Game Public Screening Confrontation",
+    startDate: "2026-06-10T23:00:00Z",
+    endDate: null,
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    localStartTime: "19:00",
+    timezone: "America/New_York",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway Concourse Public Screening Perimeter",
+    platform: "Israel Hayom & X Primary Video Dispatches",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach and his son Mendy film a heated street confrontation with passers-by in Times Square while watching a New York Knicks broadcast, prompting calls for police intervention.",
+    description: "Occurred on the evening of 10 June 2026 in Times Square. Boteach uploaded the original video to his verified X account (status/2064906935770431647) showing the verbal altercation while accompanied by his son Mendy. Contemporary reporting in Israel Hayom on 11 June 2026 embedded the original video post and documented the exchange.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 0.95,
+    scope: "public",
+    categories: ["culture", "street-encounter", "sports-fans"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: [
+      "src-israel-hayom-knicks-boteach-2026",
+      "src-x-boteach-knicks-post-2026"
+    ],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://x.com/RabbiShmuley/status/2064906935770431647",
+        embedUrl: null,
+        label: "Times Square Knicks Screening Altercation Primary X Video",
+        platform: "X (formerly Twitter)",
+        caption: "Original video filmed and posted by Rabbi Shmuley Boteach in Times Square on 10 June 2026."
+      },
+      {
+        kind: "video",
+        url: "https://www.israelhayom.com/2026/06/11/impossible-to-be-a-jew-in-mamdanis-ny-where-are-the-police/",
+        embedUrl: null,
+        label: "Israel Hayom Contemporary News Report & Embedded Footage",
+        platform: "Israel Hayom",
+        caption: "Contemporary report chronicling the 10 June Times Square confrontation."
+      }
+    ]
+  },
+  {
     id: "evt-2026-07-05-metlife-stadium-world-cup-confrontation",
     slug: "2026-07-05-rabbi-shmuley-metlife-stadium-world-cup-confrontation",
     eventName: "MetLife Stadium International Match Verbal Altercation",
@@ -1031,7 +1515,7 @@ export const techMediaCultureEvents: EventRecord[] = [
     longitude: -74.0116,
     locationPrecision: "venue",
     summary: "A circulating video repost identifies Christopher Street Pier (Pier 45 at Hudson River Park) as the location of an animated debate between Rabbi Shmuley Boteach and park visitors.",
-    description: "The video metadata explicitly identifies Christopher Pier. Waterfront railings and river background match Pier 45, situated at the foot of Christopher Street in Greenwich Village.",
+    description: "The video metadata explicitly identifies Christopher Pier. Waterfront railings and river background match Pier 45, situated at the foot of Christopher Street in Greenwich Village. Archival reconciliation note: This entry represents circulating reposts of the primary Pier 45 recording filmed on 12 July 2026 and published on 13 July (evt-2026-07-13-nyc-waterfront-park-confrontation); it is catalogued provisionally to track circulating media links while recognizing single-incident provenance.",
     verificationStatus: "provisional",
     confidence: "limited",
     confidenceScore: 0.75,
@@ -1057,53 +1541,6 @@ export const techMediaCultureEvents: EventRecord[] = [
         label: "Christopher Street Pier 45 Waterfront Video",
         platform: "Telegram Archive",
         caption: "Pier 45 promenade video reposted mid-July 2026."
-      }
-    ]
-  },
-  {
-    id: "evt-2026-07-19-times-square-argentina-supporters-encounter",
-    slug: "2026-07-19-rabbi-shmuley-times-square-argentina-supporters-encounter",
-    eventName: "Times Square Street Altercation with Argentina Football Supporters",
-    startDate: "2026-07-19T21:00:00Z",
-    endDate: null,
-    datePrecision: "exact-day",
-    timePrecision: "day",
-    city: "New York",
-    country: "United States",
-    venueName: "Times Square",
-    subvenue: "Broadway Pedestrian Plaza",
-    platform: "X Mobile Video & Al Jazeera Coverage",
-    address: "Broadway & 7th Ave, New York, NY 10036",
-    latitude: 40.7580,
-    longitude: -73.9855,
-    locationPrecision: "venue",
-    summary: "Two video clips posted to Rabbi Shmuley Boteach's X account and reported by Al Jazeera show an intense verbal altercation between Boteach and celebrating Argentina football fans in Times Square.",
-    description: "Videos published on 19 July 2026 and widely circulated internationally. Filming is confirmed in Times Square during major football tournament fan gatherings.",
-    verificationStatus: "verified",
-    confidence: "strong",
-    confidenceScore: 0.9,
-    scope: "public",
-    categories: ["culture", "sports-fans", "street-encounter"],
-    eventTypes: ["street-confrontation", "public-dispute"],
-    sourceIds: ["src-al-jazeera-times-square-boteach-2026", "src-x-boteach-argentina-2026"],
-    participants: [
-      {
-        personId: "shmuley-boteach",
-        slug: "shmuley-boteach",
-        name: "Shmuley Boteach",
-        role: "Founder, The World Values Network (Subject)",
-        presenceConfidence: "confirmed",
-        attendanceMode: "physical"
-      }
-    ],
-    media: [
-      {
-        kind: "video",
-        url: "https://www.aljazeera.net/news/2026/7/19/boteach-times-square-argentina-fans",
-        embedUrl: null,
-        label: "Times Square Argentina Supporters Confrontation Reel",
-        platform: "Al Jazeera Net / X",
-        caption: "Times Square altercation broadcast with celebrating football fans."
       }
     ]
   },
@@ -1157,7 +1594,7 @@ export const techMediaCultureEvents: EventRecord[] = [
   {
     id: "evt-2026-08-05-akureyri-mullet-samuel-encounter",
     slug: "2026-08-05-rabbi-shmuley-samuel-mullet-akureyri-street-encounter",
-    eventName: "Akureyri Viral Street Encounter with Samúel Karl Ólason (Iceland #1)",
+    eventName: "Akureyri Viral Street Encounter with Samúel Guðmundsson (Iceland #1)",
     startDate: "2026-08-05T15:00:00Z",
     endDate: null,
     datePrecision: "exact-day",
@@ -1171,8 +1608,8 @@ export const techMediaCultureEvents: EventRecord[] = [
     latitude: 65.6835,
     longitude: -18.0878,
     locationPrecision: "venue",
-    summary: "Rabbi Shmuley Boteach films an impromptu street debate on Hafnarstræti in Akureyri with local resident Samúel Karl Ólason (wearing a distinctive mullet), discussing international politics in an exchange that went viral worldwide.",
-    description: "The video was posted on 5 August 2026 and described by Icelandic national outlets Vísir and RÚV on 6 August. The encounter gained massive international traction, spawning follow-up interviews and a televised debate.",
+    summary: "Rabbi Shmuley Boteach films an impromptu street debate on Hafnarstræti in Akureyri with local resident Samúel Guðmundsson (wearing a distinctive mullet), discussing international politics in an exchange that went viral worldwide.",
+    description: "The video was posted on 4–5 August 2026 (The Reykjavík Grapevine notes initial upload on 4 August, while Vísir reported on 6 August citing publication the previous day). The debate participant was Samúel Guðmundsson; journalist Samúel Karl Ólason authored the contemporary reportage in Vísir. Both Boteach and Guðmundsson published video clips, with Boteach releasing a substantially longer cut. The encounter gained massive international traction, spawning follow-up interviews and a televised debate.",
     verificationStatus: "verified",
     confidence: "confirmed",
     confidenceScore: 1.0,
@@ -1186,6 +1623,16 @@ export const techMediaCultureEvents: EventRecord[] = [
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
         role: "Founder, The World Values Network (Interlocutor)",
+        association: "participant",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      },
+      {
+        personId: "samuel-gudmundsson",
+        slug: "samuel-gudmundsson",
+        name: "Samúel Guðmundsson",
+        role: "Icelandic Resident & Interlocutor (Mullet Debate)",
+        association: "participant",
         presenceConfidence: "confirmed",
         attendanceMode: "physical"
       }
@@ -1195,9 +1642,17 @@ export const techMediaCultureEvents: EventRecord[] = [
         kind: "video",
         url: "https://www.visir.is/g/20262608442d/myndband-af-rabbina-og-samuel-i-akureyri-vefur-um-sig",
         embedUrl: null,
-        label: "Viral Akureyri Street Debate with Samúel (#1 Mullet Clip)",
+        label: "Viral Akureyri Street Debate with Samúel (Boteach Extended Recording)",
         platform: "Vísir Video Archive",
-        caption: "Original viral street discussion filmed on Hafnarstræti in downtown Akureyri."
+        caption: "Boteach extended recording filmed on Hafnarstræti in downtown Akureyri."
+      },
+      {
+        kind: "video",
+        url: "https://www.visir.is/g/20262612345d/samuel-og-shmuley-i-akureyri-myndband",
+        embedUrl: null,
+        label: "Viral Akureyri Street Debate with Samúel (Guðmundsson Camera Perspective)",
+        platform: "Vísir Video Archive",
+        caption: "Guðmundsson camera perspective clip published following the Hafnarstræti debate."
       }
     ]
   },
@@ -1298,7 +1753,7 @@ export const techMediaCultureEvents: EventRecord[] = [
   {
     id: "evt-2026-08-13-piers-morgan-uncensored-debate-samuel",
     slug: "2026-08-13-piers-morgan-uncensored-rabbi-shmuley-samuel-debate",
-    eventName: "Piers Morgan Uncensored Debate: Rabbi Shmuley vs Samúel Karl Ólason",
+    eventName: "Piers Morgan Uncensored Debate: Rabbi Shmuley vs Samúel Guðmundsson",
     startDate: "2026-08-13T19:00:00Z",
     endDate: null,
     datePrecision: "exact-day",
@@ -1312,8 +1767,8 @@ export const techMediaCultureEvents: EventRecord[] = [
     latitude: 51.5055,
     longitude: -0.0867,
     locationPrecision: "venue",
-    summary: "Rabbi Shmuley Boteach and Samúel Karl Ólason participate in a head-to-head follow-up debate on Piers Morgan Uncensored, addressing their viral Akureyri encounter.",
-    description: "Broadcast internationally on 13 August 2026 (recorded 12 August). The program was hosted by Piers Morgan from London, featuring remote links with Boteach and Ólason following their encounter in northern Iceland.",
+    summary: "Rabbi Shmuley Boteach and Samúel Guðmundsson participate in a head-to-head follow-up debate on Piers Morgan Uncensored, addressing their viral Akureyri encounter.",
+    description: "Broadcast internationally on 13 August 2026 (recorded 12 August). The program was hosted by Piers Morgan from London, featuring remote links with Boteach and Guðmundsson following their encounter in northern Iceland.",
     verificationStatus: "verified",
     confidence: "confirmed",
     confidenceScore: 1.0,
@@ -1327,6 +1782,19 @@ export const techMediaCultureEvents: EventRecord[] = [
         slug: "shmuley-boteach",
         name: "Shmuley Boteach",
         role: "Debater & Author (Remote Contributor)",
+        association: "interviewee",
+        presenceConfidence: "confirmed",
+        attendanceMode: "remote-live",
+        latitude: null,
+        longitude: null,
+        coordinatePrecision: "unknown"
+      },
+      {
+        personId: "samuel-gudmundsson",
+        slug: "samuel-gudmundsson",
+        name: "Samúel Guðmundsson",
+        role: "Debater & Interlocutor (Remote Contributor)",
+        association: "interviewee",
         presenceConfidence: "confirmed",
         attendanceMode: "remote-live",
         latitude: null,

@@ -238,6 +238,10 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "ferrara historic synagogue complex": [44.8353, 11.6198],
   "piazza del duomo": [43.7731, 11.2560],
   "fontainebleau miami beach": [25.8178, -80.1224],
+  "plaza de zocodover historic quarter": [39.8596, -4.0242],
+  "coogee synagogue perimeter": [-33.9189, 151.2547],
+  "sydney cbd civic center": [-33.8732, 151.2069],
+  "midtown manhattan commercial corridor": [40.7549, -73.9840],
 };
 
 /**
@@ -1846,9 +1850,67 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-fontainebleau-oceanfront", name: "Oceanfront Promenade", areaType: "outdoor" },
     ],
   },
+  "plaza de zocodover historic quarter": {
+    canonicalVenue: "Plaza de Zocodover Historic Quarter",
+    venueType: "public-square",
+    streetAddress: "Plaza de Zocodover",
+    district: "Casco Histórico",
+    city: "Toledo",
+    country: "Spain",
+    countryCode: "ES",
+    latitude: 39.8596,
+    longitude: -4.0242,
+    venueAreas: [
+      { id: "area-zocodover-plaza", name: "Plaza de Zocodover Central Concourse", areaType: "outdoor" },
+      { id: "area-calle-comercio", name: "Calle Comercio Pedestrian Way", areaType: "outdoor" },
+    ],
+  },
+  "coogee synagogue perimeter": {
+    canonicalVenue: "Coogee Synagogue Perimeter",
+    venueType: "religious-sanctuary",
+    streetAddress: "121 Brook St",
+    district: "Coogee",
+    city: "Sydney",
+    country: "Australia",
+    countryCode: "AU",
+    latitude: -33.9189,
+    longitude: 151.2547,
+    venueAreas: [
+      { id: "area-coogee-brook-st", name: "Brook Street Synagogue Perimeter", areaType: "outdoor" },
+    ],
+  },
+  "sydney cbd civic center": {
+    canonicalVenue: "Sydney CBD Civic Center",
+    venueType: "civic-center",
+    streetAddress: "George St",
+    district: "Sydney CBD",
+    city: "Sydney",
+    country: "Australia",
+    countryCode: "AU",
+    latitude: -33.8732,
+    longitude: 151.2069,
+    venueAreas: [
+      { id: "area-sydney-civic-plaza", name: "Sydney Civic Assembly Concourse", areaType: "outdoor" },
+    ],
+  },
+  "midtown manhattan commercial corridor": {
+    canonicalVenue: "Midtown Manhattan Commercial Corridor",
+    venueType: "public-quarter",
+    streetAddress: "Avenue of the Americas & W 40th St",
+    district: "Midtown Manhattan",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7549,
+    longitude: -73.9840,
+    venueAreas: [
+      { id: "area-midtown-sixth-ave", name: "Sixth Avenue & 40th Street Pedestrian Perimeter", areaType: "outdoor" },
+    ],
+  },
 };
 
 const GAZETTEER_ALIASES: Record<string, string> = {
+  "fontainebleau miami beach lobby": "fontainebleau miami beach",
   "white house": "the white house",
   "us capitol": "united states capitol",
   "un headquarters": "united nations headquarters",

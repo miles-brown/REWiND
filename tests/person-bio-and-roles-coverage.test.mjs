@@ -311,3 +311,72 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
     assert.ok(typeof event.longitude === "number" && !isNaN(event.longitude), `Event ${event.id} must have valid longitude`);
   }
 });
+
+test("Rabbi Shmuley video-incident gap audit and Iceland participant identity resolutions", async () => {
+  // 1. Verify Samúel Guðmundsson canonical person record
+  const { data: samuel } = await getPersonBySlugWithStatus("samuel-gudmundsson", null);
+  assert.ok(samuel, "Must retrieve Samúel Guðmundsson canonical person record");
+  assert.equal(samuel.canonicalName, "Samúel Guðmundsson");
+  assert.equal(samuel.nationality, "Icelandic");
+
+  // 2. Verify Boteach timeline contains all newly resolved and disambiguated events
+  const { events: timeline } = await getPersonTimeline("shmuley-boteach");
+  assert.ok(Array.isArray(timeline), "Timeline must be an array of events");
+
+  // Akureyri street encounter: Samúel Guðmundsson participant & both video perspectives
+  const akureyri = timeline.find((e) => e.slug.includes("akureyri-street-encounter"));
+  assert.ok(akureyri, "Must include Akureyri street encounter");
+  assert.ok(akureyri.participants.some((p) => p.personId === "samuel-gudmundsson"), "Akureyri participant must be samuel-gudmundsson");
+  assert.ok(!akureyri.eventName.includes("Ólason"), "Akureyri event name must not reference journalist Ólason");
+  assert.ok(akureyri.media && akureyri.media.length >= 2, "Akureyri encounter must provide both camera perspectives");
+  assert.ok(akureyri.media.some((m) => m.label.includes("Boteach Extended")), "Must have Boteach extended cut");
+  assert.ok(akureyri.media.some((m) => m.label.includes("Guðmundsson Camera Perspective")), "Must have Guðmundsson perspective");
+
+  // Piers Morgan Uncensored debate: Samúel Guðmundsson participant
+  const piersDebate = timeline.find((e) => e.slug.includes("piers-morgan-uncensored-rabbi-shmuley-samuel-debate"));
+  assert.ok(piersDebate, "Must include Piers Morgan Uncensored debate");
+  assert.ok(piersDebate.participants.some((p) => p.personId === "samuel-gudmundsson"), "Piers Morgan debate must link samuel-gudmundsson");
+  assert.ok(!piersDebate.eventName.includes("Ólason"), "Piers Morgan debate must not reference journalist Ólason");
+
+  // Argentina supporters encounter: strictly July 2024, not 2026
+  const argentina2024 = timeline.find((e) => e.id === "evt-2024-07-19-times-square-argentina-supporters-encounter");
+  assert.ok(argentina2024, "Must include July 2024 Argentina supporters encounter");
+  assert.ok(argentina2024.startDate.startsWith("2024-07-19"), "Argentina supporters encounter must be dated 19 July 2024");
+  const argentina2026 = timeline.find((e) => e.id === "evt-2026-07-19-times-square-argentina-supporters-encounter");
+  assert.equal(argentina2026, undefined, "Duplicate 2026 Argentina supporters entry must be removed");
+
+  // Fontainebleau lobby confrontation (1 Dec 2024) vs civic forum (15 Dec 2024)
+  const fontainebleauLobby = timeline.find((e) => e.id === "evt-2024-12-01-fontainebleau-miami-beach-lobby-confrontation");
+  assert.ok(fontainebleauLobby, "Must include 1 Dec 2024 Fontainebleau lobby confrontation");
+  assert.ok(fontainebleauLobby.startDate.startsWith("2024-12-01"), "Lobby confrontation must be dated 1 Dec 2024");
+  const fontainebleauForum = timeline.find((e) => e.id === "evt-2024-12-15-fontainebleau-miami-beach-forum-encounter");
+  assert.ok(fontainebleauForum, "Must retain 15 Dec 2024 Fontainebleau civic forum as distinct event");
+
+  // Toledo Palestine march confrontation (6 June 2025)
+  const toledo = timeline.find((e) => e.id === "evt-2025-06-06-toledo-spain-palestine-march-confrontation");
+  assert.ok(toledo, "Must include Toledo Palestine march confrontation");
+  assert.ok(toledo.sourceIds.includes("src-x-boteach-toledo-post-2025"), "Toledo must cite original X video post");
+  assert.ok(toledo.sourceIds.includes("src-24vids-toledo-boteach-2025"), "Toledo must cite 24vids archive");
+
+  // Times Square Knicks game confrontation (10 June 2026)
+  const knicks = timeline.find((e) => e.id === "evt-2026-06-10-times-square-knicks-confrontation");
+  assert.ok(knicks, "Must include Times Square Knicks game confrontation");
+  assert.ok(knicks.sourceIds.includes("src-x-boteach-knicks-post-2026"), "Knicks game confrontation must cite original X post");
+  assert.ok(knicks.sourceIds.includes("src-israel-hayom-knicks-boteach-2026"), "Knicks game confrontation must cite Israel Hayom");
+
+  // Midtown Manhattan street altercation (23 October 2024)
+  const midtown = timeline.find((e) => e.id === "evt-2024-10-23-midtown-manhattan-street-confrontation");
+  assert.ok(midtown, "Must include Midtown Manhattan street altercation");
+  assert.ok(midtown.sourceIds.includes("src-x-boteach-midtown-oct2024"));
+  assert.ok(midtown.sourceIds.includes("src-reddit-israelexposed-boteach-2024"));
+
+  // Times Square ZOA rally (13 May 2024)
+  const zoaRally = timeline.find((e) => e.id === "evt-2024-05-13-times-square-zoa-wvn-rally");
+  assert.ok(zoaRally, "Must include 13 May 2024 ZOA & WVN support rally");
+  assert.ok(zoaRally.sourceIds.includes("src-zoa-times-square-rally-video-2024"), "ZOA rally must cite official video recording");
+
+  // Times Square Oct 7 memorial (7 October 2024)
+  const oct7 = timeline.find((e) => e.id === "evt-2024-10-07-times-square-october-7-memorial");
+  assert.ok(oct7, "Must include Times Square 7 October 2024 memorial rally");
+});
+
