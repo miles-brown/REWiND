@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 
 // ==========================================
@@ -80,6 +81,7 @@ export const personAliases = pgTable(
   },
   (t) => [
     uniqueIndex("person_aliases_person_id_alias_key").on(t.personId, t.alias),
+    uniqueIndex("idx_person_aliases_unique_lower").on(t.personId, sql`lower(${t.alias})`),
   ]
 );
 

@@ -376,7 +376,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://jewishjournal.com/news/worldwide/360351/dont-touch-me-rabbi-shmuleys-heated-exchange-with-amsterdam-anti-israel-protesters/",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Amsterdam Dam Square Street Confrontation — Primary Recording",
         platform: "Instagram / Jewish Journal Vault",
         caption: "Documented exchange between Rabbi Boteach and demonstrators in central Amsterdam."
@@ -425,7 +425,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.hindustantimes.com/world-news/us-news/martina-navratilova-shares-video-of-girl-11-asking-rabbi-kill-yourself-calls-the-anti-semitism-pathetic-101703483528219.html",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Times Square Family Altercation Footage",
         platform: "X / Hindustan Times Archive",
         caption: "Times Square holiday altercation uploaded December 2023."
@@ -519,7 +519,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.imago-images.de/st/0471250808",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Washington Square Park Protest Encounter Visual Reel",
         platform: "IMAGO / ZUMA Press Wire",
         caption: "Photographic wire and video visual from 3 May 2024 encampment clearance."
@@ -1100,7 +1100,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.aljazeera.net/news/2026/7/19/boteach-times-square-argentina-fans",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Times Square Argentina Supporters Confrontation Reel",
         platform: "Al Jazeera Net / X",
         caption: "Times Square altercation broadcast with celebrating football fans."
@@ -1115,7 +1115,7 @@ export const techMediaCultureEvents: EventRecord[] = [
     endDate: null,
     datePrecision: "exact-day",
     timePrecision: "day",
-    city: "Reykjavík",
+    city: "Keflavík",
     country: "Iceland",
     venueName: "Keflavík International Airport",
     subvenue: "Leifur Eiríksson Air Terminal",
@@ -1147,7 +1147,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.visir.is/g/20262456781d/rabbi-shmuley-boteach-ferndast-um-island",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Iceland Arrival & Travelogue Clip",
         platform: "Vísir / YouTube",
         caption: "Initial travel clips documented upon arrival in Iceland."
@@ -1193,10 +1193,10 @@ export const techMediaCultureEvents: EventRecord[] = [
     media: [
       {
         kind: "video",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        url: "https://www.visir.is/g/20262608442d/myndband-af-rabbina-og-samuel-i-akureyri-vefur-um-sig",
+        embedUrl: null,
         label: "Viral Akureyri Street Debate with Samúel (#1 Mullet Clip)",
-        platform: "YouTube / Vísir",
+        platform: "Vísir Video Archive",
         caption: "Original viral street discussion filmed on Hafnarstræti in downtown Akureyri."
       }
     ]
@@ -1241,7 +1241,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://mannlif.is/frettir/uppnam-a-bar-22-shmuley-laugavegur/",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Bar 22 Laugavegur Altercation Recording",
         platform: "Mannlíf / Social Archive",
         caption: "Documented confrontation outside Bar 22 on Laugavegur in Reykjavík."
@@ -1288,7 +1288,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.visir.is/g/20262624567d/nytt-myndband-boteach-bankastraeti",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Bankastræti Walking Encounter Video",
         platform: "Vísir Archive",
         caption: "Walking video on Bankastræti pedestrian concourse in central Reykjavík."
@@ -1328,7 +1328,10 @@ export const techMediaCultureEvents: EventRecord[] = [
         name: "Shmuley Boteach",
         role: "Debater & Author (Remote Contributor)",
         presenceConfidence: "confirmed",
-        attendanceMode: "remote-live"
+        attendanceMode: "remote-live",
+        latitude: null,
+        longitude: null,
+        coordinatePrecision: "unknown"
       }
     ],
     media: [
@@ -1387,7 +1390,7 @@ export const techMediaCultureEvents: EventRecord[] = [
       {
         kind: "video",
         url: "https://www.stilumcuriae.com/lincontro-a-ferrara-del-rabbino-boteach-via-mazzini/",
-        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        embedUrl: null,
         label: "Ferrara Via Mazzini Café Conversation Video",
         platform: "Facebook / Stilum Curiae",
         caption: "Outdoor café dialogue filmed along Via Giuseppe Mazzini in Ferrara."

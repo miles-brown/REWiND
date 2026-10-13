@@ -1735,7 +1735,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     venueType: "airport",
     streetAddress: "Keflavíkurflugvöllur",
     district: "Reykjanesbaer",
-    city: "Reykjavík",
+    city: "Keflavík",
     country: "Iceland",
     countryCode: "IS",
     latitude: 63.9850,

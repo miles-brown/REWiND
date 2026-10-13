@@ -241,7 +241,7 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
   assert.equal(akureyri.country, "Iceland");
   assert.ok(akureyri.media && akureyri.media.length > 0, "Must have media attached");
   assert.equal(akureyri.media[0].kind, "video");
-  assert.ok(akureyri.media[0].embedUrl, "Must have playable embedUrl");
+  assert.ok(akureyri.media[0].url, "Must have valid primary video url");
 
   const bar22 = timeline.find((e) => e.slug.includes("bar-22"));
   assert.ok(bar22, "Must include Bar 22 encounter");
@@ -250,6 +250,17 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
   const piers = timeline.find((e) => e.slug.includes("piers-morgan"));
   assert.ok(piers, "Must include Piers Morgan debate");
   assert.ok(piers.media && piers.media[0].embedUrl, "Piers Morgan debate must have embedUrl");
+  assert.ok(!piers.media[0].embedUrl.includes("dQw4w9WgXcQ"), "Piers Morgan debate must not use placeholder video");
+
+  // Strict check that no media item in the entire timeline uses Rickroll placeholder dQw4w9WgXcQ
+  for (const ev of timeline) {
+    if (ev.media) {
+      for (const m of ev.media) {
+        if (m.url) assert.ok(!m.url.includes("dQw4w9WgXcQ"), `Event ${ev.id} must not use Rickroll placeholder in url`);
+        if (m.embedUrl) assert.ok(!m.embedUrl.includes("dQw4w9WgXcQ"), `Event ${ev.id} must not use Rickroll placeholder in embedUrl`);
+      }
+    }
+  }
 
   const amsterdam = timeline.find((e) => e.slug.includes("amsterdam"));
   assert.ok(amsterdam, "Must include Amsterdam Dam Square confrontation");

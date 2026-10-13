@@ -398,14 +398,22 @@ export function PersonTimeline({
                   <span>Cite</span>
                 </button>
               )}
-              {event.quotes && event.quotes.length > 0 && (
+              {((event.quotes && event.quotes.length > 0) || (event.media && event.media.length > 0)) && (
                 <button
                   className="cite-btn highlight"
                   onClick={() => setMediaOpen(true)}
-                  aria-label="Open speech quotes and audio excerpts"
+                  aria-label={
+                    event.quotes && event.quotes.length > 0
+                      ? "Open speech quotes and audio excerpts"
+                      : "Open archival video and media footage"
+                  }
                 >
                   <MessageSquareQuote size={14} />
-                  <span>Quotes ({event.quotes.length})</span>
+                  <span>
+                    {event.quotes && event.quotes.length > 0
+                      ? `Quotes (${event.quotes.length})`
+                      : `Media (${event.media?.length || 0})`}
+                  </span>
                 </button>
               )}
               <button

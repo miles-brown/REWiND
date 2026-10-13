@@ -154,11 +154,39 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       involvementType: inv,
       roleLabel: role,
       capacityTitle: role,
-      attendanceMode: "physical",
+      attendanceMode: p.attendanceMode || "physical",
       presenceConfidence: parseConfidence(p.presenceConfidence),
       roleConfidence: parseConfidence(p.roleConfidence),
-      locations:
-        legacy.latitude != null && legacy.longitude != null
+      locations: (() => {
+        if (p.latitude !== undefined) {
+          if (p.latitude != null && p.longitude != null) {
+            return [
+              {
+                id: `epl-${legacy.id}-${participantKey}-0`,
+                eventPersonId: `ep-${legacy.id}-${participantKey}`,
+                latitude: p.latitude,
+                longitude: p.longitude,
+                coordinatePrecision: mapLegacyLocationPrecision(p.coordinatePrecision || legacy.locationPrecision),
+                isPrincipalLocation: true,
+                locationBasis: "archival-record",
+                confidence: parseConfidence(legacy.confidence),
+                sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
+                sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
+                  id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
+                  eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
+                  sourceId: sid,
+                  confidence: parseConfidence(legacy.confidence),
+                })),
+                publicVisibility: locationPublicVis,
+              },
+            ];
+          }
+          return [];
+        }
+        if (p.attendanceMode === "remote-live" || p.attendanceMode === "remote-recorded") {
+          return [];
+        }
+        return legacy.latitude != null && legacy.longitude != null
           ? [
               {
                 id: `epl-${legacy.id}-${participantKey}-0`,
@@ -179,13 +207,14 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
                 publicVisibility: locationPublicVis,
               },
             ]
-          : [],
+          : [];
+      })(),
     };
   });
 
   const factualFlags: EventFactualFlags = {
     physicalAttendanceConfirmed: people.length > 0 ? "yes" : "unknown",
-    remoteParticipation: "no",
+    remoteParticipation: people.some((p) => p.attendanceMode?.startsWith("remote")) ? "yes" : "no",
     publicEvent: legacy.scope === "public" ? "yes" : legacy.scope === "diplomatic" ? "no" : "unknown",
     openToPress: legacy.scope === "press" || legacy.scope === "public" ? "yes" : "unknown",
     ticketed: "unknown",

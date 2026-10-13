@@ -740,7 +740,7 @@ const baseSourcesCorpus: SourceRecord[] = [
     tier: "tier-a",
     url: "https://dinalitovsky.substack.com/p/reactions-to-election-results-at",
     publicationDate: "2024-11-06",
-    accessedDate: "2024-09-01",
+    accessedDate: "2024-11-07",
     language: "en",
     trustScore: 0.95,
     independenceStatus: "independent"
@@ -755,7 +755,7 @@ const baseSourcesCorpus: SourceRecord[] = [
     tier: "tier-a",
     url: "https://rumble.com/v5mlv0-sneako-election-night-live-midtown.html",
     publicationDate: "2024-11-05",
-    accessedDate: "2024-09-01",
+    accessedDate: "2024-11-06",
     language: "en",
     trustScore: 0.95,
     independenceStatus: "independent"
@@ -770,7 +770,7 @@ const baseSourcesCorpus: SourceRecord[] = [
     tier: "tier-a",
     url: "https://www.cbsnews.com/miami/news/rabbi-shmuley-boteach-fontainebleau-miami-beach-forum/",
     publicationDate: "2024-12-16",
-    accessedDate: "2024-09-01",
+    accessedDate: "2024-12-17",
     language: "en",
     trustScore: 0.95,
     independenceStatus: "independent"
