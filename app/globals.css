@@ -787,6 +787,10 @@ svg { flex: 0 0 auto; }
   color: #f8fafc;
   background: rgba(255, 255, 255, 0.08);
 }
+.speed-pill:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
 .speed-pill.active {
   background: #38bdf8;
   color: #020617;
@@ -808,6 +812,10 @@ svg { flex: 0 0 auto; }
   color: #f8fafc;
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.15);
+}
+.theater-toggle-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 .fallback-pulse-ring {
   width: 52px;
@@ -2581,6 +2589,10 @@ svg { flex: 0 0 auto; }
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
 }
+.vault-tab-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
 .vault-tab-btn.active.video-mode {
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.12);
@@ -2663,6 +2675,10 @@ svg { flex: 0 0 auto; }
 .perspective-pill:hover {
   background: rgba(15, 23, 42, 0.9);
   border-color: rgba(56, 189, 248, 0.3);
+}
+.perspective-pill:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 .perspective-pill.active {
   background: rgba(56, 189, 248, 0.1);
