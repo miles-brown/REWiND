@@ -1395,6 +1395,8 @@ export function MapGraphic({
       {/* Floating Forensic Transit Telemetry HUD - Top Left */}
       {activeJourney.isJourney && prevEvent && currEvent && (
         <aside
+          role="region"
+          aria-live="polite"
           className={`map-transit-hud ${hudExpanded ? "expanded" : "collapsed"}`}
           aria-label="Active transit corridor telemetry"
         >
