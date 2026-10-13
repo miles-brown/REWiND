@@ -206,3 +206,71 @@ test("Seeds integrity, ID uniqueness, and collection exports consistency", async
     assert.ok(sourceIdSet.has(stay.sourceId), `Source ${stay.sourceId} in stay ${stay.id} must exist in sourcesCorpus`);
   }
 });
+
+test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are populated with forensic integrity", async () => {
+  const roles = await getPersonRoles("shmuley-boteach");
+  assert.ok(roles.length >= 4, `Boteach must have at least 4 official roles, got ${roles.length}`);
+  assert.ok(roles.some((r) => r.title.includes("L'Chaim Society")));
+  assert.ok(roles.some((r) => r.organisationName === "The World Values Network"));
+  assert.ok(roles.some((r) => r.title.includes("Shalom in the Home")));
+  assert.ok(roles.some((r) => r.title.includes("Republican Nominee")));
+
+  const milestones = await getPersonMilestones("shmuley-boteach");
+  assert.ok(milestones.length >= 6, `Boteach must have at least 6 milestones, got ${milestones.length}`);
+  assert.ok(milestones.some((m) => m.title.includes("Kosher Sex")));
+  assert.ok(milestones.some((m) => m.title.includes("Oxford Union")));
+
+  const { data: person } = await getPersonBySlugWithStatus("shmuley-boteach", null);
+  assert.ok(person, "Must retrieve Shmuley Boteach person record");
+  assert.equal(person.canonicalName, "Shmuley Boteach");
+  assert.ok(person.education && person.education.length >= 3, "Must have education records");
+  assert.ok(person.career && person.career.length >= 4, "Must have career records");
+  assert.ok(person.awards && person.awards.length >= 3, "Must have awards records");
+  assert.ok(person.works && person.works.length >= 6, "Must have published works");
+
+  // Timeline events
+  const timelineResult = await getPersonTimeline("shmuley-boteach");
+  assert.ok(timelineResult && timelineResult.events, "Must retrieve timeline result with events");
+  const timeline = timelineResult.events;
+  assert.ok(timeline.length >= 20, `Boteach must have at least 20 documented timeline events, got ${timeline.length}`);
+
+  // Encounter verification
+  const akureyri = timeline.find((e) => e.slug.includes("akureyri"));
+  assert.ok(akureyri, "Must include Akureyri viral street encounter");
+  assert.equal(akureyri.city, "Akureyri");
+  assert.equal(akureyri.country, "Iceland");
+  assert.ok(akureyri.media && akureyri.media.length > 0, "Must have media attached");
+  assert.equal(akureyri.media[0].kind, "video");
+  assert.ok(akureyri.media[0].embedUrl, "Must have playable embedUrl");
+
+  const bar22 = timeline.find((e) => e.slug.includes("bar-22"));
+  assert.ok(bar22, "Must include Bar 22 encounter");
+  assert.equal(bar22.venueName, "Bar 22");
+
+  const piers = timeline.find((e) => e.slug.includes("piers-morgan"));
+  assert.ok(piers, "Must include Piers Morgan debate");
+  assert.ok(piers.media && piers.media[0].embedUrl, "Piers Morgan debate must have embedUrl");
+
+  const amsterdam = timeline.find((e) => e.slug.includes("amsterdam"));
+  assert.ok(amsterdam, "Must include Amsterdam Dam Square confrontation");
+
+  const timesSquareFamily = timeline.find((e) => e.slug.includes("times-square-family"));
+  assert.ok(timesSquareFamily, "Must include Times Square family confrontation");
+
+  const ferrara = timeline.find((e) => e.slug.includes("ferrara"));
+  assert.ok(ferrara, "Must include Ferrara synagogue quarter encounter");
+  assert.equal(ferrara.city, "Ferrara");
+  assert.equal(ferrara.country, "Italy");
+
+  // All events have non-empty sourceIds resolving in sourcesCorpus
+  const sourceIdSet = new Set(sourcesCorpus.map((s) => s.id));
+  for (const event of timeline) {
+    assert.ok(Array.isArray(event.sourceIds) && event.sourceIds.length > 0, `Event ${event.id} must have sourceIds`);
+    for (const srcId of event.sourceIds) {
+      assert.ok(sourceIdSet.has(srcId), `Source ${srcId} on event ${event.id} must exist in sourcesCorpus`);
+    }
+    // Verified coordinate integrity
+    assert.ok(typeof event.latitude === "number" && !isNaN(event.latitude), `Event ${event.id} must have valid latitude`);
+    assert.ok(typeof event.longitude === "number" && !isNaN(event.longitude), `Event ${event.id} must have valid longitude`);
+  }
+});

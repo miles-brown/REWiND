@@ -110,6 +110,10 @@ export interface EventMedia {
   label: string;
   url: string;
   timestamp?: string | null | undefined;
+  embedUrl?: string | null | undefined;
+  thumbnailUrl?: string | null | undefined;
+  platform?: string | null | undefined;
+  caption?: string | null | undefined;
 }
 
 export interface EventRecord {

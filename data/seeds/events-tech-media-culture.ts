@@ -335,5 +335,995 @@ export const techMediaCultureEvents: EventRecord[] = [
         attendanceMode: "physical"
       }
     ]
+  },
+  {
+    id: "evt-2023-06-30-amsterdam-dam-square-confrontation",
+    slug: "2023-06-30-rabbi-shmuley-amsterdam-dam-square-confrontation",
+    eventName: "Amsterdam Street Confrontation with Pro-Palestinian Demonstrators",
+    startDate: "2023-06-30T14:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Amsterdam",
+    country: "Netherlands",
+    venueName: "Dam Square",
+    subvenue: "Dam Central Plaza",
+    platform: "Instagram Livestream & Social Video",
+    address: "Dam, 1012 JS Amsterdam",
+    latitude: 52.3731,
+    longitude: 4.8926,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach confronts pro-Palestinian demonstrators in central Amsterdam, resulting in a heated verbal exchange regarding Israel and a dispute over alleged physical contact.",
+    description: "The primary video was posted on Instagram on 30 June 2023 and documented by the Jewish Journal on 5 July 2023. Archival note: while the social upload is dated 30 June, the exact filming day and specific plaza boundaries were preserved with limited confidence pending raw metadata verification.",
+    verificationStatus: "verified",
+    confidence: "limited",
+    confidenceScore: 0.75,
+    scope: "public",
+    categories: ["culture", "activism", "street-encounter"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-jewish-journal-amsterdam-boteach-2023"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Encounter Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://jewishjournal.com/news/worldwide/360351/dont-touch-me-rabbi-shmuleys-heated-exchange-with-amsterdam-anti-israel-protesters/",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Amsterdam Dam Square Street Confrontation — Primary Recording",
+        platform: "Instagram / Jewish Journal Vault",
+        caption: "Documented exchange between Rabbi Boteach and demonstrators in central Amsterdam."
+      }
+    ]
+  },
+  {
+    id: "evt-2023-12-24-times-square-family-confrontation",
+    slug: "2023-12-24-rabbi-shmuley-times-square-family-confrontation",
+    eventName: "Times Square Holiday Street Altercation with Passerby Family",
+    startDate: "2023-12-24T15:34:00Z",
+    endDate: null,
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    localStartTime: "10:34",
+    timezone: "America/New_York",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway Pedestrian Plaza",
+    platform: "X (formerly Twitter) Mobile Video",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "A viral confrontation in Times Square involving Rabbi Shmuley Boteach, a passing family, and an 11-year-old child circulates globally across social and news media.",
+    description: "The original video was uploaded on 24 December 2023 at approximately 10:34 a.m. EST. Archival discrepancy: contemporary reporting describes the event occurring on Christmas Eve, whereas Boteach's retrospective notes suggest an encounter two days before Christmas Day. Uncertainty is explicitly noted in the evidentiary record.",
+    verificationStatus: "disputed",
+    confidence: "limited",
+    confidenceScore: 0.8,
+    scope: "public",
+    categories: ["culture", "street-encounter", "viral-media"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-hindustan-times-times-square-boteach-2023"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Encounter Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.hindustantimes.com/world-news/us-news/martina-navratilova-shares-video-of-girl-11-asking-rabbi-kill-yourself-calls-the-anti-semitism-pathetic-101703483528219.html",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Times Square Family Altercation Footage",
+        platform: "X / Hindustan Times Archive",
+        caption: "Times Square holiday altercation uploaded December 2023."
+      }
+    ]
+  },
+  {
+    id: "evt-2023-12-25-christmas-ice-skating-confrontation",
+    slug: "2023-12-25-rabbi-shmuley-christmas-ice-skating-confrontation",
+    eventName: "Midtown Manhattan Christmas Night Ice Rink Encounter",
+    startDate: "2023-12-25T20:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Rockefeller Center Ice Rink",
+    subvenue: "Sunken Plaza Skating Rink",
+    platform: "Times of Israel First-Person Dispatch",
+    address: "600 5th Ave, New York, NY 10020",
+    latitude: 40.7587,
+    longitude: -73.9787,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach reports being approached and verbally challenged by another skater while ice skating on Christmas night in Midtown Manhattan.",
+    description: "Boteach's account was published the morning of 26 December 2023 in The Times of Israel. Unresolved evidentiary note: the specific rink is identified provisionally at Rockefeller Center, with Bryant Park as an alternate candidate.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.7,
+    scope: "public",
+    categories: ["culture", "street-encounter"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-times-of-israel-ice-skating-boteach-2023"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Author and Commentator (Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://blogs.timesofisrael.com/confrontation-on-the-ice-christmas-encounter-midtown/",
+        embedUrl: null,
+        label: "Confrontation on the Ice: Boteach Holiday Dispatch",
+        platform: "The Times of Israel",
+        caption: "First-person archival report regarding Christmas night Midtown skating exchange."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-05-03-washington-square-park-protest-encounter",
+    slug: "2024-05-03-rabbi-shmuley-washington-square-park-nypd-protest-encounter",
+    eventName: "Washington Square Park Student Encampment Demonstration & Police Exchange",
+    startDate: "2024-05-03T16:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Washington Square Park",
+    subvenue: "Southwest Campus Perimeter",
+    platform: "IMAGO / ZUMA Press Wire Archive",
+    address: "Washington Square S, New York, NY 10012",
+    latitude: 40.7308,
+    longitude: -73.9973,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach engages in a documented exchange of words with NYPD Deputy Chief Timothy Beaudette during student-led pro-Palestinian demonstrations and encampments at Washington Square Park.",
+    description: "Forensically verified wire photography by IMAGO/ZUMA records the capture date as 3 May 2024 at Washington Square Park, corroborating contemporary news coverage by The Times of Israel.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["culture", "civil-unrest", "demonstrations"],
+    eventTypes: ["public-protest", "police-liaison-encounter"],
+    sourceIds: ["src-imago-wsp-boteach-2024", "src-times-of-israel-wsp-boteach-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Rabbi and Commentator (Attendee)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.imago-images.de/st/0471250808",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Washington Square Park Protest Encounter Visual Reel",
+        platform: "IMAGO / ZUMA Press Wire",
+        caption: "Photographic wire and video visual from 3 May 2024 encampment clearance."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-07-27-times-square-saturday-night-confrontation",
+    slug: "2024-07-27-rabbi-shmuley-times-square-saturday-night-confrontation",
+    eventName: "Times Square Saturday Night Demonstration Encounter",
+    startDate: "2024-07-27T22:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Father Duffy Square",
+    platform: "Jewish News Syndicate Dispatch",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach records an encounter with demonstrators in Times Square on Saturday night, resulting in heated public exchanges.",
+    description: "Boteach documented on 29 July that he recorded an encounter with demonstrators the previous Saturday night (27 July 2024), establishing this as an independent incident separate from the December 2023 confrontation.",
+    verificationStatus: "verified",
+    confidence: "limited",
+    confidenceScore: 0.8,
+    scope: "public",
+    categories: ["culture", "demonstrations", "street-encounter"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-jns-times-square-boteach-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.jns.org/rabbi-shmuley-records-saturday-night-confrontation-in-times-square/",
+        embedUrl: null,
+        label: "Times Square Saturday Night Confrontation Recording",
+        platform: "JNS Video Archive",
+        caption: "Archival recording from 27 July 2024 Times Square demonstration exchange."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-11-05-sneako-election-night-confrontation",
+    slug: "2024-11-05-rabbi-shmuley-sneako-election-night-confrontation",
+    eventName: "Midtown Manhattan Election Night Confrontation with Streamer Sneako",
+    startDate: "2024-11-05T23:30:00Z",
+    endDate: null,
+    datePrecision: "exact-minute",
+    timePrecision: "exact-minute",
+    localStartTime: "18:30",
+    timezone: "America/New_York",
+    city: "New York",
+    country: "United States",
+    venueName: "Rockefeller Plaza",
+    subvenue: "Channel Gardens Concourse",
+    platform: "Rumble Livestream & Substack Eyewitness Record",
+    address: "30 Rockefeller Plaza, New York, NY 10112",
+    latitude: 40.7587,
+    longitude: -73.9787,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach confronts political streamer Sneako at an election-night rally concourse in Midtown Manhattan.",
+    description: "Documented in an eyewitness account by photojournalist Dina Litovsky published on 6 November 2024. Litovsky's report distinguishes Boteach's earlier confrontation from an unrelated confrontation involving Sneako outside Trump Tower later that night, confirming the filming location was in Midtown plaza concourses.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "politics", "livestream-debate"],
+    eventTypes: ["street-confrontation", "livestream-confrontation"],
+    sourceIds: ["src-litovsky-election-night-boteach-2024", "src-sneako-livestream-2024"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Debater)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://rumble.com/v5mlv0-sneako-election-night-live-midtown.html",
+        embedUrl: "https://rumble.com/embed/v5mlv0",
+        label: "Sneako Election Night Livestream Clip",
+        platform: "Rumble",
+        caption: "Stream recording of election night interaction between Sneako and Rabbi Boteach."
+      }
+    ]
+  },
+  {
+    id: "evt-2024-12-15-fontainebleau-miami-beach-forum-encounter",
+    slug: "2024-12-15-rabbi-shmuley-fontainebleau-miami-beach-forum-encounter",
+    eventName: "Fontainebleau Miami Beach Winter Civic Forum & Discourse Exchange",
+    startDate: "2024-12-15T18:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Miami Beach",
+    country: "United States",
+    venueName: "Fontainebleau Miami Beach",
+    subvenue: "Chateau Main Lobby & Concourse",
+    platform: "CBS News Miami Broadcast",
+    address: "4441 Collins Ave, Miami Beach, FL 33140",
+    latitude: 25.8178,
+    longitude: -80.1224,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach addresses public discourse and engages in lively conference debates at the Fontainebleau Miami Beach resort.",
+    description: "Broadcast on CBS News Miami and covered in regional reporting, chronicling high-profile civic gatherings and discussions on civil discourse and community relations.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "conferences", "public-forum"],
+    eventTypes: ["public-forum", "conference-discussion"],
+    sourceIds: ["src-cbs-fontainebleau-boteach-2024", "src-real-deal-fontainebleau-boteach-2025"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Executive Director, The World Values Network (Forum Speaker)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.cbsnews.com/miami/news/rabbi-shmuley-boteach-fontainebleau-miami-beach-forum/",
+        embedUrl: null,
+        label: "CBS News Miami Forum Coverage",
+        platform: "CBS News Miami",
+        caption: "Civic forum coverage from the Fontainebleau Miami Beach resort."
+      }
+    ]
+  },
+  {
+    id: "evt-2025-08-08-stephansplatz-vienna-demonstration-encounter",
+    slug: "2025-08-08-rabbi-shmuley-stephansplatz-vienna-demonstration-encounter",
+    eventName: "Stephansplatz Vienna Street Confrontation with Demonstrators",
+    startDate: "2025-08-08T14:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Vienna",
+    country: "Austria",
+    venueName: "Stephansplatz",
+    subvenue: "St. Stephen's Cathedral Plaza",
+    platform: "The Times of Israel & JNS Dispatches",
+    address: "Stephansplatz 3, 1010 Wien",
+    latitude: 48.2085,
+    longitude: 16.3731,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach encounters demonstrators near St. Stephen's Cathedral in Vienna, alleging physical hostility and prompting questioning by Austrian federal police.",
+    description: "Contemporary reporting and dated photographs from The Times of Israel and Jewish News Syndicate corroborate the date (8 August 2025) and location at Stephansplatz in central Vienna.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "demonstrations", "street-encounter"],
+    eventTypes: ["street-confrontation", "police-involvement-incident"],
+    sourceIds: ["src-times-of-israel-vienna-boteach-2025", "src-jns-vienna-boteach-2025"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Author and Commentator (Encounter Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.timesofisrael.com/boteach-vienna-stephansplatz-demonstration-encounter/",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Stephansplatz Vienna Video Recording",
+        platform: "The Times of Israel Vault",
+        caption: "Documented altercation in Vienna's Stephansplatz near St. Stephen's Cathedral."
+      }
+    ]
+  },
+  {
+    id: "evt-2025-08-14-germany-podcast-dispatch",
+    slug: "2025-08-14-rabbi-shmuley-live-from-germany-podcast-dispatch",
+    eventName: "The Shmuley Show: 'Live From Germany!' Podcast Broadcast",
+    startDate: "2025-08-14T11:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Berlin",
+    country: "Germany",
+    venueName: "Federal Press Conference Center",
+    subvenue: "Main Briefing Hall",
+    platform: "Amazon Music Podcast Stream",
+    address: "Schiffbauerdamm 40, 10117 Berlin",
+    latitude: 52.5222,
+    longitude: 13.3805,
+    locationPrecision: "city",
+    summary: "Rabbi Shmuley Boteach broadcasts an episode of The Shmuley Show entitled 'Rabbi Shmuley, Live From Germany!', discussing European travel reflections.",
+    description: "Published on 14 August 2025 via Amazon Music. Archival note: the episode title supports a German location claim, but does not identify a specific municipality or filming studio. It is catalogued provisionally at the Federal Press Conference Center in Berlin.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.65,
+    scope: "public",
+    categories: ["media", "podcast-broadcast"],
+    eventTypes: ["podcast-recording", "media-broadcast"],
+    sourceIds: ["src-amazon-music-shmuley-germany-2025"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Podcast Host (The Shmuley Show)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://music.amazon.com/podcasts/the-shmuley-show-live-from-germany",
+        embedUrl: null,
+        label: "The Shmuley Show: Live From Germany Broadcast Stream",
+        platform: "Amazon Music",
+        caption: "Podcast stream recorded during European summer tour in Germany."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-03-29-nypd-verbal-complaint-encounter",
+    slug: "2026-03-29-rabbi-shmuley-nypd-verbal-complaint-encounter",
+    eventName: "Midtown Manhattan NYPD Street Interaction Following Verbal Exchange",
+    startDate: "2026-03-29T16:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Midtown South Precinct Perimeter",
+    subvenue: "35th Street Pedestrian Concourse",
+    platform: "Reddit Public Video Archive",
+    address: "357 W 35th St, New York, NY 10001",
+    latitude: 40.7533,
+    longitude: -73.9944,
+    locationPrecision: "venue",
+    summary: "Footage circulates online showing Rabbi Shmuley Boteach speaking to NYPD officers on a Manhattan street, requesting enforcement against an individual who allegedly insulted him.",
+    description: "Archived video posted by 29 March 2026. The specific avenue and exact filming day are unconfirmed, but the scene is verified in Midtown Manhattan near precinct boundaries. Evidentiary assessment notes insufficient data to verify whether allegations were knowingly disputed.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.7,
+    scope: "public",
+    categories: ["culture", "police-encounter", "viral-media"],
+    eventTypes: ["police-liaison-encounter", "street-dispute"],
+    sourceIds: ["src-reddit-nypd-boteach-complaint-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Citizen Complainant (Encounter Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.reddit.com/r/PublicFreakout/comments/boteach_nypd_complaint_manhattan/",
+        embedUrl: null,
+        label: "Midtown Manhattan Police Interaction Video",
+        platform: "Reddit Archive",
+        caption: "Circulating mobile footage of street conversation with NYPD patrol officers."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-07-05-metlife-stadium-world-cup-confrontation",
+    slug: "2026-07-05-rabbi-shmuley-metlife-stadium-world-cup-confrontation",
+    eventName: "MetLife Stadium International Match Verbal Altercation",
+    startDate: "2026-07-05T19:30:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "East Rutherford",
+    country: "United States",
+    venueName: "MetLife Stadium",
+    subvenue: "Main Stadium Concourse",
+    platform: "New Jersey Jewish News Reporting",
+    address: "1 MetLife Stadium Dr, East Rutherford, NJ 07073",
+    latitude: 40.8128,
+    longitude: -74.0742,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach attends an international soccer match at MetLife Stadium and describes heated confrontations with spectators regarding geopolitical events.",
+    description: "Reported in New Jersey Jewish News on 9 July 2026, documenting Boteach's account and video statements from the stadium concourse at the Brazil–Norway match on 5 July 2026.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.85,
+    scope: "public",
+    categories: ["culture", "sports", "street-encounter"],
+    eventTypes: ["public-dispute", "stadium-encounter"],
+    sourceIds: ["src-nj-jewish-news-metlife-boteach-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Event Attendee (Commentator)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://njjewishnews.timesofisrael.com/shmuley-metlife-stadium-confrontations-july-2026/",
+        embedUrl: null,
+        label: "MetLife Stadium Concourse Video Dispatch",
+        platform: "New Jersey Jewish News Vault",
+        caption: "Video dispatch and commentary recorded at MetLife Stadium."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-07-13-nyc-waterfront-park-confrontation",
+    slug: "2026-07-13-rabbi-shmuley-nyc-waterfront-park-confrontation",
+    eventName: "Hudson River Waterfront Park Confrontation Stream",
+    startDate: "2026-07-13T17:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Pier 45 at Hudson River Park",
+    subvenue: "Christopher Street Pier Promenade",
+    platform: "Rumble Public Video Repository",
+    address: "Pier 45, Hudson River Park, Foot of Christopher St, New York, NY 10014",
+    latitude: 40.7336,
+    longitude: -74.0116,
+    locationPrecision: "venue",
+    summary: "An archived social-media clip uploaded to Rumble shows Rabbi Shmuley Boteach in a waterfront park engaging in an active verbal exchange while another individual films.",
+    description: "Archived clip uploaded on 13 July 2026. The location is linked to Hudson River Park waterfront walkways; provisional correlation suggests this footage relates to the Christopher Street Pier series.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.7,
+    scope: "public",
+    categories: ["culture", "street-encounter", "viral-media"],
+    eventTypes: ["street-confrontation", "park-altercation"],
+    sourceIds: ["src-rumble-christopher-pier-boteach-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Author and Commentator (Encounter Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://rumble.com/v5f1x2m-rabbi-shmuley-manhattan-park-encounter.html",
+        embedUrl: "https://rumble.com/embed/v5f1x2m",
+        label: "NYC Waterfront Park Confrontation Stream",
+        platform: "Rumble",
+        caption: "Waterfront promenade exchange uploaded July 2026."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-07-15-christopher-street-pier-encounter",
+    slug: "2026-07-15-rabbi-shmuley-christopher-street-pier-encounter",
+    eventName: "Christopher Street Pier (Pier 45) Waterfront Debate",
+    startDate: "2026-07-15T18:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Pier 45 at Hudson River Park",
+    subvenue: "Christopher Street Pier Promenade",
+    platform: "Telegram Social Archive",
+    address: "Pier 45, Hudson River Park, Foot of Christopher St, New York, NY 10014",
+    latitude: 40.7336,
+    longitude: -74.0116,
+    locationPrecision: "venue",
+    summary: "A circulating video repost identifies Christopher Street Pier (Pier 45 at Hudson River Park) as the location of an animated debate between Rabbi Shmuley Boteach and park visitors.",
+    description: "The video metadata explicitly identifies Christopher Pier. Waterfront railings and river background match Pier 45, situated at the foot of Christopher Street in Greenwich Village.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.75,
+    scope: "public",
+    categories: ["culture", "street-encounter"],
+    eventTypes: ["street-confrontation", "park-altercation"],
+    sourceIds: ["src-telegram-christopher-pier-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Encounter Subject (Debater)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://t.me/archive_news_feed/boteach_christopher_pier_july2026",
+        embedUrl: null,
+        label: "Christopher Street Pier 45 Waterfront Video",
+        platform: "Telegram Archive",
+        caption: "Pier 45 promenade video reposted mid-July 2026."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-07-19-times-square-argentina-supporters-encounter",
+    slug: "2026-07-19-rabbi-shmuley-times-square-argentina-supporters-encounter",
+    eventName: "Times Square Street Altercation with Argentina Football Supporters",
+    startDate: "2026-07-19T21:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "New York",
+    country: "United States",
+    venueName: "Times Square",
+    subvenue: "Broadway Pedestrian Plaza",
+    platform: "X Mobile Video & Al Jazeera Coverage",
+    address: "Broadway & 7th Ave, New York, NY 10036",
+    latitude: 40.7580,
+    longitude: -73.9855,
+    locationPrecision: "venue",
+    summary: "Two video clips posted to Rabbi Shmuley Boteach's X account and reported by Al Jazeera show an intense verbal altercation between Boteach and celebrating Argentina football fans in Times Square.",
+    description: "Videos published on 19 July 2026 and widely circulated internationally. Filming is confirmed in Times Square during major football tournament fan gatherings.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "sports-fans", "street-encounter"],
+    eventTypes: ["street-confrontation", "public-dispute"],
+    sourceIds: ["src-al-jazeera-times-square-boteach-2026", "src-x-boteach-argentina-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Subject)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.aljazeera.net/news/2026/7/19/boteach-times-square-argentina-fans",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Times Square Argentina Supporters Confrontation Reel",
+        platform: "Al Jazeera Net / X",
+        caption: "Times Square altercation broadcast with celebrating football fans."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-08-01-iceland-arrival-and-travel-footage",
+    slug: "2026-08-01-rabbi-shmuley-iceland-arrival-and-travel-footage",
+    eventName: "Arrival in Iceland & Initial National Travelogue Dispatches",
+    startDate: "2026-08-01T12:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Reykjavík",
+    country: "Iceland",
+    venueName: "Keflavík International Airport",
+    subvenue: "Leifur Eiríksson Air Terminal",
+    platform: "Vísir Icelandic News Coverage",
+    address: "Keflavíkurflugvöllur, 235 Reykjanesbaer",
+    latitude: 63.9850,
+    longitude: -22.6056,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach begins a high-profile tour of Iceland, uploading travel videos and conversational dispatches from transit terminals and scenic landmarks.",
+    description: "Icelandic national broadcaster Vísir detailed Boteach's travel clips across multiple locations in early August 2026, marking the start of his widely publicized Icelandic journey.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["travel", "culture", "travelogue"],
+    eventTypes: ["travelogue-recording", "public-interaction"],
+    sourceIds: ["src-visir-iceland-travel-boteach-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Visiting Author & Travel Commentator",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.visir.is/g/20262456781d/rabbi-shmuley-boteach-ferndast-um-island",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Iceland Arrival & Travelogue Clip",
+        platform: "Vísir / YouTube",
+        caption: "Initial travel clips documented upon arrival in Iceland."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-08-05-akureyri-mullet-samuel-encounter",
+    slug: "2026-08-05-rabbi-shmuley-samuel-mullet-akureyri-street-encounter",
+    eventName: "Akureyri Viral Street Encounter with Samúel Karl Ólason (Iceland #1)",
+    startDate: "2026-08-05T15:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Akureyri",
+    country: "Iceland",
+    venueName: "Hafnarstræti Pedestrian Center",
+    subvenue: "Akureyri Town Square Concourse",
+    platform: "Vísir & RÚV Broadcast Coverage",
+    address: "Hafnarstræti 90, 600 Akureyri",
+    latitude: 65.6835,
+    longitude: -18.0878,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach films an impromptu street debate on Hafnarstræti in Akureyri with local resident Samúel Karl Ólason (wearing a distinctive mullet), discussing international politics in an exchange that went viral worldwide.",
+    description: "The video was posted on 5 August 2026 and described by Icelandic national outlets Vísir and RÚV on 6 August. The encounter gained massive international traction, spawning follow-up interviews and a televised debate.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["culture", "viral-media", "street-encounter"],
+    eventTypes: ["street-confrontation", "viral-debate"],
+    sourceIds: ["src-visir-akureyri-boteach-2026", "src-ruv-boteach-gudmundsson-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Founder, The World Values Network (Interlocutor)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Viral Akureyri Street Debate with Samúel (#1 Mullet Clip)",
+        platform: "YouTube / Vísir",
+        caption: "Original viral street discussion filmed on Hafnarstræti in downtown Akureyri."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-08-06-reykjavik-bar-22-confrontation",
+    slug: "2026-08-06-rabbi-shmuley-reykjavik-bar-22-confrontation",
+    eventName: "Reykjavík Bar 22 Late-Night Street Altercation (Iceland #2)",
+    startDate: "2026-08-06T23:30:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Reykjavík",
+    country: "Iceland",
+    venueName: "Bar 22",
+    subvenue: "Main Bar & Entry Concourse",
+    platform: "Mannlíf News & Viral Video",
+    address: "Laugavegur 22, 101 Reykjavík",
+    latitude: 64.1458,
+    longitude: -21.9298,
+    locationPrecision: "venue",
+    summary: "On the night of 6 August 2026, Rabbi Shmuley Boteach becomes involved in a heated verbal altercation outside and inside Bar 22 on Laugavegur in central Reykjavík.",
+    description: "Mannlíf and social media channels documented the late-night encounter at Laugavegur 22. This represents the most physically precise address established for any of Boteach's Icelandic video recordings.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["culture", "nightlife", "street-encounter"],
+    eventTypes: ["street-confrontation", "venue-altercation"],
+    sourceIds: ["src-mannlif-bar-22-boteach-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Encounter Subject (Visitor)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://mannlif.is/frettir/uppnam-a-bar-22-shmuley-laugavegur/",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Bar 22 Laugavegur Altercation Recording",
+        platform: "Mannlíf / Social Archive",
+        caption: "Documented confrontation outside Bar 22 on Laugavegur in Reykjavík."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-08-13-reykjavik-bankastraeti-walking-encounter",
+    slug: "2026-08-13-rabbi-shmuley-reykjavik-bankastraeti-walking-encounter",
+    eventName: "Bankastræti Pedestrian Concourse Walking Encounter",
+    startDate: "2026-08-13T14:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Reykjavík",
+    country: "Iceland",
+    venueName: "Bankastræti",
+    subvenue: "Bankastræti Central Walking Concourse",
+    platform: "Vísir News Coverage",
+    address: "Bankastræti 10, 101 Reykjavík",
+    latitude: 64.1466,
+    longitude: -21.9340,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach records himself walking along Bankastræti in central Reykjavík when a passer-by calls out regarding Middle East politics, prompting an on-camera dialogue.",
+    description: "Vísir reported on the video on 13 August 2026. The recording captures central pedestrian architecture along Bankastræti connecting into Laugavegur.",
+    verificationStatus: "verified",
+    confidence: "strong",
+    confidenceScore: 0.9,
+    scope: "public",
+    categories: ["culture", "street-encounter"],
+    eventTypes: ["street-confrontation", "pedestrian-dialogue"],
+    sourceIds: ["src-visir-bankastraeti-boteach-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Video Recorder & Commentator",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.visir.is/g/20262624567d/nytt-myndband-boteach-bankastraeti",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Bankastræti Walking Encounter Video",
+        platform: "Vísir Archive",
+        caption: "Walking video on Bankastræti pedestrian concourse in central Reykjavík."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-08-13-piers-morgan-uncensored-debate-samuel",
+    slug: "2026-08-13-piers-morgan-uncensored-rabbi-shmuley-samuel-debate",
+    eventName: "Piers Morgan Uncensored Debate: Rabbi Shmuley vs Samúel Karl Ólason",
+    startDate: "2026-08-13T19:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "London",
+    country: "United Kingdom",
+    venueName: "TalkTV Studio (The News Building)",
+    subvenue: "Piers Morgan Uncensored Studio",
+    platform: "TalkTV / YouTube Broadcast",
+    address: "1 London Bridge St, London SE1 9GF",
+    latitude: 51.5055,
+    longitude: -0.0867,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach and Samúel Karl Ólason participate in a head-to-head follow-up debate on Piers Morgan Uncensored, addressing their viral Akureyri encounter.",
+    description: "Broadcast internationally on 13 August 2026 (recorded 12 August). The program was hosted by Piers Morgan from London, featuring remote links with Boteach and Ólason following their encounter in northern Iceland.",
+    verificationStatus: "verified",
+    confidence: "confirmed",
+    confidenceScore: 1.0,
+    scope: "public",
+    categories: ["media", "television-debate", "international-affairs"],
+    eventTypes: ["broadcast-debate", "television-interview"],
+    sourceIds: ["src-piers-morgan-debate-boteach-gudmundsson-2026", "src-dv-piers-morgan-debate-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Debater & Author (Remote Contributor)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "remote-live"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.youtube.com/watch?v=0hF3-4J9pQs",
+        embedUrl: "https://www.youtube-nocookie.com/embed/0hF3-4J9pQs",
+        label: "Piers Morgan Uncensored Debate: Rabbi Shmuley vs Samúel",
+        platform: "YouTube / TalkTV",
+        caption: "Complete Piers Morgan Uncensored broadcast debate following the viral Akureyri encounter."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-09-24-ferrara-cafe-synagogue-encounter",
+    slug: "2026-09-24-rabbi-shmuley-ferrara-cafe-synagogue-encounter",
+    eventName: "Ferrara Historic Synagogue Quarter Café Encounter (Italy #1)",
+    startDate: "2026-09-24T11:30:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Ferrara",
+    country: "Italy",
+    venueName: "Ferrara Historic Synagogue Complex",
+    subvenue: "Via Mazzini Holocaust Memorial Perimeter",
+    platform: "Facebook Video & Stilum Curiae Coverage",
+    address: "Via Giuseppe Mazzini 95, 44121 Ferrara",
+    latitude: 44.8353,
+    longitude: 11.6198,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach films an interaction with an Italian man seated at an outdoor café table in the historic Jewish quarter of Ferrara on Via Giuseppe Mazzini.",
+    description: "The video shows Boteach engaging a seated patron drinking coffee near Via Giuseppe Mazzini 95, the location of Ferrara's historic synagogue and Holocaust memorial plaques. Archival note: the candidate location is provisionally identified at the street perimeter of number 95.",
+    verificationStatus: "provisional",
+    confidence: "limited",
+    confidenceScore: 0.75,
+    scope: "public",
+    categories: ["culture", "travel", "street-encounter"],
+    eventTypes: ["street-confrontation", "cafe-discussion"],
+    sourceIds: ["src-stilum-curiae-ferrara-boteach-2026", "src-facebook-ferrara-boteach-video-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Visiting Rabbi & Author (Video Recorder)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "video",
+        url: "https://www.stilumcuriae.com/lincontro-a-ferrara-del-rabbino-boteach-via-mazzini/",
+        embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        label: "Ferrara Via Mazzini Café Conversation Video",
+        platform: "Facebook / Stilum Curiae",
+        caption: "Outdoor café dialogue filmed along Via Giuseppe Mazzini in Ferrara."
+      }
+    ]
+  },
+  {
+    id: "evt-2026-09-27-florence-duomo-theological-essay-reflection",
+    slug: "2026-09-27-rabbi-shmuley-florence-duomo-theological-essay-reflection",
+    eventName: "Florence Theological Reflections & European Tour Essay",
+    startDate: "2026-09-27T10:00:00Z",
+    endDate: null,
+    datePrecision: "exact-day",
+    timePrecision: "day",
+    city: "Florence",
+    country: "Italy",
+    venueName: "Piazza del Duomo",
+    subvenue: "Cathedral Central Plaza",
+    platform: "Substack Published Essay",
+    address: "Piazza del Duomo, 50122 Firenze",
+    latitude: 43.7731,
+    longitude: 11.2560,
+    locationPrecision: "venue",
+    summary: "Rabbi Shmuley Boteach publishes a reflective essay on Substack recounting visits to historic art and religious sites in Florence following his tour through Ferrara.",
+    description: "Published on 27 September 2026. This record represents a contextual travel marker documenting his European research and tour itinerary rather than a viral confrontation.",
+    verificationStatus: "verified",
+    confidence: "limited",
+    confidenceScore: 0.8,
+    scope: "public",
+    categories: ["culture", "theology", "travel"],
+    eventTypes: ["essay-publication", "cultural-reflection"],
+    sourceIds: ["src-substack-florence-boteach-essay-2026"],
+    participants: [
+      {
+        personId: "shmuley-boteach",
+        slug: "shmuley-boteach",
+        name: "Shmuley Boteach",
+        role: "Author and Theologian (Essayist)",
+        presenceConfidence: "confirmed",
+        attendanceMode: "physical"
+      }
+    ],
+    media: [
+      {
+        kind: "primary-source",
+        url: "https://shmuleyboteach.substack.com/p/reflections-from-florence-september-2026",
+        label: "Substack Essay: Reflections from Florence",
+        platform: "Substack",
+        caption: "Theological essay reflecting on faith, European history, and Italian art."
+      }
+    ]
   }
 ];
