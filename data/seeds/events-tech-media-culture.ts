@@ -1805,8 +1805,8 @@ export const techMediaCultureEvents: EventRecord[] = [
     media: [
       {
         kind: "video",
-        url: "https://www.youtube.com/watch?v=0hF3-4J9pQs",
-        embedUrl: "https://www.youtube-nocookie.com/embed/0hF3-4J9pQs",
+        url: "https://www.youtube.com/watch?v=9QD0drvm1DE",
+        embedUrl: "https://www.youtube-nocookie.com/embed/9QD0drvm1DE",
         label: "Piers Morgan Uncensored Debate: Rabbi Shmuley vs Samúel",
         platform: "YouTube / TalkTV",
         caption: "Complete Piers Morgan Uncensored broadcast debate following the viral Akureyri encounter."

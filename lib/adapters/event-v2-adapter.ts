@@ -3,6 +3,7 @@ import type {
   EventEditorialControls,
   EventFactualFlags,
   EventPerson,
+  EventPersonLocation,
   EventV2,
   InvolvementType,
   LocationPrecisionV2,
@@ -158,55 +159,52 @@ export function upgradeLegacyToV2(legacy: EventRecord): EventV2 {
       presenceConfidence: parseConfidence(p.presenceConfidence),
       roleConfidence: parseConfidence(p.roleConfidence),
       locations: (() => {
-        if (p.latitude !== undefined) {
+        const sourceIds = Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [];
+        const parsedConfidence = parseConfidence(legacy.confidence);
+
+        function createLocation(lat: number, lng: number, prec: LocationPrecisionV2): EventPersonLocation {
+          const locationId = `epl-${legacy.id}-${participantKey}-0`;
+          return {
+            id: locationId,
+            eventPersonId: `ep-${legacy.id}-${participantKey}`,
+            latitude: lat,
+            longitude: lng,
+            coordinatePrecision: prec,
+            isPrincipalLocation: true,
+            locationBasis: "archival-record",
+            confidence: parsedConfidence,
+            sourceIds: [...sourceIds],
+            sources: sourceIds.map((sid, sIdx) => ({
+              id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
+              eventPersonLocationId: locationId,
+              sourceId: sid,
+              confidence: parsedConfidence,
+            })),
+            publicVisibility: locationPublicVis,
+          };
+        }
+
+        if (p.latitude !== undefined || p.longitude !== undefined) {
           if (p.latitude != null && p.longitude != null) {
             return [
-              {
-                id: `epl-${legacy.id}-${participantKey}-0`,
-                eventPersonId: `ep-${legacy.id}-${participantKey}`,
-                latitude: p.latitude,
-                longitude: p.longitude,
-                coordinatePrecision: mapLegacyLocationPrecision(p.coordinatePrecision || legacy.locationPrecision),
-                isPrincipalLocation: true,
-                locationBasis: "archival-record",
-                confidence: parseConfidence(legacy.confidence),
-                sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
-                sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
-                  id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
-                  eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
-                  sourceId: sid,
-                  confidence: parseConfidence(legacy.confidence),
-                })),
-                publicVisibility: locationPublicVis,
-              },
+              createLocation(
+                p.latitude,
+                p.longitude,
+                mapLegacyLocationPrecision(p.coordinatePrecision || legacy.locationPrecision)
+              ),
             ];
           }
-          return [];
+          if (p.latitude != null || p.longitude != null) {
+            console.warn(
+              `[event-v2-adapter] Participant ${p.personId || p.name} on event ${legacy.id} has partial coordinates (lat: ${p.latitude}, lng: ${p.longitude}); falling back to event location.`
+            );
+          }
         }
         if (p.attendanceMode === "remote-live" || p.attendanceMode === "remote-recorded") {
           return [];
         }
         return legacy.latitude != null && legacy.longitude != null
-          ? [
-              {
-                id: `epl-${legacy.id}-${participantKey}-0`,
-                eventPersonId: `ep-${legacy.id}-${participantKey}`,
-                latitude: legacy.latitude,
-                longitude: legacy.longitude,
-                coordinatePrecision: mapLegacyLocationPrecision(legacy.locationPrecision),
-                isPrincipalLocation: true,
-                locationBasis: "archival-record",
-                confidence: parseConfidence(legacy.confidence),
-                sourceIds: Array.isArray(legacy.sourceIds) ? [...legacy.sourceIds] : [],
-                sources: (legacy.sourceIds || []).map((sid, sIdx) => ({
-                  id: `epls-${legacy.id}-${participantKey}-0-${sIdx}`,
-                  eventPersonLocationId: `epl-${legacy.id}-${participantKey}-0`,
-                  sourceId: sid,
-                  confidence: parseConfidence(legacy.confidence),
-                })),
-                publicVisibility: locationPublicVis,
-              },
-            ]
+          ? [createLocation(legacy.latitude, legacy.longitude, mapLegacyLocationPrecision(legacy.locationPrecision))]
           : [];
       })(),
     };

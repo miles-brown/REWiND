@@ -176,7 +176,7 @@ async function syncCorpus() {
       });
     });
 
-    const totalMediaAssets = allEvents.reduce((acc, e) => acc + (e.media?.length || 0), 0);
+    const totalMediaAssets = eventsCorpus.reduce((acc, e) => acc + (e.media?.length || 0), 0);
     console.log("================================================================================");
     console.log("📊 DRY-RUN INTEGRITY SIMULATION REPORT:");
     console.log("================================================================================");
@@ -776,7 +776,7 @@ async function syncCorpus() {
             eventId: evt.id,
             mediaType: m.kind || "video",
             url: m.url,
-            thumbnailUrl: null,
+            thumbnailUrl: m.thumbnailUrl || null,
             caption: m.caption || m.label || null,
             sourceId: assignedSourceId,
             durationSeconds: m.durationSeconds || null,

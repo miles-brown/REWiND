@@ -1817,8 +1817,6 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
     venueAreas: [
       { id: "area-ferrara-synagogue-street", name: "Via Mazzini Holocaust Memorial Perimeter", areaType: "outdoor" },
       { id: "area-ferrara-synagogue-sanctuary", name: "German Synagogue Sanctuary", areaType: "hall" },
-      { id: "area-bar-mazzini-91", name: "Bar Mazzini (Via Giuseppe Mazzini 91 - Lead Candidate)", areaType: "outdoor" },
-      { id: "area-caffe-mazzini-109", name: "Caffè Mazzini (Via Giuseppe Mazzini 109 - Secondary Candidate)", areaType: "outdoor" },
     ],
   },
   "piazza del duomo": {

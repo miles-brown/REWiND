@@ -249,8 +249,8 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
 
   const piers = timeline.find((e) => e.slug.includes("piers-morgan"));
   assert.ok(piers, "Must include Piers Morgan debate");
-  assert.ok(piers.media && piers.media[0].embedUrl, "Piers Morgan debate must have embedUrl");
-  assert.ok(!piers.media[0].embedUrl.includes("dQw4w9WgXcQ"), "Piers Morgan debate must not use placeholder video");
+  assert.ok(piers.media && piers.media[0]?.embedUrl, "Piers Morgan debate must have embedUrl");
+  assert.ok(!piers.media[0]?.embedUrl?.includes("dQw4w9WgXcQ"), "Piers Morgan debate must not use placeholder video");
 
   // Strict check that no media item in the entire timeline uses Rickroll placeholder dQw4w9WgXcQ
   for (const ev of timeline) {

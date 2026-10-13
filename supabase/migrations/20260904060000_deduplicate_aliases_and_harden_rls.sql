@@ -22,10 +22,15 @@ ALTER TABLE person_aliases
 CREATE UNIQUE INDEX IF NOT EXISTS idx_person_aliases_unique_lower
   ON person_aliases (person_id, lower(alias));
 
--- 3. Harden RLS on REWiND's citations table
-ALTER TABLE citations ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public read on citations" ON citations;
-CREATE POLICY "Allow public read on citations" ON citations FOR SELECT USING (true);
+-- 3. Harden RLS on REWiND's citations table (guard if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'citations') THEN
+    ALTER TABLE citations ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Allow public read on citations" ON citations;
+    CREATE POLICY "Allow public read on citations" ON citations FOR SELECT USING (true);
+  END IF;
+END $$;
 
 -- 4. Harden RLS on legacy reference tables with permissive non-blocking policies
 -- (Ensures zero data is overwritten or modified while satisfying Supabase linter 0013_rls_disabled_in_public)
@@ -53,10 +58,10 @@ BEGIN
       EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'allow_read_' || t, t);
       EXECUTE format('CREATE POLICY %I ON %I FOR SELECT USING (true);', 'allow_read_' || t, t);
 
-      -- For user-submitted tables, allow insert for authenticated and anon roles to preserve legacy application behavior
+      -- For user-submitted tables, allow insert for authenticated users with valid auth identity
       IF t IN ('community_posts', 'contributions', 'post_replies') THEN
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'allow_insert_' || t, t);
-        EXECUTE format('CREATE POLICY %I ON %I FOR INSERT WITH CHECK (true);', 'allow_insert_' || t, t);
+        EXECUTE format('CREATE POLICY %I ON %I FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);', 'allow_insert_' || t, t);
       END IF;
     END IF;
   END LOOP;
