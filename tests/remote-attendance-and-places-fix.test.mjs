@@ -50,13 +50,17 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
 
     it("resolvePlace and resolvePlaceAsync reject malformed compound countries with empty first component", async () => {
       const resolveModule = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
-      const resSync = resolveModule.resolvePlace("Some Venue", "Toronto", "/ Canada");
+      const resSync = resolveModule.resolvePlace("Some Venue", "Toronto", "/ Canada", 43.6532, -79.3832);
       assert.equal(resSync.placeId, "plc-unknown-general");
       assert.equal(resSync.confidence, 0);
+      assert.equal(resSync.latitude, null);
+      assert.equal(resSync.longitude, null);
 
-      const resAsync = await resolveModule.resolvePlaceAsync("Some Venue", "Toronto", "; Canada", undefined, undefined, null);
+      const resAsync = await resolveModule.resolvePlaceAsync("Some Venue", "Toronto", "; Canada", 43.6532, -79.3832, null);
       assert.equal(resAsync.placeId, "plc-unknown-general");
       assert.equal(resAsync.confidence, 0);
+      assert.equal(resAsync.latitude, null);
+      assert.equal(resAsync.longitude, null);
     });
 
     it("getGeographicHierarchyStrict never produces compound slash country nodes", async () => {
@@ -225,20 +229,43 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
     it("localizeEventForPersonParticipant sets remote coordinates and venue on attendee timeline", () => {
       const { localizeEventForPersonParticipant, normalizeRemoteLocation } = eventsModule;
 
-      // Verify normalizeRemoteLocation sanitizes malformed JSONB and gates coordinates by publicVisibility
+      // Verify normalizeRemoteLocation sanitizes malformed JSONB and gates coordinates & descriptive fields by publicVisibility
       assert.equal(normalizeRemoteLocation(null), undefined);
       assert.equal(normalizeRemoteLocation("invalid"), undefined);
-      const sanitizedLoc = normalizeRemoteLocation({
+      const restrictedLoc = normalizeRemoteLocation({
         city: "  Zurich  ",
         connectionType: "invalid-type",
         latitude: 47.3769,
         longitude: 8.5417,
         publicVisibility: "restricted",
       });
-      assert.equal(sanitizedLoc?.city, "Zurich");
-      assert.equal(sanitizedLoc?.connectionType, undefined);
-      assert.equal(sanitizedLoc?.latitude, null);
-      assert.equal(sanitizedLoc?.longitude, null);
+      assert.equal(restrictedLoc?.city, undefined);
+      assert.equal(restrictedLoc?.connectionType, undefined);
+      assert.equal(restrictedLoc?.latitude, null);
+      assert.equal(restrictedLoc?.longitude, null);
+
+      const omittedVisLoc = normalizeRemoteLocation({
+        city: "  Zurich  ",
+        connectionType: "invalid-type",
+        latitude: 47.3769,
+        longitude: 8.5417,
+      });
+      assert.equal(omittedVisLoc?.city, "Zurich");
+      assert.equal(omittedVisLoc?.connectionType, undefined);
+      assert.equal(omittedVisLoc?.latitude, null);
+      assert.equal(omittedVisLoc?.longitude, null);
+
+      const exactVisLoc = normalizeRemoteLocation({
+        city: "Zurich",
+        connectionType: "satellite-feed",
+        latitude: 47.3769,
+        longitude: 8.5417,
+        publicVisibility: "public-exact",
+      });
+      assert.equal(exactVisLoc?.city, "Zurich");
+      assert.equal(exactVisLoc?.connectionType, "satellite-feed");
+      assert.equal(exactVisLoc?.latitude, 47.3769);
+      assert.equal(exactVisLoc?.longitude, 8.5417);
 
       const studioEvent = {
         id: "evt-broadcast-2020",
@@ -317,6 +344,78 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(remotePerspective.participantNarrative.includes("via satellite feed"));
       assert.ok(remotePerspective.participantNarrative.includes("BBC Television Centre, London"));
     });
+
+    it("remote places with partial or coordinate-only data do not inherit studio place fields", () => {
+      const { localizeEventForPersonParticipant } = eventsModule;
+      const localize = (remoteLocation) =>
+        localizeEventForPersonParticipant(
+          {
+            id: "evt-studio-regression",
+            slug: "studio-regression",
+            eventName: "Studio Interview",
+            startDate: "2020-04-15T20:00:00Z",
+            venueName: "BBC Television Centre",
+            city: "London",
+            country: "United Kingdom",
+            latitude: 51.5126,
+            longitude: -0.2263,
+            summary: "Studio interview with a remote guest.",
+            verificationStatus: "verified",
+            confidence: "confirmed",
+            sourceIds: ["src-1"],
+            participants: [
+              {
+                personId: "person-remote",
+                slug: "person-remote",
+                name: "Remote Guest",
+                role: "Guest",
+                capacityTitle: "Guest",
+                attendanceMode: "remote-live",
+                isCentralFigure: false,
+                precedenceOrder: 2,
+                remoteLocation,
+              },
+            ],
+          },
+          "person-remote"
+        );
+
+      const cityOnly = localize({ city: "Burbank" });
+      assert.equal(cityOnly.venueName, "Remote: Burbank");
+      assert.equal(cityOnly.city, "Burbank");
+      assert.equal(cityOnly.country, "");
+      assert.equal(cityOnly.latitude, null);
+      assert.equal(cityOnly.mainVenueName, "BBC Television Centre");
+      assert.equal(cityOnly.mainCountry, "United Kingdom");
+
+      const countryOnly = localize({ country: "Israel" });
+      assert.equal(countryOnly.venueName, "Remote: Israel");
+      assert.equal(countryOnly.city, "");
+      assert.equal(countryOnly.country, "Israel");
+      assert.equal(countryOnly.latitude, null);
+      assert.equal(countryOnly.mainVenueName, "BBC Television Centre");
+      assert.equal(countryOnly.mainCity, "London");
+
+      const coordinatesOnly = localize({ latitude: 34.18, longitude: -118.31 });
+      assert.equal(coordinatesOnly.venueName, undefined);
+      assert.equal(coordinatesOnly.city, "");
+      assert.equal(coordinatesOnly.country, "");
+      assert.equal(coordinatesOnly.latitude, 34.18);
+      assert.equal(coordinatesOnly.longitude, -118.31);
+      assert.equal(coordinatesOnly.mainVenueName, "BBC Television Centre");
+      assert.equal(coordinatesOnly.mainCity, "London");
+      assert.equal(coordinatesOnly.mainCountry, "United Kingdom");
+
+      const noOrigin = localize(undefined);
+      assert.equal(noOrigin.venueName, undefined);
+      assert.equal(noOrigin.city, "");
+      assert.equal(noOrigin.country, "");
+      assert.equal(noOrigin.latitude, null);
+      assert.equal(noOrigin.longitude, null);
+      assert.equal(noOrigin.mainVenueName, "BBC Television Centre");
+      assert.equal(noOrigin.mainCity, "London");
+      assert.equal(noOrigin.mainCountry, "United Kingdom");
+    });
   });
 
   describe("5. Mobile Vessels as Venues Architecture", () => {
@@ -363,10 +462,20 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
     it("LOCATION_STANDARD.md codifies Mobile Vessels and Dynamic Geocoding", () => {
       const locPath = path.join(root, "docs/standards/LOCATION_STANDARD.md");
       const content = fs.readFileSync(locPath, "utf-8");
+      const vesselMigrationPath = path.join(
+        root,
+        "supabase/migrations/20260904070000_mobile_venues_and_vessel_architecture.sql"
+      );
+      const vesselMigrationSql = fs.readFileSync(vesselMigrationPath, "utf-8");
 
       assert.ok(content.includes("5. Mobile Vessels & Dynamic Geocoding Architecture"), "Must document Mobile Vessels in Location Standard");
       assert.ok(content.includes("address_id` is strictly `null`"), "Must enforce address nullability invariant");
       assert.ok(content.includes("home_base_place_id"), "Must document home base anchor");
+      assert.ok(
+        vesselMigrationSql.includes("venues_mobile_vessel_no_address_check") &&
+          vesselMigrationSql.includes("CHECK (NOT is_mobile_vessel OR address_id IS NULL)"),
+        "Mobile vessel migration must enforce CHECK (NOT is_mobile_vessel OR address_id IS NULL) on venues"
+      );
     });
 
     it("EVENT_MODEL_V2.md codifies Section 8 on Mobile Vessels, Multi-Stage Festivals, and Remote Localization", () => {

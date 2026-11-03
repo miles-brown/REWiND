@@ -213,11 +213,6 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                           >
                             <span aria-hidden="true">📡</span> Remote • {remoteLabel}
                             {overlayText ? ` ["${overlayText}"]` : ""}
-                            {participant.remoteLocation?.visibleLocationNotes && (
-                              <span className="sr-only">
-                                {" "}({participant.remoteLocation.visibleLocationNotes})
-                              </span>
-                            )}
                           </span>
                         )}
                       </div>
@@ -228,6 +223,9 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                         {participant.presenceConfidence ? ` · ${participant.presenceConfidence}` : ""}
                         {isRemote && participant.remoteLocation?.connectionType
                           ? ` · via ${participant.remoteLocation.connectionType.replaceAll("-", " ")}`
+                          : ""}
+                        {isRemote && participant.remoteLocation?.visibleLocationNotes
+                          ? ` · ${participant.remoteLocation.visibleLocationNotes}`
                           : ""}
                       </small>
                     </div>

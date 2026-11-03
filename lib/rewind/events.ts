@@ -97,14 +97,18 @@ export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefi
     const t = v.trim();
     return t ? t : undefined;
   };
-  const venueName = str(raw.venueName);
-  const city = str(raw.city);
-  const country = str(raw.country);
-  const label = str(raw.label);
-  const overlayText = str(raw.overlayText);
-  const visibleLocationNotes = str(raw.visibleLocationNotes);
   const rawVisibility = str(raw.publicVisibility) ?? str(raw.public_visibility);
-  const allowExactCoords = !rawVisibility || rawVisibility === "public-exact";
+  const isRestrictedVisibility =
+    rawVisibility === "restricted" ||
+    rawVisibility === "internal" ||
+    rawVisibility === "private";
+  const venueName = isRestrictedVisibility ? undefined : str(raw.venueName);
+  const city = isRestrictedVisibility ? undefined : str(raw.city);
+  const country = isRestrictedVisibility ? undefined : str(raw.country);
+  const label = isRestrictedVisibility ? undefined : str(raw.label);
+  const overlayText = isRestrictedVisibility ? undefined : str(raw.overlayText);
+  const visibleLocationNotes = isRestrictedVisibility ? undefined : str(raw.visibleLocationNotes);
+  const allowExactCoords = rawVisibility === "public-exact";
   const latitude =
     allowExactCoords && typeof raw.latitude === "number" && Number.isFinite(raw.latitude)
       ? raw.latitude
@@ -127,6 +131,7 @@ export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefi
     !overlayText &&
     !visibleLocationNotes &&
     !connectionType &&
+    !rawVisibility &&
     latitude === null &&
     longitude === null
   ) {
@@ -679,7 +684,7 @@ async function hydrateEventRows(
       const to = from + batchSize - 1;
       const { data, error } = await supabase
         .from("event_people")
-        .select("event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode, is_central_figure, precedence_order, prominence, remote_location")
+        .select("id, event_id, person_id, role_label, presence_confidence, capacity_title, attendance_mode, is_central_figure, precedence_order, prominence, remote_location")
         .in("event_id", eventIdChunk)
         .order("event_id", { ascending: true })
         .order("person_id", { ascending: true })
@@ -700,6 +705,7 @@ async function hydrateEventRows(
   }
 
   const typedParticipants = participantRows as {
+    id?: number | string;
     event_id: string;
     person_id: string;
     role_label?: string;
@@ -733,10 +739,28 @@ async function hydrateEventRows(
     }
   }
 
+  const participantLocationIds = typedParticipants
+    .map((p) => p.id)
+    .filter((id): id is number | string => id != null);
+  const principalLocations = new Map<string, { latitude?: number | null; longitude?: number | null }>();
+  for (let i = 0; i < participantLocationIds.length; i += 500) {
+    const chunk = participantLocationIds.slice(i, i + 500);
+    const { data: locRows, error: locError } = await supabase
+      .from("event_person_locations")
+      .select("event_person_id, latitude, longitude")
+      .in("event_person_id", chunk)
+      .eq("is_principal_location", true);
+    if (locError) {
+      throw locError;
+    }
+    (locRows || []).forEach((row) => principalLocations.set(String(row.event_person_id), row));
+  }
+
   typedParticipants.forEach((p) => {
     const list = participantsMap.get(p.event_id) || [];
     const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
     const normalizedRemote = normalizeRemoteLocation(p.remote_location);
+    const principal = p.id != null ? principalLocations.get(String(p.id)) : undefined;
     list.push({
       personId: p.person_id,
       slug: personSlugs.get(p.person_id),
@@ -750,8 +774,8 @@ async function hydrateEventRows(
       precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
       prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
       remoteLocation: normalizedRemote,
-      latitude: normalizedRemote?.latitude ?? null,
-      longitude: normalizedRemote?.longitude ?? null,
+      latitude: normalizedRemote?.latitude ?? principal?.latitude ?? null,
+      longitude: normalizedRemote?.longitude ?? principal?.longitude ?? null,
     });
     participantsMap.set(p.event_id, list);
   });
@@ -1600,17 +1624,21 @@ export function localizeEventForPersonParticipant(
     const loc = participant.remoteLocation;
     const remoteLabel = formatRemoteAppearanceLabel(participant);
     const hasRemotePlace = Boolean(loc?.city || loc?.country || loc?.venueName);
-    const remoteVenue = hasRemotePlace
-      ? loc?.venueName || (loc?.city ? `Remote: ${loc.city}` : event.venueName ?? undefined)
+    const hasRemoteCoordinates =
+      typeof loc?.latitude === "number" || typeof loc?.longitude === "number";
+    const hasRemoteOrigin = hasRemotePlace || hasRemoteCoordinates;
+    const remoteVenue = hasRemoteOrigin
+      ? loc?.venueName ||
+        (loc?.city ? `Remote: ${loc.city}` : loc?.country ? `Remote: ${loc.country}` : undefined)
       : event.venueName ?? undefined;
-    const remoteCity = loc?.city || event.city;
-    const remoteCountry = loc?.country || event.country;
+    const remoteCity = hasRemoteOrigin ? loc?.city || "" : event.city;
+    const remoteCountry = hasRemoteOrigin ? loc?.country || "" : event.country;
     const remoteLat =
       typeof loc?.latitude === "number"
         ? loc.latitude
         : typeof participant.latitude === "number"
         ? participant.latitude
-        : hasRemotePlace
+        : hasRemoteOrigin
         ? null
         : event.latitude;
     const remoteLng =
@@ -1618,7 +1646,7 @@ export function localizeEventForPersonParticipant(
         ? loc.longitude
         : typeof participant.longitude === "number"
         ? participant.longitude
-        : hasRemotePlace
+        : hasRemoteOrigin
         ? null
         : event.longitude;
 
@@ -1638,6 +1666,23 @@ export function localizeEventForPersonParticipant(
         isRemoteAttendance: true,
         remoteLocationLabel: remoteLabel,
         participantNarrative: narrative,
+        mainVenueName: event.venueName ?? undefined,
+        mainCity: event.city,
+        mainCountry: event.country,
+        venueName: undefined,
+        city: "",
+        country: "",
+        latitude:
+          typeof participant.latitude === "number" && typeof participant.longitude === "number"
+            ? participant.latitude
+            : null,
+        longitude:
+          typeof participant.latitude === "number" && typeof participant.longitude === "number"
+            ? participant.longitude
+            : null,
+        subvenue: undefined,
+        address: undefined,
+        region: undefined,
       };
     }
 

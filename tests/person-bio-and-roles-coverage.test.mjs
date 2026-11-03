@@ -306,9 +306,14 @@ test("Rabbi Shmuley Boteach dossier, timeline, and 20 viral encounter videos are
     for (const srcId of event.sourceIds) {
       assert.ok(sourceIdSet.has(srcId), `Source ${srcId} on event ${event.id} must exist in sourcesCorpus`);
     }
-    // Verified coordinate integrity
-    assert.ok(typeof event.latitude === "number" && !isNaN(event.latitude), `Event ${event.id} must have valid latitude`);
-    assert.ok(typeof event.longitude === "number" && !isNaN(event.longitude), `Event ${event.id} must have valid longitude`);
+    // Verified coordinate integrity (remote appearances with unknown remote origin omit studio coordinates)
+    if (!event.isRemoteAttendance || event.latitude !== null) {
+      assert.ok(typeof event.latitude === "number" && !isNaN(event.latitude), `Event ${event.id} must have valid latitude`);
+      assert.ok(typeof event.longitude === "number" && !isNaN(event.longitude), `Event ${event.id} must have valid longitude`);
+    } else {
+      assert.equal(event.longitude, null, `Remote event ${event.id} without remote coordinates must have null longitude`);
+      assert.ok(event.mainVenueName || event.mainCity, `Remote event ${event.id} must preserve main broadcast location`);
+    }
   }
 });
 

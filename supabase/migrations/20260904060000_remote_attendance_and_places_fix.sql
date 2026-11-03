@@ -45,19 +45,26 @@ WHERE place_id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
 DELETE FROM places
 WHERE id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
 
-UPDATE places
-SET country = btrim(split_part(regexp_replace(country, ';', '/', 'g'), '/', 1))
-WHERE country LIKE '%/%' OR country LIKE '%;%';
+UPDATE places p
+SET country = COALESCE(
+  (
+    SELECT btrim(part)
+    FROM regexp_split_to_table(regexp_replace(p.country, ';', '/', 'g'), '/') AS part
+    WHERE btrim(part) <> ''
+    LIMIT 1
+  ),
+  'Unknown'
+)
+WHERE p.country LIKE '%/%' OR p.country LIKE '%;%' OR btrim(p.country) = '';
 
--- 4. Enforce invariant: places.country must never contain compound delimiters
+-- 4. Enforce invariant: places.country must never contain compound delimiters or blank values
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'places_country_no_compound_slash'
   ) THEN
     ALTER TABLE places ADD CONSTRAINT places_country_no_compound_slash
-      CHECK (country NOT LIKE '%/%' AND country NOT LIKE '%;%') NOT VALID;
-    ALTER TABLE places VALIDATE CONSTRAINT places_country_no_compound_slash;
+      CHECK (country NOT LIKE '%/%' AND country NOT LIKE '%;%' AND btrim(country) <> '') NOT VALID;
   END IF;
 END $$;
 
@@ -67,7 +74,20 @@ ALTER TABLE event_people ADD COLUMN IF NOT EXISTS precedence_order integer;
 ALTER TABLE event_people ADD COLUMN IF NOT EXISTS prominence text DEFAULT 'participant' NOT NULL;
 ALTER TABLE event_people ADD COLUMN IF NOT EXISTS remote_location jsonb;
 
--- Strip any ungated coordinates from remote_location JSONB before enforcing visibility check
+-- Strip restricted descriptive fields and ungated coordinates from remote_location JSONB before enforcing visibility check
+UPDATE event_people
+SET remote_location = remote_location
+  - 'venueName'
+  - 'city'
+  - 'country'
+  - 'label'
+  - 'overlayText'
+  - 'visibleLocationNotes'
+  - 'latitude'
+  - 'longitude'
+WHERE remote_location IS NOT NULL
+  AND coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') IN ('restricted', 'internal', 'private');
+
 UPDATE event_people
 SET remote_location = remote_location - 'latitude' - 'longitude'
 WHERE remote_location IS NOT NULL
@@ -86,14 +106,81 @@ BEGIN
       CHECK (
         remote_location IS NULL
         OR (
-          (remote_location->>'latitude') IS NULL
-          AND (remote_location->>'longitude') IS NULL
+          (
+            (
+              (remote_location->>'latitude') IS NULL
+              AND (remote_location->>'longitude') IS NULL
+            )
+            OR coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility') = 'public-exact'
+          )
+          AND (
+            coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') NOT IN ('restricted', 'internal', 'private')
+            OR (
+              (remote_location->>'venueName') IS NULL
+              AND (remote_location->>'city') IS NULL
+              AND (remote_location->>'country') IS NULL
+              AND (remote_location->>'label') IS NULL
+              AND (remote_location->>'overlayText') IS NULL
+              AND (remote_location->>'visibleLocationNotes') IS NULL
+            )
+          )
         )
-        OR coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility') = 'public-exact'
       ) NOT VALID;
-    ALTER TABLE event_people VALIDATE CONSTRAINT event_people_remote_coords_visibility_check;
   END IF;
 END $$;
+
+-- Public-safe remote location sanitizer and view following the event_person_locations visibility policy pattern
+CREATE OR REPLACE FUNCTION public.sanitize_public_remote_location(p_remote_location jsonb)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN p_remote_location IS NULL THEN NULL
+    WHEN coalesce(p_remote_location->>'publicVisibility', p_remote_location->>'public_visibility', '') IN ('restricted', 'internal', 'private') THEN
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'connectionType', p_remote_location->'connectionType',
+          'publicVisibility', coalesce(p_remote_location->'publicVisibility', p_remote_location->'public_visibility')
+        )
+      )
+    WHEN coalesce(p_remote_location->>'publicVisibility', p_remote_location->>'public_visibility', '') = 'public-exact' THEN
+      p_remote_location
+    ELSE
+      p_remote_location - 'latitude' - 'longitude'
+  END;
+$$;
+
+CREATE OR REPLACE VIEW public.public_event_people
+WITH (security_invoker = true)
+AS
+SELECT
+  ep.id,
+  ep.event_id,
+  ep.person_id,
+  ep.involvement_type,
+  ep.role_label,
+  ep.capacity_title,
+  ep.attendance_mode,
+  ep.presence_confidence,
+  ep.role_confidence,
+  ep.is_central_figure,
+  ep.precedence_order,
+  ep.prominence,
+  public.sanitize_public_remote_location(ep.remote_location) AS remote_location,
+  ep.notes,
+  ep.created_at
+FROM public.event_people ep
+WHERE EXISTS (
+  SELECT 1 FROM public.events e
+  WHERE e.id = ep.event_id AND e.publication_status = 'published'
+)
+AND EXISTS (
+  SELECT 1 FROM public.people p
+  WHERE p.id = ep.person_id AND p.publication_status = 'published'
+);
+
+GRANT SELECT ON public.public_event_people TO anon, authenticated;
 
 -- 6. Ensure index on is_central_figure and prominence for fast query performance
 CREATE INDEX IF NOT EXISTS idx_event_people_central ON event_people(event_id, is_central_figure);

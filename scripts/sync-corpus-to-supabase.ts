@@ -707,10 +707,42 @@ async function syncCorpus() {
             precedenceOrder: typeof part.precedenceOrder === "number" ? part.precedenceOrder : null,
             prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
             remoteLocation: part.remoteLocation
-              ? {
-                  ...part.remoteLocation,
-                  publicVisibility: part.remoteLocation.publicVisibility || "public-exact",
-                }
+              ? (() => {
+                  const vis = part.remoteLocation.publicVisibility;
+                  const isRestricted =
+                    vis === "restricted" || vis === "internal" || vis === "private";
+                  const allowExact = vis === "public-exact";
+                  return {
+                    ...(isRestricted
+                      ? {}
+                      : {
+                          ...(part.remoteLocation.venueName
+                            ? { venueName: part.remoteLocation.venueName }
+                            : {}),
+                          ...(part.remoteLocation.city
+                            ? { city: part.remoteLocation.city }
+                            : {}),
+                          ...(part.remoteLocation.country
+                            ? { country: part.remoteLocation.country }
+                            : {}),
+                          ...(part.remoteLocation.label
+                            ? { label: part.remoteLocation.label }
+                            : {}),
+                          ...(part.remoteLocation.overlayText
+                            ? { overlayText: part.remoteLocation.overlayText }
+                            : {}),
+                          ...(part.remoteLocation.visibleLocationNotes
+                            ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
+                            : {}),
+                        }),
+                    ...(part.remoteLocation.connectionType
+                      ? { connectionType: part.remoteLocation.connectionType }
+                      : {}),
+                    ...(vis ? { publicVisibility: vis } : {}),
+                    latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
+                    longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
+                  };
+                })()
               : null,
           });
       }

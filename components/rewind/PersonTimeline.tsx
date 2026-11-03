@@ -376,7 +376,7 @@ export function PersonTimeline({
             <MapPin />
             {formatEventVenue(event)}
             <small>
-              {event.city}, {event.country}
+              {[event.city, event.country].filter(Boolean).join(", ")}
               {event.isRemoteAttendance && event.mainVenueName
                 ? " · Remote Attendee Location"
                 : ` · ${event.locationPrecision || "unestablished"} precision`}

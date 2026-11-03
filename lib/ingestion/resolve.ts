@@ -427,8 +427,8 @@ export interface PlaceResolution {
   venue: string;
   city: string;
   country: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   confidence: number;
 }
 
@@ -527,8 +527,8 @@ export function resolvePlace(
       venue: "General",
       city: "Unknown",
       country: "Unknown",
-      latitude: coords.latitude,
-      longitude: coords.longitude,
+      latitude: null,
+      longitude: null,
       confidence: 0,
     };
   }
@@ -679,8 +679,8 @@ export async function resolvePlaceAsync(
       venue: "General",
       city: "Unknown",
       country: "Unknown",
-      latitude: coords.latitude,
-      longitude: coords.longitude,
+      latitude: null,
+      longitude: null,
       confidence: 0,
     };
   }

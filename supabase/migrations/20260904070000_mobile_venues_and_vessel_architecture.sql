@@ -118,8 +118,24 @@ BEGIN
     home_base_place_id = EXCLUDED.home_base_place_id,
     vessel_type = EXCLUDED.vessel_type,
     callsign_or_registration = EXCLUDED.callsign_or_registration,
+    address_id = NULL,
     latitude = NULL,
     longitude = NULL;
+END $$;
+
+-- Enforce mobile-vessel address nullability invariant: mobile vessels never have a fixed street address
+UPDATE venues
+SET address_id = NULL
+WHERE is_mobile_vessel = true AND address_id IS NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'venues_mobile_vessel_no_address_check'
+  ) THEN
+    ALTER TABLE venues ADD CONSTRAINT venues_mobile_vessel_no_address_check
+      CHECK (NOT is_mobile_vessel OR address_id IS NULL) NOT VALID;
+  END IF;
 END $$;
 
 -- 5. Seed Canonical Interior Venue Areas for Air Force One (coordinates NULL on mobile interior areas)

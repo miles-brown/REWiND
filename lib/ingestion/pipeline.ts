@@ -221,8 +221,14 @@ export function processCandidateEvent(
             venue: placeResolution.venue,
             city: placeResolution.city,
             country: placeResolution.country,
-            latitude: placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-            longitude: placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+            latitude:
+              placeResolution.confidence > 0
+                ? placeResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null)
+                : null,
+            longitude:
+              placeResolution.confidence > 0
+                ? placeResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null)
+                : null,
             placeType: "venue",
           };
           store.places.push(existingPlace);
@@ -851,8 +857,14 @@ export function processCandidateEvent(
                   venue: livePlaceResolution.venue,
                   city: livePlaceResolution.city,
                   country: livePlaceResolution.country,
-                  latitude: livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null),
-                  longitude: livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null),
+                  latitude:
+                    livePlaceResolution.confidence > 0
+                      ? livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null)
+                      : null,
+                  longitude:
+                    livePlaceResolution.confidence > 0
+                      ? livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null)
+                      : null,
                   placeType: "venue",
                 })
                 .onConflictDoNothing();

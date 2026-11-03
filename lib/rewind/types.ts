@@ -248,7 +248,7 @@ export function formatParticipantTimelineNarrative(
       ? loc.country
         ? `${loc.city}, ${loc.country}`
         : loc.city
-      : loc?.label || "remote location";
+      : loc?.label || [loc?.venueName, loc?.country].filter(Boolean).join(", ") || "remote location";
     const connectionNote = loc?.connectionType
       ? ` via ${loc.connectionType.replaceAll("-", " ")}`
       : "";
@@ -268,9 +268,9 @@ export function formatParticipantTimelineNarrative(
   }
 
   const venue = event.venueName ? ` at ${event.venueName}` : "";
-  const city = event.city ? `, ${event.city}` : "";
-  const country = event.country ? `, ${event.country}` : "";
-  return `Participated as ${capacity}${venue}${city}${country} in "${event.eventName || "event"}".`;
+  const location = [event.city, event.country].filter(Boolean).join(", ");
+  const place = venue ? `${venue}${location ? `, ${location}` : ""}` : location ? ` (${location})` : "";
+  return `Participated as ${capacity}${place} in "${event.eventName || "event"}".`;
 }
 
 export interface ClaimEvidenceRecord {

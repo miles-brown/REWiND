@@ -61,6 +61,7 @@ const migrationFiles = [
   "20260904060000_remote_attendance_and_places_fix.sql",
   "20260904070000_mobile_venues_and_vessel_architecture.sql",
   "20260904080000_add_claim_contestation_columns.sql",
+  "20260904090000_validate_remote_and_vessel_constraints.sql",
 ];
 
 /**
