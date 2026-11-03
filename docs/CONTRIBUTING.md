@@ -70,4 +70,5 @@ npm test
 6. **Accessibility Verification**: Ensure all new interactive controls include proper `aria-label`, keyboard handlers, and visible focus rings.
 7. **Source Rigor**: Any new event records added to `data/rewind.ts` must include valid `sourceIds` referencing authenticated archival materials.
 8. **Technical Backlog**: Review unresolved review items and architectural tasks in [TECHNICAL_BACKLOG.md](./TECHNICAL_BACKLOG.md).
+9. **Strict Repository Isolation**: Contributors and automated AI agents must never check, inspect, reference, or involve external repositories or sibling projects located in the user's filesystem or GitHub folder (such as `TS-Now` or other projects under `~/Github/`). REWiND is an independent, self-contained project whose operations and references are strictly bounded within `~/Github/REWiND`.
 

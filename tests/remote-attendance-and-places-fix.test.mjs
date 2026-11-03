@@ -43,8 +43,20 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.equal(resolveCanonicalCountryName("United States"), "United States");
       assert.equal(resolveCanonicalCountryName("UK"), "United Kingdom");
       assert.equal(resolveCanonicalCountryName("FR"), "France");
+      assert.equal(resolveCanonicalCountryName("Kosovo / Serbia"), "Kosovo");
       assert.equal(resolveCanonicalCountryName(""), "Unknown");
       assert.equal(resolveCanonicalCountryName(null), "Unknown");
+    });
+
+    it("resolvePlace and resolvePlaceAsync reject malformed compound countries with empty first component", async () => {
+      const resolveModule = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
+      const resSync = resolveModule.resolvePlace("Some Venue", "Toronto", "/ Canada");
+      assert.equal(resSync.placeId, "plc-unknown-general");
+      assert.equal(resSync.confidence, 0);
+
+      const resAsync = await resolveModule.resolvePlaceAsync("Some Venue", "Toronto", "; Canada", undefined, undefined, null);
+      assert.equal(resAsync.placeId, "plc-unknown-general");
+      assert.equal(resAsync.confidence, 0);
     });
 
     it("getGeographicHierarchyStrict never produces compound slash country nodes", async () => {
@@ -179,12 +191,54 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(narrative2.includes("via video link"));
       assert.ok(narrative2.includes('on-screen overlay: "Burbank, CA"'));
       assert.ok(narrative2.includes("NBC Studio 1A, 30 Rockefeller Plaza, New York"));
+
+      // Recorded and telephone appearances use mode-specific wording rather than "live from"
+      const recordedNarrative = formatParticipantTimelineNarrative(
+        {
+          personId: "rec-1",
+          name: "Recorded Speaker",
+          capacityTitle: "Keynote Speaker",
+          attendanceMode: "remote-recorded",
+          remoteLocation: { city: "Geneva", country: "Switzerland" },
+        },
+        event2
+      );
+      assert.ok(recordedNarrative.includes("in a recorded appearance from Geneva, Switzerland"));
+      assert.ok(!recordedNarrative.includes("live from"));
+
+      const phoneNarrative = formatParticipantTimelineNarrative(
+        {
+          personId: "tel-1",
+          name: "Phone Caller",
+          capacityTitle: "Special Contributor",
+          attendanceMode: "telephone",
+          remoteLocation: { city: "Paris", country: "France" },
+        },
+        event2
+      );
+      assert.ok(phoneNarrative.includes("by telephone from Paris, France"));
+      assert.ok(!phoneNarrative.includes("live from"));
     });
   });
 
   describe("4. Remote Attendance Timeline Location Separation", () => {
     it("localizeEventForPersonParticipant sets remote coordinates and venue on attendee timeline", () => {
-      const { localizeEventForPersonParticipant } = eventsModule;
+      const { localizeEventForPersonParticipant, normalizeRemoteLocation } = eventsModule;
+
+      // Verify normalizeRemoteLocation sanitizes malformed JSONB and gates coordinates by publicVisibility
+      assert.equal(normalizeRemoteLocation(null), undefined);
+      assert.equal(normalizeRemoteLocation("invalid"), undefined);
+      const sanitizedLoc = normalizeRemoteLocation({
+        city: "  Zurich  ",
+        connectionType: "invalid-type",
+        latitude: 47.3769,
+        longitude: 8.5417,
+        publicVisibility: "restricted",
+      });
+      assert.equal(sanitizedLoc?.city, "Zurich");
+      assert.equal(sanitizedLoc?.connectionType, undefined);
+      assert.equal(sanitizedLoc?.latitude, null);
+      assert.equal(sanitizedLoc?.longitude, null);
 
       const studioEvent = {
         id: "evt-broadcast-2020",

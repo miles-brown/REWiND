@@ -1,17 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
-import { masterPeopleSeed, type CanonicalPersonSeed } from "@/data/seeds/index";
 import {
-  royalEducationSeed,
-  royalCareerSeed,
-  royalAwardsSeed,
-  royalWorksSeed,
-  royalStaysSeed,
-} from "@/data/seeds/royal-bio-details-seed";
+  masterPeopleSeed,
+  type CanonicalPersonSeed,
+  allEducationSeed,
+  allCareerSeed,
+  allAwardsSeed,
+  allWorksSeed,
+  allStaysSeed,
+} from "@/data/seeds/index";
+import { officialRolesSeed } from "@/data/seeds/roles-seed";
+import { milestonesSeed } from "@/data/seeds/milestones-seed";
 import { getEventsByPersonWithStatus } from "./events";
+import { extractPersonNameParts } from "./utils";
 import type { EventRecord, PersonRecord } from "./types";
 
+export { extractPersonNameParts };
+
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
-  const pEdu = royalEducationSeed
+  const pEdu = allEducationSeed
     .filter((e) => e.personId === p.id || e.personId === p.slug)
     .map((e) => ({
       id: e.id,
@@ -25,7 +31,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: e.sourceId,
     }));
 
-  const pCareer = royalCareerSeed
+  const pCareer = allCareerSeed
     .filter((c) => c.personId === p.id || c.personId === p.slug)
     .map((c) => ({
       id: c.id,
@@ -38,7 +44,36 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: c.sourceId,
     }));
 
-  const pAwards = royalAwardsSeed
+  const officialRoles = officialRolesSeed
+    .filter((r) => r.personId === p.id || r.personId === p.slug)
+    .map((r) => ({
+      id: `role-${r.id}`,
+      personId: r.personId,
+      organisationName: r.organisationName,
+      positionTitle: r.title,
+      startDate: r.startDate,
+      endDate: r.endDate ?? undefined,
+    }));
+
+  const allCareer = [...pCareer, ...officialRoles];
+
+  const officialMilestones = milestonesSeed
+    .filter((m) => m.personId === p.id || m.personId === p.slug)
+    .map((m) => ({
+      milestone: m.title,
+      year: m.year || (m.date ? parseInt(m.date.slice(0, 4), 10) : undefined),
+      evidence: m.description,
+    }));
+  const rawAchievements = [...(p.achievements || []), ...officialMilestones];
+  const seenMilestones = new Set<string>();
+  const achievements = rawAchievements.filter((ach) => {
+    const key = (ach.milestone || "").trim().toLowerCase();
+    if (!key || seenMilestones.has(key)) return false;
+    seenMilestones.add(key);
+    return true;
+  });
+
+  const pAwards = allAwardsSeed
     .filter((a) => a.personId === p.id || a.personId === p.slug)
     .map((a) => ({
       id: a.id,
@@ -51,7 +86,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: a.sourceId,
     }));
 
-  const pWorks = royalWorksSeed
+  const pWorks = allWorksSeed
     .filter((w) => w.personId === p.id || w.personId === p.slug)
     .map((w) => ({
       id: w.id,
@@ -64,7 +99,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceId: w.sourceId,
     }));
 
-  const pStays = royalStaysSeed
+  const pStays = allStaysSeed
     .filter((s) => s.personId === p.id || s.personId === p.slug)
     .map((s) => ({
       id: s.id,
@@ -91,6 +126,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     canonicalName: p.canonicalName,
     displayName: p.displayName || p.canonicalName,
     description: p.primaryRole || p.summary || "",
+    aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : undefined,
     fullBirthName: p.fullBirthName ?? undefined,
     birth: p.birthDate,
     death: p.deathDate ?? undefined,
@@ -108,10 +144,10 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     inclusionBasis: p.inclusionBasis,
     inclusionRationale: p.inclusionRationale ?? undefined,
     culturalImpactSummary: p.culturalImpactSummary ?? undefined,
-    achievements: p.achievements,
+    achievements: achievements.length > 0 ? achievements : undefined,
     avatarUrl: p.avatarUrl ?? undefined,
     education: pEdu.length > 0 ? pEdu : undefined,
-    career: pCareer.length > 0 ? pCareer : undefined,
+    career: allCareer.length > 0 ? allCareer : undefined,
     awards: pAwards.length > 0 ? pAwards : undefined,
     works: pWorks.length > 0 ? pWorks : undefined,
     stays: pStays.length > 0 ? pStays : undefined,
@@ -126,6 +162,11 @@ function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
     canonicalName: String(p.canonical_name || ""),
     displayName: String(p.display_name || p.canonical_name || ""),
     description: String(p.primary_role || p.summary || ""),
+    aliases: Array.isArray(p.aliases)
+      ? (p.aliases as unknown[]).map(String)
+      : Array.isArray(p.person_aliases)
+      ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
+      : undefined,
     fullBirthName: p.full_birth_name ? String(p.full_birth_name) : undefined,
     birth: p.birth_date ? String(p.birth_date) : undefined,
     death: p.death_date ? String(p.death_date) : undefined,

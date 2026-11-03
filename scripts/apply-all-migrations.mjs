@@ -57,8 +57,10 @@ const migrationFiles = [
   "20260904030000_quote_and_claim_rls_hardening.sql",
   "20260904040000_schema_perfection_and_travel_corridors.sql",
   "20260904050000_add_subvenue_to_events.sql",
+  "20260904060000_deduplicate_aliases_and_harden_rls.sql",
   "20260904060000_remote_attendance_and_places_fix.sql",
   "20260904070000_mobile_venues_and_vessel_architecture.sql",
+  "20260904080000_add_claim_contestation_columns.sql",
 ];
 
 /**
@@ -88,16 +90,22 @@ async function applyMigrations() {
   const appliedVersions = new Set(appliedMigrationRows.map((r) => String(r.version)));
   console.log(`Found ${appliedVersions.size} already applied migrations in supabase_migrations.schema_migrations.`);
 
+  const seenRawVersions = new Set();
+
   for (const filename of migrationFiles) {
     const filePath = path.join("supabase/migrations", filename);
-    const version = filename.split("_")[0];
-    const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
+    const rawVersion = filename.split("_")[0];
+    const name = filename.replace(/\.sql$/, "").slice(rawVersion.length + 1);
+    const version = seenRawVersions.has(rawVersion) ? `${rawVersion}_${name}` : rawVersion;
+    seenRawVersions.add(rawVersion);
 
     const targetVersions = process.argv
       .filter((arg) => arg.startsWith("--version="))
       .map((arg) => arg.split("=")[1]);
     const forceAll = process.argv.includes("--force-all");
-    const isTargeted = targetVersions.length > 0 && targetVersions.includes(version);
+    const isTargeted =
+      targetVersions.length > 0 &&
+      (targetVersions.includes(rawVersion) || targetVersions.includes(version));
     const forceRun = forceAll || (process.argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
     if (appliedVersions.has(version) && !forceRun) {
       console.log(`\n========================================`);

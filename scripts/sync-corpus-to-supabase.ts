@@ -24,11 +24,11 @@ import {
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
-  royalEducationSeed,
-  royalCareerSeed,
-  royalAwardsSeed,
-  royalWorksSeed,
-  royalStaysSeed,
+  allEducationSeed,
+  allCareerSeed,
+  allAwardsSeed,
+  allWorksSeed,
+  allStaysSeed,
 } from "../data/seeds/index";
 import { eventsCorpus } from "../data/seeds/events-corpus";
 import { sourcesCorpus } from "../data/seeds/sources-corpus";
@@ -176,17 +176,19 @@ async function syncCorpus() {
       });
     });
 
+    const totalMediaAssets = eventsCorpus.reduce((acc, e) => acc + (e.media?.length || 0), 0);
     console.log("================================================================================");
     console.log("📊 DRY-RUN INTEGRITY SIMULATION REPORT:");
     console.log("================================================================================");
     console.log(`- People Records:         ${masterPeopleSeed.length} valid`);
     console.log(`- Events Records:         ${allEvents.length} valid`);
+    console.log(`- Media Assets:           ${totalMediaAssets} valid`);
     console.log(`- Sources Catalog:        ${validSourceIds.size} valid`);
-    console.log(`- Bio Education:          ${royalEducationSeed.length} valid`);
-    console.log(`- Bio Careers:            ${royalCareerSeed.length} valid`);
-    console.log(`- Bio Awards:             ${royalAwardsSeed.length} valid`);
-    console.log(`- Bio Works:              ${royalWorksSeed.length} valid`);
-    console.log(`- Bio Stays:              ${royalStaysSeed.length} valid`);
+    console.log(`- Bio Education:          ${allEducationSeed.length} valid`);
+    console.log(`- Bio Careers:            ${allCareerSeed.length} valid`);
+    console.log(`- Bio Awards:             ${allAwardsSeed.length} valid`);
+    console.log(`- Bio Works:              ${allWorksSeed.length} valid`);
+    console.log(`- Bio Stays:              ${allStaysSeed.length} valid`);
     console.log(`- Validation Anomalies:   ${validationErrors}`);
     console.log(`- Unmapped Source Refs:   ${missingSourceRefs}`);
     console.log(`- Unmapped Participants:  ${missingParticipantRefs}`);
@@ -510,6 +512,7 @@ async function syncCorpus() {
   ];
 
   const uniqueSources = Array.from(new Map(allSources.map((s) => [s.id, s])).values());
+  const validSourceIdSet = new Set(uniqueSources.map((s) => s.id));
   const sourceList = uniqueSources.map((src) => ({
     id: src.id,
     title: src.title,
@@ -701,9 +704,14 @@ async function syncCorpus() {
             presenceConfidence: part.presenceConfidence || "confirmed",
             roleConfidence: "confirmed",
             isCentralFigure: Boolean(part.isCentralFigure),
-            precedenceOrder: part.precedenceOrder || null,
+            precedenceOrder: typeof part.precedenceOrder === "number" ? part.precedenceOrder : null,
             prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
-            remoteLocation: part.remoteLocation || null,
+            remoteLocation: part.remoteLocation
+              ? {
+                  ...part.remoteLocation,
+                  publicVisibility: part.remoteLocation.publicVisibility || "public-exact",
+                }
+              : null,
           });
       }
 
@@ -761,6 +769,29 @@ async function syncCorpus() {
             supportingExcerpt: evt.summary,
           });
       }
+
+      // Reconcile and synchronize media assets (media_assets)
+      await tx.delete(schema.mediaAssets).where(eq(schema.mediaAssets.eventId, evt.id));
+      const mediaList = evt.media || [];
+      for (let mIdx = 0; mIdx < mediaList.length; mIdx++) {
+        const m = mediaList[mIdx];
+        const assignedSourceId = m.sourceId && validSourceIdSet.has(m.sourceId)
+          ? m.sourceId
+          : (evt.sourceIds?.[0] && validSourceIdSet.has(evt.sourceIds[0]) ? evt.sourceIds[0] : null);
+
+        await tx
+          .insert(schema.mediaAssets)
+          .values({
+            id: `med-${evt.id}-${mIdx}`,
+            eventId: evt.id,
+            mediaType: m.kind || "video",
+            url: m.url,
+            thumbnailUrl: m.thumbnailUrl || null,
+            caption: m.caption || m.label || null,
+            sourceId: assignedSourceId,
+            durationSeconds: m.durationSeconds || null,
+          });
+      }
     });
   }
 
@@ -815,6 +846,16 @@ async function syncCorpus() {
       });
   }
 
+  if (!isDryRun && rolesToInsert.length > 0) {
+    try {
+      await db.execute(
+        sql`SELECT setval(pg_get_serial_sequence('public.person_roles', 'id'), COALESCE(max(id), 1) + 1, false) FROM public.person_roles;`
+      );
+    } catch {
+      // Sequence alignment warning non-blocking if permissions restricted
+    }
+  }
+
   const milestonesToInsert = (milestonesSeed || [])
     .map((m) => {
       const dbPersonId = resolvedPersonIdMap.get(m.personId);
@@ -843,7 +884,7 @@ async function syncCorpus() {
 
   // Synchronize Structured Biographical Dossiers
   console.log(`   Synchronizing Structured Biographical Records (Education, Career, Awards, Works, Stays)...`);
-  const eduList = (royalEducationSeed || [])
+  const eduList = (allEducationSeed || [])
     .map((edu) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[edu.personId] || edu.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(edu.personId);
@@ -885,7 +926,7 @@ async function syncCorpus() {
       });
   }
 
-  const careerList = (royalCareerSeed || [])
+  const careerList = (allCareerSeed || [])
     .map((car) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[car.personId] || car.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(car.personId);
@@ -925,7 +966,7 @@ async function syncCorpus() {
       });
   }
 
-  const awardsList = (royalAwardsSeed || [])
+  const awardsList = (allAwardsSeed || [])
     .map((awd) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[awd.personId] || awd.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(awd.personId);
@@ -963,7 +1004,7 @@ async function syncCorpus() {
       });
   }
 
-  const worksList = (royalWorksSeed || [])
+  const worksList = (allWorksSeed || [])
     .map((wrk) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[wrk.personId] || wrk.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(wrk.personId);
@@ -1001,7 +1042,7 @@ async function syncCorpus() {
       });
   }
 
-  const staysList = (royalStaysSeed || [])
+  const staysList = (allStaysSeed || [])
     .map((sty) => {
       const canonicalRef = PARTICIPANT_ID_ALIASES[sty.personId] || sty.personId;
       const dbPersonId = resolvedPersonIdMap.get(canonicalRef) || resolvedPersonIdMap.get(sty.personId);
@@ -1069,6 +1110,7 @@ async function syncCorpus() {
     [{ count: eventPeopleCount }],
     [{ count: quotesCount }],
     [{ count: claimsCount }],
+    [{ count: mediaAssetsCount }],
     [{ count: eduCount }],
     [{ count: careerCount }],
     [{ count: awardsCount }],
@@ -1082,6 +1124,7 @@ async function syncCorpus() {
     db.select({ count: sql<number>`count(*)::int` }).from(schema.eventPeople),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.quotes),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.claims),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.mediaAssets),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personEducation),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personCareer),
     db.select({ count: sql<number>`count(*)::int` }).from(schema.personAwards),
@@ -1091,6 +1134,7 @@ async function syncCorpus() {
 
   console.log(`- People:        ${peopleCount}`);
   console.log(`- Events:        ${eventsCount}`);
+  console.log(`- Media Assets:  ${mediaAssetsCount}`);
   console.log(`- Sources:       ${sourcesCount}`);
   console.log(`- Places:        ${placesCount}`);
   console.log(`- Participants:  ${eventPeopleCount}`);

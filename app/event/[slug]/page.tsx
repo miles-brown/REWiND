@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, FileText, MapPin, UsersRound } from "lucide-react";
-import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult, formatEventVenue, sortParticipantsByPrecedence } from "@/lib/rewind";
+import { getEventBySlug, getAdjacentEvents, getSourcesByIds, formatTimelineDate, isStandardIsoDate, evaluateQueryResult, formatEventVenue, sortParticipantsByPrecedence, isRemoteParticipant, formatRemoteAppearanceLabel } from "@/lib/rewind";
 import { MapGraphic } from "@/components/rewind/MapGraphic";
 import { EventActions } from "@/components/rewind/EventActions";
 import { TemporalBadge } from "@/components/rewind/TemporalBadge";
 import { ClaimInspector } from "@/components/rewind/ClaimInspector";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
+/**
+ * Renders the forensic dossier page for a single historical event, including
+ * temporal verification badges, claims, location map, precedence-ordered participants, and sources.
+ */
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) {
@@ -169,16 +173,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <div className="participant-list">
               {sortParticipantsByPrecedence(participants).map((participant) => {
                 const participantSlug = participant.slug || participant.personId.replace(/^p-/, "");
-                const isRemote =
-                  participant.attendanceMode === "remote-live" ||
-                  participant.attendanceMode === "telephone" ||
-                  participant.attendanceMode === "remote-recorded" ||
-                  Boolean(participant.remoteLocation);
-                const remoteLabel =
-                  participant.remoteLocation?.label ||
-                  (participant.remoteLocation?.city
-                    ? `Live from ${participant.remoteLocation.city}`
-                    : "Remote Appearance");
+                const isRemote = isRemoteParticipant(participant);
+                const remoteLabel = formatRemoteAppearanceLabel(participant);
                 const overlayText = participant.remoteLocation?.overlayText;
                 const capacityTitle = participant.capacityTitle;
 
@@ -190,7 +186,8 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                   >
                     <span className="person-monogram" aria-hidden="true">
                       {participant.name
-                        .split(" ")
+                        .split(/\s+/)
+                        .filter(Boolean)
                         .map((name) => name[0])
                         .slice(0, 2)
                         .join("")}
@@ -203,7 +200,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                             className="central-figure-badge"
                             title="Central Figure: Core protagonist / host / key subject"
                           >
-                            ★ Central Figure
+                            <span aria-hidden="true">★</span> Central Figure
                           </span>
                         )}
                         {isRemote && (
@@ -214,8 +211,13 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                               `Remote appearance via telecommunication${overlayText ? ` (on-screen caption: "${overlayText}")` : ""}`
                             }
                           >
-                            📡 Remote • {remoteLabel}
+                            <span aria-hidden="true">📡</span> Remote • {remoteLabel}
                             {overlayText ? ` ["${overlayText}"]` : ""}
+                            {participant.remoteLocation?.visibleLocationNotes && (
+                              <span className="sr-only">
+                                {" "}({participant.remoteLocation.visibleLocationNotes})
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
@@ -225,7 +227,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                         </span>
                         {participant.presenceConfidence ? ` · ${participant.presenceConfidence}` : ""}
                         {isRemote && participant.remoteLocation?.connectionType
-                          ? ` · via ${participant.remoteLocation.connectionType.replace("-", " ")}`
+                          ? ` · via ${participant.remoteLocation.connectionType.replaceAll("-", " ")}`
                           : ""}
                       </small>
                     </div>

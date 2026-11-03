@@ -1,0 +1,242 @@
+import { describe, it, after } from "node:test";
+import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+import { createServer } from "vite";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const vite = await createServer({
+  appType: "custom",
+  configFile: false,
+  root,
+  resolve: { alias: { "@": root } },
+  server: { middlewareMode: true },
+});
+
+after(async () => {
+  await vite.close();
+});
+
+describe("People Directory & Name Parsing Architecture", async () => {
+  const peopleModule = await vite.ssrLoadModule("/lib/rewind/people.ts");
+  const seedsModule = await vite.ssrLoadModule("/data/seeds/index.ts");
+  const datesModule = await vite.ssrLoadModule("/lib/rewind/dates.ts");
+  const { extractPersonNameParts, getPeopleWithStatus } = peopleModule;
+  const { masterPeopleSeed } = seedsModule;
+  const { isStandardIsoDate } = datesModule;
+
+  it("exports extractPersonNameParts and getPeopleWithStatus", () => {
+    assert.equal(typeof extractPersonNameParts, "function");
+    assert.equal(typeof getPeopleWithStatus, "function");
+  });
+
+  it("accurately extracts first and last names across diverse naming conventions", () => {
+    // 1. Standard Western Names
+    assert.deepEqual(extractPersonNameParts({ canonicalName: "Donald J. Trump" }), {
+      firstName: "Donald",
+      lastName: "Trump",
+      displayName: "Donald J. Trump",
+    });
+    assert.deepEqual(extractPersonNameParts({ canonicalName: "Hillary Clinton" }), {
+      firstName: "Hillary",
+      lastName: "Clinton",
+      displayName: "Hillary Clinton",
+    });
+
+    // 2. Middle Eastern & Israeli Names
+    assert.deepEqual(extractPersonNameParts({ canonicalName: "Benjamin Netanyahu" }), {
+      firstName: "Benjamin",
+      lastName: "Netanyahu",
+      displayName: "Benjamin Netanyahu",
+    });
+    assert.deepEqual(extractPersonNameParts({ canonicalName: "David Ben-Gurion" }), {
+      firstName: "David",
+      lastName: "Ben-Gurion",
+      displayName: "David Ben-Gurion",
+    });
+
+    // 3. Royal & Titular Names with Comma Suffixes
+    const margareta = extractPersonNameParts({ canonicalName: "Margareta, Custodian of the Crown of Romania" });
+    assert.equal(margareta.firstName, "Margareta");
+    assert.equal(margareta.lastName, "Romania");
+
+    const alexander = extractPersonNameParts({ canonicalName: "Alexander, Crown Prince of Yugoslavia" });
+    assert.equal(alexander.firstName, "Alexander");
+    assert.equal(alexander.lastName, "Yugoslavia");
+
+    // 4. Honorific Regnal Names
+    const pope = extractPersonNameParts({ canonicalName: "Pope Francis" });
+    assert.equal(pope.firstName, "Francis");
+    assert.equal(pope.lastName, "Francis");
+
+    const charles = extractPersonNameParts({ canonicalName: "King Charles III" });
+    assert.equal(charles.firstName, "Charles");
+    assert.equal(charles.lastName, "Charles");
+
+    const felipe = extractPersonNameParts({ canonicalName: "King Felipe VI" });
+    assert.equal(felipe.firstName, "Felipe");
+    assert.equal(felipe.lastName, "Felipe");
+  });
+
+  it("strictly validates that 100% of people seed records have valid birth dates and clean demonym nationalities", () => {
+    assert.ok(masterPeopleSeed.length >= 200, "Master people seed must contain all documented figures");
+
+    for (const p of masterPeopleSeed) {
+      assert.ok(p.id, "Person must have id");
+      assert.ok(p.slug, "Person must have slug");
+      assert.ok(p.canonicalName, `Person ${p.slug} must have canonicalName`);
+      assert.ok(p.displayName, `Person ${p.slug} must have displayName`);
+      assert.ok(p.birthDate, `Person ${p.slug} must have birthDate`);
+      assert.ok(isStandardIsoDate(p.birthDate), `Person ${p.slug} birthDate must be a valid ISO date: "${p.birthDate}"`);
+
+      // Single clean demonym nationality check
+      assert.ok(p.nationality, `Person ${p.slug} must have nationality`);
+      assert.ok(!p.nationality.includes("/"), `Person ${p.slug} nationality cannot contain slash: "${p.nationality}"`);
+      assert.ok(!p.nationality.includes("&"), `Person ${p.slug} nationality cannot contain ampersand: "${p.nationality}"`);
+      assert.ok(
+        !["United States", "United Kingdom", "Israel", "France", "Germany", "Palestine"].includes(p.nationality),
+        `Person ${p.slug} nationality must be a clean demonym, not country name: "${p.nationality}"`
+      );
+
+      // Classification check
+      assert.ok(p.classification, `Person ${p.slug} must have classification`);
+    }
+  });
+
+  it("retrieves people with enriched career roles and milestones", async () => {
+    const { data: people, error } = await getPeopleWithStatus();
+    assert.equal(error, null);
+    assert.ok(people.length >= 200, "People list must be populated");
+
+    // Check Benjamin Netanyahu career roles
+    const bibi = people.find((p) => p.slug === "benjamin-netanyahu");
+    assert.ok(bibi, "Benjamin Netanyahu must exist");
+    assert.ok(bibi.career && bibi.career.length > 0, "Netanyahu must have career roles populated from official roles seed");
+    assert.ok(bibi.career.some((r) => r.positionTitle.includes("Prime Minister of Israel")));
+
+    // Check King Charles III education and royal stays
+    const charles = people.find((p) => p.slug === "charles-iii");
+    assert.ok(charles, "King Charles III must exist");
+    assert.ok(charles.education && charles.education.length > 0, "Charles III must have education credentials");
+    assert.ok(charles.stays && charles.stays.length > 0, "Charles III must have royal residences/stays");
+
+    // Check Tenzin Gyatso (Dalai Lama) clean name, career roles, and milestones
+    const dalaiLama = people.find((p) => p.slug === "dalai-lama");
+    assert.ok(dalaiLama, "Dalai Lama record must exist");
+    assert.equal(dalaiLama.canonicalName, "Tenzin Gyatso", "Canonical name must be clean personal name Tenzin Gyatso");
+    assert.equal(dalaiLama.displayName, "Tenzin Gyatso", "Display name must be clean personal name Tenzin Gyatso");
+    assert.ok(dalaiLama.career.some((r) => r.positionTitle.includes("14th Dalai Lama")), "14th Dalai Lama must be in structured career roles");
+    assert.ok(dalaiLama.achievements && dalaiLama.achievements.length > 0, "Dalai Lama must have milestones");
+    assert.ok(dalaiLama.achievements.some((m) => m.milestone.includes("Nobel Peace Prize")), "Nobel Peace Prize must be in milestones");
+  });
+
+  it("correctly separates participant official role from event participation capacity", async () => {
+    const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
+    const { parseParticipantRoleAndAssociation } = eventsModule;
+
+    assert.equal(typeof parseParticipantRoleAndAssociation, "function");
+
+    // Standard case: separate role and capacity
+    const res1 = parseParticipantRoleAndAssociation("British Foreign Secretary", "Author");
+    assert.deepEqual(res1, { role: "British Foreign Secretary", association: "Author" });
+
+    // Combined case: "Official Title (Event Capacity)" without explicit capacity
+    const res2 = parseParticipantRoleAndAssociation("British Foreign Secretary (Author)");
+    assert.deepEqual(res2, { role: "British Foreign Secretary", association: "Author" });
+
+    // Combined case with matching explicit capacity
+    const res2b = parseParticipantRoleAndAssociation("British Foreign Secretary (Author)", "Author");
+    assert.deepEqual(res2b, { role: "British Foreign Secretary", association: "Author" });
+
+    // Composite capacity: "Official Title (Host / Witness)"
+    const resComposite = parseParticipantRoleAndAssociation("President of the United States (Host / Witness)");
+    assert.deepEqual(resComposite, { role: "President of the United States", association: "Host / Witness" });
+
+    // Composite capacity: "Speaker (Co-Presiding)"
+    const resCoPresiding = parseParticipantRoleAndAssociation("Speaker of the House (Co-Presiding)");
+    assert.deepEqual(resCoPresiding, { role: "Speaker of the House", association: "Co-Presiding" });
+
+    // Plain role without parentheses or capacityTitle
+    const res3 = parseParticipantRoleAndAssociation("President of the United States");
+    assert.deepEqual(res3, { role: "President of the United States", association: undefined });
+
+    // Role with non-capacity qualifier like (Acting) or (Interim)
+    const resActing = parseParticipantRoleAndAssociation("Prime Minister (Acting)");
+    assert.deepEqual(resActing, { role: "Prime Minister (Acting)", association: undefined });
+
+    // Only capacityTitle
+    const res4 = parseParticipantRoleAndAssociation(undefined, "interviewee");
+    assert.deepEqual(res4, { role: undefined, association: "interviewee" });
+  });
+
+  it("generates clean 2-character monograms stripping honorifics and regnal ordinals", async () => {
+    const utilsModule = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+    const { getMonogram } = utilsModule;
+
+    assert.equal(typeof getMonogram, "function");
+
+    // Standard names
+    assert.equal(getMonogram("Benjamin Netanyahu"), "BN");
+    assert.equal(getMonogram("David Ben-Gurion"), "DB");
+    assert.equal(getMonogram("Arafat"), "AR");
+    assert.equal(getMonogram("Bill Clinton"), "BC");
+
+    // Regnal and titular names
+    assert.equal(getMonogram("King Charles III"), "CH");
+    assert.equal(getMonogram("Queen Elizabeth II"), "EL");
+    assert.equal(getMonogram("Pope John Paul II"), "JP");
+    assert.equal(getMonogram("King Felipe VI"), "FE");
+    assert.equal(getMonogram("Margareta, Custodian of the Crown of Romania"), "MR");
+
+    // Edge cases
+    assert.equal(getMonogram(""), "—");
+    assert.equal(getMonogram(null), "—");
+  });
+
+  it("exposes aliases on person records for directory search", async () => {
+    const { data: people } = await getPeopleWithStatus();
+    const kissinger = people.find((p) => p.slug === "henry-kissinger");
+    assert.ok(kissinger, "Henry Kissinger must exist");
+    assert.ok(Array.isArray(kissinger.aliases), "Kissinger must have aliases array");
+    assert.ok(kissinger.aliases.includes("Heinz Alfred Kissinger"), "Kissinger aliases must include birth alias");
+
+    const dalaiLama = people.find((p) => p.slug === "dalai-lama");
+    assert.ok(dalaiLama, "Dalai Lama must exist");
+    assert.ok(Array.isArray(dalaiLama.aliases), "Dalai Lama must have aliases array");
+    assert.ok(dalaiLama.aliases.includes("Kundun"), "Dalai Lama aliases must include Kundun");
+  });
+
+  it("enriches people seed records with demonym nationalities correctly without guessing religion", async () => {
+    const enrichModule = await vite.ssrLoadModule("/scripts/enrich-seed-people.ts");
+    const { enrichPersonSeed } = enrichModule;
+
+    assert.equal(typeof enrichPersonSeed, "function");
+
+    // Israeli demonym without explicit religion
+    const enrichedIsraeli = enrichPersonSeed({
+      id: "test-israeli",
+      slug: "test-israeli",
+      canonicalName: "Test Israeli",
+      displayName: "Test Israeli",
+      nationality: "Israeli",
+      birthDate: "1970-01-01",
+      classification: "public-figure",
+    });
+    assert.deepEqual(enrichedIsraeli.languages, ["Hebrew", "English"]);
+    assert.equal(enrichedIsraeli.religion, null);
+    assert.equal(enrichedIsraeli.religionStatus, "not-publicly-stated");
+
+    // American demonym
+    const enrichedAmerican = enrichPersonSeed({
+      id: "test-american",
+      slug: "test-american",
+      canonicalName: "Test American",
+      displayName: "Test American",
+      nationality: "American",
+      birthDate: "1980-01-01",
+      classification: "public-figure",
+    });
+    assert.deepEqual(enrichedAmerican.languages, ["English"]);
+  });
+});
+
+

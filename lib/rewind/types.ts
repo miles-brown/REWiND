@@ -53,6 +53,7 @@ export interface RemoteLocation {
   overlayText?: string; // on-screen overlay / lower-third: "Westminster", "London", "Burbank"
   connectionType?: RemoteConnectionType;
   visibleLocationNotes?: string;
+  publicVisibility?: string;
 }
 
 export type ParticipantProminence =
@@ -62,11 +63,30 @@ export type ParticipantProminence =
   | "participant"   // Standard participant
   | "observer";     // Observer / attendant / witness
 
+export type ParticipantAssociation =
+  | "interviewee"
+  | "host"
+  | "moderator"
+  | "participant"
+  | "contestant"
+  | "expert-contributor"
+  | "attendee"
+  | "keynote-speaker"
+  | "delegate"
+  | "witness"
+  | "presiding-officer"
+  | "signatory"
+  | "honoree"
+  | "panelist"
+  | "investigator"
+  | "observer";
+
 export interface Participant {
   personId: string;
   slug?: string;
   name: string;
-  role?: string;
+  role?: string;                         // Official public title or office (e.g. "President of the United States", "London Borough of Lambeth Presiding Officer")
+  association?: ParticipantAssociation | string; // Specific event participation capacity (e.g. "host", "interviewee", "contestant", "expert-contributor", "attendee")
   presenceConfidence?: Confidence;
   roleConfidence?: Confidence;
   capacityTitle?: string;
@@ -115,6 +135,10 @@ export const STANDARD_CAPACITIES = [
 
 export type StandardCapacity = (typeof STANDARD_CAPACITIES)[number];
 
+/**
+ * Normalizes and bounds a participant capacity title to at most 100 characters.
+ * Returns undefined when the input is null, empty, or whitespace-only.
+ */
 export function validateCapacityTitle(capacity?: string | null): string | undefined {
   if (!capacity) return undefined;
   const trimmed = capacity.trim();
@@ -122,6 +146,10 @@ export function validateCapacityTitle(capacity?: string | null): string | undefi
   return trimmed.slice(0, 100);
 }
 
+/**
+ * Returns a new array of participants ordered by central figure status,
+ * explicit numeric precedenceOrder, prominence rank, and alphabetical name tie-breaker.
+ */
 export function sortParticipantsByPrecedence(participants: Participant[]): Participant[] {
   return [...participants].sort((a, b) => {
     // 1. Central figure flag
@@ -156,6 +184,49 @@ export function sortParticipantsByPrecedence(participants: Participant[]): Parti
   });
 }
 
+/**
+ * Determines whether a participant joined an event remotely via live link,
+ * telephone, prerecorded message, or documented remote location metadata.
+ */
+export function isRemoteParticipant(participant: Participant): boolean {
+  return (
+    participant.attendanceMode === "remote-live" ||
+    participant.attendanceMode === "telephone" ||
+    participant.attendanceMode === "remote-recorded" ||
+    Boolean(participant.remoteLocation)
+  );
+}
+
+/**
+ * Formats a concise badge label for a remote participant based on attendance mode and origin.
+ */
+export function formatRemoteAppearanceLabel(
+  participant: Pick<Participant, "attendanceMode" | "remoteLocation">
+): string {
+  const loc = participant.remoteLocation;
+  if (loc?.label) return loc.label;
+  if (loc?.city) {
+    if (participant.attendanceMode === "remote-recorded") {
+      return `Recorded from ${loc.city}`;
+    }
+    if (participant.attendanceMode === "telephone") {
+      return `By telephone from ${loc.city}`;
+    }
+    return `Live from ${loc.city}`;
+  }
+  if (participant.attendanceMode === "remote-recorded") {
+    return "Recorded Appearance";
+  }
+  if (participant.attendanceMode === "telephone") {
+    return "Telephone Appearance";
+  }
+  return "Remote Appearance";
+}
+
+/**
+ * Generates a grammatically precise evidentiary narrative sentence describing
+ * a participant's capacity, attendance mode, remote origin, and main venue context.
+ */
 export function formatParticipantTimelineNarrative(
   participant: Participant,
   event: {
@@ -169,11 +240,7 @@ export function formatParticipantTimelineNarrative(
   }
 ): string {
   const capacity = participant.capacityTitle || participant.role || "participant";
-  const isRemote =
-    participant.attendanceMode === "remote-live" ||
-    participant.attendanceMode === "telephone" ||
-    participant.attendanceMode === "remote-recorded" ||
-    Boolean(participant.remoteLocation);
+  const isRemote = isRemoteParticipant(participant);
 
   if (isRemote) {
     const loc = participant.remoteLocation;
@@ -183,14 +250,21 @@ export function formatParticipantTimelineNarrative(
         : loc.city
       : loc?.label || "remote location";
     const connectionNote = loc?.connectionType
-      ? ` via ${loc.connectionType.replace("-", " ")}`
+      ? ` via ${loc.connectionType.replaceAll("-", " ")}`
       : "";
     const overlayNote = loc?.overlayText ? ` (on-screen overlay: "${loc.overlayText}")` : "";
     const mainVenue = event.mainVenueName || event.venueName;
     const mainCity = event.mainCity || event.city;
     const mainLoc = mainVenue && mainCity ? ` at ${mainVenue}, ${mainCity}` : mainVenue ? ` at ${mainVenue}` : "";
 
-    return `Appeared remotely as ${capacity} live from ${remotePlace}${connectionNote}${overlayNote} during "${event.eventName || "event"}"${mainLoc}.`;
+    const appearance =
+      participant.attendanceMode === "remote-recorded"
+        ? "in a recorded appearance from"
+        : participant.attendanceMode === "telephone"
+        ? "by telephone from"
+        : "live from";
+
+    return `Appeared remotely as ${capacity} ${appearance} ${remotePlace}${connectionNote}${overlayNote} during "${event.eventName || "event"}"${mainLoc}.`;
   }
 
   const venue = event.venueName ? ` at ${event.venueName}` : "";
@@ -241,6 +315,12 @@ export interface EventMedia {
   label: string;
   url: string;
   timestamp?: string | null | undefined;
+  embedUrl?: string | null | undefined;
+  thumbnailUrl?: string | null | undefined;
+  platform?: string | null | undefined;
+  caption?: string | null | undefined;
+  sourceId?: string | null | undefined;
+  durationSeconds?: number | null | undefined;
 }
 
 export interface EventRecord {
@@ -708,6 +788,7 @@ export interface PersonRecord {
   canonicalName: string;
   displayName: string;
   description: string;
+  aliases?: string[];
   fullBirthName?: string;
   birth?: string;
   death?: string;

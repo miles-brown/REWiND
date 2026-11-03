@@ -20,16 +20,34 @@ ON CONFLICT (id) DO UPDATE SET
   latitude = EXCLUDED.latitude,
   longitude = EXCLUDED.longitude;
 
--- 2. Repoint any events referencing the compound place
+-- 2. Repoint any events, participant locations, and aliases referencing the compound place
 UPDATE events
 SET place_id = 'plc-riyadh-king-khalid-international'
 WHERE place_id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
 
--- 3. Purge compound / slash country places
+UPDATE event_person_locations
+SET place_id = 'plc-riyadh-king-khalid-international'
+WHERE place_id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
+
+DELETE FROM place_aliases old_alias
+WHERE old_alias.place_id = 'plc-riyadh-to-tel-aviv-king-khalid-international'
+  AND EXISTS (
+    SELECT 1 FROM place_aliases existing
+    WHERE existing.place_id = 'plc-riyadh-king-khalid-international'
+      AND lower(existing.alias) = lower(old_alias.alias)
+  );
+
+UPDATE place_aliases
+SET place_id = 'plc-riyadh-king-khalid-international'
+WHERE place_id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
+
+-- 3. Purge duplicate compound place and normalize any remaining compound / slash country places
 DELETE FROM places
-WHERE id = 'plc-riyadh-to-tel-aviv-king-khalid-international'
-   OR country LIKE '%/%'
-   OR country LIKE '%;%';
+WHERE id = 'plc-riyadh-to-tel-aviv-king-khalid-international';
+
+UPDATE places
+SET country = btrim(split_part(regexp_replace(country, ';', '/', 'g'), '/', 1))
+WHERE country LIKE '%/%' OR country LIKE '%;%';
 
 -- 4. Enforce invariant: places.country must never contain compound delimiters
 DO $$
@@ -38,7 +56,8 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'places_country_no_compound_slash'
   ) THEN
     ALTER TABLE places ADD CONSTRAINT places_country_no_compound_slash
-      CHECK (country NOT LIKE '%/%' AND country NOT LIKE '%;%');
+      CHECK (country NOT LIKE '%/%' AND country NOT LIKE '%;%') NOT VALID;
+    ALTER TABLE places VALIDATE CONSTRAINT places_country_no_compound_slash;
   END IF;
 END $$;
 
@@ -47,6 +66,34 @@ ALTER TABLE event_people ADD COLUMN IF NOT EXISTS is_central_figure boolean DEFA
 ALTER TABLE event_people ADD COLUMN IF NOT EXISTS precedence_order integer;
 ALTER TABLE event_people ADD COLUMN IF NOT EXISTS prominence text DEFAULT 'participant' NOT NULL;
 ALTER TABLE event_people ADD COLUMN IF NOT EXISTS remote_location jsonb;
+
+-- Strip any ungated coordinates from remote_location JSONB before enforcing visibility check
+UPDATE event_people
+SET remote_location = remote_location - 'latitude' - 'longitude'
+WHERE remote_location IS NOT NULL
+  AND (
+    (remote_location->>'latitude') IS NOT NULL
+    OR (remote_location->>'longitude') IS NOT NULL
+  )
+  AND coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') <> 'public-exact';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'event_people_remote_coords_visibility_check'
+  ) THEN
+    ALTER TABLE event_people ADD CONSTRAINT event_people_remote_coords_visibility_check
+      CHECK (
+        remote_location IS NULL
+        OR (
+          (remote_location->>'latitude') IS NULL
+          AND (remote_location->>'longitude') IS NULL
+        )
+        OR coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility') = 'public-exact'
+      ) NOT VALID;
+    ALTER TABLE event_people VALIDATE CONSTRAINT event_people_remote_coords_visibility_check;
+  END IF;
+END $$;
 
 -- 6. Ensure index on is_central_figure and prominence for fast query performance
 CREATE INDEX IF NOT EXISTS idx_event_people_central ON event_people(event_id, is_central_figure);

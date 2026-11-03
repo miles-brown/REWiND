@@ -14,13 +14,17 @@ import type {
   LocationPrecision,
   PaginatedResult,
   Participant,
+  ParticipantAssociation,
   ParticipantProminence,
   Precision,
+  RemoteConnectionType,
   RemoteLocation,
   SourceRecord,
 } from "./types";
 import {
   formatParticipantTimelineNarrative,
+  formatRemoteAppearanceLabel,
+  isRemoteParticipant,
   sortParticipantsByPrecedence,
   validateCapacityTitle,
 } from "./types";
@@ -48,22 +52,227 @@ const VALID_PROMINENCES = new Set<ParticipantProminence>([
   "observer",
 ]);
 
+const VALID_REMOTE_CONNECTION_TYPES = new Set<RemoteConnectionType>([
+  "video-link",
+  "skype",
+  "satellite-feed",
+  "telephone",
+  "zoom",
+  "broadcast-link",
+]);
+
+/**
+ * Type guard verifying whether an unknown value is a recognized Confidence level.
+ */
 function isConfidence(value: unknown): value is Confidence {
   return typeof value === "string" && VALID_CONFIDENCES.has(value as Confidence);
 }
 
+/**
+ * Type guard verifying whether an unknown value is a recognized AttendanceMode.
+ */
 function isAttendanceMode(value: unknown): value is AttendanceMode {
   return typeof value === "string" && VALID_ATTENDANCE_MODES.has(value as AttendanceMode);
 }
 
+/**
+ * Type guard verifying whether an unknown value is a recognized ParticipantProminence rank.
+ */
 function isParticipantProminence(value: unknown): value is ParticipantProminence {
   return typeof value === "string" && VALID_PROMINENCES.has(value as ParticipantProminence);
+}
+
+/**
+ * Validates and sanitizes unknown remote-location data from JSONB or seed records,
+ * retaining only valid string fields, supported connectionType values, and finite
+ * numeric coordinates (gated by publicVisibility when specified).
+ */
+export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const raw = value as Record<string, unknown>;
+  const str = (v: unknown): string | undefined => {
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    return t ? t : undefined;
+  };
+  const venueName = str(raw.venueName);
+  const city = str(raw.city);
+  const country = str(raw.country);
+  const label = str(raw.label);
+  const overlayText = str(raw.overlayText);
+  const visibleLocationNotes = str(raw.visibleLocationNotes);
+  const rawVisibility = str(raw.publicVisibility) ?? str(raw.public_visibility);
+  const allowExactCoords = !rawVisibility || rawVisibility === "public-exact";
+  const latitude =
+    allowExactCoords && typeof raw.latitude === "number" && Number.isFinite(raw.latitude)
+      ? raw.latitude
+      : null;
+  const longitude =
+    allowExactCoords && typeof raw.longitude === "number" && Number.isFinite(raw.longitude)
+      ? raw.longitude
+      : null;
+  const connectionType =
+    typeof raw.connectionType === "string" &&
+    VALID_REMOTE_CONNECTION_TYPES.has(raw.connectionType as RemoteConnectionType)
+      ? (raw.connectionType as RemoteConnectionType)
+      : undefined;
+
+  if (
+    !venueName &&
+    !city &&
+    !country &&
+    !label &&
+    !overlayText &&
+    !visibleLocationNotes &&
+    !connectionType &&
+    latitude === null &&
+    longitude === null
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...(venueName ? { venueName } : {}),
+    ...(city ? { city } : {}),
+    ...(country ? { country } : {}),
+    ...(label ? { label } : {}),
+    ...(overlayText ? { overlayText } : {}),
+    ...(visibleLocationNotes ? { visibleLocationNotes } : {}),
+    ...(connectionType ? { connectionType } : {}),
+    ...(rawVisibility ? { publicVisibility: rawVisibility } : {}),
+    latitude,
+    longitude,
+  };
+}
+
+const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
+  "author",
+  "co-author",
+  "speaker",
+  "keynote-speaker",
+  "keynote speaker",
+  "guest",
+  "host",
+  "co-host",
+  "interviewer",
+  "interviewee",
+  "moderator",
+  "panelist",
+  "participant",
+  "contestant",
+  "expert-contributor",
+  "expert contributor",
+  "attendee",
+  "delegate",
+  "witness",
+  "presiding-officer",
+  "presiding officer",
+  "presiding judge",
+  "presiding",
+  "co-presiding",
+  "co presiding",
+  "lead prosecutor",
+  "prosecutor",
+  "signatory",
+  "honoree",
+  "investigator",
+  "observer",
+  "organizer",
+  "greeting dignitary",
+  "dissenting",
+  "dissenting in part",
+  "concurring",
+  "concurring in part",
+  "testifier",
+  "complainant",
+  "defendant",
+  "appellant",
+  "respondent",
+  "petitioner",
+  "counsel",
+  "defense counsel",
+  "prosecution counsel",
+]);
+
+/**
+ * Checks whether a candidate string matches a single or composite recognized event participation capacity.
+ */
+function isRecognizedCapacity(candidate: string): boolean {
+  const trimmed = candidate.trim();
+  const lower = trimmed.toLowerCase();
+  const normalized = lower.replace(/[\-_]/g, " ").trim();
+
+  if (RECOGNIZED_EVENT_CAPACITIES.has(lower) || RECOGNIZED_EVENT_CAPACITIES.has(normalized)) {
+    return true;
+  }
+
+  // Handle composite capacities: e.g. "Host / Witness", "Host, Moderator", "Co-Host & Moderator"
+  const subparts = trimmed
+    .split(/[\/,&\+]/)
+    .map((s) => s.trim().toLowerCase().replace(/[\-_]/g, " "))
+    .filter(Boolean);
+
+  if (
+    subparts.length > 1 &&
+    subparts.every(
+      (sub) =>
+        RECOGNIZED_EVENT_CAPACITIES.has(sub) ||
+        sub.startsWith("co ") ||
+        sub.startsWith("co-") ||
+        RECOGNIZED_EVENT_CAPACITIES.has(sub.replace(/^co\s+/, ""))
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Splits role_label and capacity_title into distinct official title (role) and event capacity (association).
+ * Moves a parenthetical qualifier into association when the parenthetical value is a recognized event capacity
+ * (e.g. "British Foreign Secretary (Author)" -> role: "British Foreign Secretary", association: "Author",
+ *  "President of the United States (Host / Witness)" -> role: "President of the United States", association: "Host / Witness");
+ * removes matching parentheticals when capacityTitle is explicitly provided;
+ * otherwise preserves the full official title including qualifiers such as "Prime Minister (Acting)".
+ */
+export function parseParticipantRoleAndAssociation(
+  roleLabel?: string | null,
+  capacityTitle?: string | null
+): { role?: string; association?: ParticipantAssociation | string } {
+  let role = roleLabel?.trim() || undefined;
+  let association: ParticipantAssociation | string | undefined = capacityTitle?.trim() || undefined;
+
+  if (role) {
+    const match = role.match(/^(.*?)\s*\(([^)]+)\)$/);
+    if (match) {
+      const candidateCapacity = match[2].trim();
+      const isCapacity = isRecognizedCapacity(candidateCapacity);
+      const matchesExplicit = Boolean(
+        association && candidateCapacity.toLowerCase() === association.toLowerCase()
+      );
+
+      if (isCapacity || matchesExplicit) {
+        role = match[1].trim() || undefined;
+        if (!association) {
+          association = candidateCapacity;
+        }
+      }
+    }
+  }
+
+  return { role, association };
 }
 
 const fallbackSourceMap = new Map<string, SourceRecord>(
   (fallbackSources || []).map((s) => [s.id, s])
 );
 
+/**
+ * Maps a seed EventRecord into a normalized EventRecord with hydrated sources and precedence-sorted participants.
+ */
 function mapFallbackEvent(e: EventRecord): EventRecord {
   const sources = (e.sourceIds || [])
     .map((sId) => fallbackSourceMap.get(sId))
@@ -99,21 +308,26 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
     sourceIds: e.sourceIds || [],
     sources: sources.length > 0 ? sources : (e.sources || []),
     participants: sortParticipantsByPrecedence(
-      (e.participants || []).map((p) => ({
-        personId: p.personId,
-        slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
-        name: p.name,
-        role: p.role,
-        presenceConfidence: p.presenceConfidence,
-        capacityTitle: validateCapacityTitle(p.capacityTitle),
-        attendanceMode: p.attendanceMode,
-        isCentralFigure: p.isCentralFigure,
-        precedenceOrder: p.precedenceOrder,
-        prominence: p.prominence,
-        remoteLocation: p.remoteLocation,
-        latitude: p.remoteLocation?.latitude ?? p.latitude ?? null,
-        longitude: p.remoteLocation?.longitude ?? p.longitude ?? null,
-      }))
+      (e.participants || []).map((p) => {
+        const parsed = parseParticipantRoleAndAssociation(p.role, p.association || p.capacityTitle);
+        const normalizedRemote = normalizeRemoteLocation(p.remoteLocation);
+        return {
+          personId: p.personId,
+          slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
+          name: p.name,
+          role: parsed.role,
+          association: parsed.association,
+          presenceConfidence: p.presenceConfidence,
+          capacityTitle: validateCapacityTitle(p.capacityTitle),
+          attendanceMode: p.attendanceMode,
+          isCentralFigure: p.isCentralFigure,
+          precedenceOrder: p.precedenceOrder,
+          prominence: p.prominence,
+          remoteLocation: normalizedRemote,
+          latitude: normalizedRemote?.latitude ?? p.latitude ?? null,
+          longitude: normalizedRemote?.longitude ?? p.longitude ?? null,
+        };
+      })
     ),
     categories: e.categories || ["diplomatic"],
     eventTypes: e.eventTypes || ["historical-action"],
@@ -521,22 +735,28 @@ async function hydrateEventRows(
 
   typedParticipants.forEach((p) => {
     const list = participantsMap.get(p.event_id) || [];
+    const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
+    const normalizedRemote = normalizeRemoteLocation(p.remote_location);
     list.push({
       personId: p.person_id,
       slug: personSlugs.get(p.person_id),
       name: personNames.get(p.person_id) || p.person_id,
-      role: p.role_label,
+      role,
+      association,
       presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
       capacityTitle: validateCapacityTitle(p.capacity_title),
       attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
       isCentralFigure: Boolean(p.is_central_figure),
       precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
       prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
-      remoteLocation: p.remote_location || undefined,
-      latitude: p.remote_location?.latitude ?? null,
-      longitude: p.remote_location?.longitude ?? null,
+      remoteLocation: normalizedRemote,
+      latitude: normalizedRemote?.latitude ?? null,
+      longitude: normalizedRemote?.longitude ?? null,
     });
-    participantsMap.set(p.event_id, sortParticipantsByPrecedence(list));
+    participantsMap.set(p.event_id, list);
+  });
+  participantsMap.forEach((list, eventId) => {
+    participantsMap.set(eventId, sortParticipantsByPrecedence(list));
   });
 
   // Fetch source IDs and source records with bounded eventId chunking
@@ -1043,6 +1263,10 @@ export async function getEventBySlug(
         presence_confidence: string | null;
         capacity_title: string | null;
         attendance_mode: string | null;
+        is_central_figure?: boolean | null;
+        precedence_order?: number | null;
+        prominence?: string | null;
+        remote_location?: unknown;
       }> = [];
       {
         const batchSize = 1000;
@@ -1053,7 +1277,7 @@ export async function getEventBySlug(
           const to = from + batchSize - 1;
           const { data, error: partError } = await supabase
             .from("event_people")
-            .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode")
+            .select("id, person_id, role_label, presence_confidence, capacity_title, attendance_mode, is_central_figure, precedence_order, prominence, remote_location")
             .eq("event_id", eventId)
             .order("id", { ascending: true })
             .range(from, to);
@@ -1112,21 +1336,30 @@ export async function getEventBySlug(
         }
       }
 
-      const participants: Participant[] = participantRows.map((p) => {
-        const loc = locationsMap.get(p.id);
-        return {
-          personId: p.person_id,
-          slug: personSlugs.get(p.person_id),
-          name: personNames.get(p.person_id) || p.person_id,
-          role: p.role_label || undefined,
-          presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
-          capacityTitle: p.capacity_title || undefined,
-          attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
-          latitude: loc?.latitude ?? null,
-          longitude: loc?.longitude ?? null,
-          coordinatePrecision: loc?.coordinate_precision,
-        };
-      });
+      const participants: Participant[] = sortParticipantsByPrecedence(
+        participantRows.map((p) => {
+          const loc = locationsMap.get(p.id);
+          const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
+          const normalizedRemote = normalizeRemoteLocation(p.remote_location);
+          return {
+            personId: p.person_id,
+            slug: personSlugs.get(p.person_id),
+            name: personNames.get(p.person_id) || p.person_id,
+            role,
+            association,
+            presenceConfidence: isConfidence(p.presence_confidence) ? p.presence_confidence : undefined,
+            capacityTitle: validateCapacityTitle(p.capacity_title),
+            attendanceMode: isAttendanceMode(p.attendance_mode) ? p.attendance_mode : undefined,
+            isCentralFigure: Boolean(p.is_central_figure),
+            precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
+            prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
+            remoteLocation: normalizedRemote,
+            latitude: normalizedRemote?.latitude ?? loc?.latitude ?? null,
+            longitude: normalizedRemote?.longitude ?? loc?.longitude ?? null,
+            coordinatePrecision: loc?.coordinate_precision,
+          };
+        })
+      );
 
       // Fetch sources ordered by is_primary descending, then id ascending
       let eventSourcesRows: Array<{ source_id: string; is_primary?: boolean | null }> = [];
@@ -1348,36 +1581,28 @@ export async function getVerifiedEvents(limit = 10): Promise<EventRecord[]> {
 /**
  * Localizes an EventRecord for a specific person's timeline.
  * If the person participated remotely (e.g. video link, phone, satellite feed),
- * their timeline displays their verified remote venue/city/country and coordinates,
- * while preserving the broadcast studio/stage as mainVenueName.
+ * their timeline displays their verified remote venue/city/country and coordinates
+ * when supplied by remoteLocation, while preserving the broadcast studio/stage as mainVenueName.
  */
 export function localizeEventForPersonParticipant(
   event: EventRecord,
   personSlug: string,
   personDbId?: string
 ): EventRecord {
-  const participant = event.participants?.find(
-    (p) =>
-      p.slug === personSlug ||
-      p.personId === personSlug ||
-      (personDbId && (p.personId === personDbId || p.slug === personDbId))
-  );
+  const participant =
+    (personDbId
+      ? event.participants?.find((p) => p.personId === personDbId)
+      : undefined) ??
+    event.participants?.find((p) => p.slug === personSlug);
   if (!participant) return event;
 
-  const isRemote =
-    participant.attendanceMode === "remote-live" ||
-    participant.attendanceMode === "telephone" ||
-    participant.attendanceMode === "remote-recorded" ||
-    Boolean(participant.remoteLocation);
-
-  if (isRemote) {
+  if (isRemoteParticipant(participant)) {
     const loc = participant.remoteLocation;
-    const remoteLabel =
-      loc?.label ||
-      (loc?.city ? `Live from ${loc.city}` : "Remote Appearance");
-    const remoteVenue =
-      loc?.venueName ||
-      (loc?.city ? `Remote: ${loc.city}` : "Remote Location");
+    const remoteLabel = formatRemoteAppearanceLabel(participant);
+    const hasRemotePlace = Boolean(loc?.city || loc?.country || loc?.venueName);
+    const remoteVenue = hasRemotePlace
+      ? loc?.venueName || (loc?.city ? `Remote: ${loc.city}` : event.venueName ?? undefined)
+      : event.venueName ?? undefined;
     const remoteCity = loc?.city || event.city;
     const remoteCountry = loc?.country || event.country;
     const remoteLat =
@@ -1385,12 +1610,16 @@ export function localizeEventForPersonParticipant(
         ? loc.latitude
         : typeof participant.latitude === "number"
         ? participant.latitude
+        : hasRemotePlace
+        ? null
         : event.latitude;
     const remoteLng =
       typeof loc?.longitude === "number"
         ? loc.longitude
         : typeof participant.longitude === "number"
         ? participant.longitude
+        : hasRemotePlace
+        ? null
         : event.longitude;
 
     const narrative = formatParticipantTimelineNarrative(participant, {
@@ -1402,6 +1631,15 @@ export function localizeEventForPersonParticipant(
       mainCity: event.city,
       mainCountry: event.country,
     });
+
+    if (!hasRemotePlace && typeof loc?.latitude !== "number" && typeof loc?.longitude !== "number") {
+      return {
+        ...event,
+        isRemoteAttendance: true,
+        remoteLocationLabel: remoteLabel,
+        participantNarrative: narrative,
+      };
+    }
 
     return {
       ...event,
@@ -1415,6 +1653,16 @@ export function localizeEventForPersonParticipant(
       country: remoteCountry,
       latitude: remoteLat,
       longitude: remoteLng,
+      subvenue: undefined,
+      address: undefined,
+      region: undefined,
+      locationPrecision: loc?.venueName
+        ? "venue"
+        : loc?.city
+        ? "city"
+        : loc?.country
+        ? "country"
+        : "unknown",
       participantNarrative: narrative,
     };
   }

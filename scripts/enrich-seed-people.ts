@@ -8,27 +8,27 @@ export function enrichPersonSeed(p: CanonicalPersonSeed): CanonicalPersonSeed {
   const nationality = p.nationality || "Unknown";
   const citizenship = p.citizenship && p.citizenship.length > 0 ? p.citizenship : [nationality];
   const languages = p.languages && p.languages.length > 0 ? p.languages : (
-    nationality === "Israel" ? ["Hebrew", "English"] :
-    nationality === "United States" || nationality === "United Kingdom" || nationality === "Australia" || nationality === "Canada" ? ["English"] :
-    nationality === "France" ? ["French", "English"] :
-    nationality === "Germany" ? ["German", "English"] :
-    nationality === "Russian Federation" || nationality === "Soviet Union" || nationality === "Russia" ? ["Russian"] :
-    nationality === "State of Palestine" || nationality === "Palestine" || nationality === "Jordan" || nationality === "Egypt" || nationality === "Saudi Arabia" || nationality === "Qatar" || nationality === "United Arab Emirates" || nationality === "Syria" || nationality === "Lebanon" ? ["Arabic", "English"] :
-    nationality === "Turkey" ? ["Turkish", "English"] :
-    nationality === "Iran" ? ["Persian", "Arabic"] :
+    nationality === "Israel" || nationality === "Israeli" ? ["Hebrew", "English"] :
+    nationality === "United States" || nationality === "American" || nationality === "United Kingdom" || nationality === "British" || nationality === "Australia" || nationality === "Australian" || nationality === "Canada" || nationality === "Canadian" ? ["English"] :
+    nationality === "France" || nationality === "French" ? ["French", "English"] :
+    nationality === "Germany" || nationality === "German" ? ["German", "English"] :
+    nationality === "Russian Federation" || nationality === "Soviet Union" || nationality === "Russia" || nationality === "Russian" || nationality === "Soviet" ? ["Russian"] :
+    nationality === "State of Palestine" || nationality === "Palestine" || nationality === "Palestinian" || nationality === "Jordan" || nationality === "Jordanian" || nationality === "Egypt" || nationality === "Egyptian" || nationality === "Saudi Arabia" || nationality === "Saudi" || nationality === "Qatar" || nationality === "Qatari" || nationality === "United Arab Emirates" || nationality === "Emirati" || nationality === "Syria" || nationality === "Syrian" || nationality === "Lebanon" || nationality === "Lebanese" ? ["Arabic", "English"] :
+    nationality === "Turkey" || nationality === "Turkish" ? ["Turkish", "English"] :
+    nationality === "Iran" || nationality === "Iranian" ? ["Persian", "Arabic"] :
+    nationality === "Spain" || nationality === "Spanish" ? ["Spanish"] :
+    nationality === "Italy" || nationality === "Italian" ? ["Italian"] :
+    nationality === "China" || nationality === "Chinese" ? ["Chinese"] :
+    nationality === "Japan" || nationality === "Japanese" ? ["Japanese"] :
     ["English"]
   );
 
-  let religion = p.religion ?? null;
-  let religiousDenomination = p.religiousDenomination ?? null;
+  const religion = p.religion ?? null;
+  const religiousDenomination = p.religiousDenomination ?? null;
   let religionStatus = p.religionStatus;
 
   if (!religionStatus) {
     if (religion) {
-      religionStatus = "self-identified";
-    } else if (nationality === "Israel") {
-      religion = "Judaism";
-      religiousDenomination = null;
       religionStatus = "self-identified";
     } else {
       religionStatus = "not-publicly-stated";
@@ -82,7 +82,7 @@ async function run() {
     const filePath = path.join("data/seeds", file);
     if (!fs.existsSync(filePath)) continue;
 
-    const seedModule = await import(path.resolve(filePath));
+    const seedModule = await import(/* @vite-ignore */ path.resolve(filePath));
     const exportKey = Object.keys(seedModule).find((k) => Array.isArray(seedModule[k]));
     if (!exportKey) continue;
 
