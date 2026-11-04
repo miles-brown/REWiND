@@ -62,6 +62,8 @@ const migrationFiles = [
   "20260904070000_mobile_venues_and_vessel_architecture.sql",
   "20260904080000_add_claim_contestation_columns.sql",
   "20260904090000_validate_remote_and_vessel_constraints.sql",
+  "20260904100000_fix_remote_coords_visibility_null_default.sql",
+  "20260904110000_validate_remote_coords_visibility_check.sql",
 ];
 
 /**

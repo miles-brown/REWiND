@@ -151,6 +151,28 @@ export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefi
   };
 }
 
+/**
+ * Returns false when a remote-location object explicitly sets a non-exact
+ * publicVisibility (e.g. restricted, internal, private, approximate), preventing
+ * hydration from falling back to retained principal location coordinates.
+ */
+function allowsPrincipalCoordinateFallback(rawRemote: unknown): boolean {
+  if (!rawRemote || typeof rawRemote !== "object" || Array.isArray(rawRemote)) {
+    return true;
+  }
+  const raw = rawRemote as Record<string, unknown>;
+  const vis =
+    typeof raw.publicVisibility === "string"
+      ? raw.publicVisibility.trim()
+      : typeof raw.public_visibility === "string"
+      ? raw.public_visibility.trim()
+      : "";
+  if (!vis) {
+    return true;
+  }
+  return vis === "public-exact";
+}
+
 const RECOGNIZED_EVENT_CAPACITIES = new Set<string>([
   "author",
   "co-author",
@@ -315,6 +337,7 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
       (e.participants || []).map((p) => {
         const parsed = parseParticipantRoleAndAssociation(p.role, p.association || p.capacityTitle);
         const normalizedRemote = normalizeRemoteLocation(p.remoteLocation);
+        const allowFallbackCoords = allowsPrincipalCoordinateFallback(p.remoteLocation);
         return {
           personId: p.personId,
           slug: (p as { slug?: string }).slug || p.personId.replace(/^p-/, ""),
@@ -328,8 +351,8 @@ function mapFallbackEvent(e: EventRecord): EventRecord {
           precedenceOrder: p.precedenceOrder,
           prominence: p.prominence,
           remoteLocation: normalizedRemote,
-          latitude: normalizedRemote?.latitude ?? p.latitude ?? null,
-          longitude: normalizedRemote?.longitude ?? p.longitude ?? null,
+          latitude: normalizedRemote?.latitude ?? (allowFallbackCoords ? p.latitude : null) ?? null,
+          longitude: normalizedRemote?.longitude ?? (allowFallbackCoords ? p.longitude : null) ?? null,
         };
       })
     ),
@@ -759,6 +782,7 @@ async function hydrateEventRows(
     const list = participantsMap.get(p.event_id) || [];
     const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
     const normalizedRemote = normalizeRemoteLocation(p.remote_location);
+    const allowPrincipalCoords = allowsPrincipalCoordinateFallback(p.remote_location);
     const principal = p.id != null ? principalLocations.get(String(p.id)) : undefined;
     list.push({
       personId: p.person_id,
@@ -773,8 +797,8 @@ async function hydrateEventRows(
       precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
       prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
       remoteLocation: normalizedRemote,
-      latitude: normalizedRemote?.latitude ?? principal?.latitude ?? null,
-      longitude: normalizedRemote?.longitude ?? principal?.longitude ?? null,
+      latitude: normalizedRemote?.latitude ?? (allowPrincipalCoords ? principal?.latitude : null) ?? null,
+      longitude: normalizedRemote?.longitude ?? (allowPrincipalCoords ? principal?.longitude : null) ?? null,
     });
     participantsMap.set(p.event_id, list);
   });
@@ -1364,6 +1388,7 @@ export async function getEventBySlug(
           const loc = locationsMap.get(p.id);
           const { role, association } = parseParticipantRoleAndAssociation(p.role_label, p.capacity_title);
           const normalizedRemote = normalizeRemoteLocation(p.remote_location);
+          const allowPrincipalCoords = allowsPrincipalCoordinateFallback(p.remote_location);
           return {
             personId: p.person_id,
             slug: personSlugs.get(p.person_id),
@@ -1377,9 +1402,9 @@ export async function getEventBySlug(
             precedenceOrder: typeof p.precedence_order === "number" ? p.precedence_order : undefined,
             prominence: isParticipantProminence(p.prominence) ? p.prominence : undefined,
             remoteLocation: normalizedRemote,
-            latitude: normalizedRemote?.latitude ?? loc?.latitude ?? null,
-            longitude: normalizedRemote?.longitude ?? loc?.longitude ?? null,
-            coordinatePrecision: loc?.coordinate_precision,
+            latitude: normalizedRemote?.latitude ?? (allowPrincipalCoords ? loc?.latitude : null) ?? null,
+            longitude: normalizedRemote?.longitude ?? (allowPrincipalCoords ? loc?.longitude : null) ?? null,
+            coordinatePrecision: allowPrincipalCoords ? loc?.coordinate_precision : undefined,
           };
         })
       );

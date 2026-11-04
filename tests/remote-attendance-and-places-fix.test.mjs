@@ -244,12 +244,18 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       const restrictedWithConnection = normalizeRemoteLocation({
         city: "Zurich",
         connectionType: "satellite-feed",
+        label: "Live from Westminster",
+        overlayText: "Westminster",
+        visibleLocationNotes: "Studio feed only",
         latitude: 47.3769,
         longitude: 8.5417,
         publicVisibility: "restricted",
       });
       assert.equal(restrictedWithConnection?.city, undefined);
       assert.equal(restrictedWithConnection?.connectionType, "satellite-feed");
+      assert.equal(restrictedWithConnection?.label, undefined);
+      assert.equal(restrictedWithConnection?.overlayText, undefined);
+      assert.equal(restrictedWithConnection?.visibleLocationNotes, undefined);
       assert.equal(restrictedWithConnection?.latitude, null);
       assert.equal(restrictedWithConnection?.longitude, null);
 

@@ -788,19 +788,40 @@ export function processCandidateEvent(
 
           let effectivePlaceId = targetPlaceId;
           if (livePlaceResolution.confidence <= 0) {
-            await tx
-              .insert(schema.places)
-              .values({
-                id: targetPlaceId,
-                slug: basePlaceSlug,
-                venue: livePlaceResolution.venue,
-                city: livePlaceResolution.city,
-                country: livePlaceResolution.country,
-                latitude: null,
-                longitude: null,
-                placeType: "venue",
-              })
-              .onConflictDoNothing();
+            const existingPlaceholderPlaces = await tx
+              .select({ id: schema.places.id, slug: schema.places.slug })
+              .from(schema.places)
+              .where(
+                or(
+                  eq(schema.places.id, targetPlaceId),
+                  eq(schema.places.slug, basePlaceSlug),
+                  ilike(schema.places.slug, `${escapeIlikePattern(basePlaceSlug)}-%`)
+                )
+              );
+            const existingTarget = existingPlaceholderPlaces.find((p) => p.id === targetPlaceId);
+            if (!existingTarget) {
+              const usedSlugs = new Set(existingPlaceholderPlaces.map((p) => p.slug));
+              let candidateSlug = basePlaceSlug;
+              let suffixIdx = 2;
+              while (usedSlugs.has(candidateSlug)) {
+                candidateSlug = `${basePlaceSlug}-${suffixIdx}`;
+                suffixIdx++;
+              }
+
+              await tx
+                .insert(schema.places)
+                .values({
+                  id: targetPlaceId,
+                  slug: candidateSlug,
+                  venue: livePlaceResolution.venue,
+                  city: livePlaceResolution.city,
+                  country: livePlaceResolution.country,
+                  latitude: null,
+                  longitude: null,
+                  placeType: "venue",
+                })
+                .onConflictDoNothing();
+            }
           } else {
             // 1. Query exact place by venue and city
             const placeConditions = [

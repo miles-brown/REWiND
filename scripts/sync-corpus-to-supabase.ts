@@ -698,7 +698,7 @@ async function syncCorpus() {
           personId: dbPersonId,
           involvementType: part.role === "attendee" ? "attendee" : "principal",
           roleLabel: part.role || "Participant",
-          capacityTitle: part.capacityTitle || part.role || "Delegate",
+          capacityTitle: part.capacityTitle || null,
           attendanceMode: part.attendanceMode || "physical",
           presenceConfidence: part.presenceConfidence || "confirmed",
           roleConfidence: "confirmed" as const,
@@ -752,6 +752,12 @@ async function syncCorpus() {
             target: schema.eventPeople.id,
             set: participantValues,
           });
+
+        if (part.remoteLocation?.publicVisibility && part.remoteLocation.publicVisibility !== "public-exact") {
+          await tx
+            .delete(schema.eventPersonLocations)
+            .where(eq(schema.eventPersonLocations.eventPersonId, eventPersonId));
+        }
       }
 
       if (syncedEventPersonIds.length > 0) {
