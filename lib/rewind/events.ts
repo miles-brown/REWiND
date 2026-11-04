@@ -131,7 +131,6 @@ export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefi
     !overlayText &&
     !visibleLocationNotes &&
     !connectionType &&
-    !rawVisibility &&
     latitude === null &&
     longitude === null
   ) {
@@ -1634,21 +1633,21 @@ export function localizeEventForPersonParticipant(
     const remoteCity = hasRemoteOrigin ? loc?.city || "" : event.city;
     const remoteCountry = hasRemoteOrigin ? loc?.country || "" : event.country;
     const remoteLat =
-      typeof loc?.latitude === "number"
+      typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.latitude
-        : typeof participant.latitude === "number"
+        : !hasRemoteCoordinates &&
+          typeof participant.latitude === "number" &&
+          typeof participant.longitude === "number"
         ? participant.latitude
-        : hasRemoteOrigin
-        ? null
-        : event.latitude;
+        : null;
     const remoteLng =
-      typeof loc?.longitude === "number"
+      typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.longitude
-        : typeof participant.longitude === "number"
+        : !hasRemoteCoordinates &&
+          typeof participant.latitude === "number" &&
+          typeof participant.longitude === "number"
         ? participant.longitude
-        : hasRemoteOrigin
-        ? null
-        : event.longitude;
+        : null;
 
     const narrative = formatParticipantTimelineNarrative(participant, {
       eventName: event.eventName,
@@ -1683,6 +1682,7 @@ export function localizeEventForPersonParticipant(
         subvenue: undefined,
         address: undefined,
         region: undefined,
+        locationPrecision: "unknown",
       };
     }
 

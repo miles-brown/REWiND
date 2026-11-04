@@ -16,7 +16,7 @@
 
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
 import {
@@ -684,67 +684,87 @@ async function syncCorpus() {
         isPrimarySource = false;
       }
 
-      // Reconcile and synchronize event participants (event_people)
-      await tx.delete(schema.eventPeople).where(eq(schema.eventPeople.eventId, evt.id));
+      // Reconcile and synchronize event participants (event_people) via deterministic ID upsert
+      const syncedEventPersonIds: string[] = [];
       for (const part of evt.participants || []) {
         const canonicalPersonRef = PARTICIPANT_ID_ALIASES[part.personId] || part.personId;
         const dbPersonId = resolvedPersonIdMap.get(canonicalPersonRef) || resolvedPersonIdMap.get((part as { slug?: string }).slug || "") || canonicalPersonRef;
         const eventPersonId = `ep-${evt.id}-${dbPersonId}`;
+        syncedEventPersonIds.push(eventPersonId);
+
+        const participantValues = {
+          id: eventPersonId,
+          eventId: evt.id,
+          personId: dbPersonId,
+          involvementType: part.role === "attendee" ? "attendee" : "principal",
+          roleLabel: part.role || "Participant",
+          capacityTitle: part.capacityTitle || part.role || "Delegate",
+          attendanceMode: part.attendanceMode || "physical",
+          presenceConfidence: part.presenceConfidence || "confirmed",
+          roleConfidence: "confirmed" as const,
+          isCentralFigure: Boolean(part.isCentralFigure),
+          precedenceOrder: typeof part.precedenceOrder === "number" ? part.precedenceOrder : null,
+          prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
+          remoteLocation: part.remoteLocation
+            ? (() => {
+                const vis = part.remoteLocation.publicVisibility;
+                const isRestricted =
+                  vis === "restricted" || vis === "internal" || vis === "private";
+                const allowExact = vis === "public-exact";
+                return {
+                  ...(isRestricted
+                    ? {}
+                    : {
+                        ...(part.remoteLocation.venueName
+                          ? { venueName: part.remoteLocation.venueName }
+                          : {}),
+                        ...(part.remoteLocation.city
+                          ? { city: part.remoteLocation.city }
+                          : {}),
+                        ...(part.remoteLocation.country
+                          ? { country: part.remoteLocation.country }
+                          : {}),
+                        ...(part.remoteLocation.label
+                          ? { label: part.remoteLocation.label }
+                          : {}),
+                        ...(part.remoteLocation.overlayText
+                          ? { overlayText: part.remoteLocation.overlayText }
+                          : {}),
+                        ...(part.remoteLocation.visibleLocationNotes
+                          ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
+                          : {}),
+                      }),
+                  ...(part.remoteLocation.connectionType
+                    ? { connectionType: part.remoteLocation.connectionType }
+                    : {}),
+                  ...(vis ? { publicVisibility: vis } : {}),
+                  latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
+                  longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
+                };
+              })()
+            : null,
+        };
 
         await tx
           .insert(schema.eventPeople)
-          .values({
-            id: eventPersonId,
-            eventId: evt.id,
-            personId: dbPersonId,
-            involvementType: part.role === "attendee" ? "attendee" : "principal",
-            roleLabel: part.role || "Participant",
-            capacityTitle: part.capacityTitle || part.role || "Delegate",
-            attendanceMode: part.attendanceMode || "physical",
-            presenceConfidence: part.presenceConfidence || "confirmed",
-            roleConfidence: "confirmed",
-            isCentralFigure: Boolean(part.isCentralFigure),
-            precedenceOrder: typeof part.precedenceOrder === "number" ? part.precedenceOrder : null,
-            prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
-            remoteLocation: part.remoteLocation
-              ? (() => {
-                  const vis = part.remoteLocation.publicVisibility;
-                  const isRestricted =
-                    vis === "restricted" || vis === "internal" || vis === "private";
-                  const allowExact = vis === "public-exact";
-                  return {
-                    ...(isRestricted
-                      ? {}
-                      : {
-                          ...(part.remoteLocation.venueName
-                            ? { venueName: part.remoteLocation.venueName }
-                            : {}),
-                          ...(part.remoteLocation.city
-                            ? { city: part.remoteLocation.city }
-                            : {}),
-                          ...(part.remoteLocation.country
-                            ? { country: part.remoteLocation.country }
-                            : {}),
-                          ...(part.remoteLocation.label
-                            ? { label: part.remoteLocation.label }
-                            : {}),
-                          ...(part.remoteLocation.overlayText
-                            ? { overlayText: part.remoteLocation.overlayText }
-                            : {}),
-                          ...(part.remoteLocation.visibleLocationNotes
-                            ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
-                            : {}),
-                        }),
-                    ...(part.remoteLocation.connectionType
-                      ? { connectionType: part.remoteLocation.connectionType }
-                      : {}),
-                    ...(vis ? { publicVisibility: vis } : {}),
-                    latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
-                    longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
-                  };
-                })()
-              : null,
+          .values(participantValues)
+          .onConflictDoUpdate({
+            target: schema.eventPeople.id,
+            set: participantValues,
           });
+      }
+
+      if (syncedEventPersonIds.length > 0) {
+        await tx
+          .delete(schema.eventPeople)
+          .where(
+            and(
+              eq(schema.eventPeople.eventId, evt.id),
+              notInArray(schema.eventPeople.id, syncedEventPersonIds)
+            )
+          );
+      } else {
+        await tx.delete(schema.eventPeople).where(eq(schema.eventPeople.eventId, evt.id));
       }
 
       // Reconcile and synchronize quotes

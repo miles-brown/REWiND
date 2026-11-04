@@ -239,10 +239,19 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         longitude: 8.5417,
         publicVisibility: "restricted",
       });
-      assert.equal(restrictedLoc?.city, undefined);
-      assert.equal(restrictedLoc?.connectionType, undefined);
-      assert.equal(restrictedLoc?.latitude, null);
-      assert.equal(restrictedLoc?.longitude, null);
+      assert.equal(restrictedLoc, undefined);
+
+      const restrictedWithConnection = normalizeRemoteLocation({
+        city: "Zurich",
+        connectionType: "satellite-feed",
+        latitude: 47.3769,
+        longitude: 8.5417,
+        publicVisibility: "restricted",
+      });
+      assert.equal(restrictedWithConnection?.city, undefined);
+      assert.equal(restrictedWithConnection?.connectionType, "satellite-feed");
+      assert.equal(restrictedWithConnection?.latitude, null);
+      assert.equal(restrictedWithConnection?.longitude, null);
 
       const omittedVisLoc = normalizeRemoteLocation({
         city: "  Zurich  ",
@@ -412,6 +421,7 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.equal(noOrigin.country, "");
       assert.equal(noOrigin.latitude, null);
       assert.equal(noOrigin.longitude, null);
+      assert.equal(noOrigin.locationPrecision, "unknown");
       assert.equal(noOrigin.mainVenueName, "BBC Television Centre");
       assert.equal(noOrigin.mainCity, "London");
       assert.equal(noOrigin.mainCountry, "United Kingdom");
@@ -471,10 +481,15 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(content.includes("5. Mobile Vessels & Dynamic Geocoding Architecture"), "Must document Mobile Vessels in Location Standard");
       assert.ok(content.includes("address_id` is strictly `null`"), "Must enforce address nullability invariant");
       assert.ok(content.includes("home_base_place_id"), "Must document home base anchor");
+      const executableSql = vesselMigrationSql
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/--[^\n]*/g, "")
+        .replace(/\s+/g, " ");
       assert.ok(
-        vesselMigrationSql.includes("venues_mobile_vessel_no_address_check") &&
-          vesselMigrationSql.includes("CHECK (NOT is_mobile_vessel OR address_id IS NULL)"),
-        "Mobile vessel migration must enforce CHECK (NOT is_mobile_vessel OR address_id IS NULL) on venues"
+        executableSql.includes(
+          "ALTER TABLE venues ADD CONSTRAINT venues_mobile_vessel_no_address_check CHECK (NOT is_mobile_vessel OR address_id IS NULL)"
+        ),
+        "Mobile vessel migration must include the uncommented ALTER TABLE constraint statement"
       );
     });
 

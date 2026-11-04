@@ -213,11 +213,13 @@ export function processCandidateEvent(
         auditPromise.catch(() => {});
       } else {
         // NEW EVENT PATH: Create new verified/provisional record
-        let existingPlace = store.places.find((p) => p.id === placeResolution.placeId);
+        const resolvedPlaceId =
+          placeResolution.confidence > 0 ? placeResolution.placeId : "plc-unverified-origin";
+        let existingPlace = store.places.find((p) => p.id === resolvedPlaceId);
         if (!existingPlace) {
           existingPlace = {
-            id: placeResolution.placeId,
-            slug: placeResolution.placeId.replace(/^plc-/, ""),
+            id: resolvedPlaceId,
+            slug: resolvedPlaceId.replace(/^plc-/, ""),
             venue: placeResolution.venue,
             city: placeResolution.city,
             country: placeResolution.country,
@@ -290,7 +292,7 @@ export function processCandidateEvent(
           routeCoordinates: null,
           travelInferences: null,
           journeyLegs: null,
-          placeId: placeResolution.placeId,
+          placeId: resolvedPlaceId,
           seriesId: null,
           venueId: null,
           subvenue: candidate.subvenue || null,
@@ -779,103 +781,121 @@ export function processCandidateEvent(
             candidate.city,
             candidate.title
           );
-          const basePlaceSlug = livePlaceResolution.placeId.replace(/^plc-/, "");
+          const targetPlaceId =
+            livePlaceResolution.confidence > 0 ? livePlaceResolution.placeId : "plc-unverified-origin";
+          const basePlaceSlug = targetPlaceId.replace(/^plc-/, "");
           await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'rewind-place:' + basePlaceSlug}))`);
 
-          // 1. Query exact place by venue and city
-          const placeConditions = [
-            ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
-            ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue)),
-          ];
-          if (livePlaceResolution.country && livePlaceResolution.country !== "International") {
-            placeConditions.push(ilike(schema.places.country, escapeIlikePattern(livePlaceResolution.country)));
-          }
-
-          const matchingPlacesByVenueCity = livePlaceResolution.city && livePlaceResolution.venue
-            ? await tx
-                .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
-                .from(schema.places)
-                .where(and(...placeConditions))
-            : [];
-
-          const existingDbPlaceCandidate = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
-          const existingDbPlace =
-            existingDbPlaceCandidate &&
-            (existingDbPlaceCandidate.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
-            (existingDbPlaceCandidate.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
-            (existingDbPlaceCandidate.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
-              ? existingDbPlaceCandidate
-              : null;
-
-          let effectivePlaceId = livePlaceResolution.placeId;
-          if (existingDbPlace) {
-            effectivePlaceId = existingDbPlace.id;
+          let effectivePlaceId = targetPlaceId;
+          if (livePlaceResolution.confidence <= 0) {
+            await tx
+              .insert(schema.places)
+              .values({
+                id: targetPlaceId,
+                slug: basePlaceSlug,
+                venue: livePlaceResolution.venue,
+                city: livePlaceResolution.city,
+                country: livePlaceResolution.country,
+                latitude: null,
+                longitude: null,
+                placeType: "venue",
+              })
+              .onConflictDoNothing();
           } else {
-            // 2. Query all existing places with matching base ID or slug prefix
-            const existingPlaces = await tx
-              .select({ id: schema.places.id, slug: schema.places.slug, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
-              .from(schema.places)
-              .where(
-                or(
-                  eq(schema.places.id, livePlaceResolution.placeId),
-                  ilike(schema.places.id, `${escapeIlikePattern(livePlaceResolution.placeId)}-%`),
-                  eq(schema.places.slug, basePlaceSlug),
-                  ilike(schema.places.slug, `${escapeIlikePattern(basePlaceSlug)}-%`)
-                )
+            // 1. Query exact place by venue and city
+            const placeConditions = [
+              ilike(schema.places.city, escapeIlikePattern(livePlaceResolution.city)),
+              ilike(schema.places.venue, escapeIlikePattern(livePlaceResolution.venue)),
+            ];
+            if (livePlaceResolution.country && livePlaceResolution.country !== "International") {
+              placeConditions.push(ilike(schema.places.country, escapeIlikePattern(livePlaceResolution.country)));
+            }
+
+            const matchingPlacesByVenueCity = livePlaceResolution.city && livePlaceResolution.venue
+              ? await tx
+                  .select({ id: schema.places.id, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
+                  .from(schema.places)
+                  .where(and(...placeConditions))
+              : [];
+
+            const existingDbPlaceCandidate = matchingPlacesByVenueCity.length === 1 ? matchingPlacesByVenueCity[0] : null;
+            const existingDbPlace =
+              existingDbPlaceCandidate &&
+              (existingDbPlaceCandidate.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
+              (existingDbPlaceCandidate.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
+              (existingDbPlaceCandidate.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
+                ? existingDbPlaceCandidate
+                : null;
+
+            if (existingDbPlace) {
+              effectivePlaceId = existingDbPlace.id;
+            } else {
+              // 2. Query all existing places with matching base ID or slug prefix
+              const existingPlaces = await tx
+                .select({ id: schema.places.id, slug: schema.places.slug, city: schema.places.city, venue: schema.places.venue, country: schema.places.country })
+                .from(schema.places)
+                .where(
+                  or(
+                    eq(schema.places.id, livePlaceResolution.placeId),
+                    ilike(schema.places.id, `${escapeIlikePattern(livePlaceResolution.placeId)}-%`),
+                    eq(schema.places.slug, basePlaceSlug),
+                    ilike(schema.places.slug, `${escapeIlikePattern(basePlaceSlug)}-%`)
+                  )
+                );
+
+              const samePlace = existingPlaces.find(
+                (p) =>
+                  (p.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
+                  (p.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
+                  (p.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
               );
 
-            const samePlace = existingPlaces.find(
-              (p) =>
-                (p.city || "unknown").toLowerCase() === (livePlaceResolution.city || "unknown").toLowerCase() &&
-                (p.venue || "general").toLowerCase() === (livePlaceResolution.venue || "general").toLowerCase() &&
-                (p.country || "international").toLowerCase() === (livePlaceResolution.country || "international").toLowerCase()
-            );
+              if (samePlace) {
+                effectivePlaceId = samePlace.id;
+              } else {
+                const usedIds = new Set(existingPlaces.map((p) => p.id));
+                const usedSlugs = new Set(existingPlaces.map((p) => p.slug));
 
-            if (samePlace) {
-              effectivePlaceId = samePlace.id;
-            } else {
-              const usedIds = new Set(existingPlaces.map((p) => p.id));
-              const usedSlugs = new Set(existingPlaces.map((p) => p.slug));
+                let candidateSlug = basePlaceSlug;
+                let candidateId = livePlaceResolution.placeId;
+                let suffixIdx = 2;
 
-              let candidateSlug = basePlaceSlug;
-              let candidateId = livePlaceResolution.placeId;
-              let suffixIdx = 2;
+                while (usedIds.has(candidateId) || usedSlugs.has(candidateSlug)) {
+                  candidateSlug = `${basePlaceSlug}-${suffixIdx}`;
+                  candidateId = `plc-${candidateSlug}`;
+                  suffixIdx++;
+                }
 
-              while (usedIds.has(candidateId) || usedSlugs.has(candidateSlug)) {
-                candidateSlug = `${basePlaceSlug}-${suffixIdx}`;
-                candidateId = `plc-${candidateSlug}`;
-                suffixIdx++;
-              }
+                effectivePlaceId = candidateId;
 
-              effectivePlaceId = candidateId;
+                await tx
+                  .insert(schema.places)
+                  .values({
+                    id: effectivePlaceId,
+                    slug: candidateSlug,
+                    venue: livePlaceResolution.venue,
+                    city: livePlaceResolution.city,
+                    country: livePlaceResolution.country,
+                    latitude:
+                      livePlaceResolution.confidence > 0
+                        ? livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null)
+                        : null,
+                    longitude:
+                      livePlaceResolution.confidence > 0
+                        ? livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null)
+                        : null,
+                    placeType: "venue",
+                  })
+                  .onConflictDoNothing();
 
-              await tx
-                .insert(schema.places)
-                .values({
-                  id: effectivePlaceId,
-                  slug: candidateSlug,
-                  venue: livePlaceResolution.venue,
-                  city: livePlaceResolution.city,
-                  country: livePlaceResolution.country,
-                  latitude:
-                    livePlaceResolution.confidence > 0
-                      ? livePlaceResolution.latitude ?? (candidate.latitude !== undefined ? candidate.latitude : null)
-                      : null,
-                  longitude:
-                    livePlaceResolution.confidence > 0
-                      ? livePlaceResolution.longitude ?? (candidate.longitude !== undefined ? candidate.longitude : null)
-                      : null,
-                  placeType: "venue",
-                })
-                .onConflictDoNothing();
+                const [persistedPlace] = await tx
+                  .select({ id: schema.places.id })
+                  .from(schema.places)
+                  .where(eq(schema.places.id, effectivePlaceId));
 
-              const [persistedPlace] = await tx
-                .select({ id: schema.places.id })
-                .from(schema.places)
-                .where(eq(schema.places.id, effectivePlaceId));
-
-              if (persistedPlace) {
-                effectivePlaceId = persistedPlace.id;
+                if (persistedPlace) {
+                  effectivePlaceId = persistedPlace.id;
+                }
               }
             }
           }
