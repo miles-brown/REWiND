@@ -222,6 +222,19 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       );
       assert.ok(phoneNarrative.includes("by telephone from Paris, France"));
       assert.ok(!phoneNarrative.includes("live from"));
+
+      // Official role without explicit capacityTitle or association does not fabricate a capacity clause
+      const officialOnlyNarrative = formatParticipantTimelineNarrative(
+        {
+          personId: "pres-1",
+          name: "Official Principal",
+          role: "President of the United States",
+          attendanceMode: "physical",
+        },
+        event1
+      );
+      assert.ok(officialOnlyNarrative.includes("Participated at The White House"));
+      assert.ok(!officialOnlyNarrative.includes("Participated as President of the United States"));
     });
   });
 
@@ -506,6 +519,82 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(content.includes("8. Mobile Vessels, Multi-Stage Festivals & Remote Localization"), "Must document Section 8");
       assert.ok(content.includes("is_mobile_vessel = true"), "Must specify is_mobile_vessel");
       assert.ok(content.includes("formatParticipantTimelineNarrative"), "Must document narrative formulation");
+    });
+
+    it("enforces corrective remote coordinate visibility constraint migrations and principal coordinate gating", () => {
+      const { allowsPrincipalCoordinateFallback, localizeEventForPersonParticipant } = eventsModule;
+
+      assert.equal(allowsPrincipalCoordinateFallback(null), true);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich" }), true);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "public-exact" }), true);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "restricted" }), false);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "internal" }), false);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "private" }), false);
+      assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "approximate" }), false);
+
+      const restrictedRemoteLocalized = localizeEventForPersonParticipant(
+        {
+          id: "evt-restricted-fallback",
+          slug: "restricted-fallback",
+          eventName: "Restricted Remote Briefing",
+          startDate: "2020-04-15T20:00:00Z",
+          venueName: "BBC Television Centre",
+          city: "London",
+          country: "United Kingdom",
+          latitude: 51.5126,
+          longitude: -0.2263,
+          summary: "Briefing with restricted remote participant.",
+          verificationStatus: "verified",
+          confidence: "confirmed",
+          sourceIds: ["src-1"],
+          participants: [
+            {
+              personId: "person-restricted",
+              slug: "person-restricted",
+              name: "Restricted Remote Guest",
+              role: "Guest",
+              attendanceMode: "remote-live",
+              latitude: 47.3769,
+              longitude: 8.5417,
+              remoteLocation: {
+                city: "Zurich",
+                publicVisibility: "approximate",
+              },
+            },
+          ],
+        },
+        "person-restricted"
+      );
+      assert.equal(restrictedRemoteLocalized.latitude, null);
+      assert.equal(restrictedRemoteLocalized.longitude, null);
+
+      const fixMigrationSql = fs.readFileSync(
+        path.join(root, "supabase/migrations/20260904100000_fix_remote_coords_visibility_null_default.sql"),
+        "utf-8"
+      );
+      const validateMigrationSql = fs.readFileSync(
+        path.join(root, "supabase/migrations/20260904110000_validate_remote_coords_visibility_check.sql"),
+        "utf-8"
+      );
+      const applyScript = fs.readFileSync(path.join(root, "scripts/apply-all-migrations.mjs"), "utf-8");
+
+      assert.ok(
+        fixMigrationSql.includes(
+          "coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') = 'public-exact'"
+        ),
+        "Corrective migration must use '' default in publicVisibility comparison"
+      );
+      assert.ok(
+        validateMigrationSql.includes(
+          "ALTER TABLE event_people VALIDATE CONSTRAINT event_people_remote_coords_visibility_check;"
+        ),
+        "Validation migration must validate event_people_remote_coords_visibility_check"
+      );
+      assert.ok(
+        applyScript.includes("20260904100000_fix_remote_coords_visibility_null_default.sql") &&
+          applyScript.includes("20260904110000_validate_remote_coords_visibility_check.sql"),
+        "apply-all-migrations.mjs must include both corrective migrations"
+      );
     });
   });
 });

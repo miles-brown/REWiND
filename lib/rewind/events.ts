@@ -156,7 +156,7 @@ export function normalizeRemoteLocation(value: unknown): RemoteLocation | undefi
  * publicVisibility (e.g. restricted, internal, private, approximate), preventing
  * hydration from falling back to retained principal location coordinates.
  */
-function allowsPrincipalCoordinateFallback(rawRemote: unknown): boolean {
+export function allowsPrincipalCoordinateFallback(rawRemote: unknown): boolean {
   if (!rawRemote || typeof rawRemote !== "object" || Array.isArray(rawRemote)) {
     return true;
   }
@@ -1646,6 +1646,7 @@ export function localizeEventForPersonParticipant(
 
   if (isRemoteParticipant(participant)) {
     const loc = participant.remoteLocation;
+    const allowParticipantCoords = allowsPrincipalCoordinateFallback(loc);
     const remoteLabel = formatRemoteAppearanceLabel(participant);
     const hasRemotePlace = Boolean(loc?.city || loc?.country || loc?.venueName);
     const hasRemoteCoordinates =
@@ -1661,6 +1662,7 @@ export function localizeEventForPersonParticipant(
       typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.latitude
         : !hasRemoteCoordinates &&
+          allowParticipantCoords &&
           typeof participant.latitude === "number" &&
           typeof participant.longitude === "number"
         ? participant.latitude
@@ -1669,6 +1671,7 @@ export function localizeEventForPersonParticipant(
       typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.longitude
         : !hasRemoteCoordinates &&
+          allowParticipantCoords &&
           typeof participant.latitude === "number" &&
           typeof participant.longitude === "number"
         ? participant.longitude
@@ -1697,11 +1700,15 @@ export function localizeEventForPersonParticipant(
         city: "",
         country: "",
         latitude:
-          typeof participant.latitude === "number" && typeof participant.longitude === "number"
+          allowParticipantCoords &&
+          typeof participant.latitude === "number" &&
+          typeof participant.longitude === "number"
             ? participant.latitude
             : null,
         longitude:
-          typeof participant.latitude === "number" && typeof participant.longitude === "number"
+          allowParticipantCoords &&
+          typeof participant.latitude === "number" &&
+          typeof participant.longitude === "number"
             ? participant.longitude
             : null,
         subvenue: undefined,

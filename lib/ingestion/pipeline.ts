@@ -217,9 +217,15 @@ export function processCandidateEvent(
           placeResolution.confidence > 0 ? placeResolution.placeId : "plc-unverified-origin";
         let existingPlace = store.places.find((p) => p.id === resolvedPlaceId);
         if (!existingPlace) {
+          const baseStoreSlug = resolvedPlaceId.replace(/^plc-/, "");
+          const takenStoreSlugs = new Set(store.places.map((p) => p.slug.toLowerCase()));
+          let candidateStoreSlug = baseStoreSlug;
+          for (let suffixIdx = 2; takenStoreSlugs.has(candidateStoreSlug.toLowerCase()); suffixIdx++) {
+            candidateStoreSlug = `${baseStoreSlug}-${suffixIdx}`;
+          }
           existingPlace = {
             id: resolvedPlaceId,
-            slug: resolvedPlaceId.replace(/^plc-/, ""),
+            slug: candidateStoreSlug,
             venue: placeResolution.venue,
             city: placeResolution.city,
             country: placeResolution.country,
@@ -794,16 +800,16 @@ export function processCandidateEvent(
               .where(
                 or(
                   eq(schema.places.id, targetPlaceId),
-                  eq(schema.places.slug, basePlaceSlug),
+                  ilike(schema.places.slug, escapeIlikePattern(basePlaceSlug)),
                   ilike(schema.places.slug, `${escapeIlikePattern(basePlaceSlug)}-%`)
                 )
               );
             const existingTarget = existingPlaceholderPlaces.find((p) => p.id === targetPlaceId);
             if (!existingTarget) {
-              const usedSlugs = new Set(existingPlaceholderPlaces.map((p) => p.slug));
+              const usedSlugs = new Set(existingPlaceholderPlaces.map((p) => p.slug.toLowerCase()));
               let candidateSlug = basePlaceSlug;
               let suffixIdx = 2;
-              while (usedSlugs.has(candidateSlug)) {
+              while (usedSlugs.has(candidateSlug.toLowerCase())) {
                 candidateSlug = `${basePlaceSlug}-${suffixIdx}`;
                 suffixIdx++;
               }
@@ -820,7 +826,7 @@ export function processCandidateEvent(
                   longitude: null,
                   placeType: "venue",
                 })
-                .onConflictDoNothing();
+                .onConflictDoNothing({ target: schema.places.id });
             }
           } else {
             // 1. Query exact place by venue and city

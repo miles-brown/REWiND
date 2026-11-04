@@ -752,12 +752,6 @@ async function syncCorpus() {
             target: schema.eventPeople.id,
             set: participantValues,
           });
-
-        if (part.remoteLocation?.publicVisibility && part.remoteLocation.publicVisibility !== "public-exact") {
-          await tx
-            .delete(schema.eventPersonLocations)
-            .where(eq(schema.eventPersonLocations.eventPersonId, eventPersonId));
-        }
       }
 
       if (syncedEventPersonIds.length > 0) {

@@ -239,7 +239,8 @@ export function formatParticipantTimelineNarrative(
     mainCountry?: string | null;
   }
 ): string {
-  const capacity = participant.capacityTitle || participant.role || "participant";
+  const capacity = participant.capacityTitle || participant.association;
+  const capacityClause = capacity ? ` as ${capacity}` : "";
   const isRemote = isRemoteParticipant(participant);
 
   if (isRemote) {
@@ -264,13 +265,13 @@ export function formatParticipantTimelineNarrative(
         ? "by telephone from"
         : "live from";
 
-    return `Appeared remotely as ${capacity} ${appearance} ${remotePlace}${connectionNote}${overlayNote} during "${event.eventName || "event"}"${mainLoc}.`;
+    return `Appeared remotely${capacityClause} ${appearance} ${remotePlace}${connectionNote}${overlayNote} during "${event.eventName || "event"}"${mainLoc}.`;
   }
 
   const venue = event.venueName ? ` at ${event.venueName}` : "";
   const location = [event.city, event.country].filter(Boolean).join(", ");
   const place = venue ? `${venue}${location ? `, ${location}` : ""}` : location ? ` (${location})` : "";
-  return `Participated as ${capacity}${place} in "${event.eventName || "event"}".`;
+  return `Participated${capacityClause}${place} in "${event.eventName || "event"}".`;
 }
 
 export interface ClaimEvidenceRecord {
