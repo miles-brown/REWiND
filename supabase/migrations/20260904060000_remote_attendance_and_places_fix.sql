@@ -168,8 +168,7 @@ SELECT
   ep.precedence_order,
   ep.prominence,
   public.sanitize_public_remote_location(ep.remote_location) AS remote_location,
-  ep.notes,
-  ep.created_at
+  ep.notes
 FROM public.event_people ep
 WHERE EXISTS (
   SELECT 1 FROM public.events e
