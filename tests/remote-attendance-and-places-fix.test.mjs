@@ -595,6 +595,17 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
           applyScript.includes("20260904110000_validate_remote_coords_visibility_check.sql"),
         "apply-all-migrations.mjs must include both corrective migrations"
       );
+
+      const syncScript = fs.readFileSync(path.join(root, "scripts/sync-corpus-to-supabase.ts"), "utf-8");
+      const eventsSource = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
+      assert.ok(
+        syncScript.includes('(/[/;]/.test(rawCountry) ? rawCountry.split(/[/;]/)[0].trim() : rawCountry) || "Unknown"'),
+        "sync-corpus-to-supabase.ts must map a blank first country segment to Unknown"
+      );
+      assert.ok(
+        eventsSource.includes("const LOCATION_ID_CHUNK_SIZE = 100;"),
+        "lib/rewind/events.ts must bound event_person_locations .in() queries to LOCATION_ID_CHUNK_SIZE = 100"
+      );
     });
   });
 });

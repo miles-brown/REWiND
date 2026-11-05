@@ -765,8 +765,9 @@ async function hydrateEventRows(
     .map((p) => p.id)
     .filter((id): id is number | string => id != null);
   const principalLocations = new Map<string, { latitude?: number | null; longitude?: number | null }>();
-  for (let i = 0; i < participantLocationIds.length; i += 500) {
-    const chunk = participantLocationIds.slice(i, i + 500);
+  const LOCATION_ID_CHUNK_SIZE = 100;
+  for (let i = 0; i < participantLocationIds.length; i += LOCATION_ID_CHUNK_SIZE) {
+    const chunk = participantLocationIds.slice(i, i + LOCATION_ID_CHUNK_SIZE);
     const { data: locRows, error: locError } = await supabase
       .from("event_person_locations")
       .select("event_person_id, latitude, longitude")
@@ -1345,8 +1346,9 @@ export async function getEventBySlug(
       const eventPersonIds = participantRows.map((p) => p.id);
       const locationsMap = new Map();
       if (eventPersonIds.length > 0) {
-        for (let i = 0; i < eventPersonIds.length; i += 500) {
-          const chunk = eventPersonIds.slice(i, i + 500);
+        const LOCATION_ID_CHUNK_SIZE = 100;
+        for (let i = 0; i < eventPersonIds.length; i += LOCATION_ID_CHUNK_SIZE) {
+          const chunk = eventPersonIds.slice(i, i + LOCATION_ID_CHUNK_SIZE);
           const { data: locRows, error: locError } = await supabase
             .from("event_person_locations")
             .select("event_person_id, latitude, longitude, coordinate_precision")

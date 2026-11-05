@@ -557,7 +557,7 @@ async function syncCorpus() {
     const city = (e.city || "Unknown").trim();
     const venue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || city).trim();
     const rawCountry = (e.country || "Unknown").trim();
-    const country = rawCountry.includes("/") || rawCountry.includes(";") ? rawCountry.split(/[/;]/)[0].trim() : rawCountry;
+    const country = (/[/;]/.test(rawCountry) ? rawCountry.split(/[/;]/)[0].trim() : rawCountry) || "Unknown";
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
 
