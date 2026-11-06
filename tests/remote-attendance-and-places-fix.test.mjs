@@ -628,19 +628,22 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         "apply-all-migrations.mjs must include both corrective migrations"
       );
 
-      // Behaviorally verify both location-query paths split >100 participant IDs into bounded chunks (<=100)
-      const totalParticipants = 150;
+      // Behaviorally verify both location-query paths exclude restricted remote IDs and split >100 participant IDs into bounded chunks (<=100)
+      const totalParticipants = 151;
       const mockParticipants = Array.from({ length: totalParticipants }, (_, idx) => ({
         id: `ep-evt-chunk-test-p-${idx}`,
         event_id: "evt-chunk-test",
         person_id: `p-${idx}`,
         role_label: "Delegate",
         presence_confidence: "confirmed",
-        attendance_mode: "physical",
+        attendance_mode: idx === 150 ? "remote-live" : "physical",
         is_central_figure: idx === 0,
         precedence_order: idx + 1,
         prominence: idx === 0 ? "central" : "participant",
-        remote_location: null,
+        remote_location:
+          idx === 150
+            ? { city: "Zurich", publicVisibility: "restricted" }
+            : null,
       }));
 
       const createLocationChunkStubClient = () => {
@@ -840,11 +843,19 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         bulkStub.recordedLocationChunks.map((c) => c.length),
         [100, 50]
       );
+      assert.equal(
+        bulkStub.recordedLocationChunks.flat().includes("ep-evt-chunk-test-p-150"),
+        false,
+        "Restricted visibility participant ID must be excluded from location queries"
+      );
       assert.equal(bulkRes.data.length, 1);
       assert.equal(bulkRes.data[0].participants.length, totalParticipants);
       const bulkLastParticipant = bulkRes.data[0].participants.find((p) => p.personId === "p-149");
       assert.equal(bulkLastParticipant?.latitude, 41.49);
       assert.equal(bulkLastParticipant?.longitude, -71.49);
+      const bulkRestrictedParticipant = bulkRes.data[0].participants.find((p) => p.personId === "p-150");
+      assert.equal(bulkRestrictedParticipant?.latitude, null);
+      assert.equal(bulkRestrictedParticipant?.longitude, null);
 
       // Path 2: Single-event hydration via getEventBySlug
       const detailStub = createLocationChunkStubClient();
@@ -854,10 +865,18 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         detailStub.recordedLocationChunks.map((c) => c.length),
         [100, 50]
       );
+      assert.equal(
+        detailStub.recordedLocationChunks.flat().includes("ep-evt-chunk-test-p-150"),
+        false,
+        "Restricted visibility participant ID must be excluded from single-event location queries"
+      );
       assert.equal(detailRes.data?.participants.length, totalParticipants);
       const detailLastParticipant = detailRes.data?.participants.find((p) => p.personId === "p-149");
       assert.equal(detailLastParticipant?.latitude, 41.49);
       assert.equal(detailLastParticipant?.longitude, -71.49);
+      const detailRestrictedParticipant = detailRes.data?.participants.find((p) => p.personId === "p-150");
+      assert.equal(detailRestrictedParticipant?.latitude, null);
+      assert.equal(detailRestrictedParticipant?.longitude, null);
     });
   });
 });

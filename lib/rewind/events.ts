@@ -762,21 +762,33 @@ async function hydrateEventRows(
   }
 
   const participantLocationIds = typedParticipants
+    .filter((p) => allowsPrincipalCoordinateFallback(p.remote_location))
     .map((p) => p.id)
     .filter((id): id is number | string => id != null);
   const principalLocations = new Map<string, { latitude?: number | null; longitude?: number | null }>();
   const LOCATION_ID_CHUNK_SIZE = 100;
+  const LOCATION_QUERY_CONCURRENCY = 5;
+  const locationIdChunks: Array<Array<number | string>> = [];
   for (let i = 0; i < participantLocationIds.length; i += LOCATION_ID_CHUNK_SIZE) {
-    const chunk = participantLocationIds.slice(i, i + LOCATION_ID_CHUNK_SIZE);
-    const { data: locRows, error: locError } = await supabase
-      .from("event_person_locations")
-      .select("event_person_id, latitude, longitude")
-      .in("event_person_id", chunk)
-      .eq("is_principal_location", true);
-    if (locError) {
-      throw locError;
+    locationIdChunks.push(participantLocationIds.slice(i, i + LOCATION_ID_CHUNK_SIZE));
+  }
+  for (let i = 0; i < locationIdChunks.length; i += LOCATION_QUERY_CONCURRENCY) {
+    const batch = locationIdChunks.slice(i, i + LOCATION_QUERY_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((chunk) =>
+        supabase
+          .from("event_person_locations")
+          .select("event_person_id, latitude, longitude")
+          .in("event_person_id", chunk)
+          .eq("is_principal_location", true)
+      )
+    );
+    for (const { data: locRows, error: locError } of results) {
+      if (locError) {
+        throw locError;
+      }
+      (locRows || []).forEach((row) => principalLocations.set(String(row.event_person_id), row));
     }
-    (locRows || []).forEach((row) => principalLocations.set(String(row.event_person_id), row));
   }
 
   typedParticipants.forEach((p) => {
@@ -1343,24 +1355,38 @@ export async function getEventBySlug(
         }
       }
 
-      const eventPersonIds = participantRows.map((p) => p.id);
+      const eventPersonIds = participantRows
+        .filter((p) => allowsPrincipalCoordinateFallback(p.remote_location))
+        .map((p) => p.id)
+        .filter((id): id is string => id != null);
       const locationsMap = new Map();
       if (eventPersonIds.length > 0) {
         const LOCATION_ID_CHUNK_SIZE = 100;
+        const LOCATION_QUERY_CONCURRENCY = 5;
+        const locationIdChunks: string[][] = [];
         for (let i = 0; i < eventPersonIds.length; i += LOCATION_ID_CHUNK_SIZE) {
-          const chunk = eventPersonIds.slice(i, i + LOCATION_ID_CHUNK_SIZE);
-          const { data: locRows, error: locError } = await supabase
-            .from("event_person_locations")
-            .select("event_person_id, latitude, longitude, coordinate_precision")
-            .in("event_person_id", chunk)
-            .eq("is_principal_location", true);
-          if (locError) {
-            console.error("Failed to query event person locations:", locError);
-            return { data: null, error: "The requested event record could not be loaded. Please try again later." };
-          }
-          (locRows || []).forEach((loc: Record<string, unknown>) =>
-            locationsMap.set(String(loc.event_person_id), loc)
+          locationIdChunks.push(eventPersonIds.slice(i, i + LOCATION_ID_CHUNK_SIZE));
+        }
+        for (let i = 0; i < locationIdChunks.length; i += LOCATION_QUERY_CONCURRENCY) {
+          const batch = locationIdChunks.slice(i, i + LOCATION_QUERY_CONCURRENCY);
+          const results = await Promise.all(
+            batch.map((chunk) =>
+              supabase
+                .from("event_person_locations")
+                .select("event_person_id, latitude, longitude, coordinate_precision")
+                .in("event_person_id", chunk)
+                .eq("is_principal_location", true)
+            )
           );
+          for (const { data: locRows, error: locError } of results) {
+            if (locError) {
+              console.error("Failed to query event person locations:", locError);
+              return { data: null, error: "The requested event record could not be loaded. Please try again later." };
+            }
+            (locRows || []).forEach((loc: Record<string, unknown>) =>
+              locationsMap.set(String(loc.event_person_id), loc)
+            );
+          }
         }
       }
 
