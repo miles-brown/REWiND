@@ -608,7 +608,7 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         path.join(root, "supabase/migrations/20260904110000_validate_remote_coords_visibility_check.sql"),
         "utf-8"
       );
-      const applyScript = fs.readFileSync(path.join(root, "scripts/apply-all-migrations.mjs"), "utf-8");
+      const { migrationFiles, shouldSkipMigration } = await import("../scripts/apply-all-migrations.mjs");
 
       assert.ok(
         fixMigrationSql.includes(
@@ -622,20 +622,74 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         ),
         "Validation migration must validate event_people_remote_coords_visibility_check"
       );
+
+      // Verify active migrationFiles sequence and ordering
+      const renamedIdx = migrationFiles.indexOf("20260904065000_remote_attendance_and_places_fix.sql");
+      const initialValidateIdx = migrationFiles.indexOf("20260904090000_validate_remote_and_vessel_constraints.sql");
+      const fixIdx = migrationFiles.indexOf("20260904100000_fix_remote_coords_visibility_null_default.sql");
+      const validateIdx = migrationFiles.indexOf("20260904110000_validate_remote_coords_visibility_check.sql");
+      assert.ok(renamedIdx !== -1, "Active migrationFiles must include 20260904065000_remote_attendance_and_places_fix.sql");
       assert.ok(
-        applyScript.includes("20260904065000_remote_attendance_and_places_fix.sql") &&
-          applyScript.includes("20260904100000_fix_remote_coords_visibility_null_default.sql") &&
-          applyScript.includes("20260904110000_validate_remote_coords_visibility_check.sql"),
-        "apply-all-migrations.mjs must include renamed and corrective migrations"
+        initialValidateIdx !== -1 && fixIdx !== -1 && validateIdx !== -1,
+        "Active migrationFiles must include initial validation, corrective, and final validation migrations"
       );
+      assert.ok(
+        renamedIdx < initialValidateIdx && initialValidateIdx < fixIdx && fixIdx < validateIdx,
+        "Corrective migration must run after 20260904090000 and strictly before 20260904110000 validation"
+      );
+
       const migrationDirFiles = fs
         .readdirSync(path.join(root, "supabase/migrations"))
-        .filter((f) => f.endsWith(".sql"));
+        .filter((f) => f.endsWith(".sql"))
+        .sort();
+      assert.deepEqual(
+        migrationFiles,
+        migrationDirFiles,
+        "Active migrationFiles sequence must match sorted supabase/migrations/*.sql files"
+      );
       const migrationPrefixes = migrationDirFiles.map((f) => f.split("_")[0]);
       assert.equal(
         new Set(migrationPrefixes).size,
         migrationPrefixes.length,
         "Every migration file in supabase/migrations/ must have a unique timestamp prefix"
+      );
+
+      // Verify legacy alias skips renamed migration by default, while forced targeting runs it
+      const recordedLegacyOnly = new Set(["20260904060000_remote_attendance_and_places_fix"]);
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, ["node", "apply-all-migrations.mjs"]),
+        true,
+        "Recorded legacy alias must skip the renamed 20260904065000 migration by default"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+          "--version=20260904065000",
+        ]),
+        false,
+        "Forced targeting by new version must run the renamed migration"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+          "--version=20260904060000_remote_attendance_and_places_fix",
+        ]),
+        false,
+        "Forced targeting by legacy alias must run the renamed migration"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+          "--version=20260904070000",
+        ]),
+        true,
+        "Forced targeting of an unrelated version must continue skipping the renamed migration"
       );
 
       // Behaviorally verify both location-query paths exclude restricted remote IDs and split >100 participant IDs into bounded chunks (<=100)

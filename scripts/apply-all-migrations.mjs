@@ -1,22 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-
-if (typeof process.loadEnvFile === "function") {
-  try {
-    process.loadEnvFile(".env.local");
-  } catch {}
-  try {
-    process.loadEnvFile();
-  } catch {}
-}
-
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-
-if (!connectionString) {
-  console.error("DATABASE_URL not set in environment or .env.local");
-  process.exit(1);
-}
 
 const SUPABASE_PROD_ROOT_CA = `-----BEGIN CERTIFICATE-----
 MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
@@ -42,15 +27,7 @@ CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P
 o/bKiIz+Fq8=
 -----END CERTIFICATE-----`;
 
-const client = postgres(connectionString, {
-  max: 1,
-  ssl: {
-    ca: SUPABASE_PROD_ROOT_CA,
-    rejectUnauthorized: true,
-  },
-});
-
-const migrationFiles = [
+export const migrationFiles = [
   "20240904000000_supabase_architecture_cutover.sql",
   "20260904010000_temporal_evidence_people_standards.sql",
   "20260904020000_standards_remediation_and_rls.sql",
@@ -66,12 +43,38 @@ const migrationFiles = [
   "20260904110000_validate_remote_coords_visibility_check.sql",
 ];
 
+export const legacyVersionAliases = new Map([
+  ["20260904065000", "20260904060000_remote_attendance_and_places_fix"],
+]);
+
+/**
+ * Determines whether a migration version should be skipped based on recorded versions,
+ * legacy version aliases, and CLI targeting flags (--force, --force-all, --version=...).
+ */
+export function shouldSkipMigration(
+  version,
+  appliedVersions,
+  argv = process.argv,
+  aliases = legacyVersionAliases
+) {
+  const legacyVersion = aliases.get(version);
+  const targetVersions = argv
+    .filter((arg) => arg.startsWith("--version="))
+    .map((arg) => arg.split("=")[1]);
+  const forceAll = argv.includes("--force-all");
+  const isTargeted =
+    targetVersions.length > 0 &&
+    (targetVersions.includes(version) || (legacyVersion != null && targetVersions.includes(legacyVersion)));
+  const forceRun = forceAll || (argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
+  return (appliedVersions.has(version) || (legacyVersion != null && appliedVersions.has(legacyVersion))) && !forceRun;
+}
+
 /**
  * Applies listed migrations and records each version in the same transaction.
  * Skips recorded versions unless --force is set, exits on migration failure,
  * then reports public tables and RLS policies and closes the client on success.
  */
-async function applyMigrations() {
+async function applyMigrations(client) {
   console.log("Connecting to Supabase PostgreSQL database...");
   const [{ version }] = await client`SELECT version()`;
   console.log("Connected to:", version);
@@ -93,25 +96,12 @@ async function applyMigrations() {
   const appliedVersions = new Set(appliedMigrationRows.map((r) => String(r.version)));
   console.log(`Found ${appliedVersions.size} already applied migrations in supabase_migrations.schema_migrations.`);
 
-  const legacyVersionAliases = new Map([
-    ["20260904065000", "20260904060000_remote_attendance_and_places_fix"],
-  ]);
-
   for (const filename of migrationFiles) {
     const filePath = path.join("supabase/migrations", filename);
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
-    const legacyVersion = legacyVersionAliases.get(version);
 
-    const targetVersions = process.argv
-      .filter((arg) => arg.startsWith("--version="))
-      .map((arg) => arg.split("=")[1]);
-    const forceAll = process.argv.includes("--force-all");
-    const isTargeted =
-      targetVersions.length > 0 &&
-      (targetVersions.includes(version) || (legacyVersion != null && targetVersions.includes(legacyVersion)));
-    const forceRun = forceAll || (process.argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
-    if ((appliedVersions.has(version) || (legacyVersion != null && appliedVersions.has(legacyVersion))) && !forceRun) {
+    if (shouldSkipMigration(version, appliedVersions, process.argv, legacyVersionAliases)) {
       console.log(`\n========================================`);
       console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
       console.log(`========================================`);
@@ -168,7 +158,37 @@ async function applyMigrations() {
   console.log("\n All migrations applied and verified successfully!");
 }
 
-applyMigrations().catch((err) => {
-  console.error("Migration execution failed:", err);
-  process.exit(1);
-});
+const isMainModule =
+  typeof process.argv[1] === "string" &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  if (typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile(".env.local");
+    } catch {}
+    try {
+      process.loadEnvFile();
+    } catch {}
+  }
+
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+  if (!connectionString) {
+    console.error("DATABASE_URL not set in environment or .env.local");
+    process.exit(1);
+  }
+
+  const client = postgres(connectionString, {
+    max: 1,
+    ssl: {
+      ca: SUPABASE_PROD_ROOT_CA,
+      rejectUnauthorized: true,
+    },
+  });
+
+  applyMigrations(client).catch((err) => {
+    console.error("Migration execution failed:", err);
+    process.exit(1);
+  });
+}
