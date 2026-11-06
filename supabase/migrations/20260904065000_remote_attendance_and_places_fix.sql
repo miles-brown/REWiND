@@ -1,4 +1,4 @@
--- Migration: 20260904060000_remote_attendance_and_places_fix.sql
+-- Migration: 20260904065000_remote_attendance_and_places_fix.sql
 -- Description: Clean up compound places (Saudi Arabia / Israel), enforce single sovereign country constraint, and add remote attendance & precedence columns to event_people.
 
 -- 1. Ensure canonical King Khalid International Airport place exists

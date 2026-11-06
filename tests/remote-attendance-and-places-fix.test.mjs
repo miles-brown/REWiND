@@ -623,9 +623,19 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         "Validation migration must validate event_people_remote_coords_visibility_check"
       );
       assert.ok(
-        applyScript.includes("20260904100000_fix_remote_coords_visibility_null_default.sql") &&
+        applyScript.includes("20260904065000_remote_attendance_and_places_fix.sql") &&
+          applyScript.includes("20260904100000_fix_remote_coords_visibility_null_default.sql") &&
           applyScript.includes("20260904110000_validate_remote_coords_visibility_check.sql"),
-        "apply-all-migrations.mjs must include both corrective migrations"
+        "apply-all-migrations.mjs must include renamed and corrective migrations"
+      );
+      const migrationDirFiles = fs
+        .readdirSync(path.join(root, "supabase/migrations"))
+        .filter((f) => f.endsWith(".sql"));
+      const migrationPrefixes = migrationDirFiles.map((f) => f.split("_")[0]);
+      assert.equal(
+        new Set(migrationPrefixes).size,
+        migrationPrefixes.length,
+        "Every migration file in supabase/migrations/ must have a unique timestamp prefix"
       );
 
       // Behaviorally verify both location-query paths exclude restricted remote IDs and split >100 participant IDs into bounded chunks (<=100)
