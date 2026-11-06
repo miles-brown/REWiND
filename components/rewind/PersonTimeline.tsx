@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { EventRecord, PersonRecord as Person, SourceRecord } from "@/lib/rewind";
+import { isRemoteParticipant, sortParticipantsByPrecedence } from "@/lib/rewind/types";
 import { formatEventVenue } from "@/lib/rewind/utils";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
@@ -345,6 +346,14 @@ export function PersonTimeline({
             >
               {event.confidence || "limited"}
             </span>
+            {event.isRemoteAttendance && (
+              <span
+                className="remote-attendance-badge"
+                title={`Remote attendee: ${event.remoteLocationLabel || "Telecommunication / broadcast appearance"}`}
+              >
+                <span aria-hidden="true">📡</span> {event.remoteLocationLabel || "Remote Attendee"}
+              </span>
+            )}
           </div>
           <time
             dateTime={isStandardIsoDate(event.startDate) ? event.startDate : undefined}
@@ -367,9 +376,27 @@ export function PersonTimeline({
             <MapPin />
             {formatEventVenue(event)}
             <small>
-              {event.city}, {event.country} · {event.locationPrecision || "unestablished"} precision
+              {[event.city, event.country].filter(Boolean).join(", ")}
+              {event.isRemoteAttendance && event.mainVenueName
+                ? " · Remote Attendee Location"
+                : ` · ${event.locationPrecision || "unestablished"} precision`}
             </small>
           </p>
+          {event.isRemoteAttendance && event.mainVenueName && (
+            <p className="remote-main-stage-context">
+              <small>
+                Broadcast / Main Venue: <strong>{event.mainVenueName}</strong>
+                {event.mainCity ? `, ${event.mainCity}` : ""}
+                {event.mainCountry ? `, ${event.mainCountry}` : ""}
+              </small>
+            </p>
+          )}
+
+          {event.participantNarrative && (
+            <div className="timeline-narrative-box">
+              <p>{event.participantNarrative}</p>
+            </div>
+          )}
 
           <div className="detail-tags">
             {(event.eventTypes?.length ? event.eventTypes : (event.categories ?? [])).map((type) => (
@@ -379,25 +406,55 @@ export function PersonTimeline({
           <div className="person-event-participants">
             <small>DOCUMENTED WITH</small>
             <div>
-              {event.participants.map((participant) =>
-                participant.slug ? (
+              {sortParticipantsByPrecedence(event.participants).map((participant) => {
+                const isRemotePart = isRemoteParticipant(participant);
+                const capacityLabel = participant.capacityTitle || participant.role;
+                return participant.slug ? (
                   <Link
                     key={participant.personId}
                     href={`/person/${participant.slug}`}
                   >
-                    {participant.name}
-                    <span>{participant.role}</span>
+                    <span className="participant-name-wrap">
+                      {participant.isCentralFigure && (
+                        <>
+                          <span className="central-pill" title="Central Figure" aria-hidden="true">★</span>
+                          <span className="sr-only">Central Figure </span>
+                        </>
+                      )}
+                      {participant.name}
+                      {isRemotePart && (
+                        <>
+                          <span className="remote-micro-badge" title="Remote Attendee" aria-hidden="true">📡</span>
+                          <span className="sr-only"> (Remote Attendee)</span>
+                        </>
+                      )}
+                    </span>
+                    <span>{capacityLabel}</span>
                   </Link>
                 ) : (
                   <span
                     key={participant.personId}
                     className="participant-unlinked"
                   >
-                    {participant.name}
-                    <span>{participant.role}</span>
+                    <span className="participant-name-wrap">
+                      {participant.isCentralFigure && (
+                        <>
+                          <span className="central-pill" title="Central Figure" aria-hidden="true">★</span>
+                          <span className="sr-only">Central Figure </span>
+                        </>
+                      )}
+                      {participant.name}
+                      {isRemotePart && (
+                        <>
+                          <span className="remote-micro-badge" title="Remote Attendee" aria-hidden="true">📡</span>
+                          <span className="sr-only"> (Remote Attendee)</span>
+                        </>
+                      )}
+                    </span>
+                    <span>{capacityLabel}</span>
                   </span>
-                )
-              )}
+                );
+              })}
             </div>
           </div>
           <div className="evidence-summary">
