@@ -19,6 +19,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { and, eq, notInArray, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
+import { normalizePlaceCountry } from "../lib/ingestion/resolve";
 import {
   masterPeopleSeed,
   officialRolesSeed,
@@ -556,8 +557,7 @@ async function syncCorpus() {
   for (const e of allRawEvents) {
     const city = (e.city || "Unknown").trim();
     const venue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || city).trim();
-    const rawCountry = (e.country || "Unknown").trim();
-    const country = (/[/;]/.test(rawCountry) ? rawCountry.split(/[/;]/)[0].trim() : rawCountry) || "Unknown";
+    const country = normalizePlaceCountry(e.country);
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
 

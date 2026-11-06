@@ -1663,7 +1663,7 @@ export function localizeEventForPersonParticipant(
     const remoteLat =
       typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.latitude
-        : !hasRemoteCoordinates &&
+        : !hasRemoteOrigin &&
           allowParticipantCoords &&
           typeof participant.latitude === "number" &&
           typeof participant.longitude === "number"
@@ -1672,7 +1672,7 @@ export function localizeEventForPersonParticipant(
     const remoteLng =
       typeof loc?.latitude === "number" && typeof loc?.longitude === "number"
         ? loc.longitude
-        : !hasRemoteCoordinates &&
+        : !hasRemoteOrigin &&
           allowParticipantCoords &&
           typeof participant.latitude === "number" &&
           typeof participant.longitude === "number"

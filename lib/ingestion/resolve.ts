@@ -505,6 +505,15 @@ function extractPrimaryCountryComponent(country?: string): {
 }
 
 /**
+ * Normalizes a place country value into a non-empty single sovereign country name,
+ * falling back to "Unknown" when the input or its leading compound segment is blank.
+ */
+export function normalizePlaceCountry(country?: string | null): string {
+  const { safeCountry } = extractPrimaryCountryComponent(country || undefined);
+  return safeCountry || "Unknown";
+}
+
+/**
  * Resolves a venue, city, country, and optional coordinates against the in-memory gazetteer.
  * Enforces single sovereign country resolution and rejects malformed compound country inputs.
  */

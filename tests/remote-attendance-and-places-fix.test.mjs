@@ -20,6 +20,7 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
   const placesModule = await vite.ssrLoadModule("/lib/rewind/places.ts");
   const eventsModule = await vite.ssrLoadModule("/lib/rewind/events.ts");
   const typesModule = await vite.ssrLoadModule("/lib/rewind/types.ts");
+  const resolveModule = await vite.ssrLoadModule("/lib/ingestion/resolve.ts");
 
   describe("1. Places Country Normalization & Compound Name Safeguards", () => {
     it("resolveCanonicalCountryName sanitizes compound/slash country strings to single sovereign entities", () => {
@@ -375,7 +376,7 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
 
     it("remote places with partial or coordinate-only data do not inherit studio place fields", () => {
       const { localizeEventForPersonParticipant } = eventsModule;
-      const localize = (remoteLocation) =>
+      const localize = (remoteLocation, participantCoords = {}) =>
         localizeEventForPersonParticipant(
           {
             id: "evt-studio-regression",
@@ -402,6 +403,7 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
                 isCentralFigure: false,
                 precedenceOrder: 2,
                 remoteLocation,
+                ...participantCoords,
               },
             ],
           },
@@ -415,6 +417,21 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.equal(cityOnly.latitude, null);
       assert.equal(cityOnly.mainVenueName, "BBC Television Centre");
       assert.equal(cityOnly.mainCountry, "United Kingdom");
+
+      const cityWithConflictingParticipantCoords = localize(
+        { city: "Burbank" },
+        { latitude: 51.5126, longitude: -0.2263 }
+      );
+      assert.equal(cityWithConflictingParticipantCoords.city, "Burbank");
+      assert.equal(cityWithConflictingParticipantCoords.latitude, null);
+      assert.equal(cityWithConflictingParticipantCoords.longitude, null);
+
+      const noOriginWithParticipantCoords = localize(undefined, {
+        latitude: 47.3769,
+        longitude: 8.5417,
+      });
+      assert.equal(noOriginWithParticipantCoords.latitude, 47.3769);
+      assert.equal(noOriginWithParticipantCoords.longitude, 8.5417);
 
       const countryOnly = localize({ country: "Israel" });
       assert.equal(countryOnly.venueName, "Remote: Israel");
@@ -521,8 +538,14 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(content.includes("formatParticipantTimelineNarrative"), "Must document narrative formulation");
     });
 
-    it("enforces corrective remote coordinate visibility constraint migrations and principal coordinate gating", () => {
-      const { allowsPrincipalCoordinateFallback, localizeEventForPersonParticipant } = eventsModule;
+    it("enforces corrective remote coordinate visibility constraint migrations and principal coordinate gating", async () => {
+      const {
+        allowsPrincipalCoordinateFallback,
+        localizeEventForPersonParticipant,
+        getEventsByPersonWithStatus,
+        getEventBySlug,
+      } = eventsModule;
+      const { normalizePlaceCountry } = resolveModule;
 
       assert.equal(allowsPrincipalCoordinateFallback(null), true);
       assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich" }), true);
@@ -531,6 +554,15 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "internal" }), false);
       assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "private" }), false);
       assert.equal(allowsPrincipalCoordinateFallback({ city: "Zurich", publicVisibility: "approximate" }), false);
+
+      // Exercise country normalization used by corpus synchronization
+      assert.equal(normalizePlaceCountry("/Israel"), "Unknown");
+      assert.equal(normalizePlaceCountry(";Israel"), "Unknown");
+      assert.equal(normalizePlaceCountry("   / Canada"), "Unknown");
+      assert.equal(normalizePlaceCountry(""), "Unknown");
+      assert.equal(normalizePlaceCountry(undefined), "Unknown");
+      assert.equal(normalizePlaceCountry("Saudi Arabia / Israel"), "Saudi Arabia");
+      assert.equal(normalizePlaceCountry("United Kingdom"), "United Kingdom");
 
       const restrictedRemoteLocalized = localizeEventForPersonParticipant(
         {
@@ -596,16 +628,236 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         "apply-all-migrations.mjs must include both corrective migrations"
       );
 
-      const syncScript = fs.readFileSync(path.join(root, "scripts/sync-corpus-to-supabase.ts"), "utf-8");
-      const eventsSource = fs.readFileSync(path.join(root, "lib/rewind/events.ts"), "utf-8");
-      assert.ok(
-        syncScript.includes('(/[/;]/.test(rawCountry) ? rawCountry.split(/[/;]/)[0].trim() : rawCountry) || "Unknown"'),
-        "sync-corpus-to-supabase.ts must map a blank first country segment to Unknown"
+      // Behaviorally verify both location-query paths split >100 participant IDs into bounded chunks (<=100)
+      const totalParticipants = 150;
+      const mockParticipants = Array.from({ length: totalParticipants }, (_, idx) => ({
+        id: `ep-evt-chunk-test-p-${idx}`,
+        event_id: "evt-chunk-test",
+        person_id: `p-${idx}`,
+        role_label: "Delegate",
+        presence_confidence: "confirmed",
+        attendance_mode: "physical",
+        is_central_figure: idx === 0,
+        precedence_order: idx + 1,
+        prominence: idx === 0 ? "central" : "participant",
+        remote_location: null,
+      }));
+
+      const createLocationChunkStubClient = () => {
+        const recordedLocationChunks = [];
+        const client = {
+          from(table) {
+            if (table === "event_person_locations") {
+              let chunkIds = [];
+              const handler = {
+                select() {
+                  return handler;
+                },
+                in(_col, ids) {
+                  chunkIds = ids;
+                  recordedLocationChunks.push(ids);
+                  return handler;
+                },
+                eq() {
+                  return handler;
+                },
+                then(resolve) {
+                  const rows = chunkIds.map((epId) => {
+                    const idx = Number(String(epId).split("-p-")[1] || 0);
+                    return {
+                      event_person_id: epId,
+                      latitude: Number((40 + idx * 0.01).toFixed(4)),
+                      longitude: Number((-70 - idx * 0.01).toFixed(4)),
+                      coordinate_precision: "exact-point",
+                    };
+                  });
+                  return resolve({ data: rows, error: null });
+                },
+              };
+              return handler;
+            }
+            if (table === "people") {
+              let inPersonIds = [];
+              const handler = {
+                select() {
+                  return handler;
+                },
+                or() {
+                  return handler;
+                },
+                eq() {
+                  return handler;
+                },
+                in(_col, ids) {
+                  inPersonIds = ids;
+                  return handler;
+                },
+                async maybeSingle() {
+                  return {
+                    data: {
+                      id: "p-0",
+                      slug: "person-0",
+                      canonical_name: "Person 0",
+                      display_name: "Person 0",
+                    },
+                    error: null,
+                  };
+                },
+                then(resolve) {
+                  const rows = inPersonIds.map((pid) => ({
+                    id: pid,
+                    slug: `person-${pid.replace(/^p-/, "")}`,
+                    canonical_name: `Person ${pid}`,
+                    display_name: `Person ${pid}`,
+                  }));
+                  return resolve({ data: rows, error: null });
+                },
+              };
+              return handler;
+            }
+            if (table === "event_people") {
+              let isPersonLookup = false;
+              const handler = {
+                select(cols) {
+                  if (cols === "event_id") isPersonLookup = true;
+                  return handler;
+                },
+                eq() {
+                  return handler;
+                },
+                in() {
+                  return handler;
+                },
+                order() {
+                  return handler;
+                },
+                async range(from) {
+                  if (from > 0) return { data: [], error: null };
+                  if (isPersonLookup) {
+                    return { data: [{ event_id: "evt-chunk-test" }], error: null };
+                  }
+                  return { data: mockParticipants, error: null };
+                },
+              };
+              return handler;
+            }
+            if (table === "events") {
+              const eventRow = {
+                id: "evt-chunk-test",
+                slug: "evt-chunk-test",
+                title: "Chunking Verification Summit",
+                summary: "Verifies bounded event_person_locations queries.",
+                start_date: "2024-06-01",
+                place_id: "plc-chunk-test",
+                publication_status: "published",
+                verification_status: "verified",
+                confidence_level: "confirmed",
+              };
+              const handler = {
+                select() {
+                  return handler;
+                },
+                eq() {
+                  return handler;
+                },
+                in() {
+                  return handler;
+                },
+                order() {
+                  return handler;
+                },
+                async maybeSingle() {
+                  return { data: eventRow, error: null };
+                },
+                then(resolve) {
+                  return resolve({ data: [eventRow], error: null });
+                },
+              };
+              return handler;
+            }
+            if (table === "places") {
+              const placeRow = {
+                id: "plc-chunk-test",
+                venue: "UN Headquarters",
+                city: "New York",
+                country: "United States",
+                latitude: 40.7489,
+                longitude: -73.968,
+              };
+              const handler = {
+                select() {
+                  return handler;
+                },
+                eq() {
+                  return handler;
+                },
+                in() {
+                  return handler;
+                },
+                async maybeSingle() {
+                  return { data: placeRow, error: null };
+                },
+                then(resolve) {
+                  return resolve({ data: [placeRow], error: null });
+                },
+              };
+              return handler;
+            }
+            const emptyHandler = {
+              select() {
+                return emptyHandler;
+              },
+              eq() {
+                return emptyHandler;
+              },
+              in() {
+                return emptyHandler;
+              },
+              or() {
+                return emptyHandler;
+              },
+              order() {
+                return emptyHandler;
+              },
+              async range() {
+                return { data: [], error: null };
+              },
+              then(resolve) {
+                return resolve({ data: [], error: null });
+              },
+            };
+            return emptyHandler;
+          },
+        };
+        return { client, recordedLocationChunks };
+      };
+
+      // Path 1: Bulk hydration via getEventsByPersonWithStatus -> hydrateEventRows
+      const bulkStub = createLocationChunkStubClient();
+      const bulkRes = await getEventsByPersonWithStatus("person-0", bulkStub.client);
+      assert.equal(bulkRes.error, null);
+      assert.deepEqual(
+        bulkStub.recordedLocationChunks.map((c) => c.length),
+        [100, 50]
       );
-      assert.ok(
-        eventsSource.includes("const LOCATION_ID_CHUNK_SIZE = 100;"),
-        "lib/rewind/events.ts must bound event_person_locations .in() queries to LOCATION_ID_CHUNK_SIZE = 100"
+      assert.equal(bulkRes.data.length, 1);
+      assert.equal(bulkRes.data[0].participants.length, totalParticipants);
+      const bulkLastParticipant = bulkRes.data[0].participants.find((p) => p.personId === "p-149");
+      assert.equal(bulkLastParticipant?.latitude, 41.49);
+      assert.equal(bulkLastParticipant?.longitude, -71.49);
+
+      // Path 2: Single-event hydration via getEventBySlug
+      const detailStub = createLocationChunkStubClient();
+      const detailRes = await getEventBySlug("evt-chunk-test", detailStub.client);
+      assert.equal(detailRes.error, null);
+      assert.deepEqual(
+        detailStub.recordedLocationChunks.map((c) => c.length),
+        [100, 50]
       );
+      assert.equal(detailRes.data?.participants.length, totalParticipants);
+      const detailLastParticipant = detailRes.data?.participants.find((p) => p.personId === "p-149");
+      assert.equal(detailLastParticipant?.latitude, 41.49);
+      assert.equal(detailLastParticipant?.longitude, -71.49);
     });
   });
 });
