@@ -691,6 +691,24 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
         true,
         "Forced targeting of an unrelated version must continue skipping the renamed migration"
       );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+        ]),
+        true,
+        "A bare --force without a matching --version= target must not rerun recorded migrations"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyOnly, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force-all",
+        ]),
+        false,
+        "--force-all must rerun recorded migrations"
+      );
 
       // Behaviorally verify both location-query paths exclude restricted remote IDs and split >100 participant IDs into bounded chunks (<=100)
       const totalParticipants = 151;

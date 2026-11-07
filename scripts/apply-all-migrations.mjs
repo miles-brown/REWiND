@@ -71,8 +71,10 @@ export function shouldSkipMigration(
 
 /**
  * Applies listed migrations and records each version in the same transaction.
- * Skips recorded versions unless --force is set, exits on migration failure,
- * then reports public tables and RLS policies and closes the client on success.
+ * Skips recorded versions unless rerun with --force-all or with --force and a
+ * matching --version= target (while a bare --force does not rerun them), exits
+ * on migration failure, then reports public tables and RLS policies and closes
+ * the client on success.
  */
 async function applyMigrations(client) {
   console.log("Connecting to Supabase PostgreSQL database...");
