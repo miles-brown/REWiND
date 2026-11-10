@@ -698,7 +698,57 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
           "--force",
         ]),
         true,
-        "A bare --force without a matching --version= target must not rerun recorded migrations"
+        "A bare --force without a matching --version= target must not rerun recorded legacy-alias migrations"
+      );
+      const recordedCurrentVersion = new Set(["20260904065000"]);
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedCurrentVersion, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+        ]),
+        true,
+        "A bare --force without a matching --version= target must not rerun a recorded current-version migration (20260904065000)"
+      );
+      const recordedLegacyTimestampRow = new Set([
+        { version: "20260904060000", name: "remote_attendance_and_places_fix" },
+      ]);
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedLegacyTimestampRow, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+        ]),
+        true,
+        "A bare --force must skip the renamed migration when recorded under legacy timestamp 20260904060000 with name remote_attendance_and_places_fix"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904060000", recordedLegacyTimestampRow, [
+          "node",
+          "apply-all-migrations.mjs",
+        ]),
+        false,
+        "Legacy 20260904060000 remote_attendance_and_places_fix record must remain distinct from deduplicate_aliases_and_harden_rls"
+      );
+      const recordedDeduplicationRow = new Set([
+        { version: "20260904060000", name: "deduplicate_aliases_and_harden_rls" },
+      ]);
+      assert.equal(
+        shouldSkipMigration("20260904060000", recordedDeduplicationRow, [
+          "node",
+          "apply-all-migrations.mjs",
+          "--force",
+        ]),
+        true,
+        "Recorded deduplicate_aliases_and_harden_rls row must skip 20260904060000 under bare --force"
+      );
+      assert.equal(
+        shouldSkipMigration("20260904065000", recordedDeduplicationRow, [
+          "node",
+          "apply-all-migrations.mjs",
+        ]),
+        false,
+        "Recorded deduplicate_aliases_and_harden_rls row must not skip the renamed 20260904065000 migration"
       );
       assert.equal(
         shouldSkipMigration("20260904065000", recordedLegacyOnly, [

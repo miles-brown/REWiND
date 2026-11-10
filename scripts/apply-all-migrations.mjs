@@ -48,6 +48,41 @@ export const legacyVersionAliases = new Map([
 ]);
 
 /**
+ * Normalizes recorded migration entries (version strings, version_name strings,
+ * or { version, name } rows from supabase_migrations.schema_migrations) into a Set
+ * of canonical version and legacy-alias identifiers, keeping legacy records on
+ * shared timestamps distinct from current migrations at that timestamp.
+ */
+export function normalizeAppliedVersions(appliedInput, aliases = legacyVersionAliases) {
+  const legacyAliasSet = new Set(aliases.values());
+  const normalized = new Set();
+
+  for (const entry of appliedInput ?? []) {
+    if (entry && typeof entry === "object") {
+      const entryVersion = String(entry.version ?? "");
+      const entryName = entry.name != null && String(entry.name) !== "" ? String(entry.name) : null;
+      const composite = entryName ? `${entryVersion}_${entryName}` : entryVersion;
+      if (composite) {
+        normalized.add(composite);
+      }
+      if (entryVersion && !legacyAliasSet.has(composite)) {
+        normalized.add(entryVersion);
+      }
+      continue;
+    }
+
+    const raw = String(entry);
+    normalized.add(raw);
+    const match = raw.match(/^(\d+)_(.+)$/);
+    if (match && !legacyAliasSet.has(raw)) {
+      normalized.add(match[1]);
+    }
+  }
+
+  return normalized;
+}
+
+/**
  * Determines whether a migration version should be skipped based on recorded versions,
  * legacy version aliases, and CLI targeting flags (--force, --force-all, --version=...).
  */
@@ -57,6 +92,7 @@ export function shouldSkipMigration(
   argv = process.argv,
   aliases = legacyVersionAliases
 ) {
+  appliedVersions = normalizeAppliedVersions(appliedVersions, aliases);
   const legacyVersion = aliases.get(version);
   const targetVersions = argv
     .filter((arg) => arg.startsWith("--version="))
@@ -93,10 +129,10 @@ async function applyMigrations(client) {
 
   // Fetch already applied migrations to ensure idempotency
   const appliedMigrationRows = await client`
-    SELECT version FROM supabase_migrations.schema_migrations;
-  `;
-  const appliedVersions = new Set(appliedMigrationRows.map((r) => String(r.version)));
-  console.log(`Found ${appliedVersions.size} already applied migrations in supabase_migrations.schema_migrations.`);
+    SELECT version, name FROM supabase_migrations.schema_migrations;
+  `.catch(() => client`SELECT version FROM supabase_migrations.schema_migrations;`);
+  const appliedVersions = normalizeAppliedVersions(appliedMigrationRows, legacyVersionAliases);
+  console.log(`Found ${appliedMigrationRows.length} already applied migrations in supabase_migrations.schema_migrations.`);
 
   for (const filename of migrationFiles) {
     const filePath = path.join("supabase/migrations", filename);
