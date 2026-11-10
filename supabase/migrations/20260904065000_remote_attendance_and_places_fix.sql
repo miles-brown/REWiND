@@ -86,7 +86,11 @@ SET remote_location = remote_location
   - 'latitude'
   - 'longitude'
 WHERE remote_location IS NOT NULL
-  AND coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') IN ('restricted', 'internal', 'private');
+  AND coalesce(
+    nullif(btrim(remote_location->>'publicVisibility'), ''),
+    nullif(btrim(remote_location->>'public_visibility'), ''),
+    ''
+  ) IN ('restricted', 'internal', 'private');
 
 UPDATE event_people
 SET remote_location = remote_location - 'latitude' - 'longitude'
@@ -95,7 +99,11 @@ WHERE remote_location IS NOT NULL
     (remote_location->>'latitude') IS NOT NULL
     OR (remote_location->>'longitude') IS NOT NULL
   )
-  AND coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') <> 'public-exact';
+  AND coalesce(
+    nullif(btrim(remote_location->>'publicVisibility'), ''),
+    nullif(btrim(remote_location->>'public_visibility'), ''),
+    ''
+  ) <> 'public-exact';
 
 DO $$
 BEGIN
@@ -111,10 +119,18 @@ BEGIN
               (remote_location->>'latitude') IS NULL
               AND (remote_location->>'longitude') IS NULL
             )
-            OR coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility') = 'public-exact'
+            OR coalesce(
+              nullif(btrim(remote_location->>'publicVisibility'), ''),
+              nullif(btrim(remote_location->>'public_visibility'), ''),
+              ''
+            ) = 'public-exact'
           )
           AND (
-            coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') NOT IN ('restricted', 'internal', 'private')
+            coalesce(
+              nullif(btrim(remote_location->>'publicVisibility'), ''),
+              nullif(btrim(remote_location->>'public_visibility'), ''),
+              ''
+            ) NOT IN ('restricted', 'internal', 'private')
             OR (
               (remote_location->>'venueName') IS NULL
               AND (remote_location->>'city') IS NULL
@@ -137,14 +153,27 @@ IMMUTABLE
 AS $$
   SELECT CASE
     WHEN p_remote_location IS NULL THEN NULL
-    WHEN coalesce(p_remote_location->>'publicVisibility', p_remote_location->>'public_visibility', '') IN ('restricted', 'internal', 'private') THEN
+    WHEN coalesce(
+      nullif(btrim(p_remote_location->>'publicVisibility'), ''),
+      nullif(btrim(p_remote_location->>'public_visibility'), ''),
+      ''
+    ) IN ('restricted', 'internal', 'private') THEN
       jsonb_strip_nulls(
         jsonb_build_object(
           'connectionType', p_remote_location->'connectionType',
-          'publicVisibility', coalesce(p_remote_location->'publicVisibility', p_remote_location->'public_visibility')
+          'publicVisibility', to_jsonb(
+            coalesce(
+              nullif(btrim(p_remote_location->>'publicVisibility'), ''),
+              nullif(btrim(p_remote_location->>'public_visibility'), '')
+            )
+          )
         )
       )
-    WHEN coalesce(p_remote_location->>'publicVisibility', p_remote_location->>'public_visibility', '') = 'public-exact' THEN
+    WHEN coalesce(
+      nullif(btrim(p_remote_location->>'publicVisibility'), ''),
+      nullif(btrim(p_remote_location->>'public_visibility'), ''),
+      ''
+    ) = 'public-exact' THEN
       p_remote_location
     ELSE
       p_remote_location - 'latitude' - 'longitude'

@@ -47,6 +47,8 @@ export const legacyVersionAliases = new Map([
   ["20260904065000", "20260904060000_remote_attendance_and_places_fix"],
 ]);
 
+const NORMALIZED_APPLIED_SETS = new WeakSet();
+
 /**
  * Normalizes recorded migration entries (version strings, version_name strings,
  * or { version, name } rows from supabase_migrations.schema_migrations) into a Set
@@ -54,6 +56,9 @@ export const legacyVersionAliases = new Map([
  * shared timestamps distinct from current migrations at that timestamp.
  */
 export function normalizeAppliedVersions(appliedInput, aliases = legacyVersionAliases) {
+  if (appliedInput instanceof Set && aliases === legacyVersionAliases && NORMALIZED_APPLIED_SETS.has(appliedInput)) {
+    return appliedInput;
+  }
   const legacyAliasSet = new Set(aliases.values());
   const normalized = new Set();
 
@@ -79,6 +84,9 @@ export function normalizeAppliedVersions(appliedInput, aliases = legacyVersionAl
     }
   }
 
+  if (aliases === legacyVersionAliases) {
+    NORMALIZED_APPLIED_SETS.add(normalized);
+  }
   return normalized;
 }
 
@@ -88,11 +96,11 @@ export function normalizeAppliedVersions(appliedInput, aliases = legacyVersionAl
  */
 export function shouldSkipMigration(
   version,
-  appliedVersions,
+  appliedInput,
   argv = process.argv,
   aliases = legacyVersionAliases
 ) {
-  appliedVersions = normalizeAppliedVersions(appliedVersions, aliases);
+  const appliedVersions = normalizeAppliedVersions(appliedInput, aliases);
   const legacyVersion = aliases.get(version);
   const targetVersions = argv
     .filter((arg) => arg.startsWith("--version="))
@@ -130,7 +138,10 @@ async function applyMigrations(client) {
   // Fetch already applied migrations to ensure idempotency
   const appliedMigrationRows = await client`
     SELECT version, name FROM supabase_migrations.schema_migrations;
-  `.catch(() => client`SELECT version FROM supabase_migrations.schema_migrations;`);
+  `.catch((err) => {
+    console.warn("Could not read migration names; falling back to version-only query:", err.message);
+    return client`SELECT version FROM supabase_migrations.schema_migrations;`;
+  });
   const appliedVersions = normalizeAppliedVersions(appliedMigrationRows, legacyVersionAliases);
   console.log(`Found ${appliedMigrationRows.length} already applied migrations in supabase_migrations.schema_migrations.`);
 

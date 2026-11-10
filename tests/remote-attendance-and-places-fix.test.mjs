@@ -600,6 +600,10 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.equal(restrictedRemoteLocalized.latitude, null);
       assert.equal(restrictedRemoteLocalized.longitude, null);
 
+      const baseRemoteMigrationSql = fs.readFileSync(
+        path.join(root, "supabase/migrations/20260904065000_remote_attendance_and_places_fix.sql"),
+        "utf-8"
+      );
       const fixMigrationSql = fs.readFileSync(
         path.join(root, "supabase/migrations/20260904100000_fix_remote_coords_visibility_null_default.sql"),
         "utf-8"
@@ -611,10 +615,16 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       const { migrationFiles, shouldSkipMigration } = await import("../scripts/apply-all-migrations.mjs");
 
       assert.ok(
-        fixMigrationSql.includes(
-          "coalesce(remote_location->>'publicVisibility', remote_location->>'public_visibility', '') = 'public-exact'"
-        ),
-        "Corrective migration must use '' default in publicVisibility comparison"
+        baseRemoteMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
+          baseRemoteMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')"),
+        "Base remote migration must normalize blank publicVisibility before falling back to public_visibility"
+      );
+      assert.ok(
+        fixMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
+          fixMigrationSql.includes("nullif(btrim(remote_location->>'public_visibility'), '')") &&
+          fixMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')") &&
+          fixMigrationSql.includes("= 'public-exact'"),
+        "Corrective migration must normalize blank publicVisibility and use '' default in publicVisibility comparison"
       );
       assert.ok(
         validateMigrationSql.includes(
