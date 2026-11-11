@@ -150,6 +150,7 @@ CREATE OR REPLACE FUNCTION public.sanitize_public_remote_location(p_remote_locat
 RETURNS jsonb
 LANGUAGE sql
 IMMUTABLE
+SET search_path = pg_catalog
 AS $$
   SELECT CASE
     WHEN p_remote_location IS NULL THEN NULL
@@ -157,7 +158,9 @@ AS $$
       nullif(btrim(p_remote_location->>'publicVisibility'), ''),
       nullif(btrim(p_remote_location->>'public_visibility'), ''),
       ''
-    ) IN ('restricted', 'internal', 'private') THEN
+    ) = 'public-exact' THEN
+      p_remote_location
+    ELSE
       jsonb_strip_nulls(
         jsonb_build_object(
           'connectionType', p_remote_location->'connectionType',
@@ -169,14 +172,6 @@ AS $$
           )
         )
       )
-    WHEN coalesce(
-      nullif(btrim(p_remote_location->>'publicVisibility'), ''),
-      nullif(btrim(p_remote_location->>'public_visibility'), ''),
-      ''
-    ) = 'public-exact' THEN
-      p_remote_location
-    ELSE
-      p_remote_location - 'latitude' - 'longitude'
   END;
 $$;
 

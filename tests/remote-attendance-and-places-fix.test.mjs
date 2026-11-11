@@ -616,15 +616,19 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
 
       assert.ok(
         baseRemoteMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
-          baseRemoteMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')"),
-        "Base remote migration must normalize blank publicVisibility before falling back to public_visibility"
+          baseRemoteMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')") &&
+          baseRemoteMigrationSql.includes("SET search_path = pg_catalog") &&
+          !baseRemoteMigrationSql.includes("p_remote_location - 'latitude' - 'longitude'"),
+        "Base remote migration must normalize blank publicVisibility, set search_path = pg_catalog, and fail closed for non-public-exact visibility"
       );
       assert.ok(
         fixMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
           fixMigrationSql.includes("nullif(btrim(remote_location->>'public_visibility'), '')") &&
           fixMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')") &&
+          fixMigrationSql.includes("SET search_path = pg_catalog") &&
+          !fixMigrationSql.includes("p_remote_location - 'latitude' - 'longitude'") &&
           fixMigrationSql.includes("= 'public-exact'"),
-        "Corrective migration must normalize blank publicVisibility and use '' default in publicVisibility comparison"
+        "Corrective migration must normalize blank publicVisibility, set search_path = pg_catalog, fail closed in sanitize_public_remote_location, and use '' default in publicVisibility comparison"
       );
       assert.ok(
         validateMigrationSql.includes(
