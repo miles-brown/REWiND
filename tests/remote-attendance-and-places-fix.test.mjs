@@ -617,19 +617,180 @@ describe("Remote Attendance, Attendee Precedence, Capacities & Places Country No
       assert.ok(
         baseRemoteMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
           baseRemoteMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')") &&
-          baseRemoteMigrationSql.includes("SET search_path = pg_catalog") &&
-          !baseRemoteMigrationSql.includes("p_remote_location - 'latitude' - 'longitude'"),
-        "Base remote migration must normalize blank publicVisibility, set search_path = pg_catalog, and fail closed for non-public-exact visibility"
+          baseRemoteMigrationSql.includes("SET search_path = pg_catalog"),
+        "Base remote migration must normalize blank publicVisibility and set search_path = pg_catalog"
       );
       assert.ok(
         fixMigrationSql.includes("nullif(btrim(remote_location->>'publicVisibility'), '')") &&
           fixMigrationSql.includes("nullif(btrim(remote_location->>'public_visibility'), '')") &&
           fixMigrationSql.includes("nullif(btrim(p_remote_location->>'publicVisibility'), '')") &&
           fixMigrationSql.includes("SET search_path = pg_catalog") &&
-          !fixMigrationSql.includes("p_remote_location - 'latitude' - 'longitude'") &&
           fixMigrationSql.includes("= 'public-exact'"),
-        "Corrective migration must normalize blank publicVisibility, set search_path = pg_catalog, fail closed in sanitize_public_remote_location, and use '' default in publicVisibility comparison"
+        "Corrective migration must normalize blank publicVisibility, set search_path = pg_catalog, and use '' default in publicVisibility comparison"
       );
+
+      // Parse and exercise the SQL sanitize_public_remote_location CASE definition from both migrations
+      function evaluateSanitizePublicRemoteLocationSql(migrationSql, pRemoteLocation) {
+        const fnMatch = migrationSql.match(
+          /CREATE OR REPLACE FUNCTION public\.sanitize_public_remote_location\(p_remote_location jsonb\)[\s\S]*?AS \$\$\s*SELECT CASE([\s\S]*?)END;\s*\$\$;/
+        );
+        assert.ok(fnMatch, "Migration must define public.sanitize_public_remote_location CASE expression");
+        const caseBody = fnMatch[1];
+
+        const whenRegex = /WHEN\s+([\s\S]*?)\s+THEN\s+([\s\S]*?)(?=\s+WHEN\s+|\s+ELSE\s+)/g;
+        const branches = [];
+        let m;
+        while ((m = whenRegex.exec(caseBody)) !== null) {
+          branches.push({ cond: m[1].trim(), expr: m[2].trim() });
+        }
+        const elseMatch = caseBody.match(/ELSE\s+([\s\S]*)$/);
+        assert.ok(elseMatch, "sanitize_public_remote_location CASE must include an ELSE branch");
+        const elseExpr = elseMatch[1].trim();
+
+        const resolveVisibility = (obj) => {
+          if (!obj || typeof obj !== "object") return null;
+          const btrimNullIf = (v) => {
+            if (v == null) return null;
+            const trimmed = String(v).trim();
+            return trimmed === "" ? null : trimmed;
+          };
+          return btrimNullIf(obj.publicVisibility) ?? btrimNullIf(obj.public_visibility) ?? null;
+        };
+
+        const evalCond = (cond, obj) => {
+          if (cond === "p_remote_location IS NULL") {
+            return obj === null;
+          }
+          const normalizedCond = cond.replace(/\s+/g, " ");
+          const exactExpected =
+            "coalesce( nullif(btrim(p_remote_location->>'publicVisibility'), ''), nullif(btrim(p_remote_location->>'public_visibility'), ''), '' ) = 'public-exact'";
+          if (normalizedCond === exactExpected) {
+            return (resolveVisibility(obj) ?? "") === "public-exact";
+          }
+          throw new Error(`Unsupported WHEN condition in sanitize_public_remote_location: ${cond}`);
+        };
+
+        const evalExpr = (expr, obj) => {
+          const normalizedExpr = expr.replace(/\s+/g, " ");
+          if (normalizedExpr === "NULL") {
+            return null;
+          }
+          if (normalizedExpr === "p_remote_location") {
+            return structuredClone(obj);
+          }
+          const stripExpected =
+            "jsonb_strip_nulls( jsonb_build_object( 'connectionType', p_remote_location->'connectionType', 'publicVisibility', to_jsonb( coalesce( nullif(btrim(p_remote_location->>'publicVisibility'), ''), nullif(btrim(p_remote_location->>'public_visibility'), '') ) ) ) )";
+          if (normalizedExpr === stripExpected) {
+            const candidate = {
+              connectionType: obj?.connectionType ?? null,
+              publicVisibility: resolveVisibility(obj),
+            };
+            return Object.fromEntries(Object.entries(candidate).filter(([, v]) => v !== null && v !== undefined));
+          }
+          throw new Error(`Unsupported result expression in sanitize_public_remote_location: ${expr}`);
+        };
+
+        for (const branch of branches) {
+          if (evalCond(branch.cond, pRemoteLocation)) {
+            return evalExpr(branch.expr, pRemoteLocation);
+          }
+        }
+        return evalExpr(elseExpr, pRemoteLocation);
+      }
+
+      for (const [label, sqlText] of [
+        ["baseRemoteMigrationSql", baseRemoteMigrationSql],
+        ["fixMigrationSql", fixMigrationSql],
+      ]) {
+        assert.equal(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, null),
+          null,
+          `${label}: null input must return null`
+        );
+
+        const exactInput = {
+          venueName: "Burbank Studio",
+          city: "Burbank",
+          country: "United States",
+          latitude: 34.1808,
+          longitude: -118.309,
+          connectionType: "satellite-feed",
+          publicVisibility: "public-exact",
+        };
+        assert.deepEqual(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, exactInput),
+          exactInput,
+          `${label}: public-exact visibility must retain coordinates and descriptive fields`
+        );
+
+        const approximateInput = {
+          venueName: "Zurich Hub",
+          city: "Zurich",
+          country: "Switzerland",
+          latitude: 47.3769,
+          longitude: 8.5417,
+          connectionType: "video-link",
+          publicVisibility: "approximate",
+        };
+        assert.deepEqual(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, approximateInput),
+          {
+            connectionType: "video-link",
+            publicVisibility: "approximate",
+          },
+          `${label}: approximate visibility must fail closed, removing coordinates and descriptive fields`
+        );
+
+        const missingVisInput = {
+          venueName: "Geneva Broadcast Center",
+          city: "Geneva",
+          latitude: 46.2044,
+          longitude: 6.1432,
+          connectionType: "zoom",
+        };
+        assert.deepEqual(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, missingVisInput),
+          {
+            connectionType: "zoom",
+          },
+          `${label}: missing visibility must fail closed, removing coordinates and descriptive fields`
+        );
+
+        const restrictedInput = {
+          venueName: "Private Residence",
+          city: "London",
+          latitude: 51.5074,
+          longitude: -0.1278,
+          connectionType: "telephone",
+          publicVisibility: "restricted",
+        };
+        assert.deepEqual(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, restrictedInput),
+          {
+            connectionType: "telephone",
+            publicVisibility: "restricted",
+          },
+          `${label}: restricted visibility must remove coordinates and descriptive fields`
+        );
+
+        const blankCamelRestrictedSnakeInput = {
+          venueName: "Disclosed Residence",
+          city: "Paris",
+          latitude: 48.8566,
+          longitude: 2.3522,
+          connectionType: "skype",
+          publicVisibility: "   ",
+          public_visibility: "restricted",
+        };
+        assert.deepEqual(
+          evaluateSanitizePublicRemoteLocationSql(sqlText, blankCamelRestrictedSnakeInput),
+          {
+            connectionType: "skype",
+            publicVisibility: "restricted",
+          },
+          `${label}: blank publicVisibility must fall back to public_visibility and strip coordinates and descriptive fields`
+        );
+      }
       assert.ok(
         validateMigrationSql.includes(
           "ALTER TABLE event_people VALIDATE CONSTRAINT event_people_remote_coords_visibility_check;"
