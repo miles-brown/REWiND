@@ -427,8 +427,8 @@ export interface PlaceResolution {
   venue: string;
   city: string;
   country: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   confidence: number;
 }
 
@@ -485,6 +485,38 @@ export function generateDeterministicPlaceSlug(city?: string, venue?: string): s
   return `plc-${citySlug}-${venueSlug}`;
 }
 
+/**
+ * Extracts and validates the primary sovereign country from a raw country string.
+ * Marks input as malformed when a compound delimiter ("/" or ";") has an empty leading component.
+ */
+function extractPrimaryCountryComponent(country?: string): {
+  safeCountry: string;
+  isMalformed: boolean;
+} {
+  const rawCountry = (country || "").trim();
+  if (rawCountry.includes("/") || rawCountry.includes(";")) {
+    const firstComponent = rawCountry.split(/[/;]/)[0].trim();
+    if (!firstComponent) {
+      return { safeCountry: "", isMalformed: true };
+    }
+    return { safeCountry: firstComponent, isMalformed: false };
+  }
+  return { safeCountry: rawCountry, isMalformed: false };
+}
+
+/**
+ * Normalizes a place country value into a non-empty single sovereign country name,
+ * falling back to "Unknown" when the input or its leading compound segment is blank.
+ */
+export function normalizePlaceCountry(country?: string | null): string {
+  const { safeCountry } = extractPrimaryCountryComponent(country || undefined);
+  return safeCountry || "Unknown";
+}
+
+/**
+ * Resolves a venue, city, country, and optional coordinates against the in-memory gazetteer.
+ * Enforces single sovereign country resolution and rejects malformed compound country inputs.
+ */
 export function resolvePlace(
   venue?: string,
   city?: string,
@@ -495,8 +527,20 @@ export function resolvePlace(
   const store = getRelationalStore();
   const safeCity = city || "";
   const safeVenue = venue || "";
-  const safeCountry = country || "";
+  const { safeCountry, isMalformed: isMalformedCountry } = extractPrimaryCountryComponent(country);
   const coords = sanitizeCoordinates(latitude, longitude);
+
+  if (isMalformedCountry) {
+    return {
+      placeId: "plc-unknown-general",
+      venue: "General",
+      city: "Unknown",
+      country: "Unknown",
+      latitude: null,
+      longitude: null,
+      confidence: 0,
+    };
+  }
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();
@@ -620,6 +664,10 @@ export function resolvePlace(
   };
 }
 
+/**
+ * Asynchronously resolves a venue, city, country, and optional coordinates against the PostgreSQL places table
+ * with fallback to the in-memory gazetteer. Rejects malformed compound country inputs.
+ */
 export async function resolvePlaceAsync(
   venue?: string,
   city?: string,
@@ -631,8 +679,20 @@ export async function resolvePlaceAsync(
   const db = dbInstance !== undefined ? dbInstance : getDb();
   const safeCity = city || "";
   const safeVenue = venue || "";
-  const safeCountry = country || "";
+  const { safeCountry, isMalformed: isMalformedCountry } = extractPrimaryCountryComponent(country);
   const coords = sanitizeCoordinates(latitude, longitude);
+
+  if (isMalformedCountry) {
+    return {
+      placeId: "plc-unknown-general",
+      venue: "General",
+      city: "Unknown",
+      country: "Unknown",
+      latitude: null,
+      longitude: null,
+      confidence: 0,
+    };
+  }
 
   const normCity = safeCity.toLowerCase().replace(/[^\w\s]/g, "").trim();
   const normVenue = safeVenue.toLowerCase().replace(/[^\w\s]/g, "").trim();

@@ -2117,9 +2117,21 @@ export function isSameCity(cityA?: string | null, cityB?: string | null): boolea
   return Boolean(cleanA && cleanB && cleanA === cleanB);
 }
 
+/**
+ * Resolves a country name or ISO code to a single canonical sovereign country name.
+ * When given a compound slash- or semicolon-delimited string, resolves the first nonempty component.
+ */
 export function resolveCanonicalCountryName(countryOrCode?: string | null): string {
   if (!countryOrCode) return "Unknown";
-  const trimmed = countryOrCode.trim();
+  let trimmed = countryOrCode.trim();
+  if (trimmed.includes("/") || trimmed.includes(";")) {
+    const firstPart = trimmed
+      .split(/[/;]/)
+      .map((p) => p.trim())
+      .find(Boolean);
+    if (!firstPart) return "Unknown";
+    trimmed = firstPart;
+  }
   const lower = trimmed.toLowerCase();
   const upper = trimmed.toUpperCase();
   if (CODE_TO_COUNTRY_MAP[upper]) {
@@ -2132,7 +2144,7 @@ export function resolveCanonicalCountryName(countryOrCode?: string | null): stri
   if (codeFromMap && CODE_TO_COUNTRY_MAP[codeFromMap]) {
     return CODE_TO_COUNTRY_MAP[codeFromMap];
   }
-  return trimmed;
+  return trimmed || "Unknown";
 }
 
 /**

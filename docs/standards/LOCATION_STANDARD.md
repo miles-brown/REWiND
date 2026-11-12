@@ -59,3 +59,17 @@ REWiND categorizes geographic precision across 14 discrete tiers:
 
 - **Native Postal Addresses**: Addresses must respect the origin country's official postal standard rather than forcing non-Western locations into UK or US addressing models.
 - **Descriptive Locality**: Human-readable narrative landmarks (e.g., *"East bank of Potomac River, 200m north of Key Bridge"*) are maintained whenever standard postal addresses are unavailable or uninformative.
+
+---
+
+## 5. Mobile Vessels & Dynamic Geocoding Architecture
+
+Mobile crafts (aircraft, trains, naval vessels, presidential motorcades) require a specialized spatial model because they lack static physical street addresses:
+
+1. **Address Nullability Invariant**: For mobile venues (`is_mobile_vessel = true`), `address_id` is strictly `null`. Synthetic building numbers or street names are prohibited.
+2. **Flag State Sovereign Resolution**: The `country_code` is determined by the vessel's flag state / operating jurisdiction (e.g., `US` for Air Force One / Marine One, `GB` for the British Royal Train).
+3. **Home Base Anchor**: When not in transit, vessels are associated with a `home_base_place_id` (e.g., `plc-joint-base-andrews` for USAF Presidential Airlift).
+4. **Dynamic Geocoding Rules**:
+   - **Stationary / Ground State**: Geocoded to the tarmac stand, runway apron, or train platform coordinates.
+   - **En Route State**: Geocoded to the exact geodesic point or flight corridor waypoint corresponding to the timestamp of the event, with `route_coordinates` documenting the full path.
+

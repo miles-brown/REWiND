@@ -1,22 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-
-if (typeof process.loadEnvFile === "function") {
-  try {
-    process.loadEnvFile(".env.local");
-  } catch {}
-  try {
-    process.loadEnvFile();
-  } catch {}
-}
-
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-
-if (!connectionString) {
-  console.error("DATABASE_URL not set in environment or .env.local");
-  process.exit(1);
-}
 
 const SUPABASE_PROD_ROOT_CA = `-----BEGIN CERTIFICATE-----
 MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
@@ -42,15 +27,7 @@ CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P
 o/bKiIz+Fq8=
 -----END CERTIFICATE-----`;
 
-const client = postgres(connectionString, {
-  max: 1,
-  ssl: {
-    ca: SUPABASE_PROD_ROOT_CA,
-    rejectUnauthorized: true,
-  },
-});
-
-const migrationFiles = [
+export const migrationFiles = [
   "20240904000000_supabase_architecture_cutover.sql",
   "20260904010000_temporal_evidence_people_standards.sql",
   "20260904020000_standards_remediation_and_rls.sql",
@@ -58,15 +35,92 @@ const migrationFiles = [
   "20260904040000_schema_perfection_and_travel_corridors.sql",
   "20260904050000_add_subvenue_to_events.sql",
   "20260904060000_deduplicate_aliases_and_harden_rls.sql",
+  "20260904065000_remote_attendance_and_places_fix.sql",
+  "20260904070000_mobile_venues_and_vessel_architecture.sql",
   "20260904080000_add_claim_contestation_columns.sql",
+  "20260904090000_validate_remote_and_vessel_constraints.sql",
+  "20260904100000_fix_remote_coords_visibility_null_default.sql",
+  "20260904110000_validate_remote_coords_visibility_check.sql",
 ];
+
+export const legacyVersionAliases = new Map([
+  ["20260904065000", "20260904060000_remote_attendance_and_places_fix"],
+]);
+
+const NORMALIZED_APPLIED_SETS = new WeakSet();
+
+/**
+ * Normalizes recorded migration entries (version strings, version_name strings,
+ * or { version, name } rows from supabase_migrations.schema_migrations) into a Set
+ * of canonical version and legacy-alias identifiers, keeping legacy records on
+ * shared timestamps distinct from current migrations at that timestamp.
+ */
+export function normalizeAppliedVersions(appliedInput, aliases = legacyVersionAliases) {
+  if (appliedInput instanceof Set && aliases === legacyVersionAliases && NORMALIZED_APPLIED_SETS.has(appliedInput)) {
+    return appliedInput;
+  }
+  const legacyAliasSet = new Set(aliases.values());
+  const normalized = new Set();
+
+  for (const entry of appliedInput ?? []) {
+    if (entry && typeof entry === "object") {
+      const entryVersion = String(entry.version ?? "");
+      const entryName = entry.name != null && String(entry.name) !== "" ? String(entry.name) : null;
+      const composite = entryName ? `${entryVersion}_${entryName}` : entryVersion;
+      if (composite) {
+        normalized.add(composite);
+      }
+      if (entryVersion && !legacyAliasSet.has(composite)) {
+        normalized.add(entryVersion);
+      }
+      continue;
+    }
+
+    const raw = String(entry);
+    normalized.add(raw);
+    const match = raw.match(/^(\d+)_(.+)$/);
+    if (match && !legacyAliasSet.has(raw)) {
+      normalized.add(match[1]);
+    }
+  }
+
+  if (aliases === legacyVersionAliases) {
+    NORMALIZED_APPLIED_SETS.add(normalized);
+  }
+  return normalized;
+}
+
+/**
+ * Determines whether a migration version should be skipped based on recorded versions,
+ * legacy version aliases, and CLI targeting flags (--force, --force-all, --version=...).
+ */
+export function shouldSkipMigration(
+  version,
+  appliedInput,
+  argv = process.argv,
+  aliases = legacyVersionAliases
+) {
+  const appliedVersions = normalizeAppliedVersions(appliedInput, aliases);
+  const legacyVersion = aliases.get(version);
+  const targetVersions = argv
+    .filter((arg) => arg.startsWith("--version="))
+    .map((arg) => arg.split("=")[1]);
+  const forceAll = argv.includes("--force-all");
+  const isTargeted =
+    targetVersions.length > 0 &&
+    (targetVersions.includes(version) || (legacyVersion != null && targetVersions.includes(legacyVersion)));
+  const forceRun = forceAll || (argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
+  return (appliedVersions.has(version) || (legacyVersion != null && appliedVersions.has(legacyVersion))) && !forceRun;
+}
 
 /**
  * Applies listed migrations and records each version in the same transaction.
- * Skips recorded versions unless --force is set, exits on migration failure,
- * then reports public tables and RLS policies and closes the client on success.
+ * Skips recorded versions unless rerun with --force-all or with --force and a
+ * matching --version= target (while a bare --force does not rerun them), exits
+ * on migration failure, then reports public tables and RLS policies and closes
+ * the client on success.
  */
-async function applyMigrations() {
+async function applyMigrations(client) {
   console.log("Connecting to Supabase PostgreSQL database...");
   const [{ version }] = await client`SELECT version()`;
   console.log("Connected to:", version);
@@ -83,23 +137,20 @@ async function applyMigrations() {
 
   // Fetch already applied migrations to ensure idempotency
   const appliedMigrationRows = await client`
-    SELECT version FROM supabase_migrations.schema_migrations;
-  `;
-  const appliedVersions = new Set(appliedMigrationRows.map((r) => String(r.version)));
-  console.log(`Found ${appliedVersions.size} already applied migrations in supabase_migrations.schema_migrations.`);
+    SELECT version, name FROM supabase_migrations.schema_migrations;
+  `.catch((err) => {
+    console.warn("Could not read migration names; falling back to version-only query:", err.message);
+    return client`SELECT version FROM supabase_migrations.schema_migrations;`;
+  });
+  const appliedVersions = normalizeAppliedVersions(appliedMigrationRows, legacyVersionAliases);
+  console.log(`Found ${appliedMigrationRows.length} already applied migrations in supabase_migrations.schema_migrations.`);
 
   for (const filename of migrationFiles) {
     const filePath = path.join("supabase/migrations", filename);
     const version = filename.split("_")[0];
     const name = filename.replace(/\.sql$/, "").slice(version.length + 1);
 
-    const targetVersions = process.argv
-      .filter((arg) => arg.startsWith("--version="))
-      .map((arg) => arg.split("=")[1]);
-    const forceAll = process.argv.includes("--force-all");
-    const isTargeted = targetVersions.length > 0 && targetVersions.includes(version);
-    const forceRun = forceAll || (process.argv.includes("--force") && (targetVersions.length === 0 ? false : isTargeted));
-    if (appliedVersions.has(version) && !forceRun) {
+    if (shouldSkipMigration(version, appliedVersions, process.argv, legacyVersionAliases)) {
       console.log(`\n========================================`);
       console.log(`Skipping already applied migration: ${filename} (version: ${version})`);
       console.log(`========================================`);
@@ -156,7 +207,37 @@ async function applyMigrations() {
   console.log("\n All migrations applied and verified successfully!");
 }
 
-applyMigrations().catch((err) => {
-  console.error("Migration execution failed:", err);
-  process.exit(1);
-});
+const isMainModule =
+  typeof process.argv[1] === "string" &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  if (typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile(".env.local");
+    } catch {}
+    try {
+      process.loadEnvFile();
+    } catch {}
+  }
+
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+  if (!connectionString) {
+    console.error("DATABASE_URL not set in environment or .env.local");
+    process.exit(1);
+  }
+
+  const client = postgres(connectionString, {
+    max: 1,
+    ssl: {
+      ca: SUPABASE_PROD_ROOT_CA,
+      rejectUnauthorized: true,
+    },
+  });
+
+  applyMigrations(client).catch((err) => {
+    console.error("Migration execution failed:", err);
+    process.exit(1);
+  });
+}
