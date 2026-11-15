@@ -241,3 +241,65 @@ test("verifies resolveFlightCorridorTrajectory enforces Tier 1 (documented) vs T
   assert.ok(documentedTransport.flightCorridor.includes("Documented Flight Log"));
 });
 
+test("verifies PR 43 review fixes for HUD placement, telemetry state, mode passing, and verified flight badge gating", () => {
+  const mapPath = path.join(root, "components/rewind/MapGraphic.tsx");
+  const cssPath = path.join(root, "app/globals.css");
+  const nextConfigPath = path.join(root, "next.config.ts");
+
+  const mapContent = fs.readFileSync(mapPath, "utf-8");
+  const cssContent = fs.readFileSync(cssPath, "utf-8");
+  const nextConfigContent = fs.readFileSync(nextConfigPath, "utf-8");
+
+  // 1. next.config.ts derives ESM project root from import.meta.url rather than process.cwd()
+  assert.ok(
+    nextConfigContent.includes("fileURLToPath(import.meta.url)") && !nextConfigContent.includes("process.cwd()"),
+    "next.config.ts must resolve turbopack.root from import.meta.url rather than process.cwd()"
+  );
+
+  // 2. .map-transit-hud is anchored at bottom-left so it never overlaps .map-stage-label at top-left
+  const hudRuleMatch = cssContent.match(/\.map-transit-hud\s*\{[^}]+\}/);
+  assert.ok(hudRuleMatch, "app/globals.css must define .map-transit-hud");
+  assert.ok(
+    hudRuleMatch[0].includes("bottom: 20px") && !hudRuleMatch[0].includes("top: 14px"),
+    ".map-transit-hud must be positioned at bottom-left to avoid overlapping .map-stage-label"
+  );
+
+  // 3. updateActiveLegRoute receives activeJourney.mode (preserving air-force-one glow styling)
+  assert.ok(
+    mapContent.includes("updateActiveLegRoute(map, curvePoints, activeJourney.mode, 0)") &&
+      mapContent.includes("updateActiveLegRoute(map, curvePoints, activeJourney.mode, ptIndex)") &&
+      mapContent.includes("updateActiveLegRoute(map, curvePoints, activeJourney.mode);") &&
+      !mapContent.includes("updateActiveLegRoute(map, curvePoints, activeJourney.iconName"),
+    "MapGraphic.tsx must pass activeJourney.mode (not iconName) to updateActiveLegRoute"
+  );
+
+  // 4. Nullish coalescing for altitude (preserving 0m at takeoff/touchdown)
+  assert.ok(
+    mapContent.includes("currPt.altitudeMeters ?? (isAir ? 10500 : 0)") &&
+      mapContent.includes("currPt.altitudeMeters ?? 0"),
+    "MapGraphic.tsx must use nullish coalescing (??) for currPt.altitudeMeters so 0m is preserved"
+  );
+
+  // 5. Reduced-motion and normal completion both finalize arrival telemetry
+  assert.ok(
+    mapContent.includes("finalizeArrivalTelemetry(isAir)"),
+    "MapGraphic.tsx must finalize arrival telemetry in both normal and prefers-reduced-motion paths"
+  );
+
+  // 6. Verified flight badge is gated on event verificationStatus, confidence, and source evidence
+  assert.ok(
+    mapContent.includes("hasVerifiedFlightEvidence") &&
+      mapContent.includes('currEvent?.verificationStatus === "verified"') &&
+      mapContent.includes("Documented Flight Metadata"),
+    "MapGraphic.tsx must gate Verified Flight Log badge on verified status, strong/confirmed confidence, and sources"
+  );
+
+  // 7. Telemetry grid stays mounted with hidden={!hudExpanded} and ShieldCheck is aria-hidden
+  assert.ok(
+    mapContent.includes("hidden={!hudExpanded}") &&
+      mapContent.includes('<ShieldCheck size={11} className="badge-shield-icon" aria-hidden="true" />'),
+    "MapGraphic.tsx must keep transit-telemetry-grid mounted when collapsed and mark decorative ShieldCheck aria-hidden"
+  );
+});
+
+

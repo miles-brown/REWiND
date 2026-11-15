@@ -579,6 +579,33 @@ export function MapGraphic({
   const [hudExpanded, setHudExpanded] = useState(true);
   const telemetryAltRef = useRef<HTMLSpanElement | null>(null);
   const telemetryProgressRef = useRef<HTMLSpanElement | null>(null);
+  const telemetryStateRef = useRef<{ alt: string; progress: string }>({
+    alt: "Ground Surface",
+    progress: "0%",
+  });
+
+  const getInitialTelemetryAlt = useCallback((mode: string) => {
+    return isAirTransport(mode)
+      ? (mode === "helicopter" ? "1,500 m (FL050)" : "11,500 m (FL370)")
+      : "Ground Surface";
+  }, []);
+
+  const setTelemetryValues = useCallback((altText: string, progressText: string) => {
+    telemetryStateRef.current = { alt: altText, progress: progressText };
+    if (telemetryAltRef.current) {
+      telemetryAltRef.current.textContent = altText;
+    }
+    if (telemetryProgressRef.current) {
+      telemetryProgressRef.current.textContent = progressText;
+    }
+  }, []);
+
+  const finalizeArrivalTelemetry = useCallback(
+    (isAir: boolean) => {
+      setTelemetryValues(isAir ? "Touchdown" : "Arrived", "100% · Arrived");
+    },
+    [setTelemetryValues]
+  );
 
   // Mount-only detection of WebGL to ensure consistent SSR and client hydration
   useEffect(() => {
@@ -641,6 +668,55 @@ export function MapGraphic({
     () => resolveJourneyTransport(prevEvent, currEvent),
     [prevEvent, currEvent]
   );
+
+  const hasVerifiedFlightEvidence = useMemo(
+    () =>
+      Boolean(
+        activeJourney.isDocumentedFlight &&
+          currEvent?.verificationStatus === "verified" &&
+          (currEvent?.confidence === "confirmed" || currEvent?.confidence === "strong") &&
+          ((currEvent?.sourceIds && currEvent.sourceIds.length > 0) ||
+            (currEvent?.sources && currEvent.sources.length > 0))
+      ),
+    [activeJourney.isDocumentedFlight, currEvent]
+  );
+
+  const corridorStatusLabel = hasVerifiedFlightEvidence
+    ? "Verified Flight Log"
+    : activeJourney.isDocumentedFlight
+    ? "Documented Flight Metadata"
+    : "Suggested Corridor";
+
+  // Synchronize telemetry state before route resolution and when switching map modes or expanding HUD
+  useEffect(() => {
+    if (!activeJourney.isJourney || !prevEvent || !currEvent) return;
+    const isAir = isAirTransport(activeJourney.mode);
+    if (mapMode !== "webgl" || !mapLoaded) {
+      finalizeArrivalTelemetry(isAir);
+    } else {
+      setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%");
+    }
+  }, [
+    activeJourney.isJourney,
+    activeJourney.mode,
+    prevEvent,
+    currEvent,
+    mapMode,
+    mapLoaded,
+    getInitialTelemetryAlt,
+    setTelemetryValues,
+    finalizeArrivalTelemetry,
+  ]);
+
+  useEffect(() => {
+    if (!hudExpanded) return;
+    if (telemetryAltRef.current && telemetryStateRef.current.alt) {
+      telemetryAltRef.current.textContent = telemetryStateRef.current.alt;
+    }
+    if (telemetryProgressRef.current && telemetryStateRef.current.progress) {
+      telemetryProgressRef.current.textContent = telemetryStateRef.current.progress;
+    }
+  }, [hudExpanded]);
 
   const pointsRef = useRef(points);
   const mapThemeRef = useRef(mapTheme);
@@ -1094,6 +1170,7 @@ export function MapGraphic({
         currEvent.latitude != null
       ) {
         const isAir = isAirTransport(activeJourney.mode);
+        setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%");
         let curvePoints: TrajectoryPoint[] = [];
 
         if (isAir) {
@@ -1122,10 +1199,10 @@ export function MapGraphic({
 
         if (isCancelled || !curvePoints.length) return;
 
-        activeLegRouteRef.current = { curvePoints, mode: activeJourney.iconName };
+        activeLegRouteRef.current = { curvePoints, mode: activeJourney.mode };
 
         // Initialize active leg route layer
-        updateActiveLegRoute(map, curvePoints, activeJourney.iconName, 0);
+        updateActiveLegRoute(map, curvePoints, activeJourney.mode, 0);
 
         // Calculate theme-specific 3D camera angles and positions
         const minLng = Math.min(prevEvent.longitude, currEvent.longitude);
@@ -1246,7 +1323,8 @@ export function MapGraphic({
           if (finalPt && vehicleMarker) {
             vehicleMarker.setLngLat([finalPt.lng, finalPt.lat]);
             iconWrap.style.transform = `rotate(${finalPt.bearing}deg)`;
-            updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
+            updateActiveLegRoute(map, curvePoints, activeJourney.mode);
+            finalizeArrivalTelemetry(isAir);
           }
         } else {
           // Dynamic Transit Animation Sequence
@@ -1276,7 +1354,7 @@ export function MapGraphic({
               if (isAir) {
                 // 3D Arc elevation visual translation and scaling
                 const maxAlt = activeJourney.mode === "helicopter" ? 1500 : 11500;
-                const alt = currPt.altitudeMeters || 0;
+                const alt = currPt.altitudeMeters ?? 0;
                 const elevFraction = alt / Math.max(maxAlt, 1);
                 const elevationPx = Math.round(28 * elevFraction);
                 const scale = currPt.scale || (1.0 + 0.3 * elevFraction);
@@ -1290,22 +1368,18 @@ export function MapGraphic({
                   shadowEl.style.opacity = String(shadowOpacity);
                 }
                 // Progressive contrail drawing along 3D flight arc
-                updateActiveLegRoute(map, curvePoints, activeJourney.iconName, ptIndex);
+                updateActiveLegRoute(map, curvePoints, activeJourney.mode, ptIndex);
               } else {
                 // Progressive solid route line drawing along exact road/rail network
-                updateActiveLegRoute(map, curvePoints, activeJourney.iconName, ptIndex);
+                updateActiveLegRoute(map, curvePoints, activeJourney.mode, ptIndex);
               }
 
               // Update real-time 60fps telemetry HUD values
-              if (telemetryAltRef.current) {
-                const alt = currPt.altitudeMeters || (isAir ? 10500 : 0);
-                telemetryAltRef.current.textContent = isAir
-                  ? `${Math.round(alt).toLocaleString()} m (${Math.round(alt * 3.28084).toLocaleString()} ft)`
-                  : "Ground Surface";
-              }
-              if (telemetryProgressRef.current) {
-                telemetryProgressRef.current.textContent = `${Math.round(rawProgress * 100)}%`;
-              }
+              const alt = currPt.altitudeMeters ?? (isAir ? 10500 : 0);
+              const altText = isAir
+                ? `${Math.round(alt).toLocaleString()} m (${Math.round(alt * 3.28084).toLocaleString()} ft)`
+                : "Ground Surface";
+              setTelemetryValues(altText, `${Math.round(rawProgress * 100)}%`);
 
               // Smooth camera panning to follow transit along travel route
               if (rawProgress < 1.0 && activeJourney.distanceKm > 150) {
@@ -1323,13 +1397,8 @@ export function MapGraphic({
               animFrameRef.current = requestAnimationFrame(animateLeg);
             } else {
               // Ensure complete solid line is finalized on arrival
-              updateActiveLegRoute(map, curvePoints, activeJourney.iconName);
-              if (telemetryProgressRef.current) {
-                telemetryProgressRef.current.textContent = "100% · Arrived";
-              }
-              if (telemetryAltRef.current) {
-                telemetryAltRef.current.textContent = isAir ? "Touchdown" : "Arrived";
-              }
+              updateActiveLegRoute(map, curvePoints, activeJourney.mode);
+              finalizeArrivalTelemetry(isAir);
             }
           };
 
@@ -1347,7 +1416,22 @@ export function MapGraphic({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [points, chronologicalPoints, selected, selectedIndex, mapLoaded, mapMode, mapTheme, onSelect, activeJourney, prevEvent, currEvent]);
+  }, [
+    points,
+    chronologicalPoints,
+    selected,
+    selectedIndex,
+    mapLoaded,
+    mapMode,
+    mapTheme,
+    onSelect,
+    activeJourney,
+    prevEvent,
+    currEvent,
+    getInitialTelemetryAlt,
+    setTelemetryValues,
+    finalizeArrivalTelemetry,
+  ]);
 
   // Smooth fly-to camera movement on selection change with high-resolution venue zoom
   useEffect(() => {
@@ -1392,7 +1476,7 @@ export function MapGraphic({
           : ""}
       </div>
 
-      {/* Floating Forensic Transit Telemetry HUD - Top Left */}
+      {/* Floating Forensic Transit Telemetry HUD - Bottom Left */}
       {activeJourney.isJourney && prevEvent && currEvent && (
         <aside
           role="region"
@@ -1423,40 +1507,40 @@ export function MapGraphic({
             <span className="city-endpoint dest">{activeJourney.destinationCity || currEvent.city}</span>
           </div>
 
-          {hudExpanded && (
-            <div className="transit-telemetry-grid">
-              <div className="telemetry-cell">
-                <span className="telemetry-label">Distance</span>
-                <span className="telemetry-value">{activeJourney.formattedDistance}</span>
-              </div>
-              <div className="telemetry-cell">
-                <span className="telemetry-label">Est. Time</span>
-                <span className="telemetry-value">{activeJourney.formattedDuration || "Direct Transit"}</span>
-              </div>
-              <div className="telemetry-cell">
-                <span className="telemetry-label">{isAirTransport(activeJourney.mode) ? "Altitude" : "Elevation"}</span>
-                <span ref={telemetryAltRef} className="telemetry-value">
-                  {isAirTransport(activeJourney.mode)
-                    ? (activeJourney.mode === "helicopter" ? "1,500 m (FL050)" : "11,500 m (FL370)")
-                    : "Ground Surface"}
-                </span>
-              </div>
-              <div className="telemetry-cell">
-                <span className="telemetry-label">Transit Progress</span>
-                <span ref={telemetryProgressRef} className="telemetry-value highlight-cyan">
-                  100%
-                </span>
-              </div>
-              <div className="telemetry-cell full-width">
-                <span className="telemetry-label">Corridor Status</span>
-                <span className={`telemetry-badge ${activeJourney.isDocumentedFlight ? "verified" : "provisional"}`}>
-                  <ShieldCheck size={11} className="badge-shield-icon" />
-                  {activeJourney.isDocumentedFlight ? "Verified Flight Log" : "Suggested Corridor"}
-                  {activeJourney.flightIdentifier ? ` · ${activeJourney.flightIdentifier}` : ""}
-                </span>
-              </div>
+          <div
+            className="transit-telemetry-grid"
+            hidden={!hudExpanded}
+            aria-hidden={!hudExpanded}
+          >
+            <div className="telemetry-cell">
+              <span className="telemetry-label">Distance</span>
+              <span className="telemetry-value">{activeJourney.formattedDistance}</span>
             </div>
-          )}
+            <div className="telemetry-cell">
+              <span className="telemetry-label">Est. Time</span>
+              <span className="telemetry-value">{activeJourney.formattedDuration || "Direct Transit"}</span>
+            </div>
+            <div className="telemetry-cell">
+              <span className="telemetry-label">{isAirTransport(activeJourney.mode) ? "Altitude" : "Elevation"}</span>
+              <span ref={telemetryAltRef} className="telemetry-value">
+                {getInitialTelemetryAlt(activeJourney.mode)}
+              </span>
+            </div>
+            <div className="telemetry-cell">
+              <span className="telemetry-label">Transit Progress</span>
+              <span ref={telemetryProgressRef} className="telemetry-value highlight-cyan">
+                0%
+              </span>
+            </div>
+            <div className="telemetry-cell full-width">
+              <span className="telemetry-label">Corridor Status</span>
+              <span className={`telemetry-badge ${hasVerifiedFlightEvidence ? "verified" : "provisional"}`}>
+                <ShieldCheck size={11} className="badge-shield-icon" aria-hidden="true" />
+                {corridorStatusLabel}
+                {activeJourney.flightIdentifier ? ` · ${activeJourney.flightIdentifier}` : ""}
+              </span>
+            </div>
+          </div>
         </aside>
       )}
 

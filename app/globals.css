@@ -1692,7 +1692,7 @@ svg { flex: 0 0 auto; }
 /* Floating Forensic Transit Telemetry HUD */
 .map-transit-hud {
   position: absolute;
-  top: 14px;
+  bottom: 20px;
   left: 14px;
   z-index: 25;
   background: rgba(8, 14, 26, 0.92);
@@ -1702,7 +1702,7 @@ svg { flex: 0 0 auto; }
   padding: 10px 14px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 16px rgba(56, 189, 248, 0.12);
   width: 290px;
-  max-width: calc(100% - 28px);
+  max-width: calc(100% - 68px);
   color: #f8fafc;
   pointer-events: auto;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1711,6 +1711,10 @@ svg { flex: 0 0 auto; }
   padding: 8px 12px;
   width: auto;
   min-width: 220px;
+}
+.map-transit-hud.collapsed .transit-telemetry-grid,
+.transit-telemetry-grid[hidden] {
+  display: none;
 }
 .transit-hud-header {
   display: flex;
