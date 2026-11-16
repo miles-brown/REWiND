@@ -582,9 +582,11 @@ export function MapGraphic({
   const [hudExpanded, setHudExpanded] = useState(true);
   const telemetryAltRef = useRef<HTMLSpanElement | null>(null);
   const telemetryProgressRef = useRef<HTMLSpanElement | null>(null);
-  const telemetryStateRef = useRef<{ alt: string; progress: string }>({
+  const telemetryLiveRef = useRef<HTMLDivElement | null>(null);
+  const telemetryStateRef = useRef<{ alt: string; progress: string; announcement: string }>({
     alt: "Ground Surface",
     progress: "0%",
+    announcement: "",
   });
 
   const getInitialTelemetryAlt = useCallback((mode: string) => {
@@ -593,19 +595,32 @@ export function MapGraphic({
       : "Ground Surface";
   }, []);
 
-  const setTelemetryValues = useCallback((altText: string, progressText: string) => {
-    telemetryStateRef.current = { alt: altText, progress: progressText };
-    if (telemetryAltRef.current) {
-      telemetryAltRef.current.textContent = altText;
-    }
-    if (telemetryProgressRef.current) {
-      telemetryProgressRef.current.textContent = progressText;
-    }
-  }, []);
+  const setTelemetryValues = useCallback(
+    (altText: string, progressText: string, announceMilestone = false) => {
+      const nextAnnouncement = announceMilestone
+        ? `Transit telemetry: ${altText}, progress ${progressText}`
+        : telemetryStateRef.current.announcement;
+      telemetryStateRef.current = {
+        alt: altText,
+        progress: progressText,
+        announcement: nextAnnouncement,
+      };
+      if (telemetryAltRef.current) {
+        telemetryAltRef.current.textContent = altText;
+      }
+      if (telemetryProgressRef.current) {
+        telemetryProgressRef.current.textContent = progressText;
+      }
+      if (announceMilestone && telemetryLiveRef.current) {
+        telemetryLiveRef.current.textContent = nextAnnouncement;
+      }
+    },
+    []
+  );
 
   const finalizeArrivalTelemetry = useCallback(
     (isAir: boolean) => {
-      setTelemetryValues(isAir ? "Touchdown" : "Arrived", "100% · Arrived");
+      setTelemetryValues(isAir ? "Touchdown" : "Arrived", "100% · Arrived", true);
     },
     [setTelemetryValues]
   );
@@ -697,7 +712,7 @@ export function MapGraphic({
     if (mapMode !== "webgl" || !mapLoaded) {
       finalizeArrivalTelemetry(isAir);
     } else {
-      setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%");
+      setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%", true);
     }
   }, [
     activeJourney.isJourney,
@@ -718,6 +733,9 @@ export function MapGraphic({
     }
     if (telemetryProgressRef.current && telemetryStateRef.current.progress) {
       telemetryProgressRef.current.textContent = telemetryStateRef.current.progress;
+    }
+    if (telemetryLiveRef.current && telemetryStateRef.current.announcement) {
+      telemetryLiveRef.current.textContent = telemetryStateRef.current.announcement;
     }
   }, [hudExpanded]);
 
@@ -1175,7 +1193,7 @@ export function MapGraphic({
         const isAir = isAirTransport(activeJourney.mode);
         activeLegRouteRef.current = null;
         updateActiveLegRoute(map, [], activeJourney.mode);
-        setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%");
+        setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%", true);
         let curvePoints: TrajectoryPoint[] = [];
 
         if (isAir) {
@@ -1488,10 +1506,16 @@ export function MapGraphic({
       {activeJourney.isJourney && prevEvent && currEvent && (
         <aside
           role="region"
-          aria-live="polite"
           className={`map-transit-hud ${hudExpanded ? "expanded" : "collapsed"}`}
           aria-label="Active transit corridor telemetry"
         >
+          <div
+            ref={telemetryLiveRef}
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          />
           <div className="transit-hud-header">
             <div className="transit-hud-badge">
               <span className="transit-live-indicator" aria-hidden="true" />

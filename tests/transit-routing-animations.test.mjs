@@ -325,11 +325,19 @@ test("verifies PR 43 review fixes for HUD placement, telemetry state, mode passi
     "Badge label and className must both gate on hasVerifiedFlightEvidence"
   );
 
-  // 7. Telemetry grid stays mounted with hidden={!hudExpanded} and ShieldCheck is aria-hidden
+  // 7. Telemetry grid stays mounted with hidden={!hudExpanded}, ShieldCheck is aria-hidden, and live announcements are limited to milestones
   assert.ok(
     mapContent.includes("hidden={!hudExpanded}") &&
       mapContent.includes('<ShieldCheck size={11} className="badge-shield-icon" aria-hidden="true" />'),
     "MapGraphic.tsx must keep transit-telemetry-grid mounted when collapsed and mark decorative ShieldCheck aria-hidden"
+  );
+  const hudAsideOpenTagMatch = mapContent.match(/<aside[\s\S]*?>/);
+  assert.ok(hudAsideOpenTagMatch, "MapGraphic.tsx must render an <aside> for .map-transit-hud");
+  assert.ok(
+    !hudAsideOpenTagMatch[0].includes('aria-live="polite"') &&
+      mapContent.includes("ref={telemetryLiveRef}") &&
+      mapContent.includes("announceMilestone = false"),
+    "MapGraphic.tsx must isolate aria-live='polite' to telemetryLiveRef for milestone announcements rather than wrapping 60fps telemetry spans"
   );
 });
 
