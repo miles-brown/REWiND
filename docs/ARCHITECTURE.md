@@ -42,10 +42,11 @@
 - **Deep Linking**: Syncs active event state with the browser URL (`?evt=<slug>`) using non-reloading history state replacement.
 - **Epoch Milestone Navigation**: Groups decades into interactive landmark tags along the timeline rail.
 
-### 2. Geospatial Visualization (`components/rewind/MapGraphic.tsx`)
-- **Equirectangular Projection**: Maps GPS coordinates (`latitude`, `longitude`) to dynamic percentage positions on an evidence map.
-- **Cumulative Trajectory**: Renders SVG paths tracing chronological travel between documented locations.
-- **Interactive Marker Selection**: Synchronizes map point clicks with the timeline active index.
+### 2. Geospatial Visualization & Forensic Transit HUD (`components/rewind/MapGraphic.tsx`)
+- **Multi-Theme Vector & Raster Basemaps**: Supports Geopolitical Voyager (default), Dark Forensic, Satellite Imagery, and 2D Tactical Schematic SVG fallback ([`GEOSPATIAL_AND_MAP_MODES.md`](architecture/GEOSPATIAL_AND_MAP_MODES.md)).
+- **Progressive Contrails & 3D Flight Arcs**: Renders 3D parabolic Bezier airway curves (`lib/rewind/travel.ts`), OSRM/Mapbox surface routes (`lib/rewind/routing.ts`), altitude-tiered luminous glow, and pulsing vapor emitters.
+- **Forensic Transit Telemetry HUD**: Collapsible bottom-left overlay (`.map-transit-hud`) displaying real-time altitude/elevation, eased trajectory progress, city corridor endpoints, and verified flight-log gating (`hasVerifiedFlightEvidence`).
+- **4-Quadrant Non-Collision Layout**: Enforces strict spatial separation across top-left (`.map-stage-label`), top-right (`.map-toolbar`), bottom-left (`.map-transit-hud`), and bottom-right (`.map-floating-controls`) per [`DESIGN_SYSTEM_AND_ALIGNMENT.md`](architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md).
 
 ### 3. Command Palette (`components/rewind/CommandPalette.tsx`)
 - **Global `⌘K` Quick Search**: Instant fuzzy matching across:
@@ -107,6 +108,16 @@
 ├── docs/                       # Comprehensive project documentation
 └── tests/                      # Node.js test suite
 ```
+
+---
+
+## Related Architectural Specifications
+- [**AI Operational Protocol, Query Resolution Router & Autonomous Decision Framework**](../AGENTS.md)
+- [**Design System, Visual Consistency & Viewport Alignment Standard**](architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md)
+- [**Master Taxonomy, Content Logic & System Functions Specification**](standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md)
+- [**Event Model v2 (Knowledge Graph Schema Specification)**](architecture/EVENT_MODEL_V2.md)
+- [**Geospatial & Map Modes Specification**](architecture/GEOSPATIAL_AND_MAP_MODES.md)
+- [**Repository Organization & Growth Roadmap**](architecture/REPO_GROWTH_AND_ROADMAP.md)
 
 ---
 
