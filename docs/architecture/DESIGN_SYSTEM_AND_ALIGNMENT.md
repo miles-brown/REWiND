@@ -119,3 +119,41 @@ The following architectural enhancements extend REWiND's visual and investigativ
    - A one-click toggle in the workspace header that dims `"provisional"` and `"limited"` records to `35%` opacity while spotlighting `"verified"` + `"confirmed"` primary-source records, allowing instant visual assessment of evidentiary strength across a figure's timeline.
 4. **Seamless Macro-to-Micro Venue Interior Transitions**:
    - When zooming into a multi-room compound in Satellite or Geopolitical mode (`zoom >= 13.5`), automatically surface interactive sub-venue badges (`venue_areas` such as *Oval Office*, *Rose Garden*, *General Assembly Hall*, *Pyramid Stage*) with room-specific participant rosters.
+
+---
+
+## 5. Page Feature Architecture & Anti-Gimmick Legibility Standard
+
+Every page feature across the REWiND Evidence Atlas must obey a strict functional discipline: **one clear name, one clear purpose, and immediate utility once content is populated for any page of that type.**
+
+### 5.1 Anti-Gimmick & Modern Editorial Legibility Rules
+1. **No Sci-Fi / "Theme-Stuff" Gimmickry**:
+   - Do **not** use decorative "radar status beacons" (`.radar-status-beacon`), sparkle icons on data panels, neon glowing "accuracy gauges" (`.telemetry-accuracy-gauge`), or synthetic "Evidentiary Accuracy Index" meters that conflate primary vs. secondary source tiers with factual accuracy.
+   - Keep summary cards understated, clean, and modern (`rgba(15, 23, 42, 0.78)` surface, `1px solid rgba(255, 255, 255, 0.1)` border, subtle shadow).
+2. **Clean, Legible Counter & Number Typography**:
+   - Summary counters and KPI numbers must use clean sans-serif typography (`var(--sans)`, `22px–24px`, `font-weight: 700`, `font-variant-numeric: tabular-nums`, `#f8fafc`, `letter-spacing: -0.02em`) paired with a single sentence-case label (`12px`, `font-weight: 500`, `#94a3b8`).
+   - Do **not** render summary counters in monospace terminal fonts, neon green/amber text colors, or cramped 3-line boxes with inline icons and uppercase sub-labels. Reserve `var(--mono)` strictly for raw ISO-8601 dates, timestamps, and coordinate tuples.
+3. **Human-Readable Labels & Zero Cryptic Abbreviations**:
+   - Format classification slugs into natural words (`HEAD OF STATE` instead of raw `HEAD-OF-STATE`).
+   - Spell out words in full (`event` / `events` instead of `evt` / `evts`; `Full name:` instead of `AKA:`; `Frequent Counterparts` and `Key Locations` instead of theatrical jargon like `PRIMARY HISTORICAL THEATRES`).
+
+### 5.2 Canonical Page-by-Page Feature & Purpose Matrix
+
+Every page type in the application consists of a defined set of functional elements, each serving a distinct, non-overlapping purpose that remains useful for every populated record of that type:
+
+| Page Route | Page Element | Straightforward Name | Single Clear Function | Why It Is Always Useful Once Populated |
+| :--- | :--- | :--- | :--- | :--- |
+| **`/person/[slug]`**<br/>*(Person Dossier)* | Hero Identity Block | **Identity & Bio Lead** | Displays the person's name, clean classification, lifespan, nationality, full birth/canonical name, and 2–3 sentence summary. | Every person record has core identity metadata and a biographical synopsis. |
+| **`/person/[slug]`** | Top-Right Summary Card | **Record Summary** | Displays the active timeline span (`1984–2024`) and 4 clean counters matching the dossier's core dimensions (**Timeline Events**, **Locations**, **Official Roles**, **Milestones**) plus **Compare Timeline** and **All People** links. | Every populated person dossier has events, locations, official roles, and milestones — giving an immediate, accurate scope overview without redundant gauges. |
+| **`/person/[slug]`** | Secondary Context Bar | **Frequent Counterparts & Key Locations** | Lists the top 4 co-attending historical figures (linking directly to `/relationship/[a]/[b]`) and top 4 cities by event count. | Immediately surfaces a figure's closest diplomatic/historical counterparts and primary geographic centers from their event data. |
+| **`/person/[slug]`** | Main Tabbed Workspace | **Person Workspace Tabs** | Organizes deep records into 6 focused views: *Events Chronology* (map + bottom scrubber), *Official Roles*, *Milestones & Honors*, *Biographical Record*, *Inclusion Basis*, and *Year Coverage*. | Prevents vertical page overload while keeping every facet of a person's life one click or arrow-key away. |
+| **`/person/[slug]/[year]`**<br/>*(Year Archive)* | Year Header & Event Explorer | **Year Chronology View** | Filters a person's timeline to a single calendar year with event count, locations count, and searchable cards. | Allows focused inspection of high-density years (e.g., election years or summit years). |
+| **`/people`**<br/>*(People Directory)* | Search, Filter & View-Mode Toolbar + Grid | **People Directory** | Filters all figures by search query, category, nationality, and living/historical era across *Extended*, *List*, and *Badge* views. | Scales cleanly from dozens to hundreds of figures with instant sorting by name, birth year, or event count. |
+| **`/event/[slug]`**<br/>*(Event Dossier)* | Chronological Pagination, Hero KPI Bar, Claim Inspector, Map & Participant Roster | **Event Record Dossier** | Presents what happened, when (`TemporalBadge`), where (`MapGraphic` + venue hierarchy), who attended (ordered by centrality & capacity), verbatim quotes, and linked primary sources. | Every populated event has a date, venue/coordinates, participant roster, and archival sources. |
+| **`/events`**<br/>*(Events Registry)* | Interactive Map, Multi-Facet Filter Bar & Bottom Timeline Scrubber | **Rewind Explorer** | Enables cross-corpus chronological scrubbing, category/confidence filtering, and date-jump exploration across all events. | Serves as the macro time-machine for exploring the entire historical corpus at once. |
+| **`/place/[slug]`** & **`/places`**<br/>*(Gazetteer)* | 4-Tier Breadcrumb, Place Hero, Map & Event Grid | **Places & Venues Explorer** | Navigates the 4-tier geographic tree (*Country $\rightarrow$ City $\rightarrow$ Address $\rightarrow$ Venue $\rightarrow$ Sub-Venue Area*) and lists all events at that location. | Connects physical geography, street addresses, and interior rooms directly to chronological events. |
+| **`/compare`** & **`/relationship/[a]/[b]`** | Dual Stream Matrix & Shared Encounter Cards | **Timeline Comparison** | Aligns two figures' timelines side-by-side and highlights shared events, shared venues, and same-day city overlaps. | Reveals bilateral diplomatic history and direct spacetime intersections between any two figures. |
+| **`/sources`** & **`/source/[id]`** | Source Filter Registry & Citation Inspector | **Archival Source Register** | Indexes every primary/secondary document, broadcast, and transcript with publisher metadata and linked events. | Provides full bibliographic transparency and verification traceability for every claim in the atlas. |
+| **`/quotes`** & **`/topics`** | Verbatim Quote Vault & Thematic Topic Timelines | **Quotes & Topics Indexes** | Groups verbatim speeches/excerpts (`MediaDrawer`) and cross-cutting historical themes (`/topic/[slug]`). | Enables thematic and rhetorical research across multiple figures and decades. |
+
+

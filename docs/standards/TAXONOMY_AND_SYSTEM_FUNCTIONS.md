@@ -186,3 +186,4 @@ Every functional subsystem in the REWiND Evidence Atlas is governed by a determi
    - Normalizes local event start/end clock times against historical IANA timezone rules to display synchronized dual clocks (`Local Venue Time` + `UTC Universal Time`), crucial for reconstructing international crisis timelines and overnight summits.
 4. **Automated Golden Record Completeness Scorer (`lib/rewind/scoring.ts`)**:
    - Computes a deterministic `0–100` completeness score for every event and person dossier based on primary source presence, coordinate precision, participant role/capacity completeness, and verbatim quote coverage, surfacing the highest-priority enrichment targets in `/admin/evidence`.
+
