@@ -331,13 +331,35 @@ test("verifies PR 43 review fixes for HUD placement, telemetry state, mode passi
       mapContent.includes('<ShieldCheck size={11} className="badge-shield-icon" aria-hidden="true" />'),
     "MapGraphic.tsx must keep transit-telemetry-grid mounted when collapsed and mark decorative ShieldCheck aria-hidden"
   );
-  const hudAsideOpenTagMatch = mapContent.match(/<aside[\s\S]*?>/);
-  assert.ok(hudAsideOpenTagMatch, "MapGraphic.tsx must render an <aside> for .map-transit-hud");
+  const hudAsideMatch = mapContent.match(/<aside\b[\s\S]*?map-transit-hud[\s\S]*?<\/aside>/);
+  assert.ok(hudAsideMatch, "MapGraphic.tsx must render an <aside> for .map-transit-hud");
+  const hudBlock = hudAsideMatch[0];
+
+  const liveRegionMatch = hudBlock.match(/<div\b[^>]*ref=\{telemetryLiveRef\}[^>]*\/>/);
   assert.ok(
-    !hudAsideOpenTagMatch[0].includes('aria-live="polite"') &&
+    liveRegionMatch &&
+      liveRegionMatch[0].includes('role="status"') &&
+      liveRegionMatch[0].includes('aria-live="polite"'),
+    "telemetryLiveRef must be a standalone self-closing status live region separate from transit-telemetry-grid"
+  );
+
+  const hudWithoutLiveSibling = hudBlock.replace(liveRegionMatch[0], "");
+  const wrapperOpenTagMatch = mapContent.match(/<div\b[\s\S]*?evidence-map-wrapper[\s\S]*?>/);
+  assert.ok(wrapperOpenTagMatch, "MapGraphic.tsx must render .evidence-map-wrapper");
+
+  const ancestorAndGridSource = `${wrapperOpenTagMatch[0]}\n${hudWithoutLiveSibling}`;
+  assert.ok(
+    hudWithoutLiveSibling.includes('className="transit-telemetry-grid"') &&
+      hudWithoutLiveSibling.includes("ref={telemetryAltRef}") &&
+      hudWithoutLiveSibling.includes("ref={telemetryProgressRef}"),
+    "HUD block must contain transit-telemetry-grid and telemetry refs outside telemetryLiveRef"
+  );
+  assert.ok(
+    !/\baria-live\s*=/.test(ancestorAndGridSource) &&
+      !/\brole\s*=\s*["'`](?:status|alert|log|marquee|timer)["'`]/.test(ancestorAndGridSource) &&
       mapContent.includes("ref={telemetryLiveRef}") &&
       mapContent.includes("announceMilestone = false"),
-    "MapGraphic.tsx must isolate aria-live='polite' to telemetryLiveRef for milestone announcements rather than wrapping 60fps telemetry spans"
+    "Telemetry grid and its ancestors must not have an explicit aria-live attribute or an implicit live role (status, alert, log)"
   );
 });
 
