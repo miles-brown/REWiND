@@ -11,10 +11,10 @@ import {
 import { officialRolesSeed } from "@/data/seeds/roles-seed";
 import { milestonesSeed } from "@/data/seeds/milestones-seed";
 import { getEventsByPersonWithStatus } from "./events";
-import { extractPersonNameParts } from "./utils";
+import { extractPersonNameParts, formatStandardPersonName } from "./utils";
 import type { EventRecord, PersonRecord } from "./types";
 
-export { extractPersonNameParts };
+export { extractPersonNameParts, formatStandardPersonName };
 
 function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
   const pEdu = allEducationSeed
@@ -119,12 +119,21 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
       sourceIds: s.sourceId ? [s.sourceId] : [],
     }));
 
+  const classification = p.classification || p.primaryFigureCategory || "unknown";
+  const standardDisplayName = formatStandardPersonName({
+    slug: p.slug,
+    id: p.id,
+    displayName: p.displayName,
+    canonicalName: p.canonicalName,
+    classification,
+  });
+
   return {
     id: p.id,
     slug: p.slug,
-    name: p.displayName || p.canonicalName,
+    name: standardDisplayName || p.displayName || p.canonicalName,
     canonicalName: p.canonicalName,
-    displayName: p.displayName || p.canonicalName,
+    displayName: standardDisplayName || p.displayName || p.canonicalName,
     description: p.primaryRole || p.summary || "",
     aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : undefined,
     fullBirthName: p.fullBirthName ?? undefined,
@@ -139,7 +148,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     religiousDenomination: p.religiousDenomination ?? undefined,
     religionStatus: p.religionStatus ?? undefined,
     languages: p.languages,
-    classification: p.classification || p.primaryFigureCategory || "unknown",
+    classification,
     notabilityBasis: p.notabilityBasis ?? undefined,
     inclusionBasis: p.inclusionBasis,
     inclusionRationale: p.inclusionRationale ?? undefined,
@@ -155,18 +164,39 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
 }
 
 function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
+  const id = String(p.id);
+  const slug = String(p.slug);
+  const rawDisplay = String(p.display_name || p.canonical_name || "");
+  const rawCanonical = String(p.canonical_name || "");
+  const classification = String(p.classification || "unknown");
+  const standardDisplayName = formatStandardPersonName({
+    slug,
+    id,
+    displayName: rawDisplay,
+    canonicalName: rawCanonical,
+    classification,
+  });
+
+  const rawAliases = Array.isArray(p.aliases)
+    ? (p.aliases as unknown[]).map(String)
+    : Array.isArray(p.person_aliases)
+    ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
+    : [];
+  const mergedAliases = [...rawAliases];
+  for (const oldName of [rawDisplay, rawCanonical]) {
+    if (oldName && oldName !== standardDisplayName && !mergedAliases.includes(oldName)) {
+      mergedAliases.unshift(oldName);
+    }
+  }
+
   return {
-    id: String(p.id),
-    slug: String(p.slug),
-    name: String(p.display_name || p.canonical_name || ""),
-    canonicalName: String(p.canonical_name || ""),
-    displayName: String(p.display_name || p.canonical_name || ""),
+    id,
+    slug,
+    name: standardDisplayName || rawDisplay,
+    canonicalName: rawCanonical,
+    displayName: standardDisplayName || rawDisplay,
     description: String(p.primary_role || p.summary || ""),
-    aliases: Array.isArray(p.aliases)
-      ? (p.aliases as unknown[]).map(String)
-      : Array.isArray(p.person_aliases)
-      ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
-      : undefined,
+    aliases: mergedAliases.length > 0 ? mergedAliases : undefined,
     fullBirthName: p.full_birth_name ? String(p.full_birth_name) : undefined,
     birth: p.birth_date ? String(p.birth_date) : undefined,
     death: p.death_date ? String(p.death_date) : undefined,

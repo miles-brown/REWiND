@@ -359,6 +359,13 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
               <b>{person.fullBirthName || person.canonicalName}</b>
             </div>
 
+            {person.aliases && person.aliases.length > 0 && (
+              <div className="identity-item">
+                <small>FULL TITLES, STYLES & ALIASES</small>
+                <b>{person.aliases.join(" · ")}</b>
+              </div>
+            )}
+
             <div className="identity-item">
               <small>CITIZENSHIP / LEGAL NATIONALITY</small>
               <b>{person.citizenship && person.citizenship.length > 0 ? person.citizenship.join(", ") : person.nationality || "Not documented"}</b>

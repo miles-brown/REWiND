@@ -123,10 +123,11 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 3. **Viewport & UI Responsiveness**:
    - The timeline console (`PersonTimeline.tsx` / `RewindExplorer.tsx`) must remain fixed to the viewport bottom with zero-gap clamping and proper padding so content never bleeds or overlaps.
 
-4. **Biographical Naming & Role Separation Invariant**:
-   - Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`).
-   - Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields. Official numbered roles belong strictly in the structured `roles` array (`roles-seed.ts`).
-   - In `primaryRole` and extended summaries, use natural current/former relational descriptors (e.g. `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`).
+4. **Biographical & Royal Naming Standard (Set Once and For All)**:
+   - **Standard Figures**: Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`, `Benjamin Netanyahu`). Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields.
+   - **Royal Family Members (`classification: "monarch-royal"`)**: Always use a single uniform, comma-free format: **`[Single Primary Title] [Given Name (+ Regnal Numeral if Monarch)]`** (e.g. `King Charles III`, `Prince William`, `Princess Catherine`, `Princess Anne`, `Princess Beatrice`, `King Felipe VI`, `Princess Leonor`, `Crown Princess Victoria`), or clean `Given Name + Surname` for untitled/civil-surname royals (`David Armstrong-Jones`, `Peter Phillips`, `Zara Tindall`, `Karl von Habsburg`).
+   - **No Comma-Chained Titles in Names**: Never append comma-separated subsidiary titles, territorial dukedoms, or married styles (such as `", Prince of Wales"`, `", Duke of Sussex"`, `", Mrs Edoardo Mapelli Mozzi"`, `", Count of Monpezat"`) into `displayName` or `canonicalName`. All fuller ceremonial titles, birth names (`fullBirthName`), and dynastic styles belong strictly in `aliases`, `primaryRole` (`description`), `roles-seed.ts`, and the **Biographical Record -> Identity & Origins** tab on their `/person/[slug]` profile page.
+   - **Directory Ordering & Grouping**: In `/people` (`PeopleDirectory.tsx`), royals without a civil surname sort by their personal given name under both First Name and Last Name modes, and automatically group by **Country / Royal House** when filtering to `Royalty & Dynasties`.
 
 ---
 

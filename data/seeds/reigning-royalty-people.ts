@@ -103,8 +103,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "prince-philip",
     slug: "prince-philip",
-    canonicalName: "Prince Philip, Duke of Edinburgh",
-    displayName: "Prince Philip, Duke of Edinburgh",
+    canonicalName: "Prince Philip",
+    displayName: "Prince Philip",
     nativeName: "Philip Mountbatten",
     fullBirthName: "Prince Philip of Greece and Denmark",
     birthDate: "1921-06-10",
@@ -139,13 +139,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "105148586",
     avatarUrl: "/avatars/prince-philip.jpg",
     summary: "Prince Philip, Duke of Edinburgh was the husband of Queen Elizabeth II and the longest-serving royal consort in British history, completing over 22,000 royal engagements.",
-    aliases: ["Prince Philip", "The Duke of Edinburgh", "Philip Mountbatten", "Duke of Edinburgh"]
+    aliases: ["Prince Philip, Duke of Edinburgh", "Prince Philip", "The Duke of Edinburgh", "Philip Mountbatten", "Duke of Edinburgh"]
   },
   {
     id: "prince-william",
     slug: "prince-william",
     canonicalName: "Prince William",
-    displayName: "William, Prince of Wales",
+    displayName: "Prince William",
     nativeName: "William Arthur Philip Louis",
     fullBirthName: "William Arthur Philip Louis Mountbatten-Windsor",
     birthDate: "1982-06-21",
@@ -180,13 +180,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "232263808",
     avatarUrl: "/avatars/prince-william.jpg",
     summary: "William, Prince of Wales is the heir apparent to the British throne. He is the elder son of King Charles III and Diana, Princess of Wales, and is first in line to the throne.",
-    aliases: ["Duke of Cambridge", "Prince William", "Earl of Strathearn", "Duke of Cornwall"]
+    aliases: ["William, Prince of Wales", "Duke of Cambridge", "Prince William", "Earl of Strathearn", "Duke of Cornwall"]
   },
   {
     id: "catherine-princess-of-wales",
     slug: "catherine-princess-of-wales",
-    canonicalName: "Catherine, Princess of Wales",
-    displayName: "Catherine, Princess of Wales",
+    canonicalName: "Princess Catherine",
+    displayName: "Princess Catherine",
     nativeName: "Catherine Elizabeth Middleton",
     fullBirthName: "Catherine Elizabeth Middleton",
     birthDate: "1982-01-09",
@@ -216,13 +216,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "107179720",
     avatarUrl: "/avatars/catherine-middleton.jpg",
     summary: "Catherine, Princess of Wales is a member of the British royal family as the wife of William, Prince of Wales. She became Princess of Wales on 9 September 2022.",
-    aliases: ["Kate Middleton", "Duchess of Cambridge", "Princess Catherine", "Duchess of Cornwall and Cambridge"]
+    aliases: ["Catherine, Princess of Wales", "Kate Middleton", "Duchess of Cambridge", "Princess Catherine", "Duchess of Cornwall and Cambridge"]
   },
   {
     id: "prince-george-of-wales",
     slug: "prince-george-of-wales",
-    canonicalName: "Prince George of Wales",
-    displayName: "Prince George of Wales",
+    canonicalName: "Prince George",
+    displayName: "Prince George",
     nativeName: "George Alexander Louis",
     fullBirthName: "George Alexander Louis Mountbatten-Windsor",
     birthDate: "2013-07-22",
@@ -252,13 +252,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "305194511",
     avatarUrl: "/avatars/prince-george.jpg",
     summary: "Prince George of Wales is the eldest child of William, Prince of Wales, and Catherine, Princess of Wales, and the eldest grandchild of King Charles III. He is second in line to the British throne.",
-    aliases: ["Prince George of Cambridge", "Prince George"]
+    aliases: ["Prince George of Wales", "Prince George of Cambridge", "Prince George"]
   },
   {
     id: "princess-charlotte-of-wales",
     slug: "princess-charlotte-of-wales",
-    canonicalName: "Princess Charlotte of Wales",
-    displayName: "Princess Charlotte of Wales",
+    canonicalName: "Princess Charlotte",
+    displayName: "Princess Charlotte",
     nativeName: "Charlotte Elizabeth Diana",
     fullBirthName: "Charlotte Elizabeth Diana Mountbatten-Windsor",
     birthDate: "2015-05-02",
@@ -287,13 +287,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "313410060",
     avatarUrl: "/avatars/princess-charlotte.jpg",
     summary: "Princess Charlotte of Wales is the second child and only daughter of William, Prince of Wales, and Catherine, Princess of Wales. She is third in line to the British throne.",
-    aliases: ["Princess Charlotte of Cambridge", "Princess Charlotte"]
+    aliases: ["Princess Charlotte of Wales", "Princess Charlotte of Cambridge", "Princess Charlotte"]
   },
   {
     id: "prince-louis-of-wales",
     slug: "prince-louis-of-wales",
-    canonicalName: "Prince Louis of Wales",
-    displayName: "Prince Louis of Wales",
+    canonicalName: "Prince Louis",
+    displayName: "Prince Louis",
     nativeName: "Louis Arthur Charles",
     fullBirthName: "Louis Arthur Charles Mountbatten-Windsor",
     birthDate: "2018-04-23",
@@ -322,13 +322,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "59152682542423311910",
     avatarUrl: "/avatars/prince-louis.jpg",
     summary: "Prince Louis of Wales is the third and youngest child of William, Prince of Wales, and Catherine, Princess of Wales. He is fourth in line to the British throne.",
-    aliases: ["Prince Louis of Cambridge", "Prince Louis"]
+    aliases: ["Prince Louis of Wales", "Prince Louis of Cambridge", "Prince Louis"]
   },
   {
     id: "prince-harry",
     slug: "prince-harry",
     canonicalName: "Prince Harry",
-    displayName: "Prince Harry, Duke of Sussex",
+    displayName: "Prince Harry",
     nativeName: "Henry Charles Albert David",
     fullBirthName: "Henry Charles Albert David Mountbatten-Windsor",
     birthDate: "1984-09-15",
@@ -358,13 +358,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "102346200",
     avatarUrl: "/avatars/prince-harry.jpg",
     summary: "Prince Harry, Duke of Sussex is a member of the British royal family. He is the younger son of King Charles III and Diana, Princess of Wales, and fifth in line to the British throne.",
-    aliases: ["Duke of Sussex", "Henry Mountbatten-Windsor", "Prince Henry of Wales"]
+    aliases: ["Prince Harry, Duke of Sussex", "Duke of Sussex", "Henry Mountbatten-Windsor", "Prince Henry of Wales"]
   },
   {
     id: "meghan-duchess-of-sussex",
     slug: "meghan-duchess-of-sussex",
-    canonicalName: "Meghan, Duchess of Sussex",
-    displayName: "Meghan, Duchess of Sussex",
+    canonicalName: "Duchess Meghan",
+    displayName: "Duchess Meghan",
     nativeName: "Rachel Meghan Markle",
     fullBirthName: "Rachel Meghan Markle",
     birthDate: "1981-08-04",
@@ -393,13 +393,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "1488151595762905470001",
     avatarUrl: "/avatars/meghan-markle.jpg",
     summary: "Meghan, Duchess of Sussex is an American member of the British royal family and former actress. She married Prince Harry in 2018 at St George's Chapel, Windsor.",
-    aliases: ["Meghan Markle", "Duchess of Sussex", "Rachel Meghan Markle"]
+    aliases: ["Meghan, Duchess of Sussex", "Meghan Markle", "Duchess of Sussex", "Rachel Meghan Markle"]
   },
   {
     id: "princess-anne",
     slug: "princess-anne",
     canonicalName: "Princess Anne",
-    displayName: "Anne, Princess Royal",
+    displayName: "Princess Anne",
     nativeName: "Anne Elizabeth Alice Louise",
     fullBirthName: "Anne Elizabeth Alice Louise Mountbatten-Windsor",
     birthDate: "1950-08-15",
@@ -429,13 +429,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "10643773",
     avatarUrl: "/avatars/princess-anne.jpg",
     summary: "Anne, Princess Royal is the second child and only daughter of Queen Elizabeth II and Prince Philip, Duke of Edinburgh, and the only sister of King Charles III. She has been Princess Royal since 1987.",
-    aliases: ["The Princess Royal", "Princess Anne", "Princess Anne of Edinburgh"]
+    aliases: ["Anne, Princess Royal", "The Princess Royal", "Princess Anne", "Princess Anne of Edinburgh"]
   },
   {
     id: "prince-edward-duke-of-edinburgh",
     slug: "prince-edward-duke-of-edinburgh",
     canonicalName: "Prince Edward",
-    displayName: "Prince Edward, Duke of Edinburgh",
+    displayName: "Prince Edward",
     nativeName: "Edward Antony Richard Louis",
     fullBirthName: "Edward Antony Richard Louis Mountbatten-Windsor",
     birthDate: "1964-03-10",
@@ -464,13 +464,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "10643775",
     avatarUrl: "/avatars/prince-edward.jpg",
     summary: "Prince Edward, Duke of Edinburgh is the youngest child of Queen Elizabeth II and Prince Philip, Duke of Edinburgh, and the youngest sibling of King Charles III. He was created Duke of Edinburgh on his 59th birthday in 2023.",
-    aliases: ["Earl of Wessex", "Duke of Edinburgh", "Prince Edward"]
+    aliases: ["Prince Edward, Duke of Edinburgh", "Earl of Wessex", "Duke of Edinburgh", "Prince Edward"]
   },
   {
     id: "sophie-duchess-of-edinburgh",
     slug: "sophie-duchess-of-edinburgh",
-    canonicalName: "Sophie, Duchess of Edinburgh",
-    displayName: "Sophie, Duchess of Edinburgh",
+    canonicalName: "Duchess Sophie",
+    displayName: "Duchess Sophie",
     nativeName: "Sophie Helen Rhys-Jones",
     fullBirthName: "Sophie Helen Rhys-Jones",
     birthDate: "1965-01-20",
@@ -499,7 +499,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034220",
     avatarUrl: "/avatars/sophie-duchess-of-edinburgh.jpg",
     summary: "Sophie, Duchess of Edinburgh is a member of the British royal family as the wife of Prince Edward, Duke of Edinburgh.",
-    aliases: ["Countess of Wessex", "Duchess of Edinburgh", "Sophie Rhys-Jones"]
+    aliases: ["Sophie, Duchess of Edinburgh", "Countess of Wessex", "Duchess of Edinburgh", "Sophie Rhys-Jones"]
   },
 
   // =========================================================================
@@ -508,8 +508,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "felipe-vi-spain",
     slug: "felipe-vi-spain",
-    canonicalName: "Felipe VI",
-    displayName: "King Felipe VI of Spain",
+    canonicalName: "King Felipe VI",
+    displayName: "King Felipe VI",
     nativeName: "Felipe Juan Pablo Alfonso de Todos los Santos de Borbón y Grecia",
     fullBirthName: "Felipe Juan Pablo Alfonso de Todos los Santos de Borbón y Grecia",
     birthDate: "1968-01-30",
@@ -544,24 +544,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "27258828",
     avatarUrl: "/avatars/felipe-vi.jpg",
     summary: "Felipe VI is King of Spain. He ascended the throne on 19 June 2014 following the abdication of his father, King Juan Carlos I. In accordance with the Spanish Constitution, as monarch, he is head of state and commander-in-chief of the Spanish Armed Forces.",
-    aliases: [
-      "King Felipe VI",
-      "King Felipe VI of Spain",
-      "Felipe VI of Spain",
-      "Don Felipe VI",
-      "Rey Felipe VI",
-      "Rey Don Felipe VI",
-      "Prince of Asturias",
-      "Felipe de Borbón",
-      "King of Spain",
-      "king-felipe-vi"
-    ]
+    aliases: ["Felipe VI", "King Felipe VI", "King Felipe VI of Spain", "Felipe VI of Spain", "Don Felipe VI", "Rey Felipe VI", "Rey Don Felipe VI", "Prince of Asturias", "Felipe de Borbón", "King of Spain", "king-felipe-vi"]
   },
   {
     id: "queen-letizia-spain",
     slug: "queen-letizia-spain",
-    canonicalName: "Queen Letizia of Spain",
-    displayName: "Queen Letizia of Spain",
+    canonicalName: "Queen Letizia",
+    displayName: "Queen Letizia",
     nativeName: "Letizia Ortiz Rocasolano",
     fullBirthName: "Letizia Ortiz Rocasolano",
     birthDate: "1972-09-15",
@@ -590,13 +579,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "44445832",
     avatarUrl: "/avatars/queen-letizia.jpg",
     summary: "Queen Letizia is Queen Consort of Spain as the wife of King Felipe VI. Before her marriage in 2004, she was a journalist for ABC and EFE and news anchor at CNN+ and Televisión Española.",
-    aliases: ["Letizia Ortiz", "Princess of Asturias", "Queen of Spain"]
+    aliases: ["Queen Letizia of Spain", "Letizia Ortiz", "Princess of Asturias", "Queen of Spain"]
   },
   {
     id: "leonor-princess-of-asturias",
     slug: "leonor-princess-of-asturias",
-    canonicalName: "Leonor, Princess of Asturias",
-    displayName: "Leonor, Princess of Asturias",
+    canonicalName: "Princess Leonor",
+    displayName: "Princess Leonor",
     nativeName: "Leonor de Todos los Santos de Borbón y Ortiz",
     fullBirthName: "Leonor de Todos los Santos de Borbón y Ortiz",
     birthDate: "2005-10-31",
@@ -630,13 +619,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034235",
     avatarUrl: "/avatars/princess-leonor.jpg",
     summary: "Leonor, Princess of Asturias is the heir presumptive to the Spanish throne as the elder daughter of King Felipe VI and Queen Letizia.",
-    aliases: ["Princess of Asturias", "Infanta Leonor", "Princess Leonor"]
+    aliases: ["Leonor, Princess of Asturias", "Princess of Asturias", "Infanta Leonor", "Princess Leonor"]
   },
   {
     id: "infanta-sofia-spain",
     slug: "infanta-sofia-spain",
-    canonicalName: "Infanta Sofía of Spain",
-    displayName: "Infanta Sofía of Spain",
+    canonicalName: "Infanta Sofía",
+    displayName: "Infanta Sofía",
     nativeName: "Sofía de Todos los Santos de Borbón y Ortiz",
     fullBirthName: "Sofía de Todos los Santos de Borbón y Ortiz",
     birthDate: "2007-04-29",
@@ -665,7 +654,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034240",
     avatarUrl: "/avatars/infanta-sofia.jpg",
     summary: "Infanta Sofía of Spain is the younger daughter of King Felipe VI and Queen Letizia, and second in the line of succession to the Spanish throne.",
-    aliases: ["Infanta Sofía", "Sofía de Borbón"]
+    aliases: ["Infanta Sofía of Spain", "Infanta Sofía", "Sofía de Borbón"]
   },
 
   // =========================================================================
@@ -674,8 +663,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "philippe-belgium",
     slug: "philippe-belgium",
-    canonicalName: "King Philippe of Belgium",
-    displayName: "King Philippe of the Belgians",
+    canonicalName: "King Philippe",
+    displayName: "King Philippe",
     nativeName: "Filip Léopold Louis Marie",
     fullBirthName: "Philippe Léopold Louis Marie of Saxe-Coburg and Gotha",
     birthDate: "1960-04-15",
@@ -707,13 +696,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034250",
     avatarUrl: "/avatars/philippe-belgium.jpg",
     summary: "Philippe is King of the Belgians, having acceded to the throne on 21 July 2013 following the abdication of his father, King Albert II.",
-    aliases: ["Duke of Brabant", "Filip van België", "Philippe de Belgique"]
+    aliases: ["King Philippe of the Belgians", "King Philippe of Belgium", "Duke of Brabant", "Filip van België", "Philippe de Belgique"]
   },
   {
     id: "queen-mathilde-belgium",
     slug: "queen-mathilde-belgium",
-    canonicalName: "Queen Mathilde of Belgium",
-    displayName: "Queen Mathilde of the Belgians",
+    canonicalName: "Queen Mathilde",
+    displayName: "Queen Mathilde",
     nativeName: "Mathilde Marie Christine Ghislaine d'Udekem d'Acoz",
     fullBirthName: "Mathilde Marie Christine Ghislaine d'Udekem d'Acoz",
     birthDate: "1973-01-20",
@@ -742,13 +731,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034255",
     avatarUrl: "/avatars/queen-mathilde.jpg",
     summary: "Queen Mathilde is Queen of the Belgians as the wife of King Philippe. She is the first native-born Belgian queen consort.",
-    aliases: ["Princess Mathilde", "Duchess of Brabant", "Mathilde d'Udekem d'Acoz"]
+    aliases: ["Queen Mathilde of the Belgians", "Queen Mathilde of Belgium", "Princess Mathilde", "Duchess of Brabant", "Mathilde d'Udekem d'Acoz"]
   },
   {
     id: "princess-elisabeth-belgium",
     slug: "princess-elisabeth-belgium",
-    canonicalName: "Princess Elisabeth, Duchess of Brabant",
-    displayName: "Princess Elisabeth, Duchess of Brabant",
+    canonicalName: "Princess Elisabeth",
+    displayName: "Princess Elisabeth",
     nativeName: "Elisabeth Thérèse Marie Hélène",
     fullBirthName: "Elisabeth Thérèse Marie Hélène of Belgium",
     birthDate: "2001-10-25",
@@ -777,7 +766,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034260",
     avatarUrl: "/avatars/princess-elisabeth.jpg",
     summary: "Princess Elisabeth, Duchess of Brabant is the heir apparent to the Belgian throne as the eldest child of King Philippe and Queen Mathilde.",
-    aliases: ["Duchess of Brabant", "Princess Elisabeth of Belgium"]
+    aliases: ["Princess Elisabeth, Duchess of Brabant", "Duchess of Brabant", "Princess Elisabeth of Belgium"]
   },
 
   // =========================================================================
@@ -786,8 +775,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "willem-alexander-netherlands",
     slug: "willem-alexander-netherlands",
-    canonicalName: "Willem-Alexander of the Netherlands",
-    displayName: "King Willem-Alexander of the Netherlands",
+    canonicalName: "King Willem-Alexander",
+    displayName: "King Willem-Alexander",
     nativeName: "Willem-Alexander Claus George Ferdinand",
     fullBirthName: "Willem-Alexander Claus George Ferdinand van Oranje-Nassau",
     birthDate: "1967-04-27",
@@ -819,13 +808,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034270",
     avatarUrl: "/avatars/willem-alexander.jpg",
     summary: "Willem-Alexander is King of the Netherlands, having acceded to the throne on 30 April 2013 following the abdication of his mother, Queen Beatrix.",
-    aliases: ["Prince of Orange", "Willem-Alexander van Oranje-Nassau", "King of the Netherlands"]
+    aliases: ["King Willem-Alexander of the Netherlands", "Willem-Alexander of the Netherlands", "Prince of Orange", "Willem-Alexander van Oranje-Nassau", "King of the Netherlands"]
   },
   {
     id: "queen-maxima-netherlands",
     slug: "queen-maxima-netherlands",
-    canonicalName: "Queen Máxima of the Netherlands",
-    displayName: "Queen Máxima of the Netherlands",
+    canonicalName: "Queen Máxima",
+    displayName: "Queen Máxima",
     nativeName: "Máxima Zorreguieta Cerruti",
     fullBirthName: "Máxima Zorreguieta Cerruti",
     birthDate: "1971-05-17",
@@ -854,13 +843,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "21503387",
     avatarUrl: "/avatars/queen-maxima.jpg",
     summary: "Queen Máxima is Queen of the Netherlands as the wife of King Willem-Alexander. She is also the United Nations Secretary-General's Special Advocate for Inclusive Finance for Development.",
-    aliases: ["Princess Máxima", "Máxima Zorreguieta", "Queen of the Netherlands"]
+    aliases: ["Queen Máxima of the Netherlands", "Princess Máxima", "Máxima Zorreguieta", "Queen of the Netherlands"]
   },
   {
     id: "catharina-amalia-netherlands",
     slug: "catharina-amalia-netherlands",
-    canonicalName: "Catharina-Amalia, Princess of Orange",
-    displayName: "Catharina-Amalia, Princess of Orange",
+    canonicalName: "Princess Catharina-Amalia",
+    displayName: "Princess Catharina-Amalia",
     nativeName: "Catharina-Amalia Beatrix Carmen Victoria",
     fullBirthName: "Catharina-Amalia Beatrix Carmen Victoria van Oranje-Nassau",
     birthDate: "2003-12-07",
@@ -889,7 +878,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034280",
     avatarUrl: "/avatars/princess-amalia.jpg",
     summary: "Catharina-Amalia, Princess of Orange is the heir apparent to the throne of the Kingdom of the Netherlands, consisting of the countries of the Netherlands, Curaçao, Aruba, and Sint Maarten.",
-    aliases: ["Princess of Orange", "Princess Amalia"]
+    aliases: ["Catharina-Amalia, Princess of Orange", "Princess of Orange", "Princess Amalia"]
   },
 
   // =========================================================================
@@ -898,8 +887,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "carl-xvi-gustaf-sweden",
     slug: "carl-xvi-gustaf-sweden",
-    canonicalName: "Carl XVI Gustaf of Sweden",
-    displayName: "King Carl XVI Gustaf of Sweden",
+    canonicalName: "King Carl XVI Gustaf",
+    displayName: "King Carl XVI Gustaf",
     nativeName: "Carl Gustaf Folke Hubertus",
     fullBirthName: "Carl Gustaf Folke Hubertus Bernadotte",
     birthDate: "1946-04-30",
@@ -932,13 +921,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034290",
     avatarUrl: "/avatars/carl-xvi-gustaf.jpg",
     summary: "Carl XVI Gustaf is King of Sweden. He ascended the throne on 15 September 1973 upon the death of his grandfather, King Gustaf VI Adolf. He is the longest-reigning monarch in Swedish history.",
-    aliases: ["King of Sweden", "Carl Gustaf", "Duke of Jämtland"]
+    aliases: ["King Carl XVI Gustaf of Sweden", "Carl XVI Gustaf of Sweden", "King of Sweden", "Carl Gustaf", "Duke of Jämtland"]
   },
   {
     id: "queen-silvia-sweden",
     slug: "queen-silvia-sweden",
-    canonicalName: "Queen Silvia of Sweden",
-    displayName: "Queen Silvia of Sweden",
+    canonicalName: "Queen Silvia",
+    displayName: "Queen Silvia",
     nativeName: "Silvia Renate Sommerlath",
     fullBirthName: "Silvia Renate Sommerlath",
     birthDate: "1943-12-23",
@@ -967,13 +956,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034295",
     avatarUrl: "/avatars/queen-silvia.jpg",
     summary: "Queen Silvia is Queen Consort of Sweden as the wife of King Carl XVI Gustaf. She is Sweden's longest-serving queen consort.",
-    aliases: ["Silvia Sommerlath", "Queen of Sweden"]
+    aliases: ["Queen Silvia of Sweden", "Silvia Sommerlath", "Queen of Sweden"]
   },
   {
     id: "victoria-crown-princess-sweden",
     slug: "victoria-crown-princess-sweden",
-    canonicalName: "Victoria, Crown Princess of Sweden",
-    displayName: "Victoria, Crown Princess of Sweden",
+    canonicalName: "Crown Princess Victoria",
+    displayName: "Crown Princess Victoria",
     nativeName: "Victoria Ingrid Alice Désirée",
     fullBirthName: "Victoria Ingrid Alice Désirée Bernadotte",
     birthDate: "1977-07-14",
@@ -1002,7 +991,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034300",
     avatarUrl: "/avatars/crown-princess-victoria.jpg",
     summary: "Victoria, Crown Princess of Sweden, Duchess of Västergötland is the heir apparent to the Swedish throne as the eldest child of King Carl XVI Gustaf and Queen Silvia.",
-    aliases: ["Crown Princess Victoria", "Duchess of Västergötland"]
+    aliases: ["Victoria, Crown Princess of Sweden", "Crown Princess Victoria", "Duchess of Västergötland"]
   },
 
   // =========================================================================
@@ -1011,8 +1000,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "harald-v-norway",
     slug: "harald-v-norway",
-    canonicalName: "Harald V of Norway",
-    displayName: "King Harald V of Norway",
+    canonicalName: "King Harald V",
+    displayName: "King Harald V",
     nativeName: "Harald",
     fullBirthName: "Harald of Schleswig-Holstein-Sonderburg-Glücksburg",
     birthDate: "1937-02-21",
@@ -1044,13 +1033,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034310",
     avatarUrl: "/avatars/harald-v.jpg",
     summary: "Harald V is King of Norway. He acceded to the throne on 17 January 1991 upon the death of his father, King Olav V. He is the head of state and head of the Church of Norway.",
-    aliases: ["King of Norway", "Crown Prince Harald"]
+    aliases: ["King Harald V of Norway", "Harald V of Norway", "King of Norway", "Crown Prince Harald"]
   },
   {
     id: "queen-sonja-norway",
     slug: "queen-sonja-norway",
-    canonicalName: "Queen Sonja of Norway",
-    displayName: "Queen Sonja of Norway",
+    canonicalName: "Queen Sonja",
+    displayName: "Queen Sonja",
     nativeName: "Sonja Haraldsen",
     fullBirthName: "Sonja Haraldsen",
     birthDate: "1937-07-04",
@@ -1079,13 +1068,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034315",
     avatarUrl: "/avatars/queen-sonja.jpg",
     summary: "Queen Sonja is Queen Consort of Norway as the wife of King Harald V.",
-    aliases: ["Sonja Haraldsen", "Crown Princess Sonja", "Queen of Norway"]
+    aliases: ["Queen Sonja of Norway", "Sonja Haraldsen", "Crown Princess Sonja", "Queen of Norway"]
   },
   {
     id: "haakon-crown-prince-norway",
     slug: "haakon-crown-prince-norway",
-    canonicalName: "Haakon, Crown Prince of Norway",
-    displayName: "Haakon, Crown Prince of Norway",
+    canonicalName: "Crown Prince Haakon",
+    displayName: "Crown Prince Haakon",
     nativeName: "Haakon Magnus",
     fullBirthName: "Haakon Magnus of Schleswig-Holstein-Sonderburg-Glücksburg",
     birthDate: "1973-07-20",
@@ -1114,7 +1103,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034320",
     avatarUrl: "/avatars/crown-prince-haakon.jpg",
     summary: "Haakon, Crown Prince of Norway is the heir apparent to the Norwegian throne as the only son of King Harald V and Queen Sonja.",
-    aliases: ["Crown Prince Haakon", "Prince Haakon Magnus"]
+    aliases: ["Haakon, Crown Prince of Norway", "Crown Prince Haakon", "Prince Haakon Magnus"]
   },
 
   // =========================================================================
@@ -1123,8 +1112,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "frederik-x-denmark",
     slug: "frederik-x-denmark",
-    canonicalName: "Frederik X of Denmark",
-    displayName: "King Frederik X of Denmark",
+    canonicalName: "King Frederik X",
+    displayName: "King Frederik X",
     nativeName: "Frederik André Henrik Christian",
     fullBirthName: "Frederik André Henrik Christian of Glücksburg / de Laborde de Monpezat",
     birthDate: "1968-05-26",
@@ -1157,13 +1146,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034330",
     avatarUrl: "/avatars/frederik-x.jpg",
     summary: "Frederik X is King of Denmark. He acceded to the throne on 14 January 2024, following the abdication of his mother, Queen Margrethe II.",
-    aliases: ["Crown Prince Frederik", "Count of Monpezat", "King of Denmark"]
+    aliases: ["King Frederik X of Denmark", "Frederik X of Denmark", "Crown Prince Frederik", "Count of Monpezat", "King of Denmark"]
   },
   {
     id: "queen-mary-denmark",
     slug: "queen-mary-denmark",
-    canonicalName: "Queen Mary of Denmark",
-    displayName: "Queen Mary of Denmark",
+    canonicalName: "Queen Mary",
+    displayName: "Queen Mary",
     nativeName: "Mary Elizabeth Donaldson",
     fullBirthName: "Mary Elizabeth Donaldson",
     birthDate: "1972-02-05",
@@ -1192,13 +1181,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034335",
     avatarUrl: "/avatars/queen-mary.jpg",
     summary: "Queen Mary is Queen Consort of Denmark as the wife of King Frederik X. Born in Hobart, Australia, she became Queen on 14 January 2024.",
-    aliases: ["Crown Princess Mary", "Mary Donaldson", "Queen of Denmark"]
+    aliases: ["Queen Mary of Denmark", "Crown Princess Mary", "Mary Donaldson", "Queen of Denmark"]
   },
   {
     id: "margrethe-ii-denmark",
     slug: "margrethe-ii-denmark",
-    canonicalName: "Margrethe II of Denmark",
-    displayName: "Queen Margrethe II of Denmark",
+    canonicalName: "Queen Margrethe II",
+    displayName: "Queen Margrethe II",
     nativeName: "Margrethe Alexandrine Þórhildur Ingrid",
     fullBirthName: "Margrethe Alexandrine Þórhildur Ingrid of Glücksburg",
     birthDate: "1940-04-16",
@@ -1227,7 +1216,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034340",
     avatarUrl: "/avatars/margrethe-ii.jpg",
     summary: "Margrethe II is a member of the Danish royal family who reigned as Queen of Denmark from 1972 until her abdication on 14 January 2024.",
-    aliases: ["Queen Margrethe", "Dronning Margrethe", "Margrethe II"]
+    aliases: ["Queen Margrethe II of Denmark", "Margrethe II of Denmark", "Queen Margrethe", "Dronning Margrethe", "Margrethe II"]
   },
 
   // =========================================================================
@@ -1236,8 +1225,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "albert-ii-monaco",
     slug: "albert-ii-monaco",
-    canonicalName: "Albert II, Prince of Monaco",
-    displayName: "Prince Albert II of Monaco",
+    canonicalName: "Prince Albert II",
+    displayName: "Prince Albert II",
     nativeName: "Albert Alexandre Louis Pierre Grimaldi",
     fullBirthName: "Albert Alexandre Louis Pierre Grimaldi",
     birthDate: "1958-03-14",
@@ -1271,13 +1260,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034350",
     avatarUrl: "/avatars/albert-ii-monaco.jpg",
     summary: "Albert II is the Sovereign Prince of Monaco and head of the princely house of Grimaldi. He is the son of Prince Rainier III and Grace Kelly.",
-    aliases: ["Sovereign Prince of Monaco", "Hereditary Prince Albert", "Albert Grimaldi"]
+    aliases: ["Prince Albert II of Monaco", "Albert II, Prince of Monaco", "Sovereign Prince of Monaco", "Hereditary Prince Albert", "Albert Grimaldi"]
   },
   {
     id: "princess-charlene-monaco",
     slug: "princess-charlene-monaco",
-    canonicalName: "Princess Charlene of Monaco",
-    displayName: "Princess Charlene of Monaco",
+    canonicalName: "Princess Charlene",
+    displayName: "Princess Charlene",
     nativeName: "Charlene Lynette Wittstock",
     fullBirthName: "Charlene Lynette Wittstock",
     birthDate: "1978-01-25",
@@ -1306,7 +1295,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034355",
     avatarUrl: "/avatars/princess-charlene.jpg",
     summary: "Princess Charlene of Monaco is the Princess consort of Monaco as the wife of Prince Albert II.",
-    aliases: ["Charlene Wittstock", "Princess of Monaco"]
+    aliases: ["Princess Charlene of Monaco", "Charlene Wittstock", "Princess of Monaco"]
   },
 
   // =========================================================================
@@ -1315,8 +1304,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "henri-luxembourg",
     slug: "henri-luxembourg",
-    canonicalName: "Grand Duke Henri of Luxembourg",
-    displayName: "Grand Duke Henri of Luxembourg",
+    canonicalName: "Grand Duke Henri",
+    displayName: "Grand Duke Henri",
     nativeName: "Henri Albert Gabriel Félix Marie Guillaume",
     fullBirthName: "Henri Albert Gabriel Félix Marie Guillaume of Nassau-Weilburg",
     birthDate: "1955-04-16",
@@ -1348,13 +1337,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034360",
     avatarUrl: "/avatars/grand-duke-henri.jpg",
     summary: "Henri is Grand Duke of Luxembourg. He has reigned since 7 October 2000.",
-    aliases: ["Grand Duke of Luxembourg", "Hereditary Grand Duke Henri"]
+    aliases: ["Grand Duke Henri of Luxembourg", "Grand Duke of Luxembourg", "Hereditary Grand Duke Henri"]
   },
   {
     id: "maria-teresa-luxembourg",
     slug: "maria-teresa-luxembourg",
-    canonicalName: "Grand Duchess Maria Teresa of Luxembourg",
-    displayName: "Grand Duchess Maria Teresa of Luxembourg",
+    canonicalName: "Grand Duchess Maria Teresa",
+    displayName: "Grand Duchess Maria Teresa",
     nativeName: "María Teresa Mestre y Batista",
     fullBirthName: "María Teresa Mestre y Batista",
     birthDate: "1956-03-22",
@@ -1383,13 +1372,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034365",
     avatarUrl: "/avatars/grand-duchess-maria-teresa.jpg",
     summary: "Grand Duchess Maria Teresa of Luxembourg is the spouse of Grand Duke Henri of Luxembourg.",
-    aliases: ["Maria Teresa Mestre", "Grand Duchess of Luxembourg"]
+    aliases: ["Grand Duchess Maria Teresa of Luxembourg", "Maria Teresa Mestre", "Grand Duchess of Luxembourg"]
   },
   {
     id: "guillaume-hereditary-grand-duke-luxembourg",
     slug: "guillaume-hereditary-grand-duke-luxembourg",
-    canonicalName: "Hereditary Grand Duke Guillaume of Luxembourg",
-    displayName: "Hereditary Grand Duke Guillaume of Luxembourg",
+    canonicalName: "Hereditary Grand Duke Guillaume",
+    displayName: "Hereditary Grand Duke Guillaume",
     nativeName: "Guillaume Jean Joseph Marie",
     fullBirthName: "Guillaume Jean Joseph Marie of Nassau-Weilburg",
     birthDate: "1981-11-11",
@@ -1418,7 +1407,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034370",
     avatarUrl: "/avatars/hereditary-grand-duke-guillaume.jpg",
     summary: "Guillaume, Hereditary Grand Duke of Luxembourg is the heir apparent to the crown of Luxembourg as the eldest child of Grand Duke Henri and Grand Duchess Maria Teresa.",
-    aliases: ["Hereditary Grand Duke Guillaume", "Prince Guillaume of Luxembourg"]
+    aliases: ["Hereditary Grand Duke Guillaume of Luxembourg", "Hereditary Grand Duke Guillaume", "Prince Guillaume of Luxembourg"]
   },
 
   // =========================================================================
@@ -1427,8 +1416,8 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "hans-adam-ii-liechtenstein",
     slug: "hans-adam-ii-liechtenstein",
-    canonicalName: "Hans-Adam II, Prince of Liechtenstein",
-    displayName: "Prince Hans-Adam II of Liechtenstein",
+    canonicalName: "Prince Hans-Adam II",
+    displayName: "Prince Hans-Adam II",
     nativeName: "Johannes Adam Ferdinand Alois Josef Maria Marko d'Aviano Pius",
     fullBirthName: "Johannes Adam Ferdinand Alois Josef Maria Marko d'Aviano Pius von und zu Liechtenstein",
     birthDate: "1945-02-14",
@@ -1457,13 +1446,13 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034380",
     avatarUrl: "/avatars/hans-adam-ii.jpg",
     summary: "Hans-Adam II is the reigning Prince of Liechtenstein. He is the son of Franz Joseph II, Prince of Liechtenstein and Countess Georgina von Wilczek.",
-    aliases: ["Prince Hans-Adam II", "Fürst Hans-Adam II von Liechtenstein"]
+    aliases: ["Prince Hans-Adam II of Liechtenstein", "Hans-Adam II, Prince of Liechtenstein", "Prince Hans-Adam II", "Fürst Hans-Adam II von Liechtenstein"]
   },
   {
     id: "alois-hereditary-prince-liechtenstein",
     slug: "alois-hereditary-prince-liechtenstein",
-    canonicalName: "Alois, Hereditary Prince of Liechtenstein",
-    displayName: "Hereditary Prince Alois of Liechtenstein",
+    canonicalName: "Hereditary Prince Alois",
+    displayName: "Hereditary Prince Alois",
     nativeName: "Alois Philipp Maria",
     fullBirthName: "Alois Philipp Maria von und zu Liechtenstein",
     birthDate: "1968-06-11",
@@ -1492,7 +1481,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034385",
     avatarUrl: "/avatars/hereditary-prince-alois.jpg",
     summary: "Alois, Hereditary Prince and Regent of Liechtenstein, Count of Rietberg is the heir apparent to the throne of Liechtenstein and has served as permanent regent since 15 August 2004.",
-    aliases: ["Hereditary Prince Alois", "Erbprinz Alois von Liechtenstein"]
+    aliases: ["Hereditary Prince Alois of Liechtenstein", "Alois, Hereditary Prince of Liechtenstein", "Hereditary Prince Alois", "Erbprinz Alois von Liechtenstein"]
   },
 
   // =========================================================================
@@ -1502,7 +1491,7 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     id: "joan-enric-vives-sicilia",
     slug: "joan-enric-vives-sicilia",
     canonicalName: "Joan-Enric Vives i Sicília",
-    displayName: "Archbishop Joan-Enric Vives i Sicília",
+    displayName: "Joan-Enric Vives i Sicília",
     nativeName: "Joan-Enric Vives i Sicília",
     fullBirthName: "Joan-Enric Vives i Sicília",
     birthDate: "1949-07-24",
@@ -1531,6 +1520,6 @@ export const reigningRoyaltyPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034390",
     avatarUrl: "/avatars/joan-enric-vives.jpg",
     summary: "Joan-Enric Vives i Sicília is the current Bishop of Urgell and ex officio Episcopal Co-Prince of Andorra, serving as joint head of state of Andorra alongside the President of France since 12 May 2003.",
-    aliases: ["Bishop of Urgell", "Episcopal Co-Prince of Andorra", "Joan-Enric Vives"]
+    aliases: ["Archbishop Joan-Enric Vives i Sicília", "Bishop of Urgell", "Episcopal Co-Prince of Andorra", "Joan-Enric Vives"]
   }
 ];

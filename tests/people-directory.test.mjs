@@ -75,6 +75,31 @@ describe("People Directory & Name Parsing Architecture", async () => {
     const felipe = extractPersonNameParts({ canonicalName: "King Felipe VI" });
     assert.equal(felipe.firstName, "Felipe");
     assert.equal(felipe.lastName, "Felipe");
+
+    // 5. Standardized Royal Names with Compound Given Names or Disambiguators
+    const juanCarlos = extractPersonNameParts({ displayName: "King Juan Carlos I", classification: "monarch-royal" });
+    assert.equal(juanCarlos.firstName, "Juan Carlos");
+    assert.equal(juanCarlos.lastName, "Juan Carlos");
+
+    const edwardKent = extractPersonNameParts({ displayName: "Prince Edward of Kent", classification: "monarch-royal" });
+    assert.equal(edwardKent.firstName, "Edward");
+    assert.equal(edwardKent.lastName, "Edward");
+  });
+
+  it("enforces universal comma-free standardized display names across all royal family seed records", () => {
+    const royals = masterPeopleSeed.filter((p) => p.classification === "monarch-royal");
+    assert.ok(royals.length >= 130, "Must have all royal family members in masterPeopleSeed");
+
+    for (const r of royals) {
+      assert.ok(
+        !r.displayName.includes(","),
+        `Royal figure ${r.slug} displayName must follow the universal comma-free standard, got "${r.displayName}"`
+      );
+      assert.ok(
+        !r.canonicalName.includes(","),
+        `Royal figure ${r.slug} canonicalName must follow the universal comma-free standard, got "${r.canonicalName}"`
+      );
+    }
   });
 
   it("strictly validates that 100% of people seed records have valid birth dates and clean demonym nationalities", () => {
