@@ -3,8 +3,8 @@ import { PlacesExplorer } from "@/components/rewind/PlacesExplorer";
 import { MapPin } from "lucide-react";
 
 export const metadata = {
-  title: "Documented Geography & Hierarchy — REWIND Evidence Atlas",
-  description: "Hierarchical global gazetteer organizing sovereign countries, metropolitan cities, institutional venues, and physical street addresses documented in the REWIND evidence corpus.",
+  title: "Places & Venues Atlas — REWIND Evidence Atlas",
+  description: "Interactive global gazetteer and map of countries, cities, institutional venues, broadcast studios, and physical street addresses documented in the REWIND evidence corpus.",
 };
 
 /**
@@ -14,12 +14,12 @@ export default async function PlacesPage() {
   const { data: hierarchy, error } = await getGeographicHierarchy();
 
   return (
-    <div className="page-shell">
-      <header className="page-hero">
-        <span className="eyebrow">GEOGRAPHIC HIERARCHY REGISTER</span>
-        <h1>Documented Geography</h1>
+    <div className="page-shell places-page">
+      <header className="page-hero places-hero">
+        <span className="eyebrow">LOCATIONS & VENUES ATLAS</span>
+        <h1>Places & Venues</h1>
         <p>
-          Locations are organized systematically across 4 forensic tiers: sovereign <b>Countries</b>, metropolitan <b>Cities</b>, institutional <b>Venues</b>, and physical <b>Street Addresses</b>. Locations are shown only at the precision supported by verified evidence.
+          Explore documented locations across four spatial tiers — <b>Countries</b>, <b>Cities</b>, <b>Venues & Complexes</b>, and <b>Street Addresses</b> — with an interactive pinned map that tracks every venue as you browse.
         </p>
       </header>
 

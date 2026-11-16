@@ -40,6 +40,17 @@ export function getSourceTierDisplay(s: SourceRecord): { label: string; badgeCla
   return { label: "Secondary (Tier C)", badgeClass: "secondary", isPrimary: false };
 }
 
+export function formatSourceTypeLabel(rawType?: string | null): string {
+  if (!rawType) return "Archival Record";
+  return rawType
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bUk\b/g, "UK")
+    .replace(/\bUs\b/g, "US")
+    .replace(/\bUn\b/g, "UN")
+    .replace(/\bTv\b/g, "TV");
+}
+
 export function getSourceDateInfo(s: SourceRecord): { isoDate: string | null; displayDate: string } {
   const raw = s.publicationDate || s.accessedDate || "";
   if (!raw) return { isoDate: null, displayDate: "Undated" };
@@ -211,28 +222,27 @@ export function SourcesCatalog({
   return (
     <div className="page-shell sources-page-catalog">
       <header className="page-hero sources-hero">
-        <span className="eyebrow">FORENSIC ARCHIVAL REGISTER</span>
-        <h1>Follow every claim down.</h1>
+        <span className="eyebrow">DOCUMENTARY SOURCE REGISTER</span>
+        <h1>Archival Sources & Citations</h1>
         <p>
-          {sources.length} primary and corroborated documentary records support the REWiND Evidence Atlas.
-          Filter by tier, provenance, or publisher to inspect the archival chain of custody.
+          Explore {sources.length} primary transcripts, official government dispatches, broadcast recordings, and verified contemporary reports supporting the REWiND Evidence Atlas.
         </p>
 
         <dl className="sources-kpi-bar" aria-label="Sources register summary metrics">
           <div className="source-kpi">
-            <dt className="kpi-label">Documented Records</dt>
+            <dt className="kpi-label">Documented Sources</dt>
             <dd className="kpi-num">{sources.length}</dd>
           </div>
           <div className="source-kpi highlight">
-            <dt className="kpi-label">Primary Tier-A Evidence</dt>
+            <dt className="kpi-label">Primary Tier-A Share</dt>
             <dd className="kpi-num">{primaryPercent}%</dd>
           </div>
           <div className="source-kpi">
-            <dt className="kpi-label">Archival Publishers</dt>
+            <dt className="kpi-label">Publishers & Archives</dt>
             <dd className="kpi-num">{publishers.length}</dd>
           </div>
           <div className="source-kpi">
-            <dt className="kpi-label">Total Event-Source Links</dt>
+            <dt className="kpi-label">Corroborated Event Citations</dt>
             <dd className="kpi-num">{eventMetricsError ? "Unavailable" : totalEvidencedLinks}</dd>
           </div>
         </dl>
@@ -331,7 +341,7 @@ export function SourcesCatalog({
               <option value="all">All Types ({sourceTypes.length})</option>
               {sourceTypes.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/-/g, " ")} ({sources.filter((s) => s.sourceType === t).length})
+                  {formatSourceTypeLabel(t)} ({sources.filter((s) => s.sourceType === t).length})
                 </option>
               ))}
             </select>
@@ -384,7 +394,7 @@ export function SourcesCatalog({
         </div>
 
         <div className="sources-results-meta" role="status" aria-live="polite" aria-atomic="true">
-          Showing <b>{filteredSources.length}</b> of {sources.length} records
+          Showing <b>{filteredSources.length}</b> of {sources.length} documentary records
           {isFiltered && <span className="active-filter-hint"> (Filtered)</span>}
         </div>
       </div>
@@ -415,11 +425,11 @@ export function SourcesCatalog({
           <table className="forensic-sources-table" aria-label="Source register">
             <thead>
               <tr>
-                <th scope="col" className="col-source">Source Document</th>
+                <th scope="col" className="col-source">Source Document & Publisher</th>
                 <th scope="col" className="col-type">Record Type</th>
                 <th scope="col" className="col-tier">Evidence Tier</th>
-                <th scope="col" className="col-date">Date / Year</th>
-                <th scope="col" className="col-events">Evidenced Events</th>
+                <th scope="col" className="col-date">Date</th>
+                <th scope="col" className="col-events">Linked Events</th>
                 <th scope="col" className="col-actions">Actions</th>
               </tr>
             </thead>
@@ -428,7 +438,7 @@ export function SourcesCatalog({
                 const eventCount = sourceEventMap.get(s.id) || 0;
                 const { isoDate, displayDate } = getSourceDateInfo(s);
                 const tierInfo = getSourceTierDisplay(s);
-                const isVideo = s.sourceType.includes("video");
+                const isVideo = s.sourceType.toLowerCase().includes("video");
 
                 return (
                   <tr key={s.id} className="source-table-row">
@@ -437,21 +447,28 @@ export function SourcesCatalog({
                         <Link href={`/source/${s.id}`} className="source-title-link">
                           {s.title}
                         </Link>
-                        <span className="source-publisher">{s.publisher}</span>
-                        <code className="source-id-tag">{s.id}</code>
+                        <div className="source-meta-subrow">
+                          <span className="source-publisher">{s.publisher}</span>
+                          {s.author && (
+                            <>
+                              <span className="meta-dot" aria-hidden="true">·</span>
+                              <span className="source-author">{s.author}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="col-type">
                       <span className="source-type-badge">
-                        {isVideo ? <Video size={12} /> : <FileText size={12} />}
-                        <span>{s.sourceType.replace(/-/g, " ")}</span>
+                        {isVideo ? <Video size={12} aria-hidden="true" /> : <FileText size={12} aria-hidden="true" />}
+                        <span>{formatSourceTypeLabel(s.sourceType)}</span>
                       </span>
                     </td>
                     <td className="col-tier">
                       <span className={`source-tier-pill ${tierInfo.badgeClass}`}>
                         {tierInfo.isPrimary ? (
                           <>
-                            <ShieldCheck size={12} />
+                            <ShieldCheck size={12} aria-hidden="true" />
                             <span>{tierInfo.label}</span>
                           </>
                         ) : (
@@ -480,9 +497,10 @@ export function SourcesCatalog({
                           href={`/source/${s.id}`}
                           className="source-action-btn view-record"
                           aria-label={`Inspect source dossier for ${s.title}`}
-                          title="Inspect Evidence Dossier"
+                          title="Inspect Source Dossier"
                         >
-                          <ArrowRight size={14} />
+                          <span>Dossier</span>
+                          <ArrowRight size={13} aria-hidden="true" />
                         </Link>
                         {s.url && (
                           <a
@@ -491,9 +509,9 @@ export function SourcesCatalog({
                             rel="noreferrer"
                             className="source-action-btn external-archive"
                             aria-label={`Open external primary record ${s.title}`}
-                            title="Open Primary Archival Repository"
+                            title="Open External Source Link"
                           >
-                            <ExternalLink size={14} />
+                            <ExternalLink size={14} aria-hidden="true" />
                           </a>
                         )}
                       </div>
@@ -510,7 +528,7 @@ export function SourcesCatalog({
             const eventCount = sourceEventMap.get(s.id) || 0;
             const { isoDate, displayDate } = getSourceDateInfo(s);
             const tierInfo = getSourceTierDisplay(s);
-            const isVideo = s.sourceType.includes("video");
+            const isVideo = s.sourceType.toLowerCase().includes("video");
 
             return (
               <div key={s.id} className={`source-dossier-card ${s.classification}`}>
@@ -518,7 +536,7 @@ export function SourcesCatalog({
                   <span className={`source-tier-pill ${tierInfo.badgeClass}`}>
                     {tierInfo.isPrimary ? (
                       <>
-                        <ShieldCheck size={11} />
+                        <ShieldCheck size={11} aria-hidden="true" />
                         <span>{tierInfo.label}</span>
                       </>
                     ) : (
@@ -526,8 +544,8 @@ export function SourcesCatalog({
                     )}
                   </span>
                   <span className="source-type-tag">
-                    {isVideo ? <Video size={11} /> : <FileText size={11} />}
-                    <span>{s.sourceType.replace(/-/g, " ")}</span>
+                    {isVideo ? <Video size={11} aria-hidden="true" /> : <FileText size={11} aria-hidden="true" />}
+                    <span>{formatSourceTypeLabel(s.sourceType)}</span>
                   </span>
                 </div>
 
@@ -558,9 +576,9 @@ export function SourcesCatalog({
                         rel="noreferrer"
                         className="card-icon-btn"
                         aria-label={`Open external link for ${s.title}`}
-                        title="External Archive"
+                        title="External Source"
                       >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={14} aria-hidden="true" />
                       </a>
                     )}
                     <Link
@@ -569,7 +587,7 @@ export function SourcesCatalog({
                       aria-label={`View dossier for ${s.title}`}
                     >
                       <span>Dossier</span>
-                      <ArrowRight size={13} />
+                      <ArrowRight size={13} aria-hidden="true" />
                     </Link>
                   </div>
                 </div>

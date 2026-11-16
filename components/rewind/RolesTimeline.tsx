@@ -38,27 +38,27 @@ export function RolesTimeline({
       <div className="roles-list" role="list" aria-label="Official roles and public offices timeline">
         {roles.map((role) => {
           const startYear = role.startDate ? role.startDate.slice(0, 4) : "—";
-          const endYear = role.isCurrent ? "Present" : role.endDate ? role.endDate.slice(0, 4) : "—";
+          const endYear = role.isCurrent ? "Present" : role.endDate ? role.endDate.slice(0, 4) : "Present";
 
           return (
             <div key={role.id} className="role-card" role="listitem">
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
-                  <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0, color: "#f8fafc" }}>{role.title}</h3>
+              <div className="role-card-body">
+                <div className="role-card-title-row">
+                  <h3 className="role-card-title">{role.title}</h3>
                   {role.isCurrent && (
                     <span className="role-badge-active" aria-label="Currently active role">
-                      <CheckCircle2 size={12} /> Active Role
+                      <CheckCircle2 size={12} aria-hidden="true" /> Active Role
                     </span>
                   )}
                 </div>
-                <div style={{ color: "#94a3b8", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "4px" }}>
-                  <Building2 size={14} />
+                <div className="role-org-row">
+                  <Building2 size={14} aria-hidden="true" />
                   <span>{role.organisationName || role.organisationId || "Government & Public Office"}</span>
                 </div>
               </div>
 
               <div className="role-tenure-badge">
-                <Calendar size={14} style={{ color: "#38bdf8" }} />
+                <Calendar size={13} aria-hidden="true" />
                 <span>{startYear} — {endYear}</span>
               </div>
             </div>
@@ -66,39 +66,57 @@ export function RolesTimeline({
         })}
 
         {/* Structured career records if distinct from roles */}
-        {career.filter((c) => !roles.some((r) => r.title.toLowerCase() === c.positionTitle.toLowerCase())).map((c) => (
-          <div key={c.id} className="role-card career-item" role="listitem">
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
-                <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0, color: "#f8fafc" }}>{c.positionTitle}</h3>
-                {c.occupationCategory && (
-                  <span className="role-type-tag">
-                    <Award size={11} /> {c.occupationCategory}
-                  </span>
-                )}
-              </div>
-              <div style={{ color: "#94a3b8", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "4px" }}>
-                <Building2 size={14} />
-                <span>{c.organisationName}{c.location ? ` · ${c.location}` : ""}</span>
-              </div>
-              {c.appointmentMethod && (
-                <small style={{ color: "#94a3b8", display: "block", marginTop: "4px" }}>
-                  Appointment: {c.appointmentMethod}
-                </small>
-              )}
-              {c.notes && (
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: "6px 0 0 0", lineHeight: 1.4 }}>
-                  {c.notes}
-                </p>
-              )}
-            </div>
+        {career
+          .filter((c) => {
+            const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase();
+            return cTitle && !roles.some((r) => r.title.toLowerCase() === cTitle);
+          })
+          .map((c) => {
+            const startText = c.startDate ? c.startDate.slice(0, 4) : "";
+            const endText = c.endDate
+              ? c.endDate.slice(0, 4)
+              : (c as { isCurrent?: boolean }).isCurrent || startText
+              ? "Present"
+              : "";
+            const tenureText = startText ? `${startText} — ${endText || "Present"}` : endText || "Tenure documented";
 
-            <div className="role-tenure-badge">
-              <Calendar size={14} style={{ color: "#38bdf8" }} />
-              <span>{c.startDate || "Date unrecorded"} — {c.endDate || "End date unrecorded"}</span>
-            </div>
-          </div>
-        ))}
+            return (
+              <div key={c.id} className="role-card career-item" role="listitem">
+                <div className="role-card-body">
+                  <div className="role-card-title-row">
+                    <h3 className="role-card-title">{c.positionTitle || (c as { roleTitle?: string }).roleTitle}</h3>
+                    {c.occupationCategory && (
+                      <span className="role-type-tag">
+                        <Award size={11} aria-hidden="true" /> {c.occupationCategory}
+                      </span>
+                    )}
+                  </div>
+                  <div className="role-org-row">
+                    <Building2 size={14} aria-hidden="true" />
+                    <span>
+                      {c.organisationName}
+                      {c.location ? ` · ${c.location}` : ""}
+                    </span>
+                  </div>
+                  {c.appointmentMethod && (
+                    <small className="role-appointment-meta">
+                      Appointment: {c.appointmentMethod}
+                    </small>
+                  )}
+                  {c.notes && (
+                    <p className="role-notes-copy">
+                      {c.notes}
+                    </p>
+                  )}
+                </div>
+
+                <div className="role-tenure-badge">
+                  <Calendar size={13} aria-hidden="true" />
+                  <span>{tenureText}</span>
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

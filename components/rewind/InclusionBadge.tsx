@@ -23,50 +23,62 @@ export function InclusionBadge({ person }: { person: PersonRecord }) {
     <section className="inclusion-panel" aria-label="REWiND Indexing Basis">
       <div className="inclusion-header">
         <div className="inclusion-title-group">
-          <span className="inclusion-badge-pill">
-            <ShieldCheck size={16} />
+          <span className="inclusion-badge-pill" aria-hidden="true">
+            <ShieldCheck size={18} />
           </span>
           <div>
-            <h3>REWIND HISTORICAL INCLUSION BASIS</h3>
-            <span className="inclusion-meta">Forensic Evidentiary Indexing Standard</span>
+            <span className="eyebrow">INDEXING & VERIFICATION STANDARD</span>
+            <h3>Historical Inclusion Basis</h3>
+            <span className="inclusion-meta">
+              Objective criteria and primary-source rationale for indexing {person.name} in the REWiND Evidence Atlas
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="qualification-rationale">
-        <p style={{ margin: 0 }}>
-          {person.inclusionRationale ||
-            person.notabilityBasis ||
-            "Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile."}
-        </p>
-      </div>
-
-      <div style={{ marginTop: "20px" }}>
-        <h4 style={{ fontSize: "12px", letterSpacing: "0.5px", textTransform: "uppercase", color: "#94a3b8", marginBottom: "10px" }}>
-          Documented Qualifying Criteria
-        </h4>
-        {criteria.length > 0 ? (
-          <div className="inclusion-criteria-list">
-            {criteria.map((key) => (
-              <div key={key} className="criterion-item">
-                <CheckCircle2 size={15} />
-                <span>{CRITERIA_LABELS[key] || key.replace(/-/g, " ")}</span>
-              </div>
-            ))}
+      <div className="inclusion-content-grid">
+        <div className="inclusion-rationale-block">
+          <h4 className="inclusion-block-label">Documented Qualification Rationale</h4>
+          <div className="qualification-rationale">
+            <p style={{ margin: 0 }}>
+              {person.inclusionRationale ||
+                person.notabilityBasis ||
+                "Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile."}
+            </p>
           </div>
-        ) : (
-          <p className="inclusion-criteria-empty" style={{ margin: 0, fontSize: "13px", color: "var(--rewind-dark-text-muted, #94a3b8)", fontStyle: "italic" }}>
-            Specific inclusion criteria have not yet been recorded in this edition.
-          </p>
-        )}
+        </div>
+
+        <div className="inclusion-criteria-block">
+          <h4 className="inclusion-block-label">
+            Qualifying Criteria ({criteria.length})
+          </h4>
+          {criteria.length > 0 ? (
+            <div className="inclusion-criteria-list">
+              {criteria.map((key) => (
+                <div key={key} className="criterion-item">
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span>{CRITERIA_LABELS[key] || key.replace(/-/g, " ")}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="inclusion-criteria-empty">
+              Specific inclusion criteria have not yet been recorded in this edition.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="inclusion-footer">
         <small>
-          <HelpCircle size={14} /> Inclusion is determined strictly by verifiable public record and research criteria, not political or personal affiliation.
+          <HelpCircle size={14} aria-hidden="true" />
+          <span>
+            Inclusion is determined strictly by verifiable public record and research criteria, not political or personal affiliation.
+          </span>
         </small>
         <Link href="/methodology" className="methodology-link">
-          Methodology & Standards <ArrowRight size={13} />
+          <span>Methodology & Standards</span>
+          <ArrowRight size={13} aria-hidden="true" />
         </Link>
       </div>
     </section>

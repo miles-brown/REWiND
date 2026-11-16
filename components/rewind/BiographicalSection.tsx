@@ -80,11 +80,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         {tabAnnounceText}
       </div>
 
-      <div className="section-header">
-        <span className="eyebrow">STRUCTURED BIOGRAPHICAL DOSSIER</span>
-        <h3>Documented Record & Background</h3>
-        <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: "4px 0 16px" }}>
-          Archival academic credentials, published monographs, authored treaties, and verified identity records.
+      <div className="section-header bio-section-header">
+        <span className="eyebrow">BIOGRAPHICAL RECORD</span>
+        <h3>Background, Career & Credentials</h3>
+        <p className="bio-section-subtitle">
+          Documented public mandates, academic credentials, published works, honours, residences, and verified identity records.
         </p>
       </div>
 
@@ -106,7 +106,8 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           onClick={() => setSelectedTab("career")}
         >
           <Briefcase size={15} />
-          <span>Public Mandates & Career ({career.length})</span>
+          <span>Public Mandates & Career</span>
+          <span className="bio-tab-count">{career.length}</span>
         </button>
 
         <button
@@ -120,7 +121,8 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           onClick={() => setSelectedTab("education")}
         >
           <GraduationCap size={15} />
-          <span>Education ({education.length})</span>
+          <span>Education</span>
+          <span className="bio-tab-count">{education.length}</span>
         </button>
 
         <button
@@ -134,7 +136,8 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           onClick={() => setSelectedTab("works")}
         >
           <BookOpen size={15} />
-          <span>Documented Works ({works.length})</span>
+          <span>Documented Works</span>
+          <span className="bio-tab-count">{works.length}</span>
         </button>
 
         <button
@@ -148,7 +151,8 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
           onClick={() => setSelectedTab("awards")}
         >
           <Trophy size={15} />
-          <span>Honours & Awards ({awards.length})</span>
+          <span>Honours & Awards</span>
+          <span className="bio-tab-count">{awards.length}</span>
         </button>
 
         {stays.length > 0 && (
@@ -163,7 +167,8 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
             onClick={() => setSelectedTab("residences")}
           >
             <Landmark size={15} />
-            <span>Residences & Palaces ({stays.length})</span>
+            <span>Residences & Palaces</span>
+            <span className="bio-tab-count">{stays.length}</span>
           </button>
         )}
 
@@ -192,25 +197,32 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         >
           {career.length > 0 ? (
             <div className="bio-timeline-list">
-              {career.map((c) => (
-                <div key={c.id} className="bio-card">
-                  <div className="bio-card-header">
-                    <h4>{c.positionTitle}</h4>
-                    <span className="bio-dates">
-                      <Calendar size={13} style={{ display: "inline", marginRight: "4px" }} />
-                      {c.startDate || "Date unrecorded"} — {c.endDate || "End date unrecorded"}
-                    </span>
+              {career.map((c) => {
+                const dateLabel = `${c.startDate || "Date unrecorded"} — ${c.endDate || "End date unrecorded"}`;
+
+                return (
+                  <div key={c.id} className="bio-card">
+                    <div className="bio-card-header">
+                      <h4>{c.positionTitle || (c as { roleTitle?: string }).roleTitle}</h4>
+                      <span className="bio-dates">
+                        <Calendar size={13} aria-hidden="true" />
+                        <span>{dateLabel}</span>
+                      </span>
+                    </div>
+                    <p className="bio-org">
+                      <Building size={14} aria-hidden="true" />
+                      <span>
+                        {c.organisationName}
+                        {c.location ? ` · ${c.location}` : ""}
+                      </span>
+                    </p>
+                    {c.appointmentMethod && (
+                      <small className="bio-method">Appointment: {c.appointmentMethod}</small>
+                    )}
+                    {c.notes && <p className="bio-notes">{c.notes}</p>}
                   </div>
-                  <p className="bio-org">
-                    <Building size={14} /> {c.organisationName}
-                    {c.location ? ` · ${c.location}` : ""}
-                  </p>
-                  {c.appointmentMethod && (
-                    <small className="bio-method">Appointment: {c.appointmentMethod}</small>
-                  )}
-                  {c.notes && <p className="bio-notes">{c.notes}</p>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="empty-copy">Structured career mandates will be populated as primary government gazettes are indexed.</p>
@@ -228,22 +240,36 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         >
           {education.length > 0 ? (
             <div className="bio-timeline-list">
-              {education.map((e) => (
-                <div key={e.id} className="bio-card">
-                  <div className="bio-card-header">
-                    <h4>{e.institution}</h4>
-                    <span className="bio-dates">
-                      <Calendar size={13} style={{ display: "inline", marginRight: "4px" }} />
-                      {e.startDate} — {e.endDate || "End date unrecorded"}
-                    </span>
+              {education.map((e) => {
+                const startVal = e.startDate || (e as { startYear?: string }).startYear || "";
+                const endVal = e.endDate || (e as { endYear?: string }).endYear || "";
+                const dateRange =
+                  startVal && endVal
+                    ? `${startVal} — ${endVal}`
+                    : startVal || endVal || "Academic credential";
+
+                return (
+                  <div key={e.id} className="bio-card">
+                    <div className="bio-card-header">
+                      <h4>{e.institution}</h4>
+                      <span className="bio-dates">
+                        <Calendar size={13} aria-hidden="true" />
+                        <span>{dateRange}</span>
+                      </span>
+                    </div>
+                    <p className="bio-org">
+                      <GraduationCap size={14} aria-hidden="true" />
+                      <span>
+                        {e.degree || e.qualification || "Academic Study"}
+                        {e.subject || (e as { fieldOfStudy?: string }).fieldOfStudy
+                          ? ` in ${e.subject || (e as { fieldOfStudy?: string }).fieldOfStudy}`
+                          : ""}
+                      </span>
+                    </p>
+                    {e.honours && <small className="bio-honours">Honours: {e.honours}</small>}
                   </div>
-                  <p className="bio-org">
-                    <GraduationCap size={14} /> {e.degree || e.qualification || "Attended"}
-                    {e.subject ? ` in ${e.subject}` : ""}
-                  </p>
-                  {e.honours && <small className="bio-honours">Honours: {e.honours}</small>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="empty-copy">Documented academic records will be populated from university archives.</p>
@@ -261,15 +287,25 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         >
           {works.length > 0 ? (
             <div className="bio-grid-list">
-              {works.map((w) => (
-                <div key={w.id} className="bio-card work-card">
-                  <span className="work-type-pill">{w.workType}</span>
-                  <h4>{w.workTitle}</h4>
-                  {w.releaseDate && <small className="work-date">Published: {w.releaseDate}</small>}
-                  {w.publisherOrVenue && <p className="work-publisher">{w.publisherOrVenue}</p>}
-                  {w.significanceNote && <p className="work-note">{w.significanceNote}</p>}
-                </div>
-              ))}
+              {works.map((w) => {
+                const pubDate = w.releaseDate || (w as { publicationYear?: string }).publicationYear;
+                return (
+                  <div key={w.id} className="bio-card work-card">
+                    <div className="bio-card-header">
+                      <span className="work-type-pill">{w.workType || "Publication"}</span>
+                      {pubDate && (
+                        <span className="bio-dates">
+                          <Calendar size={12} aria-hidden="true" />
+                          <span>{pubDate}</span>
+                        </span>
+                      )}
+                    </div>
+                    <h4>{w.workTitle}</h4>
+                    {w.publisherOrVenue && <p className="work-publisher">{w.publisherOrVenue}</p>}
+                    {w.significanceNote && <p className="work-note">{w.significanceNote}</p>}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="empty-copy">Authored monographs, treaties, speeches, and registered works will appear here.</p>
@@ -287,19 +323,28 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
         >
           {awards.length > 0 ? (
             <div className="bio-grid-list">
-              {awards.map((a) => (
-                <div key={a.id} className="bio-card award-card">
-                  <div className="award-icon">
-                    <Award size={18} />
+              {awards.map((a) => {
+                const yearVal = a.awardYear || (a as { yearReceived?: string }).yearReceived;
+                const resultVal = a.result || "Conferred";
+                return (
+                  <div key={a.id} className="bio-card award-card">
+                    <div className="award-icon" aria-hidden="true">
+                      <Award size={18} />
+                    </div>
+                    <div className="award-card-body">
+                      <div className="bio-card-header">
+                        <h4>{a.awardName}</h4>
+                        <span className={`result-tag ${resultVal.toLowerCase()}`}>{resultVal}</span>
+                      </div>
+                      <p className="bio-org">
+                        <span>{a.awardingBody}</span>
+                        {yearVal ? <span className="award-year-chip">{yearVal}</span> : null}
+                      </p>
+                      {a.citationReason && <p className="award-citation">“{a.citationReason}”</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h4>{a.awardName}</h4>
-                    <small>{a.awardingBody} {a.awardYear ? `(${a.awardYear})` : ""}</small>
-                    <span className={`result-tag ${a.result}`}>{a.result}</span>
-                    {a.citationReason && <p className="award-citation">{a.citationReason}</p>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="empty-copy">Recognitions, honorary orders, and civil decorations will appear here.</p>
@@ -329,12 +374,17 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                     )}
                   </div>
                   <p className="bio-org">
-                    <MapPin size={13} style={{ display: "inline", marginRight: "4px" }} /> {s.city}, {s.country}
+                    <MapPin size={13} aria-hidden="true" />
+                    <span>{[s.city, s.country].filter(Boolean).join(", ")}</span>
                   </p>
-                  <span className="bio-dates">
-                    <Calendar size={12} style={{ display: "inline", marginRight: "4px" }} />
-                    {s.startDate} {s.endDate ? `— ${s.endDate}` : "— Present"}
-                  </span>
+                  {s.startDate && (
+                    <span className="bio-dates">
+                      <Calendar size={12} aria-hidden="true" />
+                      <span>
+                        {s.startDate} — {s.endDate || "Present"}
+                      </span>
+                    </span>
+                  )}
                   {s.notes && <p className="bio-notes">{s.notes}</p>}
                 </div>
               ))}

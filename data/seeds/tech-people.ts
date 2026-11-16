@@ -45,8 +45,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder of Microsoft and co-chair of the Bill & Melinda Gates Foundation, driving global personal computing and multi-billion-dollar global health, vaccination, and energy initiatives with world governments.",
+    "culturalImpactSummary": "Architect of the personal computer revolution and worlds leading philanthropic catalyst for global public health and poverty alleviation.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -86,8 +86,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder of PayPal, Founders Fund, and Palantir Technologies, financing critical defense, intelligence, and national security data platforms and political campaigns.",
+    "culturalImpactSummary": "Pivotal venture capitalist and ideological architect of Silicon Valleys defense technology and libertarian venture ecosystem.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -127,8 +127,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as founder, chairman, and CEO of Meta Platforms (Facebook, Instagram, WhatsApp), connecting over 3 billion active users and testifying before US congressional and EU parliamentary hearings on privacy, elections, and AI.",
+    "culturalImpactSummary": "Pioneered global social networking infrastructure and digital communications at planetary scale.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -168,8 +168,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as founder and executive chairman of Amazon and Blue Origin, revolutionizing global e-commerce, cloud computing infrastructure (AWS), and commercial spaceflight.",
+    "culturalImpactSummary": "Transformed global supply chains, cloud computing infrastructure, digital logistics, and commercial aerospace.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -209,8 +209,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as CEO of OpenAI and former president of Y Combinator, spearheading the global commercialization of generative artificial intelligence (ChatGPT, GPT-4) and international AI safety governance.",
+    "culturalImpactSummary": "Catalyst of the 21st-century generative AI revolution and international AI regulatory dialogues.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -250,8 +250,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder, executive chairman, and CTO of Oracle Corporation, building enterprise relational database technology and defense cloud infrastructure.",
+    "culturalImpactSummary": "Pioneer of commercial enterprise databases and mission-critical cloud computing for global governments.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -291,8 +291,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-author of Mosaic, co-founder of Netscape, and co-founder of venture capital firm Andreessen Horowitz, foundational to the commercial World Wide Web and software ecosystem.",
+    "culturalImpactSummary": "Co-created the graphical web browser and defined the modern venture capital thesis Software is Eating the World.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -332,8 +332,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder and former CEO of Twitter (X) and founder/CEO of Block (Square), shaping global real-time digital public discourse and decentralized financial payments.",
+    "culturalImpactSummary": "Created the primary global microblogging public square and advanced decentralized protocols and digital payments.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -373,8 +373,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder of Google and Alphabet Inc., co-architect of PageRank, internet search indexing, and planetary-scale cloud infrastructure.",
+    "culturalImpactSummary": "Co-inventor of modern web search, organizing the worlds information for billions of daily users.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -414,8 +414,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as former CEO and Executive Chairman of Google/Alphabet, Chairman of the US National Security Commission on Artificial Intelligence (NSCAI), and defense tech advisor.",
+    "culturalImpactSummary": "Engineered Googles global scale and bridged Silicon Valley innovation with national security and AI defense policy.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -455,8 +455,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as CEO of Apple Inc. since 2011, overseeing the worlds most valuable technology enterprise, global consumer device supply chains, and digital privacy initiatives.",
+    "culturalImpactSummary": "Operational architect of modern global consumer electronics, user privacy standards, and supply chain logistics.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -496,8 +496,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as Chairman and CEO of Microsoft, pivoting the enterprise to global cloud infrastructure (Azure) and enterprise artificial intelligence partnerships.",
+    "culturalImpactSummary": "Transformed enterprise computing through cloud platform modernization and strategic integration of frontier AI.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -537,8 +537,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as CEO of Alphabet and Google, directing Chrome, Android, Google Search, and enterprise AI models reaching billions of users worldwide.",
+    "culturalImpactSummary": "Oversaw the expansion of Android, Chrome, and frontier AI research into universal global platforms.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -579,8 +579,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as founder, president, and CEO of NVIDIA, pioneering GPU accelerated computing and hardware infrastructure powering the global artificial intelligence boom.",
+    "culturalImpactSummary": "Visionary architect of accelerated computing and the core silicon infrastructure powering the AI industrial revolution.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -621,8 +621,8 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under Section 2.9 as co-founder and CEO of Google DeepMind, Nobel laureate in Chemistry (2024), pioneering artificial general intelligence, AlphaFold biological structure prediction, and Gemini foundation models.",
+    "culturalImpactSummary": "Pioneered reinforcement learning and deep learning applications in science, solving the 50-year protein folding grand challenge.",
     "primaryFigureCategory": "corporate-executive"
   }
 ];
