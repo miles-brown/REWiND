@@ -84,6 +84,21 @@ describe("People Directory & Name Parsing Architecture", async () => {
     const edwardKent = extractPersonNameParts({ displayName: "Prince Edward of Kent", classification: "monarch-royal" });
     assert.equal(edwardKent.firstName, "Edward");
     assert.equal(edwardKent.lastName, "Edward");
+
+    // 6. Name ambiguity regression test (preserving Earl as name)
+    const earlWarren = extractPersonNameParts({ canonicalName: "Earl Warren" });
+    assert.deepEqual(earlWarren, {
+      firstName: "Earl",
+      lastName: "Warren",
+      displayName: "Earl Warren",
+    });
+
+    const samEarl = extractPersonNameParts({ canonicalName: "Sam Earl" });
+    assert.deepEqual(samEarl, {
+      firstName: "Sam",
+      lastName: "Earl",
+      displayName: "Sam Earl",
+    });
   });
 
   it("enforces universal comma-free standardized display names across all royal family seed records", () => {

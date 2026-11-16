@@ -830,6 +830,7 @@ export interface VenueAreaNode {
 export interface VenueNode {
   id: string;
   slug: string;
+  citySlug?: string;
   name: string;
   venueType: string;
   city: string;
@@ -860,6 +861,7 @@ export function isMobileVenue(venue: Partial<VenueNode> | null | undefined): boo
 export interface AddressNode {
   id: string;
   slug: string;
+  citySlug?: string;
   formattedAddress: string;
   streetNumber?: string | null;
   streetName?: string | null;

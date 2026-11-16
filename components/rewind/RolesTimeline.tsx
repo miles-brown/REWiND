@@ -38,7 +38,7 @@ export function RolesTimeline({
       <div className="roles-list" role="list" aria-label="Official roles and public offices timeline">
         {roles.map((role) => {
           const startYear = role.startDate ? role.startDate.slice(0, 4) : "—";
-          const endYear = role.isCurrent ? "Present" : role.endDate ? role.endDate.slice(0, 4) : "Present";
+          const endYear = role.isCurrent ? "Present" : role.endDate ? role.endDate.slice(0, 4) : "End date unrecorded";
 
           return (
             <div key={role.id} className="role-card" role="listitem">
@@ -73,12 +73,15 @@ export function RolesTimeline({
           })
           .map((c) => {
             const startText = c.startDate ? c.startDate.slice(0, 4) : "";
+            const isCurrent = Boolean((c as { isCurrent?: boolean }).isCurrent);
             const endText = c.endDate
               ? c.endDate.slice(0, 4)
-              : (c as { isCurrent?: boolean }).isCurrent || startText
+              : isCurrent
               ? "Present"
+              : startText
+              ? "End date unrecorded"
               : "";
-            const tenureText = startText ? `${startText} — ${endText || "Present"}` : endText || "Tenure documented";
+            const tenureText = startText ? `${startText} — ${endText || "End date unrecorded"}` : endText || "Tenure documented";
 
             return (
               <div key={c.id} className="role-card career-item" role="listitem">

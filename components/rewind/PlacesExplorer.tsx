@@ -23,6 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { EventRecord, GeographicHierarchyTree } from "@/lib/rewind";
+import { sanitizePlaceSlug } from "@/lib/rewind/utils";
 import { MapGraphic } from "./MapGraphic";
 
 export type HierarchyTab = "tree" | "countries" | "cities" | "venues" | "addresses";
@@ -261,7 +262,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     }
     if (selectedCity !== "all") {
       result = result.filter((v) => {
-        const cSlug = `${v.country.toLowerCase().replace(/\s+/g, "-")}-${v.city.toLowerCase().replace(/\s+/g, "-")}`;
+        const cSlug = v.citySlug || `${sanitizePlaceSlug(v.country)}-${sanitizePlaceSlug(v.city)}`;
         return cSlug === selectedCity;
       });
     }
@@ -293,7 +294,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     }
     if (selectedCity !== "all") {
       result = result.filter((a) => {
-        const cSlug = `${a.country.toLowerCase().replace(/\s+/g, "-")}-${a.city.toLowerCase().replace(/\s+/g, "-")}`;
+        const cSlug = a.citySlug || `${sanitizePlaceSlug(a.country)}-${sanitizePlaceSlug(a.city)}`;
         return cSlug === selectedCity;
       });
     }
@@ -756,6 +757,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
           <div className="full-map-viewport h-[750px] w-full rounded-xl overflow-hidden border border-white/15 relative">
             <MapGraphic
               events={mapEvents}
+              disableJourneys={true}
               selected={selectedMapVenueId || undefined}
               onSelect={(id) => setSelectedMapVenueId(id)}
             />
@@ -920,15 +922,29 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                   <div
                                                     key={venue.id}
                                                     id={`venue-card-${venue.id}`}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-pressed={isSelected}
+                                                    aria-label={`Select ${venue.name} on map tracker`}
                                                     className={`venue-leaf-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
                                                     onClick={() => setSelectedMapVenueId(venue.id)}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        setSelectedMapVenueId(venue.id);
+                                                      }
+                                                    }}
                                                   >
                                                     <div className="venue-leaf-header">
                                                       <div className="venue-leaf-title-wrap">
                                                         <span className={`venue-type-chip ${badge.className}`}>
                                                           {badge.label}
                                                         </span>
-                                                        <Link href={`/place/${venue.slug}`} className="venue-leaf-title">
+                                                        <Link
+                                                          href={`/place/${venue.slug}`}
+                                                          className="venue-leaf-title"
+                                                          onClick={(e) => e.stopPropagation()}
+                                                        >
                                                           <h5>{venue.name}</h5>
                                                         </Link>
                                                       </div>
@@ -1177,8 +1193,18 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                   <div
                     key={venue.id}
                     id={`venue-card-${venue.id}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
+                    aria-label={`Select ${venue.name} on map tracker`}
                     className={`entity-card venue-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
                     onClick={() => setSelectedMapVenueId(venue.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedMapVenueId(venue.id);
+                      }
+                    }}
                   >
                     <div className="card-top-row">
                       <span className={`venue-type-chip ${badge.className}`}>{badge.label}</span>
@@ -1222,7 +1248,11 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                     )}
 
                     <div className="card-footer-row">
-                      <Link href={`/place/${venue.slug}`} className="entity-action-btn">
+                      <Link
+                        href={`/place/${venue.slug}`}
+                        className="entity-action-btn"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <span>View Venue Dossier</span>
                         <ArrowRight size={14} />
                       </Link>
@@ -1320,6 +1350,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
               <div className="sticky-map-viewport">
                 <MapGraphic
                   events={mapEvents}
+                  disableJourneys={true}
                   selected={selectedMapVenueId || undefined}
                   onSelect={(id) => {
                     setSelectedMapVenueId(id);

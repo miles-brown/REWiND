@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BarChart3, CheckCircle2, ShieldCheck, Trophy, Sparkles } from "lucide-react";
+import { Award, BarChart3, CheckCircle2, ShieldCheck, Trophy } from "lucide-react";
 import type { PersonMilestoneRecord } from "@/lib/rewind/milestones";
 import type { PersonAward } from "@/lib/rewind/types";
 
@@ -83,7 +83,6 @@ export function MilestonesTimeline({
                 </span>
 
                 <div className="milestone-stat-pill award-pill">
-                  <Sparkles size={12} aria-hidden="true" style={{ marginRight: "4px" }} />
                   <span>{yearVal ? `${a.result || "Conferred"} · ${yearVal}` : a.result || "Conferred"}</span>
                 </div>
               </div>

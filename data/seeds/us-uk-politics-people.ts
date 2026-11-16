@@ -47,7 +47,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
       "scholarly-historiographical-subject"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as Head of State / Head of Government (42nd President of the United States) and core signatory to major bilateral diplomatic peace accords including the 1993 Oslo Accords, 1994 Israel-Jordan Peace Treaty, 1995 Dayton Accords, and 1998 Good Friday Agreement.",
+    "inclusionRationale": "Qualified under criterion 'head-of-state-or-government' as 42nd President of the United States, serving as executive host and diplomatic facilitator of major bilateral peace agreements including the 1993 Oslo Accords, 1994 Israel-Jordan Peace Treaty, 1995 Dayton Accords, and 1998 Good Friday Agreement.",
     "culturalImpactSummary": "Architect of post-Cold War Western foreign policy, bilateral Middle East peace negotiations, and trans-Atlantic trade integration.",
     "primaryFigureCategory": "politician"
   },
@@ -90,7 +90,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as Vice President of the United States and presiding officer of the US Senate, with documented participation in executive bilateral summits and global diplomatic delegations.",
+    "inclusionRationale": "Qualified under criterion 'head-of-state-or-government' as Vice President of the United States and presiding officer of the US Senate, with documented participation in executive bilateral summits and global diplomatic delegations.",
     "culturalImpactSummary": "First female, African American, and South Asian American Vice President of the United States.",
     "primaryFigureCategory": "politician"
   },
@@ -132,7 +132,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as 46th Vice President of the United States and Secretary of Defense, central to Operation Desert Storm, post-9/11 national security architecture, and authorization of the Global War on Terror.",
+    "inclusionRationale": "Qualified under criterion 'head-of-state-or-government' as 46th Vice President of the United States and Secretary of Defense, central to Operation Desert Storm, post-9/11 national security architecture, and authorization of the Global War on Terror.",
     "culturalImpactSummary": "Pivotal architect of American defense and intelligence policy across four presidential administrations spanning five decades.",
     "primaryFigureCategory": "politician"
   },
@@ -173,7 +173,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "senior-diplomatic-or-geopolitical",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.2 as 70th US Secretary of State and 6th Director of the CIA, lead negotiator on the 2020 Abraham Accords and high-level diplomatic missions to North Korea.",
+    "inclusionRationale": "Qualified under criterion 'senior-diplomatic-or-geopolitical' as 70th US Secretary of State and 6th Director of the CIA, lead negotiator on the 2020 Abraham Accords and high-level diplomatic missions to North Korea.",
     "culturalImpactSummary": "Chief diplomatic architect of the Maximum Pressure campaign and the Abraham Accords framework.",
     "primaryFigureCategory": "diplomat"
   },
@@ -215,7 +215,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as 52nd Speaker of the United States House of Representatives and second in presidential line of succession, leading landmark federal legislation and major diplomatic congressional delegations.",
+    "inclusionRationale": "Qualified under criterion 'parliamentary-leader' as 52nd Speaker of the United States House of Representatives and second in presidential line of succession, leading landmark federal legislation and major diplomatic congressional delegations.",
     "culturalImpactSummary": "First woman to serve as Speaker of the United States House of Representatives, steering landmark economic and healthcare legislation across two decades.",
     "primaryFigureCategory": "politician"
   },
@@ -257,7 +257,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as Senate Majority Leader and senior US Senator from New York, overseeing Senate confirmation of federal executives, judicial appointments, and major legislative enactments.",
+    "inclusionRationale": "Qualified under criterion 'parliamentary-leader' as Senate Majority Leader and senior US Senator from New York, overseeing Senate confirmation of federal executives, judicial appointments, and major legislative enactments.",
     "culturalImpactSummary": "Longstanding parliamentary leader and principal legislative architect of trans-partisan economic and infrastructure legislation.",
     "primaryFigureCategory": "politician"
   },
@@ -299,7 +299,7 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under Section 2.1 as longest-serving Senate Party Leader in American history and Senate Majority Leader (2015–2021), reshaping the federal judiciary and legislative confirmations.",
+    "inclusionRationale": "Qualified under criterion 'parliamentary-leader' as longest-serving Senate Party Leader in American history and Senate Majority Leader (2015–2021), reshaping the federal judiciary and legislative confirmations.",
     "culturalImpactSummary": "Architect of the modern judicial confirmation process and longest-tenured Senate caucus leader in United States history.",
     "primaryFigureCategory": "politician"
   }

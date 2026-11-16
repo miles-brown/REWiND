@@ -27,7 +27,7 @@ export default async function TopicsPage() {
 
       {topics.length === 0 ? (
         <div
-          className="zero-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-12 text-center"
+          className="my-8 mx-auto max-w-xl rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-12 text-center"
           role="status"
         >
           <Newspaper size={36} className="mx-auto mb-4 text-slate-500" aria-hidden="true" />

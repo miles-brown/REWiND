@@ -175,7 +175,11 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
 
     for (const [key, meta] of entries) {
       assert.ok(meta.canonicalVenue, `Key "${key}" must have canonicalVenue`);
-      assert.ok(meta.streetAddress, `Key "${key}" must have streetAddress`);
+      if (meta.isMobileVessel) {
+        assert.ok(meta.homeBasePlaceId, `Mobile vessel "${key}" must have homeBasePlaceId`);
+      } else {
+        assert.ok(meta.streetAddress, `Key "${key}" must have streetAddress`);
+      }
       assert.ok(meta.city, `Key "${key}" must have city`);
       assert.ok(meta.country, `Key "${key}" must have country`);
       assert.ok(meta.countryCode, `Key "${key}" must have countryCode`);

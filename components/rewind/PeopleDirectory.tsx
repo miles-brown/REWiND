@@ -133,9 +133,12 @@ export function PeopleDirectory({
   const [statusFilter, setStatusFilter] = useState<LivingStatusFilter>(
     (searchParams.get("status") as LivingStatusFilter) || "all"
   );
-  const [groupByCountry, setGroupByCountry] = useState<boolean>(
-    searchParams.get("group") === "country" || searchParams.get("category") === "monarch-royal"
-  );
+  const [groupByCountry, setGroupByCountry] = useState<boolean>(() => {
+    const groupParam = searchParams.get("group");
+    if (groupParam === "country") return true;
+    if (groupParam === "none") return false;
+    return searchParams.get("category") === "monarch-royal";
+  });
 
   // Sync state with URL without full page reload
   useEffect(() => {
@@ -160,8 +163,12 @@ export function PeopleDirectory({
     if (statusFilter !== "all") url.searchParams.set("status", statusFilter);
     else url.searchParams.delete("status");
 
+    if (groupByCountry) url.searchParams.set("group", "country");
+    else if (categoryFilter === "monarch-royal") url.searchParams.set("group", "none");
+    else url.searchParams.delete("group");
+
     window.history.replaceState({}, "", url.toString());
-  }, [viewMode, sortOption, query, nationalityFilter, categoryFilter, statusFilter]);
+  }, [viewMode, sortOption, query, nationalityFilter, categoryFilter, statusFilter, groupByCountry]);
 
   // Precompute standardized short display name and name parts for all figures
   const normalizedPeople = useMemo(() => {
@@ -316,16 +323,17 @@ export function PeopleDirectory({
         const title = allRoyals && ROYAL_HOUSE_LABELS[nationality]
           ? ROYAL_HOUSE_LABELS[nationality]
           : `${nationality} Figures`;
-        const sortedMembers = allRoyals
-          ? [...members].sort((a, b) => {
-              const yA = extractBirthYear(a.birth) ?? 9999;
-              const yB = extractBirthYear(b.birth) ?? 9999;
-              return yA - yB || a.name.localeCompare(b.name);
-            })
-          : members;
+        const sortedMembers =
+          allRoyals && (sortOption === "last-asc" || sortOption === "birth-asc")
+            ? [...members].sort((a, b) => {
+                const yA = extractBirthYear(a.birth) ?? 9999;
+                const yB = extractBirthYear(b.birth) ?? 9999;
+                return yA - yB || a.name.localeCompare(b.name);
+              })
+            : members;
         return { nationality, title, members: sortedMembers };
       });
-  }, [filteredPeople, groupByCountry]);
+  }, [filteredPeople, groupByCountry, sortOption]);
 
   const hasActiveFilters =
     query.trim() !== "" ||

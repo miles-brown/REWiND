@@ -41,7 +41,7 @@ export default async function EventsPage() {
       </header>
       {eventsResult.error ? (
         <div
-          className="zero-state error-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-12 text-center"
+          className="error-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-12 text-center"
           role="alert"
         >
           <h2 className="text-lg font-bold text-slate-100">Events register temporarily unavailable</h2>

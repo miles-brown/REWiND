@@ -377,11 +377,11 @@ export function BiographicalSection({ person }: { person: PersonRecord }) {
                     <MapPin size={13} aria-hidden="true" />
                     <span>{[s.city, s.country].filter(Boolean).join(", ")}</span>
                   </p>
-                  {s.startDate && (
+                  {(s.startDate || s.endDate) && (
                     <span className="bio-dates">
                       <Calendar size={12} aria-hidden="true" />
                       <span>
-                        {s.startDate} — {s.endDate || "Present"}
+                        {s.startDate || "Date unrecorded"} — {s.endDate || "Present"}
                       </span>
                     </span>
                   )}

@@ -39,7 +39,7 @@ export default async function ComparePage() {
 
       {(eventsRes.error || peopleRes.error) && (allEvents.length === 0 || people.length === 0) ? (
         <div
-          className="zero-state error-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-12 text-center"
+          className="error-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-12 text-center"
           role="alert"
         >
           <h2 className="text-lg font-bold text-slate-100">Comparison data temporarily unavailable</h2>

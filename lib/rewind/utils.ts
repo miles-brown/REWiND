@@ -143,7 +143,7 @@ const ROYAL_NAME_OVERRIDES: Record<string, string> = {
 };
 
 const ROYAL_TITLE_START_REGEX =
-  /^(King|Queen|Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Infanta|Infante|Archduke|Archduchess|Duke|Duchess|Count|Countess|Margrave|Landgrave|Earl|Tsar)\b/i;
+  /^(King|Queen|Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Infanta|Infante|Archduke|Archduchess|Duke|Duchess|Count|Countess|Margrave|Landgrave|Tsar)\b/i;
 
 /**
  * Formats a person's display name according to the REWiND Universal Naming Standard:
@@ -226,18 +226,57 @@ export function extractPersonNameParts(person: {
   }
 
   // Strip trailing "of <Territory>" on royal title names (e.g. "Prince Edward of Kent" -> "Prince Edward")
-  const hasRoyalTitlePrefix = ROYAL_TITLE_START_REGEX.test(displayName);
-  const baseForTokens = hasRoyalTitlePrefix
+  const isRoyal = person.classification === "monarch-royal";
+  const hasRoyalTitlePrefix =
+    ROYAL_TITLE_START_REGEX.test(displayName) ||
+    (Boolean(isRoyal) && /^Earl\b/i.test(displayName));
+
+  const baseForTokens = (isRoyal || hasRoyalTitlePrefix)
     ? displayName.replace(/\s+of\s+.+$/i, "").trim()
     : displayName;
 
   const tokens = baseForTokens.split(/\s+/).filter(Boolean);
-  const cleanTokens = tokens.filter(
-    (t) =>
-      !/^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Crown|Hereditary|Tsar|Emperor|Empress|Archduke|Archduchess|Margrave|Landgrave|Count|Countess|Earl|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
+
+  // Strip leading honorific/title tokens ONLY from the start of the token array.
+  // When person is not classified as royal, "Earl" is treated as a personal given name (e.g. "Earl Warren"),
+  // and tokens at later positions are preserved (e.g. "Sam Earl" -> lastName: "Earl").
+  let startIndex = 0;
+  while (startIndex < tokens.length - 1) {
+    const t = tokens[startIndex];
+    if (REGNAL_ORDINAL_REGEX.test(t)) {
+      startIndex++;
+      continue;
+    }
+    if (/^Earl$/i.test(t)) {
+      if (isRoyal) {
+        startIndex++;
+        continue;
+      }
+      break;
+    }
+    if (
+      /^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Crown|Hereditary|Tsar|Emperor|Empress|Archduke|Archduchess|Margrave|Landgrave|Count|Countess|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
         t
-      ) && !REGNAL_ORDINAL_REGEX.test(t)
-  );
+      )
+    ) {
+      startIndex++;
+      continue;
+    }
+    break;
+  }
+
+  // Also strip trailing regnal ordinals from the end of name tokens (e.g. "King Charles III" -> "Charles")
+  let endIndex = tokens.length;
+  while (endIndex > startIndex + 1) {
+    const last = tokens[endIndex - 1];
+    if (REGNAL_ORDINAL_REGEX.test(last)) {
+      endIndex--;
+    } else {
+      break;
+    }
+  }
+
+  const cleanTokens = tokens.slice(startIndex, endIndex);
 
   if (cleanTokens.length === 0) {
     return { firstName: tokens[0] || displayName, lastName: tokens[tokens.length - 1] || displayName, displayName };
@@ -254,7 +293,7 @@ export function extractPersonNameParts(person: {
   const hasDynasticSurname = /^(d'Orléans|Napoléon|Windsor|Mountbatten-Windsor|Chatto|Phillips|Tindall|Armstrong-Jones|Habsburg|Medforth-Mills)$/i.test(
     lastToken
   );
-  if (hasRoyalTitlePrefix && !hasDynasticSurname) {
+  if ((isRoyal || hasRoyalTitlePrefix) && !hasDynasticSurname) {
     const givenName = cleanTokens.join(" ");
     return { firstName: givenName, lastName: givenName, displayName };
   }
@@ -392,4 +431,18 @@ export function findTopCoAttendee(
 
   // Graceful fallback: return the next distinct person in the register if no co-attendees exist
   return people.find((p) => p.slug !== targetSlug && p.id !== targetId)?.slug;
+}
+
+/**
+ * Deterministically sanitizes place, city, and country strings into URL-safe canonical slugs.
+ */
+export function sanitizePlaceSlug(str: string): string {
+  return (
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "unknown"
+  );
 }

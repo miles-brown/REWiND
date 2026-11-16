@@ -285,7 +285,7 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
 export interface GazetteerVenueMetadata {
   canonicalVenue: string;
   venueType: string;
-  streetAddress: string;
+  streetAddress?: string | null;
   district?: string;
   city: string;
   country: string;
@@ -293,6 +293,9 @@ export interface GazetteerVenueMetadata {
   latitude: number;
   longitude: number;
   venueAreas?: Array<{ id: string; name: string; areaType: string }>;
+  isMobileVessel?: boolean;
+  homeBasePlaceId?: string | null;
+  vesselType?: string | null;
 }
 
 export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> = {
@@ -2398,7 +2401,9 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
   "air force one (boeing vc-25a / sam 28000 / sam 29000)": {
     canonicalVenue: "Air Force One (Boeing VC-25A / SAM 28000 / SAM 29000)",
     venueType: "transport",
-    streetAddress: "1500 Perimeter Road (Home Base: Joint Base Andrews)",
+    isMobileVessel: true,
+    vesselType: "aircraft",
+    homeBasePlaceId: "plc-joint-base-andrews",
     district: "Presidential Airlift Group",
     city: "Camp Springs",
     country: "United States",
@@ -2414,7 +2419,9 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
   "marine one (sikorsky vh-3d / vh-92a)": {
     canonicalVenue: "Marine One (Sikorsky VH-3D / VH-92A)",
     venueType: "transport",
-    streetAddress: "HMX-1 Complex (Home Base: MCAF Quantico)",
+    isMobileVessel: true,
+    vesselType: "helicopter",
+    homeBasePlaceId: "plc-mcaf-quantico",
     district: "Marine Helicopter Squadron One",
     city: "Quantico",
     country: "United States",
@@ -2428,7 +2435,9 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
   "british royal train": {
     canonicalVenue: "British Royal Train",
     venueType: "transport",
-    streetAddress: "Royal Train Depot, Wolverton Works",
+    isMobileVessel: true,
+    vesselType: "train",
+    homeBasePlaceId: "plc-wolverton-works",
     district: "Network Rail Royal Operations",
     city: "London",
     country: "United Kingdom",
@@ -2829,16 +2838,8 @@ export function resolveVenueMetadata(venue?: string | null): GazetteerVenueMetad
   return null;
 }
 
-function sanitizePlaceSlug(str: string): string {
-  return (
-    str
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || "unknown"
-  );
-}
+import { sanitizePlaceSlug } from "./utils";
+export { sanitizePlaceSlug };
 
 /**
  * Retrieves the complete multi-tier geographical hierarchy from Supabase:
@@ -2885,8 +2886,8 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     currentPage++;
   } while (currentPage <= totalPages && currentPage <= 100);
 
-  const eventCountsByVenueId = new Map<string, number>();
-  const eventCountsByVenueKey = new Map<string, number>();
+  const venueEventIdsMap = new Map<string, Set<string>>();
+  const venueDedupEventIdsMap = new Map<string, Set<string>>();
   const eventCountsByCity = new Map<string, number>();
   const eventCountsByCountry = new Map<string, number>();
 
@@ -2896,16 +2897,20 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const meta = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
     const canonicalVenueName = (meta?.canonicalVenue || rawVenue).trim();
     const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+    const eventId = e.id || e.slug || "";
 
     const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
-    if (vId) {
-      eventCountsByVenueId.set(vId, (eventCountsByVenueId.get(vId) || 0) + 1);
+    if (vId && eventId) {
+      if (!venueEventIdsMap.has(vId)) venueEventIdsMap.set(vId, new Set());
+      venueEventIdsMap.get(vId)!.add(eventId);
     }
-    if (canonicalVenueNorm) {
-      eventCountsByVenueKey.set(canonicalVenueNorm, (eventCountsByVenueKey.get(canonicalVenueNorm) || 0) + 1);
+    if (canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(canonicalVenueNorm)) venueEventIdsMap.set(canonicalVenueNorm, new Set());
+      venueEventIdsMap.get(canonicalVenueNorm)!.add(eventId);
     }
-    if (venueNorm && venueNorm !== canonicalVenueNorm) {
-      eventCountsByVenueKey.set(venueNorm, (eventCountsByVenueKey.get(venueNorm) || 0) + 1);
+    if (venueNorm && venueNorm !== canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(venueNorm)) venueEventIdsMap.set(venueNorm, new Set());
+      venueEventIdsMap.get(venueNorm)!.add(eventId);
     }
     const eventCountryName = resolveCanonicalCountryName(e.country);
     const rawEventCity = (e.city || "Unknown").trim();
@@ -2947,7 +2952,16 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const metaDirect = GLOBAL_GAZETTEER_METADATA[venueNorm];
     const canonicalVenueName = (metaDirect?.canonicalVenue || venueName).trim();
     const canonicalVenueNorm = canonicalVenueName.toLowerCase();
-    const meta = metaDirect || GLOBAL_GAZETTEER_METADATA[canonicalVenueNorm];
+    const rawMeta = metaDirect || GLOBAL_GAZETTEER_METADATA[canonicalVenueNorm];
+
+    const dbCity = String(p.city || "Unknown");
+    const dbCountry = String(p.country || "Unknown");
+    const locationMatches =
+      Boolean(rawMeta) &&
+      (!p.city || p.city === "Unknown" || p.city === "Location not established" || isSameCity(dbCity, rawMeta!.city)) &&
+      (!p.country || p.country === "Unknown" || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(rawMeta!.country).toLowerCase());
+
+    const meta = locationMatches ? rawMeta : undefined;
 
     const resolvedRawCountry = p.country && p.country !== "Unknown" ? p.country : meta?.country || p.country;
     const countryName = resolveCanonicalCountryName(resolvedRawCountry);
@@ -2973,15 +2987,23 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const citySlug = `${countrySlug}-${sanitizePlaceSlug(cityName)}`;
     const cityCityKey = `${countryName}::${cityName}`.toLowerCase();
 
-    const streetAddress = meta?.streetAddress || (p.streetAddress || null);
+    const isMobileVessel = Boolean(meta?.isMobileVessel);
+    const streetAddress = isMobileVessel ? null : (meta?.streetAddress || (p.streetAddress || null));
     const venueType = meta?.venueType || p.placeType || "venue";
     const venueAreas = meta?.venueAreas || p.venueAreas || [];
-    const directIdCount = eventCountsByVenueId.get(p.id) || 0;
-    const eventCount =
-      directIdCount ||
-      eventCountsByVenueKey.get(canonicalVenueNorm) ||
-      eventCountsByVenueKey.get(venueNorm) ||
-      0;
+
+    // Aggregate distinct event IDs for this venue
+    const currentVenueEventIds = new Set<string>();
+    if (venueEventIdsMap.has(p.id)) {
+      venueEventIdsMap.get(p.id)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    if (venueEventIdsMap.has(canonicalVenueNorm)) {
+      venueEventIdsMap.get(canonicalVenueNorm)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    if (venueEventIdsMap.has(venueNorm)) {
+      venueEventIdsMap.get(venueNorm)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    const eventCount = currentVenueEventIds.size;
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
@@ -3021,19 +3043,26 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     // Venue Node (deduplicated per city + canonical venue name)
     const venueDedupKey = `${cityCityKey}::${canonicalVenueNorm}`;
     if (!venuesMap.has(venueDedupKey)) {
+      const dedupSet = new Set(currentVenueEventIds);
+      venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
+
       const venueNode: VenueNode = {
         id: p.id,
         slug: sanitizePlaceSlug(p.slug || canonicalVenueName),
+        citySlug,
         name: canonicalVenueName,
         venueType,
         city: cityName,
         country: countryName,
         countryCode,
         streetAddress,
+        isMobileVessel: meta?.isMobileVessel,
+        vesselType: meta?.vesselType,
+        homeBasePlaceId: meta?.homeBasePlaceId,
         latitude: p.latitude ?? meta?.latitude ?? null,
         longitude: p.longitude ?? meta?.longitude ?? null,
         venueAreas,
-        eventCount,
+        eventCount: dedupSet.size,
       };
       venuesMap.set(venueDedupKey, venueNode);
 
@@ -3042,11 +3071,11 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       cityVenuesMap.set(cityCityKey, vList);
     } else {
       const existingVenue = venuesMap.get(venueDedupKey)!;
-      if (directIdCount > 0) {
-        existingVenue.eventCount = Math.max(existingVenue.eventCount, existingVenue.eventCount + directIdCount);
-      } else if (eventCount > existingVenue.eventCount) {
-        existingVenue.eventCount = eventCount;
-      }
+      const dedupSet = venueDedupEventIdsMap.get(venueDedupKey) || new Set<string>();
+      currentVenueEventIds.forEach((id) => dedupSet.add(id));
+      venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
+      existingVenue.eventCount = dedupSet.size;
+
       if (!existingVenue.streetAddress && streetAddress) {
         existingVenue.streetAddress = streetAddress;
       }
@@ -3057,10 +3086,13 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       if ((!existingVenue.venueAreas || existingVenue.venueAreas.length === 0) && venueAreas.length > 0) {
         existingVenue.venueAreas = venueAreas;
       }
+      if (!existingVenue.citySlug) {
+        existingVenue.citySlug = citySlug;
+      }
     }
 
-    // Address Node (if physical street address exists)
-    if (streetAddress) {
+    // Address Node (if physical street address exists and not mobile vessel)
+    if (streetAddress && !isMobileVessel) {
       const addrSlug = `${citySlug}-${sanitizePlaceSlug(streetAddress).slice(0, 30)}`;
       const addrKey = `${cityCityKey}::${streetAddress}`.toLowerCase();
 
@@ -3068,6 +3100,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         const addressNode: AddressNode = {
           id: `addr-${addrSlug}`,
           slug: addrSlug,
+          citySlug,
           formattedAddress: streetAddress,
           district: meta?.district || null,
           city: cityName,

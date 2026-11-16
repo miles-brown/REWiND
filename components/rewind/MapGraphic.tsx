@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import type { EventRecord, TrajectoryPoint } from "@/lib/rewind";
-import { resolveJourneyTransport } from "@/lib/rewind/transport";
+import { resolveJourneyTransport, type JourneyTransport } from "@/lib/rewind/transport";
 import { resolveFlightCorridorTrajectory, resolveRouteTrajectory } from "@/lib/rewind/travel";
 import { isAirTransport, fetchTransitRoute } from "@/lib/rewind/routing";
 
@@ -245,14 +245,17 @@ function syncMapTrajectories(
   map: MapLibreMap,
   allPoints: EventRecord[],
   activeIdx: number,
-  theme: "geopolitical" | "satellite" | "dark"
+  theme: "geopolitical" | "satellite" | "dark",
+  disableJourneys: boolean = false
 ) {
   if (!map.isStyleLoaded()) return;
 
-  const validPoints = allPoints.filter(
-    (p): p is typeof p & { longitude: number; latitude: number } =>
-      p.longitude != null && p.latitude != null
-  );
+  const validPoints = disableJourneys
+    ? []
+    : allPoints.filter(
+        (p): p is typeof p & { longitude: number; latitude: number } =>
+          p.longitude != null && p.latitude != null
+      );
 
   const pastPoints = validPoints.slice(0, Math.max(0, activeIdx));
   const futurePoints = validPoints.slice(Math.max(0, activeIdx));
@@ -561,12 +564,14 @@ export function MapGraphic({
   currentIndex,
   selected,
   onSelect,
+  disableJourneys = false,
 }: {
   events: EventRecord[];
   allEvents?: EventRecord[];
   currentIndex?: number;
   selected?: string;
   onSelect?: (id: string) => void;
+  disableJourneys?: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
@@ -682,10 +687,27 @@ export function MapGraphic({
   const prevEvent = selectedIndex > 0 ? chronologicalPoints[selectedIndex - 1] : null;
   const currEvent = selectedIndex >= 0 ? chronologicalPoints[selectedIndex] : null;
 
-  const activeJourney = useMemo(
-    () => resolveJourneyTransport(prevEvent, currEvent),
-    [prevEvent, currEvent]
-  );
+  const activeJourney = useMemo((): JourneyTransport => {
+    if (disableJourneys) {
+      return {
+        mode: "local",
+        label: "Direct",
+        iconName: "car",
+        emoji: "📍",
+        distanceKm: 0,
+        formattedDistance: "0 km",
+        originCity: currEvent?.city || "",
+        destinationCity: currEvent?.city || "",
+        bearing: 0,
+        isJourney: false,
+        description: currEvent ? (currEvent.venueName || currEvent.city || "") : "",
+        isDocumentedFlight: false,
+        formattedDuration: undefined,
+        flightIdentifier: undefined,
+      };
+    }
+    return resolveJourneyTransport(prevEvent, currEvent);
+  }, [disableJourneys, prevEvent, currEvent]);
 
   const hasVerifiedFlightEvidence = useMemo(
     () =>
@@ -743,6 +765,7 @@ export function MapGraphic({
   const mapThemeRef = useRef(mapTheme);
   const selectedEventRef = useRef(selectedEvent);
   const activeJourneyRef = useRef(activeJourney);
+  const disableJourneysRef = useRef(disableJourneys);
 
   const selectedIndexRef = useRef(selectedIndex);
   useEffect(() => {
@@ -751,7 +774,8 @@ export function MapGraphic({
     selectedEventRef.current = selectedEvent;
     activeJourneyRef.current = activeJourney;
     selectedIndexRef.current = selectedIndex;
-  }, [points, mapTheme, selectedEvent, activeJourney, selectedIndex]);
+    disableJourneysRef.current = disableJourneys;
+  }, [points, mapTheme, selectedEvent, activeJourney, selectedIndex, disableJourneys]);
 
   // Escape key collapses expanded map view
   useEffect(() => {
@@ -939,7 +963,7 @@ export function MapGraphic({
         const setupMapLayers = () => {
           if (isCancelled) return;
           setMapLoaded(true);
-          syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
+          syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current, disableJourneysRef.current);
           if (activeLegRouteRef.current) {
             updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
           }
@@ -949,7 +973,7 @@ export function MapGraphic({
         map.on("load", setupMapLayers);
         map.on("style.load", () => {
           if (!isCancelled) {
-            syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current);
+            syncMapTrajectories(map, pointsRef.current, selectedIndexRef.current, mapThemeRef.current, disableJourneysRef.current);
             if (activeLegRouteRef.current) {
               updateActiveLegRoute(map, activeLegRouteRef.current.curvePoints, activeLegRouteRef.current.mode);
             }
@@ -1178,7 +1202,7 @@ export function MapGraphic({
       });
 
       // Synchronize darkened past trails and future trajectories
-      syncMapTrajectories(map, points, selectedIndex, mapTheme);
+      syncMapTrajectories(map, points, selectedIndex, mapTheme, disableJourneys);
 
       // Dynamic Transit Animation: Air/Helicopter 3D Arc vs Ground Progressively Drawn Network Path
       if (
@@ -1457,6 +1481,7 @@ export function MapGraphic({
     getInitialTelemetryAlt,
     setTelemetryValues,
     finalizeArrivalTelemetry,
+    disableJourneys,
   ]);
 
   // Smooth fly-to camera movement on selection change with high-resolution venue zoom
