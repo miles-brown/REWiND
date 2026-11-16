@@ -464,7 +464,9 @@ function updateActiveLegRoute(
     });
   } else if (map.getLayer("active-leg-planned-line")) {
     map.setPaintProperty("active-leg-planned-line", "line-color", color);
+    map.setPaintProperty("active-leg-planned-line", "line-width", isAir ? 2.5 : 3.0);
     map.setPaintProperty("active-leg-planned-line", "line-opacity", isAir ? 0.35 : 0.25);
+    map.setPaintProperty("active-leg-planned-line", "line-dasharray", isAir ? [2, 2] : [1, 0]);
   }
 
   // 2. Active Pulsating Contrail Glow Underlay Layer
@@ -503,6 +505,7 @@ function updateActiveLegRoute(
     map.setPaintProperty("active-leg-glow-line", "line-color", glowColor);
     map.setPaintProperty("active-leg-glow-line", "line-width", isAir ? 15.0 : 10.0);
     map.setPaintProperty("active-leg-glow-line", "line-opacity", isAir ? 0.6 : 0.45);
+    map.setPaintProperty("active-leg-glow-line", "line-blur", isAir ? 6.0 : 5.0);
   }
 
   // 3. Active solid drawn path layer
@@ -1170,6 +1173,8 @@ export function MapGraphic({
         currEvent.latitude != null
       ) {
         const isAir = isAirTransport(activeJourney.mode);
+        activeLegRouteRef.current = null;
+        updateActiveLegRoute(map, [], activeJourney.mode);
         setTelemetryValues(getInitialTelemetryAlt(activeJourney.mode), "0%");
         let curvePoints: TrajectoryPoint[] = [];
 
@@ -1374,12 +1379,12 @@ export function MapGraphic({
                 updateActiveLegRoute(map, curvePoints, activeJourney.mode, ptIndex);
               }
 
-              // Update real-time 60fps telemetry HUD values
+              // Update real-time 60fps telemetry HUD values using eased route progress
               const alt = currPt.altitudeMeters ?? (isAir ? 10500 : 0);
               const altText = isAir
                 ? `${Math.round(alt).toLocaleString()} m (${Math.round(alt * 3.28084).toLocaleString()} ft)`
                 : "Ground Surface";
-              setTelemetryValues(altText, `${Math.round(rawProgress * 100)}%`);
+              setTelemetryValues(altText, `${Math.round(p * 100)}%`);
 
               // Smooth camera panning to follow transit along travel route
               if (rawProgress < 1.0 && activeJourney.distanceKm > 150) {
@@ -1404,6 +1409,9 @@ export function MapGraphic({
 
           animFrameRef.current = requestAnimationFrame(animateLeg);
         }
+      } else {
+        activeLegRouteRef.current = null;
+        updateActiveLegRoute(map, [], activeJourney.mode);
       }
     });
 

@@ -273,25 +273,56 @@ test("verifies PR 43 review fixes for HUD placement, telemetry state, mode passi
     "MapGraphic.tsx must pass activeJourney.mode (not iconName) to updateActiveLegRoute"
   );
 
-  // 4. Nullish coalescing for altitude (preserving 0m at takeoff/touchdown)
+  // 4. Nullish coalescing for altitude (preserving 0m at takeoff/touchdown) and eased progress percentage
   assert.ok(
     mapContent.includes("currPt.altitudeMeters ?? (isAir ? 10500 : 0)") &&
       mapContent.includes("currPt.altitudeMeters ?? 0"),
     "MapGraphic.tsx must use nullish coalescing (??) for currPt.altitudeMeters so 0m is preserved"
   );
-
-  // 5. Reduced-motion and normal completion both finalize arrival telemetry
   assert.ok(
-    mapContent.includes("finalizeArrivalTelemetry(isAir)"),
-    "MapGraphic.tsx must finalize arrival telemetry in both normal and prefers-reduced-motion paths"
+    mapContent.includes("setTelemetryValues(altText, `${Math.round(p * 100)}%`)") &&
+      !mapContent.includes("setTelemetryValues(altText, `${Math.round(rawProgress * 100)}%`)"),
+    "MapGraphic.tsx must report eased trajectory progress (p) rather than linear elapsed time (rawProgress)"
+  );
+
+  // 5. Reduced-motion and normal completion both independently finalize arrival telemetry
+  const reducedMotionBlockMatch = mapContent.match(
+    /if\s*\(prefersReducedMotion\)\s*\{[\s\S]*?\}\s*else\s*\{/
+  );
+  assert.ok(reducedMotionBlockMatch, "MapGraphic.tsx must have a prefersReducedMotion branch");
+  assert.ok(
+    reducedMotionBlockMatch[0].includes("finalizeArrivalTelemetry(isAir)"),
+    "prefersReducedMotion branch must call finalizeArrivalTelemetry(isAir)"
+  );
+
+  const normalCompletionBlockMatch = mapContent.match(
+    /if\s*\(rawProgress\s*<\s*1\.0\)\s*\{[\s\S]*?\}\s*else\s*\{([\s\S]*?)\}/
+  );
+  assert.ok(normalCompletionBlockMatch, "MapGraphic.tsx must have a rawProgress < 1.0 completion else branch");
+  assert.ok(
+    normalCompletionBlockMatch[1].includes("finalizeArrivalTelemetry(isAir)"),
+    "normal animation completion else branch must call finalizeArrivalTelemetry(isAir)"
   );
 
   // 6. Verified flight badge is gated on event verificationStatus, confidence, and source evidence
+  const predicateMatch = mapContent.match(
+    /const\s+hasVerifiedFlightEvidence\s*=\s*useMemo\(\s*\(\)\s*=>\s*Boolean\(([\s\S]*?)\),\s*\[activeJourney\.isDocumentedFlight,\s*currEvent\]\s*\);/
+  );
+  assert.ok(predicateMatch, "MapGraphic.tsx must define hasVerifiedFlightEvidence memoized predicate");
+  const predicateBody = predicateMatch[1];
   assert.ok(
-    mapContent.includes("hasVerifiedFlightEvidence") &&
-      mapContent.includes('currEvent?.verificationStatus === "verified"') &&
-      mapContent.includes("Documented Flight Metadata"),
-    "MapGraphic.tsx must gate Verified Flight Log badge on verified status, strong/confirmed confidence, and sources"
+    predicateBody.includes("activeJourney.isDocumentedFlight") &&
+      predicateBody.includes('currEvent?.verificationStatus === "verified"') &&
+      predicateBody.includes('currEvent?.confidence === "confirmed"') &&
+      predicateBody.includes('currEvent?.confidence === "strong"') &&
+      predicateBody.includes("currEvent.sourceIds.length > 0") &&
+      predicateBody.includes("currEvent.sources.length > 0"),
+    "hasVerifiedFlightEvidence must require documented flight, verified status, strong/confirmed confidence, and non-empty sources/sourceIds"
+  );
+  assert.ok(
+    mapContent.includes('const corridorStatusLabel = hasVerifiedFlightEvidence\n    ? "Verified Flight Log"\n    : activeJourney.isDocumentedFlight\n    ? "Documented Flight Metadata"\n    : "Suggested Corridor";') &&
+      mapContent.includes('className={`telemetry-badge ${hasVerifiedFlightEvidence ? "verified" : "provisional"}`}'),
+    "Badge label and className must both gate on hasVerifiedFlightEvidence"
   );
 
   // 7. Telemetry grid stays mounted with hidden={!hudExpanded} and ShieldCheck is aria-hidden
