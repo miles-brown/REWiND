@@ -276,6 +276,12 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "now 14 washington bureau": [38.8972, -77.0315],
   "washington hilton (international ballroom)": [38.9163, -77.0452],
   "the washington institute for near east policy": [38.9042, -77.0435],
+  "zion square": [31.7828, 35.2185],
+  "erez border terminal": [31.5583, 34.5444],
+  "foreign correspondents' club of japan": [35.6748, 139.7618],
+  "jerusalem hilton hotel": [31.7865, 35.2023],
+  "lauder-reut educational complex": [44.4312, 26.1135],
+  "ma'ale adumim municipal complex": [31.7917, 35.2972],
 };
 
 /**
@@ -2448,6 +2454,90 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-royal-train-saloon", name: "Sovereign's Saloon Carriage", areaType: "room" },
     ],
   },
+  "zion square": {
+    canonicalVenue: "Zion Square",
+    venueType: "public-square",
+    streetAddress: "Jaffa Road and Ben Yehuda Street",
+    district: "Downtown Triangle",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7828,
+    longitude: 35.2185,
+    venueAreas: [
+      { id: "area-zion-square-plenary", name: "Zion Square Open Plaza", areaType: "outdoor" },
+    ],
+  },
+  "erez border terminal": {
+    canonicalVenue: "Erez Border Terminal",
+    venueType: "border-terminal",
+    streetAddress: "Route 4, Erez Crossing Terminal",
+    district: "Northern Gaza Border",
+    city: "Erez",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.5583,
+    longitude: 34.5444,
+    venueAreas: [
+      { id: "area-erez-terminal-compound", name: "Erez Terminal VIP Conference Hall", areaType: "hall" },
+    ],
+  },
+  "foreign correspondents' club of japan": {
+    canonicalVenue: "Foreign Correspondents' Club of Japan",
+    venueType: "press-club",
+    streetAddress: "3-2-3 Marunouchi, Chiyoda-ku",
+    district: "Marunouchi",
+    city: "Tokyo",
+    country: "Japan",
+    countryCode: "JP",
+    latitude: 35.6748,
+    longitude: 139.7618,
+    venueAreas: [
+      { id: "area-fccj-main-hall", name: "FCCJ Main Press Conference Room", areaType: "hall" },
+    ],
+  },
+  "jerusalem hilton hotel": {
+    canonicalVenue: "Jerusalem Hilton Hotel",
+    venueType: "hotel",
+    streetAddress: "1 Ha-Aliya Street",
+    district: "Givat Ram",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7865,
+    longitude: 35.2023,
+    venueAreas: [
+      { id: "area-jerusalem-hilton-ballroom", name: "Grand Ballroom", areaType: "hall" },
+    ],
+  },
+  "lauder-reut educational complex": {
+    canonicalVenue: "Lauder-Reut Educational Complex",
+    venueType: "educational-institution",
+    streetAddress: "48 Iuliu Barasch Street",
+    district: "Sector 3",
+    city: "Bucharest",
+    country: "Romania",
+    countryCode: "RO",
+    latitude: 44.4312,
+    longitude: 26.1135,
+    venueAreas: [
+      { id: "area-lauder-reut-auditorium", name: "Main Auditorium", areaType: "hall" },
+    ],
+  },
+  "ma'ale adumim municipal complex": {
+    canonicalVenue: "Ma'ale Adumim Municipal Complex",
+    venueType: "civic-center",
+    streetAddress: "Derech Kedem",
+    district: "Judea and Samaria",
+    city: "Ma'ale Adumim",
+    country: "West Bank",
+    countryCode: "PS",
+    latitude: 31.7917,
+    longitude: 35.2972,
+    venueAreas: [
+      { id: "area-maale-adumim-plenary", name: "Municipal Assembly Hall", areaType: "hall" },
+    ],
+  },
 };
 
 const GAZETTEER_ALIASES: Record<string, string> = {
@@ -2557,6 +2647,13 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "channel 14": "now 14 washington bureau",
   "ronald reagan banquet": "washington hilton (international ballroom)",
   "the washington institute": "the washington institute for near east policy",
+  "erez crossing": "erez border terminal",
+  "foreign correspondents’ club of japan": "foreign correspondents' club of japan",
+  "maale adumim": "ma'ale adumim municipal complex",
+  "prime minister’s official media channels": "prime minister's office",
+  "prime minister's official media channels": "prime minister's office",
+  "israel": "the knesset",
+  "moscow": "ministry of foreign affairs of the russian federation",
 };
 
 for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
@@ -2582,6 +2679,7 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   "United Arab Emirates": "AE",
   "State of Palestine": "PS",
   "Palestine": "PS",
+  "West Bank": "PS",
   "China": "CN",
   "Russia": "RU",
   "Bahrain": "BH",
