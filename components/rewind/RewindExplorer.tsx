@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
+  Calendar,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CirclePause,
   CirclePlay,
   ExternalLink,
@@ -50,6 +53,7 @@ export function RewindExplorer({
   const [status, setStatus] = useState(initialStatus);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [citeOpen, setCiteOpen] = useState(false);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
 
   const resetFilters = () => {
     setType(DEFAULT_EXPLORER_TYPE);
@@ -320,120 +324,195 @@ export function RewindExplorer({
         )}
       </div>
 
-      <div className="rewind-console">
-        <div className="console-date">
-          <small>REWIND TO</small>
-          <b>{consoleFormattedDate}</b>
-        </div>
-        <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
-          <button
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
-            disabled={!hasEvents || safeIndex === 0}
-            aria-label="Previous event"
-          >
-            <ChevronLeft />
-          </button>
-          <button
-            className="main-play"
-            onClick={() => setPlaying(!playing)}
-            disabled={!hasEvents}
-            aria-pressed={playing}
-            aria-label={!hasEvents ? "Playback unavailable" : playing ? "Pause timeline" : "Play timeline"}
-          >
-            {playing ? <CirclePause /> : <CirclePlay />}
-          </button>
-          <button
-            onClick={() =>
-              setIndex((i) => Math.min(filtered.length - 1, i + 1))
-            }
-            disabled={!hasEvents || safeIndex >= filtered.length - 1}
-            aria-label="Next event"
-          >
-            <ChevronRight />
-          </button>
-          <button
-            className={`direction-toggle-btn ${
-              direction === "backward" ? "rewind-active" : ""
-            }`}
-            onClick={() =>
-              setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
-            }
-            disabled={!hasEvents}
-            aria-pressed={direction === "backward"}
-            aria-label={`Playback direction: ${direction}`}
-            title={direction === "forward" ? "Forward Mode" : "REWIND Mode"}
-          >
-            {direction === "forward" ? <RotateCw size={14} /> : <RotateCcw size={14} />}
-          </button>
-        </div>
-        <div className="slider-wrap">
-          <Slider
-            aria-label="Timeline event position"
-            aria-valuemin={0}
-            aria-valuemax={Math.max(0, filtered.length - 1)}
-            aria-valuenow={hasEvents ? safeIndex : 0}
-            aria-valuetext={
-              hasEvents && event
-                ? `${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName}`
-                : "No events available"
-            }
-            getAriaValueText={(val) => {
-              const ev = filtered[val];
-              return ev ? `Event ${val + 1} of ${filtered.length}: ${ev.startDate}, ${ev.eventName}` : "";
-            }}
-            getAriaLabel={() => "Timeline event position"}
-            min={0}
-            max={Math.max(0, filtered.length - 1)}
-            step={1}
-            value={[safeIndex]}
-            disabled={!hasEvents}
-            onValueChange={(v) => {
-              if (hasEvents) setIndex(v[0]);
-            }}
-          />
-          <div>
-            <span>{extractYearFromDate(filtered[0]?.startDate) ?? (filtered[0]?.startDate ? filtered[0].startDate.slice(0, 4) : "—")}</span>
-            <b>{extractYearFromDate(event?.startDate) ?? (event?.startDate ? event.startDate.slice(0, 4) : "—")}</b>
-            <span>{extractYearFromDate(filtered.at(-1)?.startDate) ?? (filtered.at(-1)?.startDate ? filtered.at(-1)!.startDate.slice(0, 4) : "—")}</span>
-          </div>
-        </div>
-        <label className="speed">
-          <Gauge />
-          <span className="sr-only">Playback speed</span>
-          <select
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-            aria-label="Playback speed"
-          >
-            <option value={2000}>0.7x (Slow)</option>
-            <option value={1400}>1x (Realtime)</option>
-            <option value={800}>1.7x (Fast)</option>
-            <option value={400}>3.5x (Blitz)</option>
-          </select>
-        </label>
-        {(() => {
-          const eventYear = event && isStandardIsoDate(event.startDate)
-            ? event.startDate.slice(0, 4)
-            : null;
-          if (!event || !eventYear) return null;
-          return (
-            <Link
-              href={
-                subject
-                  ? `/person/${subject.slug}/${eventYear}`
-                  : `/events?year=${eventYear}`
-              }
-              className="calendar-jump"
-              aria-label={
-                subject
-                  ? `Open ${eventYear} year view for ${subject.name}`
-                  : `Open ${eventYear} year view`
-              }
+      <div className={`rewind-console ${consoleCollapsed ? "is-collapsed" : "is-expanded"}`}>
+        {consoleCollapsed ? (
+          /* QUICK-COLLAPSE MICRO-BAR (38px height) */
+          <div className="console-micro-bar" role="toolbar" aria-label="Compact timeline controls">
+            <div className="micro-date-pill">
+              <Calendar size={13} className="text-sky-400" />
+              <span>{consoleFormattedDate}</span>
+            </div>
+
+            <div className="micro-counter">
+              <span className="font-semibold text-slate-100">{safeIndex + 1}</span>
+              <span className="text-slate-400"> / {filtered.length}</span>
+            </div>
+
+            <div className="micro-controls">
+              <button
+                type="button"
+                onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                disabled={!hasEvents || safeIndex === 0}
+                aria-label="Previous event"
+                className="micro-ctrl-btn"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                className="micro-play-btn"
+                onClick={() => setPlaying(!playing)}
+                disabled={!hasEvents}
+                aria-pressed={playing}
+                aria-label={!hasEvents ? "Playback unavailable" : playing ? "Pause timeline" : "Play timeline"}
+              >
+                {playing ? <CirclePause size={16} /> : <CirclePlay size={16} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIndex((i) => Math.min(filtered.length - 1, i + 1))}
+                disabled={!hasEvents || safeIndex >= filtered.length - 1}
+                aria-label="Next event"
+                className="micro-ctrl-btn"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            <div className="micro-event-title truncate">
+              {event?.eventName}
+            </div>
+
+            <button
+              type="button"
+              className="console-expand-toggle-btn"
+              onClick={() => setConsoleCollapsed(false)}
+              aria-label="Expand full scrubber"
+              title="Expand full scrubber"
             >
-              <CalendarDays />
-            </Link>
-          );
-        })()}
+              <ChevronUp size={14} />
+              <span>Expand Scrubber</span>
+            </button>
+          </div>
+        ) : (
+          /* FULL REWIND CONSOLE */
+          <>
+            <div className="console-date">
+              <small>REWIND TO</small>
+              <b>{consoleFormattedDate}</b>
+            </div>
+            <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
+              <button
+                onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                disabled={!hasEvents || safeIndex === 0}
+                aria-label="Previous event"
+              >
+                <ChevronLeft />
+              </button>
+              <button
+                className="main-play"
+                onClick={() => setPlaying(!playing)}
+                disabled={!hasEvents}
+                aria-pressed={playing}
+                aria-label={!hasEvents ? "Playback unavailable" : playing ? "Pause timeline" : "Play timeline"}
+              >
+                {playing ? <CirclePause /> : <CirclePlay />}
+              </button>
+              <button
+                onClick={() =>
+                  setIndex((i) => Math.min(filtered.length - 1, i + 1))
+                }
+                disabled={!hasEvents || safeIndex >= filtered.length - 1}
+                aria-label="Next event"
+              >
+                <ChevronRight />
+              </button>
+              <button
+                className={`direction-toggle-btn ${
+                  direction === "backward" ? "rewind-active" : ""
+                }`}
+                onClick={() =>
+                  setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
+                }
+                disabled={!hasEvents}
+                aria-pressed={direction === "backward"}
+                aria-label={`Playback direction: ${direction}`}
+                title={direction === "forward" ? "Forward Mode" : "REWIND Mode"}
+              >
+                {direction === "forward" ? <RotateCw size={14} /> : <RotateCcw size={14} />}
+              </button>
+            </div>
+            <div className="slider-wrap">
+              <Slider
+                aria-label="Timeline event position"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(0, filtered.length - 1)}
+                aria-valuenow={hasEvents ? safeIndex : 0}
+                aria-valuetext={
+                  hasEvents && event
+                    ? `${safeIndex + 1} of ${filtered.length}: ${event.startDate}, ${event.eventName}`
+                    : "No events available"
+                }
+                getAriaValueText={(val) => {
+                  const ev = filtered[val];
+                  return ev ? `Event ${val + 1} of ${filtered.length}: ${ev.startDate}, ${ev.eventName}` : "";
+                }}
+                getAriaLabel={() => "Timeline event position"}
+                min={0}
+                max={Math.max(0, filtered.length - 1)}
+                step={1}
+                value={[safeIndex]}
+                disabled={!hasEvents}
+                onValueChange={(v) => {
+                  if (hasEvents) setIndex(v[0]);
+                }}
+              />
+              <div>
+                <span>{extractYearFromDate(filtered[0]?.startDate) ?? (filtered[0]?.startDate ? filtered[0].startDate.slice(0, 4) : "—")}</span>
+                <b>{extractYearFromDate(event?.startDate) ?? (event?.startDate ? event.startDate.slice(0, 4) : "—")}</b>
+                <span>{extractYearFromDate(filtered.at(-1)?.startDate) ?? (filtered.at(-1)?.startDate ? filtered.at(-1)!.startDate.slice(0, 4) : "—")}</span>
+              </div>
+            </div>
+            <label className="speed">
+              <Gauge />
+              <span className="sr-only">Playback speed</span>
+              <select
+                value={speed}
+                onChange={(e) => setSpeed(Number(e.target.value))}
+                aria-label="Playback speed"
+              >
+                <option value={2000}>0.7x (Slow)</option>
+                <option value={1400}>1x (Realtime)</option>
+                <option value={800}>1.7x (Fast)</option>
+                <option value={400}>3.5x (Blitz)</option>
+              </select>
+            </label>
+            {(() => {
+              const eventYear = event && isStandardIsoDate(event.startDate)
+                ? event.startDate.slice(0, 4)
+                : null;
+              if (!event || !eventYear) return null;
+              return (
+                <Link
+                  href={
+                    subject
+                      ? `/person/${subject.slug}/${eventYear}`
+                      : `/events?year=${eventYear}`
+                  }
+                  className="calendar-jump"
+                  aria-label={
+                    subject
+                      ? `Open ${eventYear} year view for ${subject.name}`
+                      : `Open ${eventYear} year view`
+                  }
+                >
+                  <CalendarDays />
+                </Link>
+              );
+            })()}
+
+            <button
+              type="button"
+              className="console-minimize-toggle-btn"
+              onClick={() => setConsoleCollapsed(true)}
+              aria-label="Minimize scrubber to micro-bar"
+              title="Minimize scrubber to micro-bar"
+            >
+              <ChevronDown size={14} />
+              <span>Minimize</span>
+            </button>
+          </>
+        )}
       </div>
 
       {citeOpen && event && (

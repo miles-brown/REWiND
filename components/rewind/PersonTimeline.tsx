@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CirclePause,
   CirclePlay,
   ExternalLink,
@@ -30,7 +32,7 @@ import { formatEventVenue } from "@/lib/rewind/utils";
 import { isStandardIsoDate, formatTimelineDate, compareTimelineDates, extractYearFromDate } from "@/lib/rewind/dates";
 import { resolveJourneyTransport } from "@/lib/rewind/transport";
 import { resolveActiveStay } from "@/lib/rewind/travel";
-import { MapGraphic } from "./MapGraphic";
+import { CollapsibleMapRail } from "./CollapsibleMapRail";
 import { CitationModal } from "./CitationModal";
 import { MediaDrawer } from "./MediaDrawer";
 import { DiscrepancyViewer } from "./DiscrepancyViewer";
@@ -72,6 +74,30 @@ export function PersonTimeline({
   const [mediaInitialMode, setMediaInitialMode] = useState<"video" | "quotes" | "audio">("video");
   const [auditOpen, setAuditOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [mapCollapsed, setMapCollapsed] = useState(false);
+
+  // Global hotkeys: 't' toggles bottom console, 'm' toggles map rail
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      if ((e.key === "t" || e.key === "T") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setConsoleCollapsed((prev) => !prev);
+      } else if ((e.key === "m" || e.key === "M") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setMapCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Milestone epochs (earliest event in each distinct decade)
   const epochs = useMemo(() => {
@@ -330,8 +356,25 @@ export function PersonTimeline({
         </div>
       )}
 
-      <div className="person-time-main">
-        <article className="person-event-stage" key={event.id} aria-live="polite">
+      <div className={`person-time-main workstation-split-stage ${mapCollapsed ? "map-minimized" : "map-expanded"}`}>
+        {/* Sticky Left Rail: Collapsible Map Stage */}
+        <CollapsibleMapRail
+          events={visibleEvents}
+          allEvents={ordered}
+          currentIndex={safeIndex}
+          selected={event.id}
+          onSelect={choose}
+          activeStay={activeStay}
+          activeJourney={activeJourney}
+          currentEvent={event}
+          progress={progress}
+          defaultCollapsed={mapCollapsed}
+          onCollapseChange={setMapCollapsed}
+        />
+
+        {/* Scrollable Right Chronology Column */}
+        <div className="workstation-chronology-column">
+          <article className="person-event-stage" key={event.id} aria-live="polite">
           <div className="person-event-kicker">
             <span>{extractYearFromDate(event.startDate) ?? event.startDate}</span>
             <span
@@ -346,6 +389,15 @@ export function PersonTimeline({
             >
               {event.confidence || "limited"}
             </span>
+            {activeStay && (
+              <span
+                className="base-of-operations-pill"
+                title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
+              >
+                <span aria-hidden="true">🏨 </span>
+                <span>Base: {activeStay.stayName || activeStay.venueName}</span>
+              </span>
+            )}
             {event.isRemoteAttendance && (
               <span
                 className="remote-attendance-badge"
@@ -353,6 +405,15 @@ export function PersonTimeline({
               >
                 <span aria-hidden="true">📡</span> {event.remoteLocationLabel || "Remote Attendee"}
               </span>
+            )}
+            {activeJourney?.isJourney && (
+              <div className="stage-journey-pill" title={activeJourney.description}>
+                <span className="journey-emoji">{activeJourney.emoji}</span>
+                <span className="journey-text" title={activeJourney.description}>
+                  {activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}
+                </span>
+                <span className="journey-distance">{activeJourney.formattedDistance}</span>
+              </div>
             )}
           </div>
           <time
@@ -553,193 +614,232 @@ export function PersonTimeline({
             Open complete event record <ArrowRight />
           </Link>
         </article>
-        <div className="person-map-stage">
-          <div className="map-stage-label">
-            <div className="stage-label-top">
-              <span>DOCUMENTED POSITION</span>
-              <b>{event.city}</b>
-              {activeStay && (
-                <span
-                  className="base-of-operations-pill"
-                  title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}
-                >
-                  <span aria-hidden="true">🏨 </span>
-                  <span title={`Base of Operations: ${activeStay.stayName || activeStay.venueName} (${activeStay.startDate} to ${activeStay.endDate || "ongoing"})`}>
-                    Base: {activeStay.stayName || activeStay.venueName}
-                  </span>
-                </span>
-              )}
-            </div>
-            {activeJourney?.isJourney ? (
-              <div className="stage-journey-pill" title={activeJourney.description}>
-                <span className="journey-emoji">{activeJourney.emoji}</span>
-                <span className="journey-text" title={activeJourney.description}>
-                  {activeJourney.label}: {activeJourney.originCity} → {activeJourney.destinationCity}
-                </span>
-                <span className="journey-distance">{activeJourney.formattedDistance}</span>
-              </div>
-            ) : (
-              <small>{progress}% through indexed chronology</small>
-            )}
-          </div>
-          <MapGraphic
-            events={visibleEvents}
-            allEvents={ordered}
-            currentIndex={safeIndex}
-            selected={event.id}
-            onSelect={choose}
-          />
-        </div>
       </div>
+    </div>
 
-      <div className="person-time-console">
-        <div className="console-date">
-          <small>CURRENT EVENT</small>
-          <b>
-            {consoleFormattedDate}
-          </b>
-        </div>
-
-        <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
-          <button
-            onClick={() => moveTo(0)}
-            disabled={safeIndex === 0}
-            aria-label="First event"
-          >
-            <SkipBack />
-          </button>
-          <button
-            onClick={() => moveTo(safeIndex - 1)}
-            disabled={safeIndex === 0}
-            aria-label="Previous event"
-          >
-            <ChevronLeft />
-          </button>
-          <button
-            className="main-play"
-            onClick={() => setPlaying((value) => !value)}
-            disabled={isPlayDisabled}
-            aria-pressed={playing}
-            aria-label={
-              playing
-                ? "Pause timeline"
-                : direction === "forward"
-                ? "Play timeline forward"
-                : "Play timeline in reverse (REWIND)"
-            }
-          >
-            {playing ? <CirclePause /> : <CirclePlay />}
-          </button>
-          <button
-            onClick={() => moveTo(safeIndex + 1)}
-            disabled={safeIndex === ordered.length - 1}
-            aria-label="Next event"
-          >
-            <ChevronRight />
-          </button>
-          <button
-            onClick={() => moveTo(ordered.length - 1)}
-            disabled={safeIndex === ordered.length - 1}
-            aria-label="Last event"
-          >
-            <SkipForward />
-          </button>
-          <button
-            className={`direction-toggle-btn ${direction === "backward" ? "rewind-active" : ""}`}
-            onClick={() =>
-              setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
-            }
-            aria-pressed={direction === "backward"}
-            aria-label={`Playback direction: ${direction}. Click to toggle.`}
-            title={direction === "forward" ? "Forward Mode" : "REWIND Mode (Reverse)"}
-          >
-            {direction === "forward" ? <RotateCw size={15} /> : <RotateCcw size={15} />}
-            <span className="direction-label">{direction === "forward" ? "FWD" : "REW"}</span>
-          </button>
-        </div>
-
-        <div className="slider-wrap">
-          <div className="epoch-rail" role="group" aria-label="Jump to decade milestones">
-            {epochs.map((ep) => {
-              const isActive =
-                safeIndex >= ep.index &&
-                (epochs.find(
-                  (nextEp, nIdx) =>
-                    nIdx === epochs.indexOf(ep) + 1 && safeIndex >= nextEp.index
-                ) === undefined);
-              return (
-                <button
-                  key={ep.decade}
-                  className={`epoch-badge ${isActive ? "active" : ""}`}
-                  onClick={() => moveTo(ep.index)}
-                  aria-label={`Jump to ${ep.decade}`}
-                  aria-pressed={isActive}
-                >
-                  {ep.decade}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="slider-heading">
-            <span>{ordered[0]?.startDate || "—"}</span>
-            <b>{ordered.length ? `Event ${safeIndex + 1} of ${ordered.length}` : "No events"}</b>
-            <span>{ordered.at(-1)?.startDate || "—"}</span>
-          </div>
-
-          <Slider
-            aria-label={`${person.name} timeline position`}
-            aria-valuemin={0}
-            aria-valuemax={Math.max(0, ordered.length - 1)}
-            aria-valuenow={ordered.length ? safeIndex : 0}
-            aria-valuetext={
-              event
-                ? `${safeIndex + 1} of ${ordered.length}: ${event.startDate}, ${event.eventName}`
-                : "No timeline events available"
-            }
-            getAriaValueText={(val) => {
-              const ev = ordered[val];
-              return ev ? `Event ${val + 1} of ${ordered.length}: ${ev.startDate}, ${ev.eventName}` : "";
-            }}
-            getAriaLabel={() => `${person.name} timeline chronology slider`}
-            min={0}
-            max={Math.max(0, ordered.length - 1)}
-            step={1}
-            value={[safeIndex]}
-            disabled={ordered.length === 0}
-            onValueChange={(value) => moveTo(value[0])}
-          />
-
-          <div className="slider-dates">
-            <span>{ordered[0]?.eventName ? `${ordered[0].eventName.slice(0, 24)}…` : "—"}</span>
-            <b>{event ? `${event.startDate} · ${event.eventName}` : "No events"}</b>
-            <span>{ordered.at(-1)?.eventName ? `${ordered.at(-1)!.eventName.slice(0, 24)}…` : "—"}</span>
-          </div>
-        </div>
-
-        <div className="console-meta-tools">
-          {activeJourney?.isJourney && (
-            <div className="console-journey-chip" title={`${activeJourney.label}: ${activeJourney.originCity} → ${activeJourney.destinationCity} (${activeJourney.formattedDistance})`}>
-              <span>{activeJourney.emoji}</span>
-              {activeJourney.departureClock && activeJourney.arrivalClock && (
-                <span className="console-clock-span">{activeJourney.departureClock} → {activeJourney.arrivalClock}</span>
-              )}
-              <small>{activeJourney.formattedDistance}</small>
+      <div className={`person-time-console transition-all duration-300 ${consoleCollapsed ? "is-collapsed" : "is-expanded"}`}>
+        {consoleCollapsed ? (
+          /* QUICK-COLLAPSE MICRO-BAR (38px height) */
+          <div className="console-micro-bar" role="toolbar" aria-label="Compact timeline controls">
+            <div className="micro-date-pill">
+              <Calendar size={13} className="text-sky-400" />
+              <span>{consoleFormattedDate}</span>
             </div>
-          )}
-          <label className="speed">
-            <Gauge size={14} />
-            <span className="sr-only">Playback speed</span>
-            <select
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
+
+            <div className="micro-counter">
+              <span className="font-semibold text-slate-100">{safeIndex + 1}</span>
+              <span className="text-slate-400"> / {ordered.length}</span>
+            </div>
+
+            <div className="micro-controls">
+              <button
+                type="button"
+                onClick={() => moveTo(safeIndex - 1)}
+                disabled={safeIndex === 0}
+                aria-label="Previous event"
+                className="micro-ctrl-btn"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                className="micro-play-btn"
+                onClick={() => setPlaying((value) => !value)}
+                disabled={isPlayDisabled}
+                aria-pressed={playing}
+                aria-label={playing ? "Pause timeline" : "Play timeline"}
+              >
+                {playing ? <CirclePause size={16} /> : <CirclePlay size={16} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => moveTo(safeIndex + 1)}
+                disabled={safeIndex === ordered.length - 1}
+                aria-label="Next event"
+                className="micro-ctrl-btn"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            <div className="micro-event-title truncate">
+              {event?.eventName}
+            </div>
+
+            <button
+              type="button"
+              className="console-expand-toggle-btn"
+              onClick={() => setConsoleCollapsed(false)}
+              aria-label="Expand full scrubber (Hotkey: T)"
+              title="Expand full scrubber (Hotkey: T)"
             >
-              <option value="2600">0.5×</option>
-              <option value="1600">1×</option>
-              <option value="850">2×</option>
-            </select>
-          </label>
-        </div>
+              <ChevronUp size={14} />
+              <span>Expand Scrubber</span>
+            </button>
+          </div>
+        ) : (
+          /* FULL TIMELINE CONSOLE */
+          <>
+            <div className="console-date">
+              <small>CURRENT EVENT</small>
+              <b>
+                {consoleFormattedDate}
+              </b>
+            </div>
+
+            <div className="play-controls" role="toolbar" aria-label="Timeline playback controls">
+              <button
+                onClick={() => moveTo(0)}
+                disabled={safeIndex === 0}
+                aria-label="First event"
+              >
+                <SkipBack />
+              </button>
+              <button
+                onClick={() => moveTo(safeIndex - 1)}
+                disabled={safeIndex === 0}
+                aria-label="Previous event"
+              >
+                <ChevronLeft />
+              </button>
+              <button
+                className="main-play"
+                onClick={() => setPlaying((value) => !value)}
+                disabled={isPlayDisabled}
+                aria-pressed={playing}
+                aria-label={
+                  playing
+                    ? "Pause timeline"
+                    : direction === "forward"
+                    ? "Play timeline forward"
+                    : "Play timeline in reverse (REWIND)"
+                }
+              >
+                {playing ? <CirclePause /> : <CirclePlay />}
+              </button>
+              <button
+                onClick={() => moveTo(safeIndex + 1)}
+                disabled={safeIndex === ordered.length - 1}
+                aria-label="Next event"
+              >
+                <ChevronRight />
+              </button>
+              <button
+                onClick={() => moveTo(ordered.length - 1)}
+                disabled={safeIndex === ordered.length - 1}
+                aria-label="Last event"
+              >
+                <SkipForward />
+              </button>
+              <button
+                className={`direction-toggle-btn ${direction === "backward" ? "rewind-active" : ""}`}
+                onClick={() =>
+                  setDirection((prev) => (prev === "forward" ? "backward" : "forward"))
+                }
+                aria-pressed={direction === "backward"}
+                aria-label={`Playback direction: ${direction}. Click to toggle.`}
+                title={direction === "forward" ? "Forward Mode" : "REWIND Mode (Reverse)"}
+              >
+                {direction === "forward" ? <RotateCw size={15} /> : <RotateCcw size={15} />}
+                <span className="direction-label">{direction === "forward" ? "FWD" : "REW"}</span>
+              </button>
+            </div>
+
+            <div className="slider-wrap">
+              <div className="epoch-rail" role="group" aria-label="Jump to decade milestones">
+                {epochs.map((ep) => {
+                  const isActive =
+                    safeIndex >= ep.index &&
+                    (epochs.find(
+                      (nextEp, nIdx) =>
+                        nIdx === epochs.indexOf(ep) + 1 && safeIndex >= nextEp.index
+                    ) === undefined);
+                  return (
+                    <button
+                      key={ep.decade}
+                      className={`epoch-badge ${isActive ? "active" : ""}`}
+                      onClick={() => moveTo(ep.index)}
+                      aria-label={`Jump to ${ep.decade}`}
+                      aria-pressed={isActive}
+                    >
+                      {ep.decade}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="slider-heading">
+                <span>{ordered[0]?.startDate || "—"}</span>
+                <b>{ordered.length ? `Event ${safeIndex + 1} of ${ordered.length}` : "No events"}</b>
+                <span>{ordered.at(-1)?.startDate || "—"}</span>
+              </div>
+
+              <Slider
+                aria-label={`${person.name} timeline position`}
+                aria-valuemin={0}
+                aria-valuemax={Math.max(0, ordered.length - 1)}
+                aria-valuenow={ordered.length ? safeIndex : 0}
+                aria-valuetext={
+                  event
+                    ? `${safeIndex + 1} of ${ordered.length}: ${event.startDate}, ${event.eventName}`
+                    : "No timeline events available"
+                }
+                getAriaValueText={(val) => {
+                  const ev = ordered[val];
+                  return ev ? `Event ${val + 1} of ${ordered.length}: ${ev.startDate}, ${ev.eventName}` : "";
+                }}
+                getAriaLabel={() => `${person.name} timeline chronology slider`}
+                min={0}
+                max={Math.max(0, ordered.length - 1)}
+                step={1}
+                value={[safeIndex]}
+                disabled={ordered.length === 0}
+                onValueChange={(value) => moveTo(value[0])}
+              />
+
+              <div className="slider-dates">
+                <span>{ordered[0]?.eventName ? `${ordered[0].eventName.slice(0, 24)}…` : "—"}</span>
+                <b>{event ? `${event.startDate} · ${event.eventName}` : "No events"}</b>
+                <span>{ordered.at(-1)?.eventName ? `${ordered.at(-1)!.eventName.slice(0, 24)}…` : "—"}</span>
+              </div>
+            </div>
+
+            <div className="console-meta-tools">
+              {activeJourney?.isJourney && (
+                <div className="console-journey-chip" title={`${activeJourney.label}: ${activeJourney.originCity} → ${activeJourney.destinationCity} (${activeJourney.formattedDistance})`}>
+                  <span>{activeJourney.emoji}</span>
+                  {activeJourney.departureClock && activeJourney.arrivalClock && (
+                    <span className="console-clock-span">{activeJourney.departureClock} → {activeJourney.arrivalClock}</span>
+                  )}
+                  <small>{activeJourney.formattedDistance}</small>
+                </div>
+              )}
+              <label className="speed">
+                <Gauge size={14} />
+                <span className="sr-only">Playback speed</span>
+                <select
+                  value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value))}
+                >
+                  <option value="2600">0.5×</option>
+                  <option value="1600">1×</option>
+                  <option value="850">2×</option>
+                </select>
+              </label>
+
+              <button
+                type="button"
+                className="console-minimize-toggle-btn"
+                onClick={() => setConsoleCollapsed(true)}
+                aria-label="Minimize scrubber to micro-bar (Hotkey: T)"
+                title="Minimize scrubber to micro-bar (Hotkey: T)"
+              >
+                <ChevronDown size={14} />
+                <span>Minimize</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {source && (
