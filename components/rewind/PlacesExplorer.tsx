@@ -19,7 +19,8 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import type { GeographicHierarchyTree } from "@/lib/rewind";
+import type { EventRecord, GeographicHierarchyTree } from "@/lib/rewind";
+import { CollapsibleMapRail } from "./CollapsibleMapRail";
 
 export type HierarchyTab = "tree" | "countries" | "cities" | "venues" | "addresses";
 export type SortOption = "events-desc" | "name-asc" | "venues-desc";
@@ -100,6 +101,32 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [selectedVenueType, setSelectedVenueType] = useState<string>("all");
   const [sortOption, setSortOption] = useState<SortOption>("events-desc");
+  const [selectedMapVenueId, setSelectedMapVenueId] = useState<string | null>(null);
+  const [mapCollapsed, setMapCollapsed] = useState<boolean>(false);
+
+  const mapVenuePoints: EventRecord[] = useMemo(() => {
+    return hierarchy.allVenues
+      .filter((v) => v.latitude != null && v.longitude != null)
+      .map((v) => ({
+        id: v.id,
+        slug: v.slug,
+        eventName: v.name,
+        startDate: "2024-01-01",
+        city: v.city,
+        country: v.country,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        venueName: v.name,
+        summary: `Documented venue in ${v.city}, ${v.country}`,
+        verificationStatus: "verified" as const,
+        sourceIds: [],
+        participants: [],
+      } as unknown as EventRecord));
+  }, [hierarchy.allVenues]);
+
+  const selectedVenueRecord = useMemo(() => {
+    return mapVenuePoints.find((v) => v.id === selectedMapVenueId) || mapVenuePoints[0] || null;
+  }, [mapVenuePoints, selectedMapVenueId]);
 
   const searchInputId = useId();
   const countryFilterId = useId();
@@ -650,7 +677,20 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
         </div>
       )}
 
-      {/* VIEW 1: HIERARCHY TREE */}
+      {/* Two-Column Workstation Layout with Collapsible Map Rail */}
+      <div className={`workstation-split-stage ${mapCollapsed ? "map-minimized" : "map-expanded"}`}>
+        <CollapsibleMapRail
+          events={mapVenuePoints}
+          allEvents={mapVenuePoints}
+          selected={selectedMapVenueId || undefined}
+          onSelect={(id) => setSelectedMapVenueId(id)}
+          currentEvent={selectedVenueRecord}
+          defaultCollapsed={mapCollapsed}
+          onCollapseChange={setMapCollapsed}
+        />
+
+        <div className="workstation-chronology-column">
+          {/* VIEW 1: HIERARCHY TREE */}
       {activeTab === "tree" && (
         <div className="hierarchy-tree-view" role="tabpanel" aria-label="Hierarchical Tree View">
           {filteredTree.length === 0 ? (
@@ -1147,6 +1187,8 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
           )}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
