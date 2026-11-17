@@ -512,6 +512,7 @@ export function SourcesCatalog({
                             title="Open External Source Link"
                           >
                             <ExternalLink size={14} aria-hidden="true" />
+                            <span className="sr-only">Open external source</span>
                           </a>
                         )}
                       </div>
@@ -579,6 +580,7 @@ export function SourcesCatalog({
                         title="External Source"
                       >
                         <ExternalLink size={14} aria-hidden="true" />
+                        <span className="sr-only">Open external source</span>
                       </a>
                     )}
                     <Link

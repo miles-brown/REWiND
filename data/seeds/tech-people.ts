@@ -42,6 +42,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -83,6 +84,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -124,6 +126,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -165,6 +168,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -206,6 +210,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -247,6 +252,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -288,6 +294,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -329,6 +336,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -370,6 +378,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -411,6 +420,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -452,6 +462,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -493,6 +504,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -534,6 +546,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -576,6 +589,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
@@ -618,6 +632,7 @@ export const techPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
+      "scientific-or-technological-impact",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],

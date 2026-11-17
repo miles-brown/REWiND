@@ -929,6 +929,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                     className={`venue-leaf-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
                                                     onClick={() => setSelectedMapVenueId(venue.id)}
                                                     onKeyDown={(e) => {
+                                                      if (e.target !== e.currentTarget) return;
                                                       if (e.key === "Enter" || e.key === " ") {
                                                         e.preventDefault();
                                                         setSelectedMapVenueId(venue.id);
@@ -944,6 +945,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                           href={`/place/${venue.slug}`}
                                                           className="venue-leaf-title"
                                                           onClick={(e) => e.stopPropagation()}
+                                                          onKeyDown={(e) => e.stopPropagation()}
                                                         >
                                                           <h5>{venue.name}</h5>
                                                         </Link>
@@ -1200,6 +1202,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                     className={`entity-card venue-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
                     onClick={() => setSelectedMapVenueId(venue.id)}
                     onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setSelectedMapVenueId(venue.id);
@@ -1252,6 +1255,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                         href={`/place/${venue.slug}`}
                         className="entity-action-btn"
                         onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       >
                         <span>View Venue Dossier</span>
                         <ArrowRight size={14} />

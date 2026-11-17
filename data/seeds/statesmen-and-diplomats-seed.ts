@@ -2216,3 +2216,4 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     aliases: ["Salvo", "salvopancakes"],
   },
 ];
+

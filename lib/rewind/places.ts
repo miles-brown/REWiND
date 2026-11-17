@@ -2997,19 +2997,6 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const canonicalVenueNorm = canonicalVenueName.toLowerCase();
     const eventId = e.id || e.slug || "";
 
-    const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
-    if (vId && eventId) {
-      if (!venueEventIdsMap.has(vId)) venueEventIdsMap.set(vId, new Set());
-      venueEventIdsMap.get(vId)!.add(eventId);
-    }
-    if (canonicalVenueNorm && eventId) {
-      if (!venueEventIdsMap.has(canonicalVenueNorm)) venueEventIdsMap.set(canonicalVenueNorm, new Set());
-      venueEventIdsMap.get(canonicalVenueNorm)!.add(eventId);
-    }
-    if (venueNorm && venueNorm !== canonicalVenueNorm && eventId) {
-      if (!venueEventIdsMap.has(venueNorm)) venueEventIdsMap.set(venueNorm, new Set());
-      venueEventIdsMap.get(venueNorm)!.add(eventId);
-    }
     const eventCountryName = resolveCanonicalCountryName(e.country);
     const rawEventCity = (e.city || "Unknown").trim();
     const eventCityName =
@@ -3025,6 +3012,32 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         ? "Queenstown"
         : rawEventCity;
     const cityKey = `${eventCountryName}::${eventCityName}`.toLowerCase();
+
+    const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
+    if (vId && eventId) {
+      if (!venueEventIdsMap.has(vId)) venueEventIdsMap.set(vId, new Set());
+      venueEventIdsMap.get(vId)!.add(eventId);
+    }
+    const eventVenueId = (e as { venueId?: string }).venueId;
+    if (eventVenueId && eventId) {
+      if (!venueEventIdsMap.has(eventVenueId)) venueEventIdsMap.set(eventVenueId, new Set());
+      venueEventIdsMap.get(eventVenueId)!.add(eventId);
+    }
+    const scopedCanonicalKey = `${cityKey}::${canonicalVenueNorm}`;
+    if (canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(scopedCanonicalKey)) venueEventIdsMap.set(scopedCanonicalKey, new Set());
+      venueEventIdsMap.get(scopedCanonicalKey)!.add(eventId);
+    }
+    const scopedVenueKey = `${cityKey}::${venueNorm}`;
+    if (venueNorm && venueNorm !== canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(scopedVenueKey)) venueEventIdsMap.set(scopedVenueKey, new Set());
+      venueEventIdsMap.get(scopedVenueKey)!.add(eventId);
+    }
+    if (meta?.isMobileVessel && canonicalVenueNorm && eventId) {
+      const mobileKey = `mobile::${canonicalVenueNorm}`;
+      if (!venueEventIdsMap.has(mobileKey)) venueEventIdsMap.set(mobileKey, new Set());
+      venueEventIdsMap.get(mobileKey)!.add(eventId);
+    }
     if (eventCityName) {
       eventCountsByCity.set(cityKey, (eventCountsByCity.get(cityKey) || 0) + 1);
     }
@@ -3095,11 +3108,19 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     if (venueEventIdsMap.has(p.id)) {
       venueEventIdsMap.get(p.id)!.forEach((id) => currentVenueEventIds.add(id));
     }
-    if (venueEventIdsMap.has(canonicalVenueNorm)) {
-      venueEventIdsMap.get(canonicalVenueNorm)!.forEach((id) => currentVenueEventIds.add(id));
+    const scopedCanonicalKey = `${cityCityKey}::${canonicalVenueNorm}`;
+    if (venueEventIdsMap.has(scopedCanonicalKey)) {
+      venueEventIdsMap.get(scopedCanonicalKey)!.forEach((id) => currentVenueEventIds.add(id));
     }
-    if (venueEventIdsMap.has(venueNorm)) {
-      venueEventIdsMap.get(venueNorm)!.forEach((id) => currentVenueEventIds.add(id));
+    const scopedVenueKey = `${cityCityKey}::${venueNorm}`;
+    if (venueEventIdsMap.has(scopedVenueKey)) {
+      venueEventIdsMap.get(scopedVenueKey)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    if (isMobileVessel && canonicalVenueNorm) {
+      const mobileKey = `mobile::${canonicalVenueNorm}`;
+      if (venueEventIdsMap.has(mobileKey)) {
+        venueEventIdsMap.get(mobileKey)!.forEach((id) => currentVenueEventIds.add(id));
+      }
     }
     const eventCount = currentVenueEventIds.size;
 

@@ -818,7 +818,7 @@ export function MapGraphic({
   }, [coords, selected, chronologicalPoints]);
 
   const { pastArcs, futureArcs } = useMemo(() => {
-    if (coords.length < 2) return { pastArcs: "", futureArcs: "" };
+    if (disableJourneys || coords.length < 2) return { pastArcs: "", futureArcs: "" };
     const pastIdx = Math.max(0, selectedIndex);
     const pastCoords = coords.slice(0, pastIdx + 1);
     const futureCoords = coords.slice(pastIdx);
@@ -838,10 +838,10 @@ export function MapGraphic({
       pastArcs: buildArcString(pastCoords),
       futureArcs: buildArcString(futureCoords),
     };
-  }, [coords, selectedIndex]);
+  }, [coords, selectedIndex, disableJourneys]);
 
   const arcs = useMemo(() => {
-    if (coords.length < 2) return "";
+    if (disableJourneys || coords.length < 2) return "";
     return coords.reduce((acc, curr, i, arr) => {
       if (i === 0) return `M ${curr.x} ${curr.y}`;
       const prev = arr[i - 1];
@@ -849,11 +849,11 @@ export function MapGraphic({
       const my = Math.min(prev.y, curr.y) - 6;
       return `${acc} Q ${mx} ${my} ${curr.x} ${curr.y}`;
     }, "");
-  }, [coords]);
+  }, [coords, disableJourneys]);
 
   // Active Journey SVG arc path
   const activeSvgArc = useMemo(() => {
-    if (!activeJourney.isJourney || !prevEvent || !currEvent || prevEvent.latitude == null || prevEvent.longitude == null || currEvent.latitude == null || currEvent.longitude == null) {
+    if (disableJourneys || !activeJourney.isJourney || !prevEvent || !currEvent || prevEvent.latitude == null || prevEvent.longitude == null || currEvent.latitude == null || currEvent.longitude == null) {
       return "";
     }
     const p1 = project(prevEvent.latitude, prevEvent.longitude);
@@ -861,7 +861,7 @@ export function MapGraphic({
     const mx = (p1.x + p2.x) / 2;
     const my = Math.min(p1.y, p2.y) - 8;
     return `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`;
-  }, [activeJourney.isJourney, prevEvent, currEvent]);
+  }, [activeJourney.isJourney, prevEvent, currEvent, disableJourneys]);
 
   // Transform Request to attach Mapbox access token or CARTO key to resource requests
   const transformRequest = useCallback((url: string) => {
@@ -1801,16 +1801,16 @@ export function MapGraphic({
             <line x1="75" y1="0" x2="75" y2="100" className="grid-lon" aria-hidden="true" />
 
             {/* Future Geodesic Flight & Transit Arcs (Subtle Ghosted) */}
-            {futureArcs && <path d={futureArcs} className="svg-trajectory-arc future" />}
+            {!disableJourneys && futureArcs && <path d={futureArcs} className="svg-trajectory-arc future" />}
 
             {/* Past Geodesic Flight & Transit Arcs (Darkened) */}
-            {pastArcs && <path d={pastArcs} className="svg-trajectory-arc past" />}
+            {!disableJourneys && pastArcs && <path d={pastArcs} className="svg-trajectory-arc past" />}
 
             {/* Complete trajectory arc fallback */}
-            {arcs && !pastArcs && <path d={arcs} className="svg-trajectory-arc" />}
+            {!disableJourneys && arcs && !pastArcs && <path d={arcs} className="svg-trajectory-arc" />}
 
             {/* Active Highlighted Journey Arc */}
-            {activeSvgArc && (
+            {!disableJourneys && activeSvgArc && (
               <path d={activeSvgArc} className="svg-active-journey-arc svg-active-route-pulse" />
             )}
           </svg>
