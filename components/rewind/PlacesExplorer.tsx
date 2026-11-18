@@ -458,11 +458,16 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     return list;
   }, [filteredVenues]);
 
-  // Selected venue details for the sticky preview HUD
+  // Selected venue details for the sticky preview HUD (must have valid coordinates)
   const selectedVenue = useMemo(() => {
     if (!selectedMapVenueId) return null;
     return (
-      filteredVenues.find((v) => v.id === selectedMapVenueId || v.slug === selectedMapVenueId) || null
+      filteredVenues.find(
+        (v) =>
+          (v.id === selectedMapVenueId || v.slug === selectedMapVenueId) &&
+          v.latitude != null &&
+          v.longitude != null
+      ) || null
     );
   }, [selectedMapVenueId, filteredVenues]);
 
@@ -941,19 +946,37 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                         </Link>
                                                       </div>
                                                       <div className="flex items-center gap-2">
-                                                        <button
-                                                          type="button"
-                                                          aria-pressed={isSelected}
-                                                          aria-label={`Select ${venue.name} on map tracker`}
-                                                          onClick={() => setSelectedMapVenueId(isSelected ? null : venue.id)}
-                                                          className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2 py-0.5 text-[11px] font-medium border transition ${
-                                                            isSelected
-                                                              ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
-                                                              : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
-                                                          }`}
-                                                        >
-                                                          {isSelected ? "Targeted" : "Track"}
-                                                        </button>
+                                                        {(() => {
+                                                          const hasCoords = venue.latitude != null && venue.longitude != null;
+                                                          return (
+                                                            <button
+                                                              type="button"
+                                                              disabled={!hasCoords}
+                                                              aria-disabled={!hasCoords}
+                                                              aria-pressed={isSelected}
+                                                              aria-label={
+                                                                hasCoords
+                                                                  ? `Select ${venue.name} on map tracker`
+                                                                  : `${venue.name} map location unavailable (no coordinates)`
+                                                              }
+                                                              onClick={() => {
+                                                                if (hasCoords) {
+                                                                  setSelectedMapVenueId(isSelected ? null : venue.id);
+                                                                }
+                                                              }}
+                                                              className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2 py-0.5 text-[11px] font-medium border transition ${
+                                                                !hasCoords
+                                                                  ? "bg-white/5 text-slate-500 border-white/5 cursor-not-allowed opacity-50"
+                                                                  : isSelected
+                                                                    ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
+                                                                    : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
+                                                              }`}
+                                                              title={hasCoords ? undefined : "Map location unavailable for this venue"}
+                                                            >
+                                                              {!hasCoords ? "Unmapped" : isSelected ? "Targeted" : "Track"}
+                                                            </button>
+                                                          );
+                                                        })()}
                                                         <span className="event-pill">{venue.eventCount} {venue.eventCount === 1 ? "record" : "records"}</span>
                                                       </div>
                                                     </div>
@@ -1204,19 +1227,37 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                   >
                     <div className="card-top-row">
                       <span className={`venue-type-chip ${badge.className}`}>{badge.label}</span>
-                      <button
-                        type="button"
-                        aria-pressed={isSelected}
-                        aria-label={`Select ${venue.name} on map tracker`}
-                        onClick={() => setSelectedMapVenueId(isSelected ? null : venue.id)}
-                        className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2.5 py-1 text-xs font-medium border transition ${
-                          isSelected
-                            ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
-                            : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        {isSelected ? "Targeted on Map" : "Pin on Map"}
-                      </button>
+                      {(() => {
+                        const hasCoords = venue.latitude != null && venue.longitude != null;
+                        return (
+                          <button
+                            type="button"
+                            disabled={!hasCoords}
+                            aria-disabled={!hasCoords}
+                            aria-pressed={isSelected}
+                            aria-label={
+                              hasCoords
+                                ? `Select ${venue.name} on map tracker`
+                                : `${venue.name} map location unavailable (no coordinates)`
+                            }
+                            onClick={() => {
+                              if (hasCoords) {
+                                setSelectedMapVenueId(isSelected ? null : venue.id);
+                              }
+                            }}
+                            className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2.5 py-1 text-xs font-medium border transition ${
+                              !hasCoords
+                                ? "bg-white/5 text-slate-500 border-white/5 cursor-not-allowed opacity-50"
+                                : isSelected
+                                  ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
+                                  : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
+                            }`}
+                            title={hasCoords ? undefined : "Map location unavailable for this venue"}
+                          >
+                            {!hasCoords ? "Map Unavailable" : isSelected ? "Targeted on Map" : "Pin on Map"}
+                          </button>
+                        );
+                      })()}
                       <span className="event-count-badge ml-auto">{venue.eventCount} Events</span>
                     </div>
 

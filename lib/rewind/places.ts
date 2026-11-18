@@ -2971,17 +2971,62 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   }
 
   // 2. Fetch all events across all pages to compute exact event counts per venue, city, and country
-  const allEvents: EventRecord[] = [];
-  let currentPage = 1;
-  let totalPages = 1;
-  do {
-    const pageRes = await getEvents({ page: currentPage, limit: 100 });
-    if (pageRes.data && pageRes.data.length > 0) {
-      allEvents.push(...pageRes.data);
+  type SimpleEventRow = { id: string; slug?: string; venueName?: string | null; city?: string | null; country?: string | null; venueId?: string | null };
+  const allEvents: SimpleEventRow[] = [];
+
+  if (supabase) {
+    try {
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: rows, error: eventsError } = await supabase
+          .from("events")
+          .select("id, slug, venue_name, city, country, venue_id")
+          .eq("publication_status", "published")
+          .range(from, from + batchSize - 1);
+
+        if (eventsError || !rows || rows.length === 0) {
+          hasMore = false;
+        } else {
+          for (const r of rows) {
+            allEvents.push({
+              id: r.id,
+              slug: r.slug,
+              venueName: r.venue_name,
+              city: r.city,
+              country: r.country,
+              venueId: r.venue_id,
+            });
+          }
+          if (rows.length < batchSize) {
+            hasMore = false;
+          } else {
+            from += batchSize;
+          }
+        }
+      }
+    } catch {
+      // Fallback if Supabase times out or fails
     }
-    totalPages = pageRes.totalPages || 1;
-    currentPage++;
-  } while (currentPage <= totalPages && currentPage <= 100);
+  }
+
+  // Fallback to getEvents if Supabase didn't return any events
+  if (allEvents.length === 0) {
+    const pageRes = await getEvents({ page: 1, limit: 100 });
+    if (pageRes.data && pageRes.data.length > 0) {
+      for (const e of pageRes.data) {
+        allEvents.push({
+          id: e.id,
+          slug: e.slug,
+          venueName: e.venueName,
+          city: e.city,
+          country: e.country,
+          venueId: (e as { venueId?: string }).venueId,
+        });
+      }
+    }
+  }
 
   const venueEventIdsMap = new Map<string, Set<string>>();
   const venueDedupEventIdsMap = new Map<string, Set<string>>();

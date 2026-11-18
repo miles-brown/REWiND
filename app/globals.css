@@ -952,16 +952,17 @@ svg { flex: 0 0 auto; }
   font-weight: 700;
   font-family: var(--sans);
   font-variant-numeric: tabular-nums;
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
   padding: 2px 8px;
   border-radius: 999px;
 }
-.telemetry-accuracy-badge.provisional {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.28);
+.telemetry-accuracy-badge.provisional,
+.telemetry-accuracy-badge.limited {
+  color: #fde047;
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.35);
 }
 .telemetry-confidence-bar {
   display: flex;
@@ -997,13 +998,19 @@ svg { flex: 0 0 auto; }
   font-weight: 600;
 }
 .telemetry-breakdown-item.verified {
-  color: #34d399;
+  color: #6ee7b7;
 }
 .telemetry-breakdown-item.provisional {
-  color: #fbbf24;
+  color: #fde047;
+}
+.telemetry-breakdown-item.disputed {
+  color: #fca5a5;
 }
 .telemetry-breakdown-item.confidence {
-  color: #38bdf8;
+  color: #7dd3fc;
+}
+.telemetry-breakdown-item.unevidenced {
+  color: #cbd5e1;
 }
 .telemetry-actions {
   display: grid;
@@ -1078,7 +1085,7 @@ svg { flex: 0 0 auto; }
   gap: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #cbd5e1;
   letter-spacing: 0.01em;
   font-family: var(--sans);
 }
