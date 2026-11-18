@@ -3,8 +3,8 @@ import { ArrowRight, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react
 import { getQuotesWithStatus, getSpeechEventsWithStatus } from "@/lib/rewind";
 
 export const metadata = {
-  title: "Archival Quotes — REWIND Evidence Atlas",
-  description: "Attributable speech, plenary addresses, and verified quotations with exact coordinates.",
+  title: "Quotes — REWIND Evidence Atlas",
+  description: "Attributable speeches, statements, and verified quotations linked to documented events.",
 };
 
 export default async function QuotesPage() {
@@ -20,11 +20,10 @@ export default async function QuotesPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
-        <span className="eyebrow">QUOTE REGISTER</span>
-        <h1>Words need coordinates.</h1>
+        <span className="eyebrow">VERBATIM STATEMENTS</span>
+        <h1>Quotes</h1>
         <p>
-          This edition exposes speech-bearing events while verbatim quotations and timestamps are
-          transcribed and reviewed. It does not manufacture quotation text from summaries.
+          Attributable speeches, statements, and verified transcripts linked to documented historical events.
         </p>
       </header>
 

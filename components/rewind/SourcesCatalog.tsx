@@ -222,8 +222,8 @@ export function SourcesCatalog({
   return (
     <div className="page-shell sources-page-catalog">
       <header className="page-hero sources-hero">
-        <span className="eyebrow">DOCUMENTARY SOURCE REGISTER</span>
-        <h1>Archival Sources & Citations</h1>
+        <span className="eyebrow">EVIDENCE BASE</span>
+        <h1>Sources</h1>
         <p>
           Explore {sources.length} primary transcripts, official government dispatches, broadcast recordings, and verified contemporary reports supporting the REWiND Evidence Atlas.
         </p>

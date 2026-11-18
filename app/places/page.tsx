@@ -3,8 +3,8 @@ import { PlacesExplorer } from "@/components/rewind/PlacesExplorer";
 import { MapPin } from "lucide-react";
 
 export const metadata = {
-  title: "Places & Venues Atlas — REWIND Evidence Atlas",
-  description: "Interactive global gazetteer and map of countries, cities, institutional venues, broadcast studios, and physical street addresses documented in the REWIND evidence corpus.",
+  title: "Places — REWIND Evidence Atlas",
+  description: "Global gazetteer and map of countries, cities, venues, and physical addresses documented in the REWIND evidence corpus.",
 };
 
 /**
@@ -16,10 +16,10 @@ export default async function PlacesPage() {
   return (
     <div className="page-shell places-page">
       <header className="page-hero places-hero">
-        <span className="eyebrow">LOCATIONS & VENUES ATLAS</span>
-        <h1>Places & Venues</h1>
+        <span className="eyebrow">GEOGRAPHY</span>
+        <h1>Places</h1>
         <p>
-          Explore documented locations across four spatial tiers — <b>Countries</b>, <b>Cities</b>, <b>Venues & Complexes</b>, and <b>Street Addresses</b> — with an interactive pinned map that tracks every venue as you browse.
+          Explore documented locations across four spatial tiers — <b>Countries</b>, <b>Cities</b>, <b>Venues</b>, and <b>Street Addresses</b> — with an interactive map that tracks every venue as you browse.
         </p>
       </header>
 

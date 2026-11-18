@@ -53,7 +53,7 @@ export default async function Home() {
       <section className="hub-launchpad">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">CHOOSE A WAY IN</span>
+            <span className="eyebrow">EXPLORE</span>
             <h2>Explore the atlas</h2>
           </div>
           <p>
@@ -64,9 +64,9 @@ export default async function Home() {
           <Link href="/people">
             <Users />
             <span>
-              <small>DOCUMENTED LIVES</small>
+              <small>PEOPLE</small>
               <b>People</b>
-              <p>Open a person and rewind their chronology.</p>
+              <p>Explore historical figures and their chronologies.</p>
             </span>
             <ArrowRight />
           </Link>
@@ -75,7 +75,7 @@ export default async function Home() {
             <span>
               <small>{stats.eventCount} RECORDS</small>
               <b>Events</b>
-              <p>Search the central unit of the database.</p>
+              <p>Search dated appearances and actions.</p>
             </span>
             <ArrowRight />
           </Link>
@@ -84,7 +84,7 @@ export default async function Home() {
             <span>
               <small>GEOGRAPHY</small>
               <b>Places</b>
-              <p>See where the evidence puts people over time.</p>
+              <p>Browse venues, cities, and locations across time.</p>
             </span>
             <ArrowRight />
           </Link>
@@ -93,16 +93,16 @@ export default async function Home() {
             <span>
               <small>INTERSECTIONS</small>
               <b>Relationships</b>
-              <p>Trace every dated meeting between two lives.</p>
+              <p>Trace dated meetings and bilateral co-presence.</p>
             </span>
             <ArrowRight />
           </Link>
           <Link href="/quotes">
             <Quote />
             <span>
-              <small>WORDS IN CONTEXT</small>
+              <small>STATEMENTS</small>
               <b>Quotes</b>
-              <p>Find statements attached to speakers and sources.</p>
+              <p>Find attributable statements linked to sources.</p>
             </span>
             <ArrowRight />
           </Link>
@@ -111,7 +111,7 @@ export default async function Home() {
             <span>
               <small>{stats.sourceCount} REFERENCES</small>
               <b>Sources</b>
-              <p>Inspect the evidence behind each claim.</p>
+              <p>Inspect the primary evidence behind each claim.</p>
             </span>
             <ArrowRight />
           </Link>
@@ -121,7 +121,7 @@ export default async function Home() {
       <section className="hub-subjects">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">PEOPLE IN THIS EDITION</span>
+            <span className="eyebrow">FEATURED FIGURES</span>
             <h2>Start with a documented life</h2>
           </div>
           <Link href="/people">View everyone <ArrowRight /></Link>

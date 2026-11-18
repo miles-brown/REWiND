@@ -4,8 +4,8 @@ import { ArrowRight, Calendar, Layers, Newspaper } from "lucide-react";
 import { getTopics } from "@/lib/rewind/topics";
 
 export const metadata: Metadata = {
-  title: "Continuous News & Historical Topics — REWIND Evidence Atlas",
-  description: "Non-person timelines for continuous news subjects, global conflicts, diplomatic peace processes, and historical investigations.",
+  title: "Topics — REWIND Evidence Atlas",
+  description: "Chronological timelines for thematic subjects, global conflicts, diplomatic peace processes, and historical investigations.",
 };
 
 export default async function TopicsPage() {
@@ -16,12 +16,11 @@ export default async function TopicsPage() {
       <header className="page-hero">
         <span className="eyebrow flex items-center gap-1.5 text-sky-400">
           <Layers size={14} aria-hidden="true" />
-          <span>NON-PERSON TIMELINES</span>
+          <span>HISTORICAL THEMES</span>
         </span>
-        <h1>Continuous News & Historical Topics</h1>
+        <h1>Topics</h1>
         <p>
-          Thread events together across multiple figures, venues, and nations for continuous historical subjects,
-          diplomatic treaties, regional conflicts, and investigative chronicles.
+          Follow continuous historical subjects, geopolitical events, treaties, and conflicts across time.
         </p>
       </header>
 

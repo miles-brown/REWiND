@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
 import { getAtlasStatistics, getAllEventsWithStatus, type AtlasStatistics } from "@/lib/rewind";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
-  title: "Documented Events — REWIND Evidence Atlas",
+  title: "Events — REWIND Evidence Atlas",
   description: "Chronological registry of documented historical appearances, bilateral summits, and official actions.",
 };
 
@@ -32,11 +34,10 @@ export default async function EventsPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
-        <span className="eyebrow">EVIDENCE REGISTER</span>
-        <h1>Documented events</h1>
+        <span className="eyebrow">CHRONOLOGY</span>
+        <h1>Events</h1>
         <p>
-          Search {stats.eventCount} dated records. {stats.verifiedCount} currently meet the verified threshold;
-          the rest remain visibly provisional.
+          Search {stats.eventCount} dated records. {stats.verifiedCount} meet the verified primary evidence threshold.
         </p>
       </header>
       {eventsResult.error ? (
