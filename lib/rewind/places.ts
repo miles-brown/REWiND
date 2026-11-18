@@ -2269,52 +2269,27 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     rawPlaces = await getPlacesStrict(supabase);
   }
 
-  // 2. Fetch all events across all pages to compute exact event counts per venue, city, and country
-  const allEvents: EventRecord[] = [];
-  let currentPage = 1;
-  let totalPages = 1;
-  do {
-    const pageRes = await getEvents({ page: currentPage, limit: 100 });
-    if (pageRes.data && pageRes.data.length > 0) {
-      allEvents.push(...pageRes.data);
-    }
-    totalPages = pageRes.totalPages || 1;
-    currentPage++;
-  } while (currentPage <= totalPages && currentPage <= 100);
-
+  // 2. Fetch event counts per venue directly from DB with high-speed aggregation
   const eventCountsByVenueId = new Map<string, number>();
   const eventCountsByVenueKey = new Map<string, number>();
   const eventCountsByCity = new Map<string, number>();
   const eventCountsByCountry = new Map<string, number>();
 
-  allEvents.forEach((e) => {
-    const rawVenue = (e.venueName || "").trim();
-    const venueNorm = rawVenue.toLowerCase();
-    const meta = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
-    const canonicalVenueName = (meta?.canonicalVenue || rawVenue).trim();
-    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+  if (supabase) {
+    const { data: placeRows } = await supabase
+      .from("events")
+      .select("place_id")
+      .eq("publication_status", "published")
+      .not("place_id", "is", null);
 
-    const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
-    if (vId) {
-      eventCountsByVenueId.set(vId, (eventCountsByVenueId.get(vId) || 0) + 1);
+    if (placeRows) {
+      for (const row of placeRows) {
+        if (row.place_id) {
+          eventCountsByVenueId.set(row.place_id, (eventCountsByVenueId.get(row.place_id) || 0) + 1);
+        }
+      }
     }
-    if (canonicalVenueNorm) {
-      eventCountsByVenueKey.set(canonicalVenueNorm, (eventCountsByVenueKey.get(canonicalVenueNorm) || 0) + 1);
-    }
-    if (venueNorm && venueNorm !== canonicalVenueNorm) {
-      eventCountsByVenueKey.set(venueNorm, (eventCountsByVenueKey.get(venueNorm) || 0) + 1);
-    }
-    const eventCountryName = resolveCanonicalCountryName(e.country);
-    const eventCityName = (e.city || "Unknown").trim();
-    const cityKey = `${eventCountryName}::${eventCityName}`.toLowerCase();
-    if (eventCityName) {
-      eventCountsByCity.set(cityKey, (eventCountsByCity.get(cityKey) || 0) + 1);
-    }
-    const cntryNorm = eventCountryName.trim().toLowerCase();
-    if (cntryNorm) {
-      eventCountsByCountry.set(cntryNorm, (eventCountsByCountry.get(cntryNorm) || 0) + 1);
-    }
-  });
+  }
 
   // 3. Build structured maps for Countries, Cities, Venues, and Addresses
   const countriesMap = new Map<string, CountryNode>();
@@ -2350,6 +2325,11 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       eventCountsByVenueKey.get(canonicalVenueNorm) ||
       eventCountsByVenueKey.get(venueNorm) ||
       0;
+
+    if (eventCount > 0) {
+      eventCountsByCity.set(cityCityKey, (eventCountsByCity.get(cityCityKey) || 0) + eventCount);
+      eventCountsByCountry.set(countryName.toLowerCase(), (eventCountsByCountry.get(countryName.toLowerCase()) || 0) + eventCount);
+    }
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
@@ -2442,12 +2422,14 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
   // Update hierarchical rollup counts
   countriesMap.forEach((c) => {
+    c.eventCount = eventCountsByCountry.get(c.name.toLowerCase()) || 0;
     const cities = countryCitiesMap.get(c.slug) || [];
     c.cityCount = cities.length;
     let vCount = 0;
     let aCount = 0;
     cities.forEach((city) => {
       const cKey = `${c.name}::${city.name}`.toLowerCase();
+      city.eventCount = eventCountsByCity.get(cKey) || 0;
       const venues = cityVenuesMap.get(cKey) || [];
       const addrs = cityAddressesMap.get(cKey) || [];
       city.venueCount = venues.length;
@@ -2490,7 +2472,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     totalCities: allCities.length,
     totalVenues: allVenues.length,
     totalAddresses: allAddresses.length,
-    totalEvents: allEvents.length,
+    totalEvents: Array.from(eventCountsByVenueId.values()).reduce((sum, count) => sum + count, 0),
   };
 
   return {
@@ -2540,10 +2522,11 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
   while (hasMorePlaces) {
     const from = placesPage * pageSize;
     const to = from + pageSize - 1;
-    const { data, error } = await supabase
-      .from("places")
-      .select("*")
-      .order("city", { ascending: true })
+    let query = supabase.from("places").select("*");
+    if (typeof query.neq === "function") {
+      query = query.neq("place_type", "merged-alias");
+    }
+    const { data, error } = await query
       .order("id", { ascending: true })
       .range(from, to);
 
@@ -2551,6 +2534,7 @@ export async function getPlacesStrict(supabaseClient?: unknown): Promise<PlaceRe
 
     if (data && data.length > 0) {
       data.forEach((p: Record<string, unknown>) => {
+        if (p.place_type === "merged-alias") return;
         const vName = String(p.venue || p.city || "");
         const meta = GLOBAL_GAZETTEER_METADATA[vName.toLowerCase()];
         const dbCity = String(p.city || "Unknown");
