@@ -194,6 +194,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     setSelectedCity("all");
     setSelectedVenueType("all");
     setSortOption("events-desc");
+    setSelectedMapVenueId(null);
   };
 
   // Distinct venue types across all venues
@@ -464,6 +465,9 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
       filteredVenues.find((v) => v.id === selectedMapVenueId || v.slug === selectedMapVenueId) || null
     );
   }, [selectedMapVenueId, filteredVenues]);
+
+  // When filters exclude the selected venue, invalidate the active selection
+  const activeSelectedMapVenueId = selectedVenue ? (selectedMapVenueId || undefined) : undefined;
 
   return (
     <div className="places-explorer-wrapper">
@@ -758,7 +762,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
             <MapGraphic
               events={mapEvents}
               disableJourneys={true}
-              selected={selectedMapVenueId || undefined}
+              selected={activeSelectedMapVenueId}
               onSelect={(id) => setSelectedMapVenueId(id)}
             />
           </div>
@@ -917,7 +921,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                             <div className="venue-leaf-grid">
                                               {city.venues.map((venue) => {
                                                 const badge = getVenueTypeBadge(venue.venueType);
-                                                const isSelected = selectedMapVenueId === venue.id || selectedMapVenueId === venue.slug;
+                                                const isSelected = activeSelectedMapVenueId === venue.id || activeSelectedMapVenueId === venue.slug;
                                                 return (
                                                   <div
                                                     key={venue.id}
@@ -1191,7 +1195,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
             <div className="entity-card-grid venues-grid">
               {filteredVenues.map((venue) => {
                 const badge = getVenueTypeBadge(venue.venueType);
-                const isSelected = selectedMapVenueId === venue.id || selectedMapVenueId === venue.slug;
+                const isSelected = activeSelectedMapVenueId === venue.id || activeSelectedMapVenueId === venue.slug;
                 return (
                   <div
                     key={venue.id}
@@ -1355,7 +1359,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                 <MapGraphic
                   events={mapEvents}
                   disableJourneys={true}
-                  selected={selectedMapVenueId || undefined}
+                  selected={activeSelectedMapVenueId}
                   onSelect={(id) => {
                     setSelectedMapVenueId(id);
                     const el = document.getElementById(`venue-card-${id}`);
