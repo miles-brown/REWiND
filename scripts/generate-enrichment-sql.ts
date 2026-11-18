@@ -9,8 +9,9 @@ export function escapeSql(val: unknown): string {
   if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
   if (typeof val === "number") return isNaN(val) ? "NULL" : String(val);
   if (Array.isArray(val)) {
-    const arrItems = val.map((v) => `"${String(v).replace(/"/g, '\\"')}"`).join(",");
-    return `'{${arrItems}}'`;
+    const arrItems = val.map((v) => `"${String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+    const escapedArr = arrItems.replace(/'/g, "''");
+    return `'{${escapedArr}}'`;
   }
   const str = String(val).replace(/'/g, "''");
   return `'${str}'`;
@@ -101,16 +102,8 @@ export function generateAllEnrichmentSql(): {
   const eventsSql: string[] = [];
 
   for (const evt of allEvents) {
-    let venueName = ((evt as { venueName?: string }).venueName || (evt as { venue?: string }).venue || "").trim();
-    if (!venueName) {
-      if (evt.city === "Jerusalem") venueName = "The Knesset";
-      else if (evt.city === "Washington") venueName = "The White House";
-      else if (evt.city === "Cairo") venueName = "Ittihadiya Palace";
-      else if (evt.city === "London") venueName = "10 Downing Street";
-      else if (evt.city === "Moscow") venueName = "Ministry of Foreign Affairs of the Russian Federation";
-    }
-
-    const meta = resolveVenueMetadata(venueName);
+    const rawVenue = ((evt as { venueName?: string }).venueName || (evt as { venue?: string }).venue || "").trim();
+    const meta = rawVenue ? resolveVenueMetadata(rawVenue) : null;
     let venueId: string | null = null;
     let addressId: string | null = null;
 
@@ -125,11 +118,15 @@ export function generateAllEnrichmentSql(): {
     }
 
     const desc = (evt as { description?: string }).description || evt.summary || null;
+    const venueUpdateSql = meta ? `venue_id = ${escapeSql(venueId)}` : `venue_id = venue_id`;
+    const addressUpdateSql = meta
+      ? (meta.isMobileVessel ? `address_id = NULL` : `address_id = COALESCE(${escapeSql(addressId)}, address_id)`)
+      : `address_id = address_id`;
 
     eventsSql.push(
       `UPDATE public.events SET
-         venue_id = COALESCE(${escapeSql(venueId)}, venue_id),
-         address_id = COALESCE(${escapeSql(addressId)}, address_id),
+         ${venueUpdateSql},
+         ${addressUpdateSql},
          description = COALESCE(description, ${escapeSql(desc)})
        WHERE id = ${escapeSql(evt.id)};`
     );
@@ -184,18 +181,18 @@ export function generateAllEnrichmentSql(): {
            native_name = COALESCE(native_name, ${escapeSql(canonical.nativeName)}),
            full_birth_name = COALESCE(full_birth_name, ${escapeSql(canonical.fullBirthName || null)}),
            nationality = CASE WHEN nationality = 'International' OR nationality IS NULL THEN ${escapeSql(canonical.nationality)} ELSE nationality END,
-           citizenship = CASE WHEN cardinality(citizenship) = 0 THEN ${escapeSql(canonical.citizenship || [canonical.nationality])} ELSE citizenship END,
+           citizenship = CASE WHEN citizenship IS NULL OR cardinality(citizenship) = 0 THEN ${escapeSql(canonical.citizenship || [canonical.nationality])} ELSE citizenship END,
            national_identity = COALESCE(national_identity, ${escapeSql(canonical.nationalIdentity || null)}),
            ethnicity = COALESCE(ethnicity, ${escapeSql(canonical.ethnicity || null)}),
            ancestry = COALESCE(ancestry, ${escapeSql(canonical.ancestry || null)}),
            religion = COALESCE(religion, ${escapeSql(canonical.religion || null)}),
            religious_denomination = COALESCE(religious_denomination, ${escapeSql(canonical.religiousDenomination || null)}),
            religion_status = CASE WHEN religion_status = 'not-publicly-stated' OR religion_status IS NULL THEN ${escapeSql(canonical.religionStatus || "self-identified")} ELSE religion_status END,
-           languages = CASE WHEN cardinality(languages) = 0 THEN ${escapeSql(canonical.languages || ["English"])} ELSE languages END,
+           languages = CASE WHEN languages IS NULL OR cardinality(languages) = 0 THEN ${escapeSql(canonical.languages || ["English"])} ELSE languages END,
            classification = ${escapeSql(canonical.classification)},
            primary_figure_category = ${escapeSql(canonical.primaryFigureCategory || canonical.classification)},
            notability_basis = COALESCE(notability_basis, ${escapeSql(canonical.notabilityBasis)}),
-           inclusion_basis = CASE WHEN cardinality(inclusion_basis) = 0 THEN ${escapeSql(canonical.inclusionBasis || ["monarch-royal"])} ELSE inclusion_basis END,
+           inclusion_basis = CASE WHEN inclusion_basis IS NULL OR cardinality(inclusion_basis) = 0 THEN ${escapeSql(canonical.inclusionBasis || ["monarch-royal"])} ELSE inclusion_basis END,
            inclusion_rationale = COALESCE(inclusion_rationale, ${escapeSql(canonical.inclusionRationale)}),
            cultural_impact_summary = COALESCE(cultural_impact_summary, ${escapeSql(canonical.culturalImpactSummary)}),
            wikidata_id = COALESCE(wikidata_id, ${escapeSql(canonical.wikidataId)}),
@@ -218,7 +215,8 @@ export function generateAllEnrichmentSql(): {
          programme_id, is_living, monitoring_priority, publication_status,
          wikidata_id, viaf_id, summary
        ) VALUES (
-         ${escapeSql(p.id)}, ${escapeSql(p.slug)}, ${escapeSql(p.canonicalName)}, ${escapeSql(p.displayName)},
+         COALESCE((SELECT id FROM public.people WHERE slug = ${escapeSql(p.slug)} OR id = ${escapeSql(p.id)} LIMIT 1), ${escapeSql(p.id)}),
+         ${escapeSql(p.slug)}, ${escapeSql(p.canonicalName)}, ${escapeSql(p.displayName)},
          ${escapeSql(p.nativeName)}, ${escapeSql(p.fullBirthName || null)}, ${escapeSql(p.birthDate)},
          ${escapeSql(p.deathDate)}, ${escapeSql(p.datePrecision)}, ${escapeSql(p.nationality)},
          ${escapeSql(p.citizenship || [p.nationality])}, ${escapeSql(p.nationalIdentity || null)},
@@ -232,6 +230,7 @@ export function generateAllEnrichmentSql(): {
          ${escapeSql(p.viafId)}, ${escapeSql(p.summary)}
        )
        ON CONFLICT (id) DO UPDATE SET
+         slug = EXCLUDED.slug,
          canonical_name = EXCLUDED.canonical_name,
          display_name = EXCLUDED.display_name,
          native_name = COALESCE(EXCLUDED.native_name, public.people.native_name),
@@ -262,9 +261,18 @@ export function generateAllEnrichmentSql(): {
 
   // C. Update masterPeopleSeed inclusion fields and demographics for existing people
   for (const p of masterPeopleSeed) {
+    const hasTechImpact = (p.inclusionBasis || []).includes("scientific-or-technological-impact");
+    const inclusionBasisSql = hasTechImpact
+      ? `CASE
+           WHEN inclusion_basis IS NULL OR cardinality(inclusion_basis) = 0 THEN ${escapeSql(p.inclusionBasis || ["substantial-independent-coverage"])}
+           WHEN NOT ('scientific-or-technological-impact' = ANY(inclusion_basis)) THEN array_append(inclusion_basis, 'scientific-or-technological-impact')
+           ELSE inclusion_basis
+         END`
+      : `CASE WHEN inclusion_basis IS NULL OR cardinality(inclusion_basis) = 0 THEN ${escapeSql(p.inclusionBasis || ["substantial-independent-coverage"])} ELSE inclusion_basis END`;
+
     peopleSql.push(
       `UPDATE public.people SET
-         inclusion_basis = CASE WHEN cardinality(inclusion_basis) = 0 THEN ${escapeSql(p.inclusionBasis || ["substantial-independent-coverage"])} ELSE inclusion_basis END,
+         inclusion_basis = ${inclusionBasisSql},
          inclusion_rationale = COALESCE(inclusion_rationale, ${escapeSql(p.inclusionRationale || null)}),
          cultural_impact_summary = COALESCE(cultural_impact_summary, ${escapeSql(p.culturalImpactSummary || null)}),
          wikidata_id = COALESCE(wikidata_id, ${escapeSql(p.wikidataId || null)}),
@@ -379,7 +387,7 @@ export function generateAllEnrichmentSql(): {
          inclusion_basis = ${escapeSql(data.basis)},
          inclusion_rationale = ${escapeSql(data.rationale)},
          nationality = CASE WHEN nationality = 'International' OR nationality IS NULL THEN ${escapeSql(data.nat)} ELSE nationality END,
-         languages = CASE WHEN cardinality(languages) = 0 THEN ${escapeSql(data.lang)} ELSE languages END
+         languages = CASE WHEN languages IS NULL OR cardinality(languages) = 0 THEN ${escapeSql(data.lang)} ELSE languages END
        WHERE id = ${escapeSql(id)};`
     );
   }
@@ -440,9 +448,11 @@ export function generateAllEnrichmentSql(): {
   for (const r of newRoles) {
     rolesSql.push(
       `INSERT INTO public.person_roles (person_id, title, start_date, end_date, is_current)
-       SELECT ${escapeSql(r.personId)}, ${escapeSql(r.title)}, ${escapeSql(r.start)}, ${escapeSql(r.end)}, ${escapeSql(r.curr)}
+       SELECT COALESCE((SELECT id FROM public.people WHERE slug = ${escapeSql(r.personId)} OR id = ${escapeSql(r.personId)} LIMIT 1), ${escapeSql(r.personId)}), ${escapeSql(r.title)}, ${escapeSql(r.start)}, ${escapeSql(r.end)}, ${escapeSql(r.curr)}
        WHERE NOT EXISTS (
-         SELECT 1 FROM public.person_roles WHERE person_id = ${escapeSql(r.personId)} AND title = ${escapeSql(r.title)}
+         SELECT 1 FROM public.person_roles
+         WHERE person_id = COALESCE((SELECT id FROM public.people WHERE slug = ${escapeSql(r.personId)} OR id = ${escapeSql(r.personId)} LIMIT 1), ${escapeSql(r.personId)})
+           AND title = ${escapeSql(r.title)}
        );`
     );
   }

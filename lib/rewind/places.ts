@@ -2513,7 +2513,7 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
   "lauder-reut educational complex": {
     canonicalVenue: "Lauder-Reut Educational Complex",
     venueType: "educational-institution",
-    streetAddress: "48 Iuliu Barasch Street",
+    streetAddress: "15 Iuliu Barasch Street",
     district: "Sector 3",
     city: "Bucharest",
     country: "Romania",
@@ -2653,7 +2653,6 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "prime minister’s official media channels": "prime minister's office",
   "prime minister's official media channels": "prime minister's office",
   "israel": "the knesset",
-  "moscow": "ministry of foreign affairs of the russian federation",
 };
 
 for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
@@ -2936,8 +2935,8 @@ export function resolveVenueMetadata(venue?: string | null): GazetteerVenueMetad
   return null;
 }
 
-import { sanitizePlaceSlug } from "./utils";
-export { sanitizePlaceSlug };
+import { getCanonicalCitySlug, sanitizePlaceSlug } from "./utils";
+export { getCanonicalCitySlug, sanitizePlaceSlug };
 
 /**
  * Retrieves the complete multi-tier geographical hierarchy from Supabase:
@@ -2999,19 +2998,18 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
     const eventCountryName = resolveCanonicalCountryName(e.country);
     const rawEventCity = (e.city || "Unknown").trim();
+    const normalizedEventCity = normalizeCityName(rawEventCity);
     const eventCityName =
-      rawEventCity.toLowerCase() === "washington" || rawEventCity.toLowerCase() === "washington dc"
-        ? "Washington, D.C."
-        : rawEventCity.toLowerCase() === "reykjavík"
+      normalizedEventCity.toLowerCase() === "reykjavík"
         ? "Reykjavik"
-        : rawEventCity.toLowerCase() === "keflavík"
+        : normalizedEventCity.toLowerCase() === "keflavík"
         ? "Keflavik"
-        : rawEventCity.toLowerCase() === "lod area"
+        : normalizedEventCity.toLowerCase() === "lod area"
         ? "Lod"
-        : rawEventCity.toLowerCase() === "wye"
+        : normalizedEventCity.toLowerCase() === "wye"
         ? "Queenstown"
-        : rawEventCity;
-    const cityKey = `${eventCountryName}::${eventCityName}`.toLowerCase();
+        : normalizedEventCity;
+    const cityKey = `${eventCountryName}::${normalizeCityName(eventCityName)}`.toLowerCase();
 
     const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
     if (vId && eventId) {
@@ -3060,19 +3058,29 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   rawPlaces.forEach((p) => {
     const venueName = (p.venue || p.city || "Unknown").trim();
     const venueNorm = venueName.toLowerCase();
-    const metaDirect = GLOBAL_GAZETTEER_METADATA[venueNorm];
-    const canonicalVenueName = (metaDirect?.canonicalVenue || venueName).trim();
-    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
-    const rawMeta = metaDirect || GLOBAL_GAZETTEER_METADATA[canonicalVenueNorm];
-
     const dbCity = String(p.city || "Unknown");
     const dbCountry = String(p.country || "Unknown");
-    const locationMatches =
-      Boolean(rawMeta) &&
-      (!p.city || p.city === "Unknown" || p.city === "Location not established" || isSameCity(dbCity, rawMeta!.city)) &&
-      (!p.country || p.country === "Unknown" || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(rawMeta!.country).toLowerCase());
 
-    const meta = locationMatches ? rawMeta : undefined;
+    const checkLocationMatches = (candidateMeta: typeof GLOBAL_GAZETTEER_METADATA[string] | undefined) => {
+      if (!candidateMeta) return false;
+      const cityOk = !p.city || p.city === "Unknown" || p.city === "Location not established" || isSameCity(dbCity, candidateMeta.city);
+      const countryOk = !p.country || p.country === "Unknown" || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(candidateMeta.country).toLowerCase();
+      return cityOk && countryOk;
+    };
+
+    const directCandidate = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
+    const directMatches = checkLocationMatches(directCandidate);
+
+    let meta = directMatches ? directCandidate : undefined;
+    if (!meta && directCandidate?.canonicalVenue) {
+      const canonicalCandidate = GLOBAL_GAZETTEER_METADATA[directCandidate.canonicalVenue.toLowerCase()];
+      if (checkLocationMatches(canonicalCandidate)) {
+        meta = canonicalCandidate;
+      }
+    }
+
+    const canonicalVenueName = (meta?.canonicalVenue || venueName).trim();
+    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
 
     const resolvedRawCountry = p.country && p.country !== "Unknown" ? p.country : meta?.country || p.country;
     const countryName = resolveCanonicalCountryName(resolvedRawCountry);
@@ -3083,20 +3091,19 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const countrySlug = sanitizePlaceSlug(countryName);
 
     const rawCity = (p.city && p.city !== "Unknown" && p.city !== "Location not established" ? p.city : meta?.city || p.city || "Unknown").trim();
+    const normalizedRawCity = normalizeCityName(rawCity);
     const cityName =
-      rawCity.toLowerCase() === "washington" || rawCity.toLowerCase() === "washington dc"
-        ? "Washington, D.C."
-        : rawCity.toLowerCase() === "reykjavík"
+      normalizedRawCity.toLowerCase() === "reykjavík"
         ? "Reykjavik"
-        : rawCity.toLowerCase() === "keflavík"
+        : normalizedRawCity.toLowerCase() === "keflavík"
         ? "Keflavik"
-        : rawCity.toLowerCase() === "lod area"
+        : normalizedRawCity.toLowerCase() === "lod area"
         ? "Lod"
-        : rawCity.toLowerCase() === "wye"
+        : normalizedRawCity.toLowerCase() === "wye"
         ? "Queenstown"
-        : rawCity;
-    const citySlug = `${countrySlug}-${sanitizePlaceSlug(cityName)}`;
-    const cityCityKey = `${countryName}::${cityName}`.toLowerCase();
+        : normalizedRawCity;
+    const citySlug = getCanonicalCitySlug(countryName, cityName);
+    const cityCityKey = `${countryName}::${normalizeCityName(cityName)}`.toLowerCase();
 
     const isMobileVessel = Boolean(meta?.isMobileVessel);
     const streetAddress = isMobileVessel ? null : (meta?.streetAddress || (p.streetAddress || null));

@@ -817,6 +817,18 @@ async function syncCorpus() {
       updatedAt: new Date(),
     };
 
+    const updateSet: Record<string, unknown> = {
+      ...eventValues,
+    };
+    if (!venueMeta) {
+      // Failed corpus venue lookup: preserve existing verified links instead of overwriting with null
+      delete updateSet.venueId;
+      delete updateSet.addressId;
+    } else if (venueMeta.isMobileVessel) {
+      // Matched mobile vessel: intentionally clear addressId
+      updateSet.addressId = null;
+    }
+
     // Execute in a transaction so deferred trigger trg_verify_published_event_sources passes upon commit
     await db.transaction(async (tx) => {
       await tx
@@ -824,7 +836,7 @@ async function syncCorpus() {
         .values(eventValues)
         .onConflictDoUpdate({
           target: schema.events.id,
-          set: eventValues,
+          set: updateSet,
         });
 
       // Reconcile and synchronize event sources (event_sources)

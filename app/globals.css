@@ -313,8 +313,10 @@ svg { flex: 0 0 auto; }
 .event-card > p { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; color: var(--muted); font-size: 11px; }
 .event-card .card-tags { margin-top: auto; padding-top: 10px; }
 .card-arrow { position: absolute; right: 18px; bottom: 18px; color: var(--mint-dark); }
-.zero-state { margin: 35px auto 80px; padding: 55px 30px; max-width: 600px; color: var(--muted); text-align: center; background: #fff; border: 1px dashed #bdcbc4; border-radius: 16px; }
-.zero-state h2 { color: var(--ink); font: 700 28px var(--display); }
+@layer components {
+  .zero-state { margin: 35px auto 80px; padding: 55px 30px; max-width: 600px; color: var(--muted); text-align: center; background: #fff; border: 1px dashed #bdcbc4; border-radius: 16px; }
+  .zero-state h2 { color: var(--ink); font: 700 28px var(--display); }
+}
 
 .people-grid, .place-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .people-grid > a, .place-grid > a { display: grid; grid-template-columns: 55px 1fr auto; gap: 17px; align-items: start; padding: 24px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }

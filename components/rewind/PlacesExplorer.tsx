@@ -23,7 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { EventRecord, GeographicHierarchyTree } from "@/lib/rewind";
-import { sanitizePlaceSlug } from "@/lib/rewind/utils";
+import { getCanonicalCitySlug } from "@/lib/rewind/utils";
 import { MapGraphic } from "./MapGraphic";
 
 export type HierarchyTab = "tree" | "countries" | "cities" | "venues" | "addresses";
@@ -262,7 +262,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     }
     if (selectedCity !== "all") {
       result = result.filter((v) => {
-        const cSlug = v.citySlug || `${sanitizePlaceSlug(v.country)}-${sanitizePlaceSlug(v.city)}`;
+        const cSlug = v.citySlug || getCanonicalCitySlug(v.country, v.city);
         return cSlug === selectedCity;
       });
     }
@@ -294,7 +294,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
     }
     if (selectedCity !== "all") {
       result = result.filter((a) => {
-        const cSlug = a.citySlug || `${sanitizePlaceSlug(a.country)}-${sanitizePlaceSlug(a.city)}`;
+        const cSlug = a.citySlug || getCanonicalCitySlug(a.country, a.city);
         return cSlug === selectedCity;
       });
     }
@@ -461,9 +461,9 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
   const selectedVenue = useMemo(() => {
     if (!selectedMapVenueId) return null;
     return (
-      hierarchy.allVenues.find((v) => v.id === selectedMapVenueId || v.slug === selectedMapVenueId) || null
+      filteredVenues.find((v) => v.id === selectedMapVenueId || v.slug === selectedMapVenueId) || null
     );
-  }, [selectedMapVenueId, hierarchy.allVenues]);
+  }, [selectedMapVenueId, filteredVenues]);
 
   return (
     <div className="places-explorer-wrapper">
@@ -922,19 +922,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                   <div
                                                     key={venue.id}
                                                     id={`venue-card-${venue.id}`}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    aria-pressed={isSelected}
-                                                    aria-label={`Select ${venue.name} on map tracker`}
-                                                    className={`venue-leaf-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
-                                                    onClick={() => setSelectedMapVenueId(venue.id)}
-                                                    onKeyDown={(e) => {
-                                                      if (e.target !== e.currentTarget) return;
-                                                      if (e.key === "Enter" || e.key === " ") {
-                                                        e.preventDefault();
-                                                        setSelectedMapVenueId(venue.id);
-                                                      }
-                                                    }}
+                                                    className={`venue-leaf-card transition ${isSelected ? "active-map-target" : ""}`}
                                                   >
                                                     <div className="venue-leaf-header">
                                                       <div className="venue-leaf-title-wrap">
@@ -944,13 +932,26 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                         <Link
                                                           href={`/place/${venue.slug}`}
                                                           className="venue-leaf-title"
-                                                          onClick={(e) => e.stopPropagation()}
-                                                          onKeyDown={(e) => e.stopPropagation()}
                                                         >
                                                           <h5>{venue.name}</h5>
                                                         </Link>
                                                       </div>
-                                                      <span className="event-pill">{venue.eventCount} {venue.eventCount === 1 ? "record" : "records"}</span>
+                                                      <div className="flex items-center gap-2">
+                                                        <button
+                                                          type="button"
+                                                          aria-pressed={isSelected}
+                                                          aria-label={`Select ${venue.name} on map tracker`}
+                                                          onClick={() => setSelectedMapVenueId(isSelected ? null : venue.id)}
+                                                          className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2 py-0.5 text-[11px] font-medium border transition ${
+                                                            isSelected
+                                                              ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
+                                                              : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
+                                                          }`}
+                                                        >
+                                                          {isSelected ? "Targeted" : "Track"}
+                                                        </button>
+                                                        <span className="event-pill">{venue.eventCount} {venue.eventCount === 1 ? "record" : "records"}</span>
+                                                      </div>
                                                     </div>
 
                                                     {/* Street Address Association (CRITICAL) */}
@@ -1195,22 +1196,23 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                   <div
                     key={venue.id}
                     id={`venue-card-${venue.id}`}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={isSelected}
-                    aria-label={`Select ${venue.name} on map tracker`}
-                    className={`entity-card venue-card cursor-pointer transition ${isSelected ? "active-map-target" : ""}`}
-                    onClick={() => setSelectedMapVenueId(venue.id)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelectedMapVenueId(venue.id);
-                      }
-                    }}
+                    className={`entity-card venue-card transition ${isSelected ? "active-map-target" : ""}`}
                   >
                     <div className="card-top-row">
                       <span className={`venue-type-chip ${badge.className}`}>{badge.label}</span>
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={`Select ${venue.name} on map tracker`}
+                        onClick={() => setSelectedMapVenueId(isSelected ? null : venue.id)}
+                        className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded px-2.5 py-1 text-xs font-medium border transition ${
+                          isSelected
+                            ? "bg-sky-500/20 text-sky-300 border-sky-400/50"
+                            : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {isSelected ? "Targeted on Map" : "Pin on Map"}
+                      </button>
                       <span className="event-count-badge ml-auto">{venue.eventCount} Events</span>
                     </div>
 
@@ -1254,8 +1256,6 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                       <Link
                         href={`/place/${venue.slug}`}
                         className="entity-action-btn"
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
                       >
                         <span>View Venue Dossier</span>
                         <ArrowRight size={14} />

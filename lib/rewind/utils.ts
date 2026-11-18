@@ -446,3 +446,36 @@ export function sanitizePlaceSlug(str: string): string {
       .replace(/^-|-$/g, "") || "unknown"
   );
 }
+
+/**
+ * Deterministically computes the canonical city slug for a given country and city.
+ * Normalizes city aliases (e.g. "Washington", "Washington DC", "Washington, D.C." -> "washington-d-c")
+ * so client filters and server hierarchy nodes produce identical slugs.
+ */
+export function getCanonicalCitySlug(country?: string | null, city?: string | null): string {
+  const rawCountry = (country || "unknown").toLowerCase().trim();
+  const countrySlug = sanitizePlaceSlug(rawCountry);
+  const rawCity = (city || "unknown").toLowerCase().trim();
+  let normalizedCity = rawCity.replace(/,\s*(?:[a-z]{2}|[a-z]+)$/i, "").trim();
+  if (
+    normalizedCity === "washington" ||
+    normalizedCity === "washington dc" ||
+    normalizedCity === "washington, dc" ||
+    normalizedCity === "washington, d.c." ||
+    normalizedCity === "washington d.c." ||
+    normalizedCity === "district of columbia"
+  ) {
+    normalizedCity = "washington-d-c";
+  } else if (normalizedCity === "reykjavík") {
+    normalizedCity = "reykjavik";
+  } else if (normalizedCity === "keflavík") {
+    normalizedCity = "keflavik";
+  } else if (normalizedCity === "lod area") {
+    normalizedCity = "lod";
+  } else if (normalizedCity === "wye") {
+    normalizedCity = "queenstown";
+  } else if (normalizedCity === "nyc" || normalizedCity === "new york") {
+    normalizedCity = "new-york-city";
+  }
+  return `${countrySlug}-${sanitizePlaceSlug(normalizedCity)}`;
+}

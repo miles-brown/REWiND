@@ -126,7 +126,9 @@ async function main() {
       count(*) as total,
       count(*) FILTER (WHERE birth_date IS NULL) as null_birth_date,
       count(*) FILTER (WHERE nationality IS NULL OR nationality = 'International') as null_or_intl_nat,
-      count(*) FILTER (WHERE cardinality(inclusion_basis) = 0) as empty_inclusion_basis,
+      count(*) FILTER (WHERE inclusion_basis IS NULL OR cardinality(inclusion_basis) = 0) as empty_inclusion_basis,
+      count(*) FILTER (WHERE citizenship IS NULL OR cardinality(citizenship) = 0) as empty_citizenship,
+      count(*) FILTER (WHERE languages IS NULL OR cardinality(languages) = 0) as empty_languages,
       count(*) FILTER (WHERE inclusion_rationale IS NULL) as null_inclusion_rationale,
       count(*) FILTER (WHERE summary IS NULL) as null_summary
     FROM public.people
@@ -135,6 +137,8 @@ async function main() {
   console.log(`   - Null Birth Dates:          ${peopleStats[0].null_birth_date}`);
   console.log(`   - Null/Intl Nationalities:   ${peopleStats[0].null_or_intl_nat}`);
   console.log(`   - Empty Inclusion Basis:     ${peopleStats[0].empty_inclusion_basis}`);
+  console.log(`   - Empty Citizenship:         ${peopleStats[0].empty_citizenship}`);
+  console.log(`   - Empty Languages:           ${peopleStats[0].empty_languages}`);
   console.log(`   - Null Inclusion Rationale:  ${peopleStats[0].null_inclusion_rationale}`);
   console.log(`   - Null Summaries:            ${peopleStats[0].null_summary}`);
 
@@ -162,7 +166,9 @@ async function main() {
       (SELECT count(*) FROM public.people) as people_total,
       (SELECT count(*) FROM public.people WHERE birth_date IS NULL) as people_null_birth,
       (SELECT count(*) FROM public.people WHERE nationality IS NULL OR nationality = 'International') as people_null_nat,
-      (SELECT count(*) FROM public.people WHERE cardinality(inclusion_basis) = 0) as people_empty_basis,
+      (SELECT count(*) FROM public.people WHERE inclusion_basis IS NULL OR cardinality(inclusion_basis) = 0) as people_empty_basis,
+      (SELECT count(*) FROM public.people WHERE citizenship IS NULL OR cardinality(citizenship) = 0) as people_empty_citizenship,
+      (SELECT count(*) FROM public.people WHERE languages IS NULL OR cardinality(languages) = 0) as people_empty_languages,
       (SELECT count(*) FROM public.places) as places_total,
       (SELECT count(*) FROM public.venues) as venues_total,
       (SELECT count(*) FROM public.addresses) as addresses_total,

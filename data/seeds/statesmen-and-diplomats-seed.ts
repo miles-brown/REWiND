@@ -52,8 +52,8 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q294436",
-    viafId: "109315570",
+    wikidataId: "Q294358",
+    viafId: "79446972",
     avatarUrl: null,
     summary:
       "Warren Minor Christopher was an American diplomat and lawyer who served as the 63rd US Secretary of State from 1993 to 1997. He played a central convening role in Middle East peace processes, witnessed the signing of the Oslo Accords, and mediated the Dayton Agreement.",
@@ -152,8 +152,8 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q294425",
-    viafId: "109315571",
+    wikidataId: "Q313411",
+    viafId: "108736335",
     avatarUrl: null,
     summary:
       "George Pratt Shultz was an American economist, diplomat, and statesman who served as US Secretary of State from 1982 to 1989. His strategic diplomacy was instrumental in de-escalating the Cold War and negotiating historic nuclear arms agreements.",

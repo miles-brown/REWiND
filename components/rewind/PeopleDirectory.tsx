@@ -323,17 +323,9 @@ export function PeopleDirectory({
         const title = allRoyals && ROYAL_HOUSE_LABELS[nationality]
           ? ROYAL_HOUSE_LABELS[nationality]
           : `${nationality} Figures`;
-        const sortedMembers =
-          allRoyals && (sortOption === "last-asc" || sortOption === "birth-asc")
-            ? [...members].sort((a, b) => {
-                const yA = extractBirthYear(a.birth) ?? 9999;
-                const yB = extractBirthYear(b.birth) ?? 9999;
-                return yA - yB || a.name.localeCompare(b.name);
-              })
-            : members;
-        return { nationality, title, members: sortedMembers };
+        return { nationality, title, members };
       });
-  }, [filteredPeople, groupByCountry, sortOption]);
+  }, [filteredPeople, groupByCountry]);
 
   const hasActiveFilters =
     query.trim() !== "" ||
