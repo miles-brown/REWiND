@@ -2971,8 +2971,24 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   }
 
   // 2. Fetch all events across all pages to compute exact event counts per venue, city, and country
-  type SimpleEventRow = { id: string; slug?: string; venueName?: string | null; city?: string | null; country?: string | null; venueId?: string | null };
+  type SimpleEventRow = {
+    id: string;
+    slug?: string;
+    venueName?: string | null;
+    city?: string | null;
+    country?: string | null;
+    venueId?: string | null;
+    placeId?: string | null;
+  };
   const allEvents: SimpleEventRow[] = [];
+
+  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string }>();
+  rawPlaces.forEach((p) => {
+    placesMapById.set(p.id, { venue: p.venue, city: p.city, country: p.country });
+    if (p.slug) {
+      placesMapById.set(p.slug, { venue: p.venue, city: p.city, country: p.country });
+    }
+  });
 
   if (supabase) {
     try {
@@ -2982,50 +2998,71 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       while (hasMore) {
         const { data: rows, error: eventsError } = await supabase
           .from("events")
-          .select("id, slug, venue_name, city, country, venue_id")
+          .select("id, slug, place_id, venue_id, address_id")
           .eq("publication_status", "published")
+          .order("id", { ascending: true })
           .range(from, from + batchSize - 1);
 
-        if (eventsError || !rows || rows.length === 0) {
+        if (eventsError) {
+          // Do not keep partial results on error; fail scan to invoke fallback
+          allEvents.length = 0;
+          break;
+        }
+
+        if (!rows || rows.length === 0) {
           hasMore = false;
         } else {
           for (const r of rows) {
+            const loc =
+              (r.place_id && placesMapById.get(r.place_id)) ||
+              (r.venue_id && placesMapById.get(r.venue_id)) ||
+              (r.address_id && placesMapById.get(r.address_id));
+
             allEvents.push({
               id: r.id,
               slug: r.slug,
-              venueName: r.venue_name,
-              city: r.city,
-              country: r.country,
+              venueName: loc?.venue || null,
+              city: loc?.city || null,
+              country: loc?.country || null,
               venueId: r.venue_id,
+              placeId: r.place_id,
             });
           }
-          if (rows.length < batchSize) {
-            hasMore = false;
-          } else {
-            from += batchSize;
-          }
+          // Advance by actual rows received rather than assuming batchSize (guards against db-max-rows capping)
+          from += rows.length;
         }
       }
     } catch {
-      // Fallback if Supabase times out or fails
+      // Clear any partial rows if an exception occurred to trigger clean complete fallback
+      allEvents.length = 0;
     }
   }
 
-  // Fallback to getEvents if Supabase didn't return any events
+  // Fallback to getEvents if Supabase didn't return any events or failed
   if (allEvents.length === 0) {
-    const pageRes = await getEvents({ page: 1, limit: 100 });
-    if (pageRes.data && pageRes.data.length > 0) {
-      for (const e of pageRes.data) {
-        allEvents.push({
-          id: e.id,
-          slug: e.slug,
-          venueName: e.venueName,
-          city: e.city,
-          country: e.country,
-          venueId: (e as { venueId?: string }).venueId,
-        });
+    let currentPage = 1;
+    let totalPages = 1;
+    do {
+      const pageRes = await getEvents({ page: currentPage, limit: 100 });
+      if (pageRes.error) {
+        break;
       }
-    }
+      if (pageRes.data && pageRes.data.length > 0) {
+        for (const e of pageRes.data) {
+          allEvents.push({
+            id: e.id,
+            slug: e.slug,
+            venueName: e.venueName,
+            city: e.city,
+            country: e.country,
+            venueId: (e as { venueId?: string }).venueId,
+            placeId: (e as { placeId?: string }).placeId,
+          });
+        }
+      }
+      totalPages = pageRes.totalPages || 1;
+      currentPage++;
+    } while (currentPage <= totalPages && currentPage <= 100);
   }
 
   const venueEventIdsMap = new Map<string, Set<string>>();
@@ -3065,6 +3102,11 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     if (eventVenueId && eventId) {
       if (!venueEventIdsMap.has(eventVenueId)) venueEventIdsMap.set(eventVenueId, new Set());
       venueEventIdsMap.get(eventVenueId)!.add(eventId);
+    }
+    const eventPlaceId = (e as { placeId?: string }).placeId;
+    if (eventPlaceId && eventId) {
+      if (!venueEventIdsMap.has(eventPlaceId)) venueEventIdsMap.set(eventPlaceId, new Set());
+      venueEventIdsMap.get(eventPlaceId)!.add(eventId);
     }
     const scopedCanonicalKey = `${cityKey}::${canonicalVenueNorm}`;
     if (canonicalVenueNorm && eventId) {
