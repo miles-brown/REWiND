@@ -5,9 +5,11 @@ import {
   ArrowRight,
   Calendar,
   CalendarRange,
+  CheckCircle2,
   GitCompare,
   Globe,
   MapPin,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { getPersonTimelineWithStatus, getPersonRoles, getPersonMilestones, getMonogram } from "@/lib/rewind";
@@ -121,6 +123,22 @@ export default async function PersonPage({
   const rolesCount = roles.length || person.career?.length || 0;
   const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
 
+  // Evidentiary Accuracy Index metrics
+  const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
+  const provisionalCount = linked.filter((e) => e.verificationStatus !== "verified").length;
+  const verifiedPercent = hasChronology ? Math.round((verifiedCount / linked.length) * 100) : 100;
+  const confirmedConfidenceCount = linked.filter((e) => e.confidence === "confirmed").length;
+  const isHighConfidence = hasChronology
+    ? verifiedPercent >= 80 && (confirmedConfidenceCount / linked.length) >= 0.4
+    : true;
+  const confidenceLevel = !hasChronology
+    ? "Confirmed"
+    : isHighConfidence
+      ? "Confirmed"
+      : verifiedPercent >= 50
+        ? "Corroborated"
+        : "Limited";
+
   return (
     <div className="page-shell person-page">
       <header className="person-hero">
@@ -192,6 +210,57 @@ export default async function PersonPage({
             <div className="telemetry-stat">
               <b className="stat-value">{milestonesCount}</b>
               <span className="stat-label">Milestones</span>
+            </div>
+          </div>
+
+          {/* Evidentiary Accuracy & Verification Status */}
+          <div className="telemetry-accuracy-section" aria-label="Evidentiary accuracy and verification status">
+            <div className="telemetry-accuracy-header">
+              <span className="telemetry-accuracy-title">Evidentiary Accuracy & Verification</span>
+              <span className={`telemetry-accuracy-badge ${confidenceLevel === "Limited" ? "limited" : ""}`}>
+                {confidenceLevel === "Limited" ? (
+                  <ShieldCheck size={12} aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 size={12} aria-hidden="true" />
+                )}
+                <span>
+                  {hasChronology ? `${verifiedPercent}% Verified (${confidenceLevel})` : "Dossier Verified"}
+                </span>
+              </span>
+            </div>
+
+            <div
+              className="telemetry-confidence-bar"
+              role="meter"
+              aria-label="Chronology evidentiary verification percentage"
+              aria-valuenow={hasChronology ? verifiedPercent : 100}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuetext={
+                hasChronology
+                  ? `${verifiedPercent}% verified chronology, ${confidenceLevel} confidence`
+                  : "Dossier record verified"
+              }
+            >
+              <div
+                className="bar-fill verified"
+                style={{ width: `${hasChronology ? verifiedPercent : 100}%` }}
+              />
+            </div>
+
+            <div className="telemetry-breakdown-row">
+              <span>
+                {hasChronology ? (
+                  <>
+                    <b>{verifiedCount}</b> verified · <b>{provisionalCount}</b> provisional
+                  </>
+                ) : (
+                  "Official biographical record"
+                )}
+              </span>
+              <span>
+                Confidence: <b>{confidenceLevel}</b>
+              </span>
             </div>
           </div>
 

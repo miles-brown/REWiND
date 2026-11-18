@@ -851,7 +851,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                     {isCountryExpanded && (
                       <div className="tree-cities-list">
                         {country.cities.length === 0 ? (
-                          <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                          <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "12px", fontStyle: "italic" }}>
                             No cities or municipalities match the active filter criteria for this jurisdiction.
                           </div>
                         ) : (
@@ -905,7 +905,7 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                 {isCityExpanded && (
                                   <div className="tree-leaves-container">
                                     {city.venues.length === 0 && city.addresses.length === 0 ? (
-                                      <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                                      <div className="tree-empty-nested-hint" style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "12px", fontStyle: "italic" }}>
                                         No venues or street addresses match the active filter criteria in {city.name}.
                                       </div>
                                     ) : (

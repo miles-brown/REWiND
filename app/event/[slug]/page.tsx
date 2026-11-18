@@ -40,7 +40,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           }}
         >
           <h2>Event record temporarily unavailable</h2>
-          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+          <p style={{ color: "var(--muted, #94a3b8)", marginTop: "0.5rem" }}>
             {error}
           </p>
           <div style={{ marginTop: "1.5rem" }}>

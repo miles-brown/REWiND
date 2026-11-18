@@ -558,6 +558,32 @@ function updateActiveLegRoute(
   }
 }
 
+/**
+ * MapGraphic Props
+ *
+ * @property events - List of event records with coordinates to plot on the map.
+ * @property allEvents - Optional superset of events for historical context.
+ * @property currentIndex - Active index within chronological playback.
+ * @property selected - Optional ID of the currently selected event.
+ * @property onSelect - Callback when an event marker or pin is clicked.
+ * @property disableJourneys - Forensic display guardrail. Defaults strictly to `false`.
+ *   When `false` (default): Renders sequential contrails, flight arcs, great-circle trajectories,
+ *   and telemetry HUDs representing an entity's physical movements across time.
+ *   When `true`: Suppresses all transit paths, routing engines, and vehicle animations.
+ *   MUST ONLY be set to `true` in static spatial catalogs (such as `PlacesExplorer`) where points
+ *   represent unrelated institutional venues/facilities across different jurisdictions rather than
+ *   a chronological travel itinerary. Suppressing journeys in biographical or comparative timelines
+ *   is strictly prohibited.
+ */
+export interface MapGraphicProps {
+  events: EventRecord[];
+  allEvents?: EventRecord[];
+  currentIndex?: number;
+  selected?: string;
+  onSelect?: (id: string) => void;
+  disableJourneys?: boolean;
+}
+
 export function MapGraphic({
   events,
   allEvents,
@@ -565,14 +591,7 @@ export function MapGraphic({
   selected,
   onSelect,
   disableJourneys = false,
-}: {
-  events: EventRecord[];
-  allEvents?: EventRecord[];
-  currentIndex?: number;
-  selected?: string;
-  onSelect?: (id: string) => void;
-  disableJourneys?: boolean;
-}) {
+}: MapGraphicProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MapLibreMarker[]>([]);

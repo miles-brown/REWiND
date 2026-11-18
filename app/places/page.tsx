@@ -38,7 +38,7 @@ export default async function PlacesPage() {
             }}
           >
             <h2>Geography register temporarily unavailable</h2>
-            <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+            <p style={{ color: "var(--muted, #94a3b8)", marginTop: "0.5rem" }}>
               {error || "We are unable to load the geographic hierarchy right now. Please try again later."}
             </p>
           </div>
