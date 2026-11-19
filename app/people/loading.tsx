@@ -2,9 +2,9 @@ export default function PeopleLoading() {
   return (
     <div className="page-shell" role="status" aria-busy="true" aria-label="Loading people directory">
       <header className="page-hero">
-        <span className="eyebrow">PEOPLE</span>
-        <h1>Lives in the record</h1>
-        <p>Loading documented historical figures and sovereigns...</p>
+        <span className="eyebrow">PEOPLE DIRECTORY</span>
+        <h1>People</h1>
+        <p>Loading documented historical figures and leaders...</p>
       </header>
 
       <div className="people-grid" aria-hidden="true">

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`dark ${plusJakartaSans.variable} ${jetbrainsMono.variable}`} data-theme="dark">
       <body>
         <Shell>{children}</Shell>
         <Analytics />

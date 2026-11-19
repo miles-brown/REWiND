@@ -213,7 +213,7 @@ export function PersonWorkspaceTabs({
                           title={`View ${count} events from ${year}`}
                         >
                           <div className="year-num">{year}</div>
-                          <div className="year-events-count">{count} {count === 1 ? "evt" : "evts"}</div>
+                          <div className="year-events-count">{count} {count === 1 ? "event" : "events"}</div>
                           <div className="year-density-bar">
                             <span style={{ width: `${Math.min(100, 20 + count * 15)}%` }} />
                           </div>

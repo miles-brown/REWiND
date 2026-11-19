@@ -80,3 +80,21 @@ To prevent theme switching from unexpectedly reverting Dark or Satellite modes t
 - **Geopolitical**: `https://[a-d].basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png`
 
 Any remote vector style or glyph error is caught in isolated fallback handlers without mutating the user's active theme selection.
+
+---
+
+## 5. Travel Trajectory & Journey Suppression Guardrails (`disableJourneys` Invariant)
+
+The `disableJourneys` prop in `MapGraphic` is a forensic control with strict invariants:
+
+1. **Default State (`disableJourneys = false`)**:
+   - In all biographical person dossiers (`/person/[slug]`), comparative chronologies (`/compare`), and event relationship explorers, `disableJourneys` **MUST remain `false`**.
+   - Chronological mobility contrails, great-circle flight arcs, 3D airway corridors, and the Telemetry HUD provide indispensable forensic evidence of an entity's physical whereabouts and movements over time.
+
+2. **Permitted Contexts (`disableJourneys = true`)**:
+   - Setting `disableJourneys={true}` is strictly reserved for **static spatial registers** (specifically `PlacesExplorer` at `/places`).
+   - In static catalogs, map markers represent disjoint institutional venues, complexes, and landmarks across global jurisdictions rather than a single individual's temporal itinerary. Rendering travel arcs between unrelated venues would imply false sequential transit.
+
+3. **Prohibited Contexts**:
+   - Never pass `disableJourneys={true}` to person timelines, timeline playback scrubbers, or encounter comparison views. Suppressing travel trajectories in chronological playback degrades forensic evidentiary rigor.
+

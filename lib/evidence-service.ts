@@ -266,6 +266,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     let resolvedPlaceId = placeId;
     const persistedClaimIds = new Set<string>();
     const resolvedParticipantMap = new Map<string, string>();
+    let finalVerificationStatus: "verified" | "provisional" = "provisional";
+    let finalConfidenceScore = 0.7;
 
     if (db) {
       try {
@@ -415,7 +417,19 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 4. Insert published event
+          // 4. Derive verification status from source tier
+          const [sourceRow] = await tx
+            .select({ tier: schema.sources.tier })
+            .from(schema.sources)
+            .where(eq(schema.sources.id, sourceId));
+          const sourceTier = sourceRow?.tier || (store.sources.find((s) => s.id === sourceId)?.tier);
+          const isVerifiedTier = sourceTier === "tier-a" || sourceTier === "tier-b";
+          const derivedVerificationStatus = isVerifiedTier ? "verified" : "provisional";
+          const derivedConfidenceScore = isVerifiedTier ? 0.98 : 0.7;
+          finalVerificationStatus = derivedVerificationStatus;
+          finalConfidenceScore = derivedConfidenceScore;
+
+          // 4b. Insert published event
           await tx.insert(schema.events).values({
             id: eventSlug,
             slug: eventSlug,
@@ -432,8 +446,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             seriesId: null,
             venueId: null,
             addressId: null,
-            verificationStatus: "verified",
-            confidenceScore: 0.98,
+            verificationStatus: derivedVerificationStatus,
+            confidenceScore: derivedConfidenceScore,
             publicationStatus: "published",
             publicationLane: "human-review",
             significanceScore: 80,
@@ -672,6 +686,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     }
 
     if (!db) {
+      const memSource = store.sources.find((s) => s.id === data?.sourceId || s.id === sourceId);
+      const isMemVerified = memSource?.tier === "tier-a" || memSource?.tier === "tier-b";
+      finalVerificationStatus = isMemVerified ? "verified" : "provisional";
+      finalConfidenceScore = isMemVerified ? 0.98 : 0.7;
+
       let collisionIdx = 2;
       while (store.events.some((e) => e.id === eventSlug)) {
         eventSlug = `${baseSlug}-${collisionIdx++}`;
@@ -739,8 +758,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       venueId: null,
       subvenue: data.subvenue || null,
       addressId: null,
-      verificationStatus: "verified",
-      confidenceScore: 0.98,
+      verificationStatus: finalVerificationStatus,
+      confidenceScore: finalConfidenceScore,
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,

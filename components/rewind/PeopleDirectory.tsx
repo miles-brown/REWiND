@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import type { PersonRecord } from "@/lib/rewind";
-import { extractPersonNameParts, getMonogram } from "@/lib/rewind/utils";
+import { extractPersonNameParts, formatStandardPersonName, getMonogram } from "@/lib/rewind/utils";
 
 export type PeopleViewMode = "extended" | "list" | "badge";
 
@@ -41,6 +41,30 @@ export type PeopleSortOption =
   | "events-desc";
 
 export type LivingStatusFilter = "all" | "living" | "historical";
+
+const ROYAL_HOUSE_LABELS: Record<string, string> = {
+  British: "British Royal Family · House of Windsor",
+  Spanish: "Spanish Royal Family · House of Bourbon",
+  Belgian: "Belgian Royal Family · House of Belgium",
+  Dutch: "Dutch Royal Family · House of Orange-Nassau",
+  Swedish: "Swedish Royal Family · House of Bernadotte",
+  Norwegian: "Norwegian Royal Family · House of Glücksburg",
+  Danish: "Danish Royal Family · House of Glücksburg",
+  Monegasque: "Princely Family of Monaco · House of Grimaldi",
+  Luxembourgish: "Grand Ducal Family of Luxembourg · House of Nassau-Weilburg",
+  Liechtensteiner: "Princely Family of Liechtenstein · House of Liechtenstein",
+  French: "French Historic Houses · Orléans, Bourbon & Bonaparte",
+  German: "German Historic Houses · Hohenzollern, Wittelsbach, Hanover, Baden & Hesse",
+  Italian: "Italian Historic Houses · Savoy, Bourbon-Two Sicilies & Bourbon-Parma",
+  Austrian: "Austrian Imperial House · House of Habsburg-Lorraine",
+  Russian: "Russian Imperial House · House of Romanov",
+  Greek: "Greek Royal Family · House of Glücksburg",
+  Portuguese: "Portuguese Royal House · House of Braganza",
+  Brazilian: "Brazilian Imperial House · House of Orléans-Braganza",
+  Romanian: "Romanian Royal Family · House of Romania",
+  Bulgarian: "Bulgarian Royal Family · House of Saxe-Coburg-Gotha",
+  Serbian: "Serbian & Yugoslav Royal Family · House of Karađorđević",
+};
 
 const CATEGORY_META: Record<
   string,
@@ -109,6 +133,12 @@ export function PeopleDirectory({
   const [statusFilter, setStatusFilter] = useState<LivingStatusFilter>(
     (searchParams.get("status") as LivingStatusFilter) || "all"
   );
+  const [groupByCountry, setGroupByCountry] = useState<boolean>(() => {
+    const groupParam = searchParams.get("group");
+    if (groupParam === "country") return true;
+    if (groupParam === "none") return false;
+    return searchParams.get("category") === "monarch-royal";
+  });
 
   // Sync state with URL without full page reload
   useEffect(() => {
@@ -133,17 +163,32 @@ export function PeopleDirectory({
     if (statusFilter !== "all") url.searchParams.set("status", statusFilter);
     else url.searchParams.delete("status");
 
-    window.history.replaceState({}, "", url.toString());
-  }, [viewMode, sortOption, query, nationalityFilter, categoryFilter, statusFilter]);
+    if (groupByCountry) url.searchParams.set("group", "country");
+    else if (categoryFilter === "monarch-royal") url.searchParams.set("group", "none");
+    else url.searchParams.delete("group");
 
-  // Precompute name parts for all figures
+    window.history.replaceState({}, "", url.toString());
+  }, [viewMode, sortOption, query, nationalityFilter, categoryFilter, statusFilter, groupByCountry]);
+
+  // Precompute standardized short display name and name parts for all figures
+  const normalizedPeople = useMemo(() => {
+    return people.map((p) => {
+      const cleanName = formatStandardPersonName(p) || p.name;
+      return {
+        ...p,
+        name: cleanName,
+        displayName: cleanName,
+      };
+    });
+  }, [people]);
+
   const namePartsMap = useMemo(() => {
     const map = new Map<string, { firstName: string; lastName: string; displayName: string }>();
-    for (const p of people) {
+    for (const p of normalizedPeople) {
       map.set(p.slug, extractPersonNameParts(p));
     }
     return map;
-  }, [people]);
+  }, [normalizedPeople]);
 
   // Unique Nationalities with counts
   const nationalityOptions = useMemo(() => {
@@ -178,7 +223,7 @@ export function PeopleDirectory({
   const filteredPeople = useMemo(() => {
     const q = query.toLowerCase().trim();
 
-    return people
+    return normalizedPeople
       .filter((p) => {
         // Query search
         if (q) {
@@ -260,7 +305,48 @@ export function PeopleDirectory({
 
         return 0;
       });
-  }, [people, query, nationalityFilter, categoryFilter, statusFilter, sortOption, namePartsMap, eventCounts]);
+  }, [normalizedPeople, query, nationalityFilter, categoryFilter, statusFilter, sortOption, namePartsMap, eventCounts]);
+
+  const groupedByCountrySections = useMemo(() => {
+    if (!groupByCountry) return [];
+    const groups = new Map<string, PersonRecord[]>();
+    for (const p of filteredPeople) {
+      const nat = p.nationality || "Other";
+      const list = groups.get(nat) || [];
+      list.push(p);
+      groups.set(nat, list);
+    }
+    return Array.from(groups.entries())
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+      .map(([nationality, members]) => {
+        const allRoyals = members.every((m) => m.classification === "monarch-royal");
+        const houseLabel = ROYAL_HOUSE_LABELS[nationality];
+        const allMatchHouse =
+          allRoyals &&
+          Boolean(houseLabel) &&
+          members.every((m) => {
+            const text = `${m.ancestry || ""} ${m.description || ""} ${m.inclusionRationale || ""} ${(m.aliases || []).join(" ")}`.toLowerCase();
+            const houseName = houseLabel.split("· ")[1]?.replace(/^House of\s+/i, "").toLowerCase() || "";
+            if (houseName.includes("bourbon") && (text.includes("bourbon") || text.includes("borbón") || text.includes("spanish royal"))) return true;
+            if (houseName.includes("windsor") && (text.includes("windsor") || text.includes("british royal"))) return true;
+            if (houseName.includes("belgium") && (text.includes("belgi") || text.includes("saxe-coburg"))) return true;
+            if (houseName.includes("orange") && text.includes("orange")) return true;
+            if (houseName.includes("bernadotte") && text.includes("bernadotte")) return true;
+            if (houseName.includes("glücksburg") && (text.includes("glücksburg") || text.includes("glucksburg"))) return true;
+            if (houseName.includes("grimaldi") && text.includes("grimaldi")) return true;
+            if (houseName.includes("liechtenstein") && text.includes("liechtenstein")) return true;
+            if (houseName.includes("nassau") && text.includes("nassau")) return true;
+            return houseName ? text.includes(houseName) : false;
+          });
+
+        const title = allMatchHouse
+          ? houseLabel
+          : allRoyals
+            ? `${nationality} Royalty & Dynasties`
+            : `${nationality} Figures`;
+        return { nationality, title, members };
+      });
+  }, [filteredPeople, groupByCountry]);
 
   const hasActiveFilters =
     query.trim() !== "" ||
@@ -274,6 +360,7 @@ export function PeopleDirectory({
     setCategoryFilter("all");
     setStatusFilter("all");
     setSortOption("last-asc");
+    setGroupByCountry(false);
   };
 
   return (
@@ -384,15 +471,42 @@ export function PeopleDirectory({
                   outline: "none",
                 }}
               >
-                <option value="last-asc">Last Name (A → Z)</option>
-                <option value="last-desc">Last Name (Z → A)</option>
-                <option value="first-asc">First Name (A → Z)</option>
-                <option value="first-desc">First Name (Z → A)</option>
+                <option value="last-asc">Name / Surname (A → Z)</option>
+                <option value="last-desc">Name / Surname (Z → A)</option>
+                <option value="first-asc">Given Name (A → Z)</option>
+                <option value="first-desc">Given Name (Z → A)</option>
                 <option value="birth-asc">Birth Year (Oldest First)</option>
                 <option value="birth-desc">Birth Year (Youngest First)</option>
                 <option value="events-desc">Documented Events (Most First)</option>
               </select>
             </div>
+
+            {/* Group by Country / Royal House Toggle */}
+            <button
+              type="button"
+              onClick={() => setGroupByCountry((prev) => !prev)}
+              aria-pressed={groupByCountry}
+              title="Group figures by Country & Royal House"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.5rem 0.8rem",
+                borderRadius: "8px",
+                border: groupByCountry
+                  ? "1px solid rgba(56, 189, 248, 0.45)"
+                  : "1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))",
+                background: groupByCountry ? "rgba(56, 189, 248, 0.15)" : "rgba(0, 0, 0, 0.35)",
+                color: groupByCountry ? "#38bdf8" : "var(--text-primary, #f8fafc)",
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <Globe size={14} />
+              <span>By Country / House</span>
+            </button>
 
             {/* View Mode Toggle Buttons */}
             <div
@@ -482,6 +596,68 @@ export function PeopleDirectory({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Quick Category Filter Pills */}
+        <div
+          role="group"
+          aria-label="Quick category filter pills"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.45rem",
+            paddingTop: "0.5rem",
+            borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryFilter("all");
+              setGroupByCountry(false);
+            }}
+            aria-pressed={categoryFilter === "all"}
+            style={{
+              padding: "0.35rem 0.75rem",
+              borderRadius: "999px",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              border: categoryFilter === "all" ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
+              background: categoryFilter === "all" ? "rgba(56, 189, 248, 0.16)" : "rgba(255, 255, 255, 0.04)",
+              color: categoryFilter === "all" ? "#38bdf8" : "#cbd5e1",
+              cursor: "pointer",
+            }}
+          >
+            All Figures ({people.length})
+          </button>
+          {categoryOptions.map((c) => {
+            const isSelected = categoryFilter === c.category;
+            return (
+              <button
+                key={c.category}
+                type="button"
+                onClick={() => {
+                  setCategoryFilter(c.category);
+                  if (c.category === "monarch-royal") {
+                    setGroupByCountry(true);
+                  }
+                }}
+                aria-pressed={isSelected}
+                style={{
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: "999px",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: isSelected ? "rgba(56, 189, 248, 0.16)" : "rgba(255, 255, 255, 0.04)",
+                  color: isSelected ? "#38bdf8" : "#cbd5e1",
+                  cursor: "pointer",
+                }}
+              >
+                {c.label} ({c.count})
+              </button>
+            );
+          })}
         </div>
 
         {/* Second Row: Filters Strip (Category, Nationality, Living Status) */}
@@ -668,19 +844,22 @@ export function PeopleDirectory({
             Reset all filters
           </button>
         </div>
-      ) : viewMode === "extended" ? (
-        /* ========================================================================= */
-        /* 1. EXTENDED VIEW (Rich Card Grid)                                         */
-        /* ========================================================================= */
-        <div
-          className="people-extended-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-            gap: "1.25rem",
-          }}
-        >
-          {filteredPeople.map((p) => {
+      ) : (
+        (() => {
+          const renderPeopleItems = (items: PersonRecord[]) =>
+            viewMode === "extended" ? (
+      /* ========================================================================= */
+      /* 1. EXTENDED VIEW (Rich Card Grid)                                         */
+      /* ========================================================================= */
+      <div
+        className="people-extended-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+          gap: "1.25rem",
+        }}
+      >
+        {items.map((p) => {
             const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
             const deathYear = p.death ? p.death.slice(0, 4) : "Present";
             const catMeta = getClassificationMeta(p.classification);
@@ -772,7 +951,7 @@ export function PeopleDirectory({
                     </div>
                     <h2
                       style={{
-                        fontSize: "1.1rem",
+                        fontSize: "1.08rem",
                         fontWeight: 700,
                         color: "var(--text-primary, #f8fafc)",
                         margin: 0,
@@ -783,20 +962,6 @@ export function PeopleDirectory({
                     >
                       {p.name}
                     </h2>
-                    {p.fullBirthName && p.fullBirthName !== p.name && (
-                      <p
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "var(--text-muted, #94a3b8)",
-                          margin: "0.1rem 0 0",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {p.fullBirthName}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -927,7 +1092,7 @@ export function PeopleDirectory({
               </tr>
             </thead>
             <tbody>
-              {filteredPeople.map((p) => {
+              {items.map((p) => {
                 const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
                 const deathYear = p.death ? p.death.slice(0, 4) : "Present";
                 const catMeta = getClassificationMeta(p.classification);
@@ -978,11 +1143,6 @@ export function PeopleDirectory({
                           <strong style={{ display: "block", color: "var(--text-primary, #f8fafc)" }}>
                             {p.name}
                           </strong>
-                          {p.fullBirthName && p.fullBirthName !== p.name && (
-                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #94a3b8)" }}>
-                              {p.fullBirthName}
-                            </span>
-                          )}
                         </div>
                       </Link>
                     </td>
@@ -1086,7 +1246,7 @@ export function PeopleDirectory({
             gap: "1rem",
           }}
         >
-          {filteredPeople.map((p) => {
+          {items.map((p) => {
             const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
             const deathYear = p.death ? p.death.slice(0, 4) : "Present";
             const catMeta = getClassificationMeta(p.classification);
@@ -1229,7 +1389,7 @@ export function PeopleDirectory({
                         fontWeight: 600,
                       }}
                     >
-                      {eventsCount} ev
+                      {eventsCount} {eventsCount === 1 ? "event" : "events"}
                     </span>
                   )}
                 </div>
@@ -1237,6 +1397,57 @@ export function PeopleDirectory({
             );
           })}
         </div>
+            );
+
+          if (groupByCountry && groupedByCountrySections.length > 0) {
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+                {groupedByCountrySections.map((section) => (
+                  <section key={section.nationality} className="people-country-house-section">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingBottom: "0.65rem",
+                        marginBottom: "1rem",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                      }}
+                    >
+                      <h2
+                        style={{
+                          fontSize: "1.05rem",
+                          fontWeight: 700,
+                          color: "#f8fafc",
+                          margin: 0,
+                          letterSpacing: "-0.01em",
+                        }}
+                      >
+                        {section.title}
+                      </h2>
+                      <span
+                        style={{
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          color: "#94a3b8",
+                          background: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          padding: "0.2rem 0.6rem",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        {section.members.length} {section.members.length === 1 ? "figure" : "figures"}
+                      </span>
+                    </div>
+                    {renderPeopleItems(section.members)}
+                  </section>
+                ))}
+              </div>
+            );
+          }
+
+          return renderPeopleItems(filteredPeople);
+        })()
       )}
     </div>
   );

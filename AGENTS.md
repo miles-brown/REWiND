@@ -123,10 +123,11 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 3. **Viewport & UI Responsiveness**:
    - The timeline console (`PersonTimeline.tsx` / `RewindExplorer.tsx`) must remain fixed to the viewport bottom with zero-gap clamping and proper padding so content never bleeds or overlaps.
 
-4. **Biographical Naming & Role Separation Invariant**:
-   - Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`).
-   - Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields. Official numbered roles belong strictly in the structured `roles` array (`roles-seed.ts`).
-   - In `primaryRole` and extended summaries, use natural current/former relational descriptors (e.g. `Current Dalai Lama & Spiritual Leader of Tibetan Buddhism`).
+4. **Biographical & Royal Naming Standard (Set Once and For All)**:
+   - **Standard Figures**: Personal names (`canonicalName`, `displayName`) must contain only the individual's actual name (e.g. `Tenzin Gyatso`, `David Armstrong-Jones`, `Benjamin Netanyahu`). Never embed official roles, tenures, or specific ordinals (e.g. `14th Dalai Lama`) into personal name fields.
+   - **Royal Family Members (`classification: "monarch-royal"`)**: Always use a single uniform, comma-free format: **`[Single Primary Title] [Given Name (+ Regnal Numeral if Monarch)]`** (e.g. `King Charles III`, `Prince William`, `Princess Catherine`, `Princess Anne`, `Princess Beatrice`, `King Felipe VI`, `Princess Leonor`, `Crown Princess Victoria`), or clean `Given Name + Surname` for untitled/civil-surname royals (`David Armstrong-Jones`, `Peter Phillips`, `Zara Tindall`, `Karl von Habsburg`).
+   - **No Comma-Chained Titles in Names**: Never append comma-separated subsidiary titles, territorial dukedoms, or married styles (such as `", Prince of Wales"`, `", Duke of Sussex"`, `", Mrs Edoardo Mapelli Mozzi"`, `", Count of Monpezat"`) into `displayName` or `canonicalName`. All fuller ceremonial titles, birth names (`fullBirthName`), and dynastic styles belong strictly in `aliases`, `primaryRole` (`description`), `roles-seed.ts`, and the **Biographical Record -> Identity & Origins** tab on their `/person/[slug]` profile page.
+   - **Directory Ordering & Grouping**: In `/people` (`PeopleDirectory.tsx`), royals without a civil surname sort by their personal given name under both First Name and Last Name modes, and automatically group by **Country / Royal House** when filtering to `Royalty & Dynasties`.
 
 ---
 
@@ -138,16 +139,32 @@ To prevent work duplication, PR closing cascades, and merge regressions, all AI 
 │   ├── rewind/               # Domain-specific historical atlas components
 │   └── ui/                   # Reusable accessible UI primitives (Radix / Tailwind)
 ├── data/                     # Historical dataset models & seed registers
+├── db/                       # Drizzle ORM relational PostgreSQL schemas (schema.ts, schema-v2.ts)
 ├── docs/                     # Comprehensive documentation suite
-│   ├── architecture/         # System architecture & component boundaries
-│   ├── guides/               # Getting started, keyboard shortcuts, contributing
+│   ├── architecture/         # System architecture, design system, Event Model v2, map modes
+│   │   ├── DESIGN_SYSTEM_AND_ALIGNMENT.md
+│   │   ├── EVENT_MODEL_V2.md
+│   │   ├── GEOSPATIAL_AND_MAP_MODES.md
+│   │   ├── REPO_GROWTH_AND_ROADMAP.md
+│   │   └── system-overview.md
+│   ├── guides/               # Getting started, keyboard shortcuts
+│   ├── policy/               # Autopublish, event inclusion, person eligibility, source policy
+│   ├── standards/            # Taxonomy & system functions, biographical, location, temporal, evidence
+│   │   ├── TAXONOMY_AND_SYSTEM_FUNCTIONS.md
+│   │   ├── EVENT_AND_VENUE_STANDARD.md
+│   │   ├── LOCATION_STANDARD.md
+│   │   ├── TEMPORAL_STANDARD.md
+│   │   ├── BIOGRAPHICAL_STANDARD.md
+│   │   └── ...
 │   ├── ACCESSIBILITY.md      # WCAG AA & ARIA contracts
+│   ├── ARCHITECTURE.md       # System architecture & subsystem boundaries
 │   ├── CONTRIBUTING.md       # Contribution guidelines
 │   ├── DATA_SCHEMA.md        # TypeScript entity contracts
 │   └── METHODOLOGY.md        # Forensic evidence tiers & verification scoring
-├── lib/                      # Pure helper utilities (citations, formatting)
-├── scripts/                  # Build, environment & verification shell scripts
-└── tests/                    # Automated Node.js unit tests
+├── lib/                      # Domain engines (rewind/, ingestion/, models/, adapters/, citations.ts)
+├── scripts/                  # Build, environment, safe-merge & verification scripts
+├── supabase/migrations/      # PostgreSQL SQL migrations & RLS policies
+└── tests/                    # Automated Node.js unit & forensic verification tests
 ```
 
 ---
@@ -184,5 +201,71 @@ All code interacting with the Supabase / PostgreSQL data layer, ingestion pipeli
    - Ingestion crawlers and vacuum scrapers continuously index primary/secondary sources across official transcripts, parliamentary records, unedited broadcast audio/video, gazettes, and press archives.
    - Every ingested event must be verified for participant completeness: no confirmed attendees or participants may be omitted.
    - Every participant attached to an event must distinguish their **official title/office** (`role`, e.g. *"President of the United States"*, *"London Borough of Lambeth Presiding Officer"*) from their **event capacity** (`association`, e.g. *"interviewee"*, *"host"*, *"moderator"*, *"participant"*, *"contestant"*, *"expert-contributor"*, *"attendee"*).
+
+---
+
+## 6. Authoritative Query & Task Resolution Router ("Where Everything Is Handled & What to Check")
+
+Whenever an AI code assistant is asked to inspect, debug, extend, or design any part of the REWiND Evidence Atlas, it MUST consult this routing table to locate the authoritative specification, code module, and verification test suite:
+
+| Domain / Query Topic | Authoritative Documentation to Check | Primary Code Modules & Entrypoints | Verification Test Suite(s) |
+| :--- | :--- | :--- | :--- |
+| **Visual Design, Color Contrast, Z-Index & Viewport Alignment** | [`docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md`](docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md)<br/>[`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md) | `app/globals.css`<br/>`components/rewind/Shell.tsx`<br/>`components/ui/*` | `tests/ui-components.test.mjs`<br/>`tests/ui-maps-and-sources.test.mjs` |
+| **Master Taxonomies & System Functions Catalog** | [`docs/standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md`](docs/standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md)<br/>[`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) | `lib/rewind/types.ts`<br/>`data/rewind.ts` | `tests/data-integrity.test.mjs` |
+| **Geospatial Map, Contrails, 3D Flight Arcs & Telemetry HUD** | [`docs/architecture/GEOSPATIAL_AND_MAP_MODES.md`](docs/architecture/GEOSPATIAL_AND_MAP_MODES.md)<br/>[`docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md`](docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md) | `components/rewind/MapGraphic.tsx`<br/>`lib/rewind/travel.ts`<br/>`lib/rewind/routing.ts`<br/>`lib/rewind/transport.ts` | `tests/transit-routing-animations.test.mjs`<br/>`tests/travel-and-maps.test.mjs`<br/>`tests/map-resilience.test.mjs` |
+| **Chronology Scrubber & Bidirectional REWIND Playback** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)<br/>[`docs/guides/keyboard-shortcuts.md`](docs/guides/keyboard-shortcuts.md) | `components/rewind/PersonTimeline.tsx`<br/>`components/rewind/RewindExplorer.tsx` | `tests/ui-maps-and-sources.test.mjs`<br/>`tests/travel-and-maps.test.mjs` |
+| **Places, 4-Tier Gazetteer, Venues, Sub-Venues & Mobile Vessels** | [`docs/standards/EVENT_AND_VENUE_STANDARD.md`](docs/standards/EVENT_AND_VENUE_STANDARD.md)<br/>[`docs/standards/LOCATION_STANDARD.md`](docs/standards/LOCATION_STANDARD.md) | `lib/rewind/places.ts`<br/>`components/rewind/PlacesExplorer.tsx`<br/>`app/places/page.tsx`<br/>`app/place/[slug]/page.tsx` | `tests/remote-attendance-and-places-fix.test.mjs` |
+| **Remote Attendance Localization & Participant Precedence** | [`docs/standards/EVENT_AND_VENUE_STANDARD.md`](docs/standards/EVENT_AND_VENUE_STANDARD.md)<br/>[`docs/architecture/EVENT_MODEL_V2.md`](docs/architecture/EVENT_MODEL_V2.md) | `lib/rewind/events.ts`<br/>`app/event/[slug]/page.tsx` | `tests/remote-attendance-and-places-fix.test.mjs` |
+| **Biographical Naming, Roles, Milestones & Person Dossiers** | [`docs/standards/BIOGRAPHICAL_STANDARD.md`](docs/standards/BIOGRAPHICAL_STANDARD.md)<br/>[`docs/standards/PEOPLE_AND_INCLUSION_STANDARD.md`](docs/standards/PEOPLE_AND_INCLUSION_STANDARD.md)<br/>[`docs/policy/PERSON_ELIGIBILITY_POLICY.md`](docs/policy/PERSON_ELIGIBILITY_POLICY.md) | `data/people-master-seed.ts`<br/>`data/roles-seed.ts`<br/>`lib/rewind/people.ts`<br/>`app/person/[slug]/page.tsx`<br/>`components/rewind/PersonWorkspaceTabs.tsx` | `tests/person-bio-and-roles-coverage.test.mjs`<br/>`tests/people-directory-views-and-bio-audit.test.mjs` |
+| **Temporal Precision, ISO-8601 Dates & Year Validation** | [`docs/standards/TEMPORAL_STANDARD.md`](docs/standards/TEMPORAL_STANDARD.md) | `lib/rewind/events.ts`<br/>`lib/rewind/format.ts` | `tests/temporal-evidence-standards.test.mjs` |
+| **Evidentiary Confidence, Sources, Claims & Discrepancies** | [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md)<br/>[`docs/standards/EVIDENCE_STANDARD.md`](docs/standards/EVIDENCE_STANDARD.md)<br/>[`docs/standards/FACT_AND_CLAIM_STANDARD.md`](docs/standards/FACT_AND_CLAIM_STANDARD.md)<br/>[`docs/standards/CORRECTIONS_AND_DISPUTES.md`](docs/standards/CORRECTIONS_AND_DISPUTES.md) | `components/rewind/DiscrepancyViewer.tsx`<br/>`app/sources/page.tsx`<br/>`app/source/[id]/page.tsx` | `tests/temporal-evidence-standards.test.mjs`<br/>`tests/ui-maps-and-sources.test.mjs` |
+| **Event Model v2 & PostgreSQL / Supabase Architecture** | [`docs/architecture/EVENT_MODEL_V2.md`](docs/architecture/EVENT_MODEL_V2.md)<br/>[`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) | `db/schema.ts`<br/>`db/schema-v2.ts`<br/>`lib/models/event-v2.ts`<br/>`lib/adapters/event-v2-adapter.ts`<br/>`supabase/migrations/*.sql` | `tests/event-model-v2.test.mjs`<br/>`tests/supabase-architecture.test.mjs` |
+| **Automated Ingestion, Deduplication & Publication Lanes** | [`docs/policy/AUTOPUBLISH_POLICY.md`](docs/policy/AUTOPUBLISH_POLICY.md)<br/>[`docs/policy/EVENT_INCLUSION_POLICY.md`](docs/policy/EVENT_INCLUSION_POLICY.md)<br/>[`docs/standards/AI_RESEARCH_POLICY.md`](docs/standards/AI_RESEARCH_POLICY.md) | `lib/ingestion/pipeline.ts`<br/>`lib/ingestion/resolve.ts`<br/>`lib/ingestion/policy.ts`<br/>`app/admin/evidence/page.tsx` | `tests/evidence-ingestion-pipeline.test.mjs` |
+| **Cross-Timeline Comparison & Relationship Encounters** | [`docs/standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md`](docs/standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md) | `components/rewind/TimelineComparison.tsx`<br/>`app/compare/page.tsx`<br/>`app/relationship/[a]/[b]/page.tsx` | `tests/ui-maps-and-sources.test.mjs` |
+| **Citations, Print-to-PDF & OpenGraph Dossier Exports** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | `lib/citations.ts`<br/>`components/rewind/CitationModal.tsx`<br/>`app/api/export/event/[slug]/pdf/route.ts`<br/>`app/api/export/person/[slug]/pdf/route.ts` | `tests/ui-components.test.mjs`<br/>`tests/data-integrity.test.mjs` |
+| **Git Branch Isolation, Safe Merge & CI Verification** | [`AGENTS.md`](AGENTS.md)<br/>[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | `scripts/verify-git-workflow.mjs`<br/>`scripts/safe-branch-merge.mjs`<br/>`scripts/gemini-pr-review.mjs` | `tests/git-workflow-and-branch-safety.test.mjs`<br/>`tests/docs-integrity.test.mjs` |
+
+---
+
+## 7. Autonomous Decision-Making & Escalation Protocol for Complex Tasks
+
+When an AI code assistant encounters a complex, multi-layered, or underspecified task, it MUST NOT stall or ask the user to micromanage routine architectural or implementation choices. Instead, follow this three-tier decision protocol:
+
+```mermaid
+graph TD
+    Task["Incoming User Request / Complex Task"] --> CheckDocs{"Covered by or deducible from<br/>AGENTS.md & docs/*?"}
+    CheckDocs -->|"YES (Default Path)"| Autonomous["Execute Autonomously<br/>• Apply documented standards & taxonomy<br/>• Use 5-Tier Tie-Breaking Hierarchy<br/>• Document rationale in commit/PR"]
+    CheckDocs -->|"Ambiguous Edge Case"| TieBreak{"Can Tie-Breaking Hierarchy<br/>resolve it safely?"}
+    TieBreak -->|"YES"| Autonomous
+    TieBreak -->|"NO (Requires destructive action,<br/>external secret, or policy change)"| AskUser["Pause & Ask Targeted Question<br/>with Recommended Option First"]
+    Autonomous --> Verify["Run 4-Stage Verification Pipeline<br/>(tsc, lint, build:vercel, node --test)"]
+```
+
+### 7.1 Rule of Precedent-Driven Autonomy (Default Operating Mode)
+1. **Consult Documentation First**: Before making any design, schema, styling, or logic decision, check the relevant specification in Section 6 above (`docs/architecture/*`, `docs/standards/*`, `docs/policy/*`).
+2. **Decide & Proceed Autonomously**: If the user's request leaves implementation details open, **make the decision autonomously** by aligning strictly with the architecture, taxonomy, and design standards already established in `docs/`. Do not interrupt the workflow for routine sequential steps or design decisions that have a documented precedent.
+3. **Update Documentation When Introducing New Patterns**: Whenever a complex task introduces a new component, taxonomy value, database column, or UI convention, update the corresponding specification in `docs/` in the same PR so future agents inherit the exact decision.
+
+### 7.2 Deterministic 5-Tier Tie-Breaking Hierarchy
+Whenever two or more technical or design approaches appear viable for a complex problem, resolve the choice using this strict priority order (Tier 1 overrides Tier 2, Tier 2 overrides Tier 3, etc.):
+
+1. **Tier 1 — Forensic Evidentiary Integrity & Non-Fabrication**:
+   - Prefer the option that preserves primary-source traceability, defaults uncorroborated confidence to `"limited"`, avoids fabricating coordinates/dates, and upholds the Permanent Addition & Non-Deletion Rule.
+2. **Tier 2 — Database, Query & Security Fail-Closed Safety**:
+   - Prefer the option that validates inputs via strict regex/Zod schemas before database queries, enforces `public_visibility = 'public-exact'` in RLS, and performs live deduplication (`findDuplicateEventAsync`).
+3. **Tier 3 — WCAG 2.1 AA Accessibility & Assistive Technology Clarity**:
+   - Prefer the option that maintains $\ge 4.5:1$ contrast (no `#64748b` text on dark backgrounds), keeps 60fps DOM animations outside `aria-live` containers (using milestone-only status regions), and provides full keyboard + `:focus-visible` support.
+4. **Tier 4 — Spatial Alignment & Viewport Non-Collision**:
+   - Prefer the option that respects the 4-quadrant map allocation (`.map-stage-label` top-left, `.map-toolbar` top-right, `.map-transit-hud` bottom-left, `.map-floating-controls` bottom-right) and zero-gap bottom timeline console clamping (`PersonTimeline.tsx`, `RewindExplorer.tsx`).
+5. **Tier 5 — React 19 Performance & Zero-Jank Rendering**:
+   - Prefer `useRef` DOM updates for high-frequency (`requestAnimationFrame`) telemetry, `useMemo`/`useCallback` for derived datasets, and keeping collapsible state grids mounted (`hidden={!expanded}`) rather than unmounting and losing state.
+
+### 7.3 Decomposition Strategy for Complex Multi-Subsystem Tasks
+When executing a large or complicated task spanning multiple layers of the stack:
+1. **Layer 1 (Schema & Types)**: Update `lib/rewind/types.ts`, `lib/models/event-v2.ts`, or `db/schema-v2.ts` first.
+2. **Layer 2 (Domain & Ingestion Logic)**: Implement pure, testable functions in `lib/rewind/*` or `lib/ingestion/*` with fail-closed fallbacks.
+3. **Layer 3 (UI Components & Styling)**: Wire into `components/rewind/*` and `app/globals.css` adhering to [`docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md`](docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md).
+4. **Layer 4 (Verification & Regression Tests)**: Add deterministic assertions in `tests/*.test.mjs` and run all 4 pre-PR verification gates (`npx tsc --noEmit`, `npm run lint`, `npm run build:vercel`, `node --test tests/*.test.mjs`) until all exit with code `0`.
+
 
 

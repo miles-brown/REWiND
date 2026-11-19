@@ -45,8 +45,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as broadcast journalist who conducted over 50,000 on-the-record interviews with heads of state, diplomats, and major historical figures across a 50-year broadcasting career, including 25 years hosting Larry King Live on CNN (1985–2010).",
+    "culturalImpactSummary": "Pioneered nightly global cable television interviews and town hall diplomacy.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -86,8 +86,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as broadcast journalist, first female network evening news co-anchor, conducting interviews with every US president from Nixon to Obama and global leaders including Fidel Castro, Anwar Sadat, and Menachem Begin.",
+    "culturalImpactSummary": "Broke gender barriers in national broadcast journalism and established prime-time geopolitical interviews.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -127,8 +127,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as CNN Chief International Anchor, documenting major global conflicts, war crimes tribunals, and bilateral summits across the Balkans, Middle East, and Eastern Europe.",
+    "culturalImpactSummary": "Leading international war correspondent and voice for press freedom and human rights accountability.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -168,8 +168,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as CNN lead political anchor and former Pentagon correspondent, anchoring coverage of the Gulf War, presidential elections, and international security summits.",
+    "culturalImpactSummary": "Live breaking-news anchor on American cable news for over three decades.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -209,8 +209,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as CNN Chief Washington Correspondent and anchor of The Lead and State of the Union, author and debate moderator covering federal administrations and national security.",
+    "culturalImpactSummary": "Rigorous investigative journalist holding executive authority and legislative officials accountable on national broadcast.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -250,8 +250,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as MSNBC host, producing investigative broadcast journalism, political history podcasts, and federal policy analyses.",
+    "culturalImpactSummary": "Influential political analyst shaping modern prime-time ideological journalism and investigative podcasts.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -291,8 +291,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as Fox News host and nationally syndicated radio broadcaster, conducting interviews across presidential administrations and congressional leadership.",
+    "culturalImpactSummary": "Central media figure shaping conservative discourse and prime-time commentary in American politics.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -332,8 +332,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as broadcast journalist, former newspaper editor, and interviewer across ITV, CNN, and TalkTV.",
+    "culturalImpactSummary": "High-profile transatlantic interviewer and commentator across television, print, and digital streaming.",
     "primaryFigureCategory": "media-journalist"
   },
   {
@@ -373,8 +373,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as media proprietor and executive chairman of News Corp and Fox Corporation, managing international broadcast networks, newspapers, and publishing houses.",
+    "culturalImpactSummary": "Global media proprietor of the late 20th and early 21st centuries, transforming news, sports, and political broadcasting worldwide.",
     "primaryFigureCategory": "corporate-executive"
   },
   {
@@ -414,8 +414,8 @@ export const mediaPeopleSeed: CanonicalPersonSeed[] = [
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": null,
-    "culturalImpactSummary": null,
+    "inclusionRationale": "Qualified under criterion 'substantial-independent-coverage' as broadcast host and advocate for 9/11 First Responders and veterans healthcare legislation, testifying before the US Congress.",
+    "culturalImpactSummary": "Pioneered geopolitical political satire as an influential news medium and effective public policy lobbyist.",
     "primaryFigureCategory": "media-journalist"
   },
   {

@@ -75,6 +75,50 @@ describe("People Directory & Name Parsing Architecture", async () => {
     const felipe = extractPersonNameParts({ canonicalName: "King Felipe VI" });
     assert.equal(felipe.firstName, "Felipe");
     assert.equal(felipe.lastName, "Felipe");
+
+    // 5. Standardized Royal Names with Compound Given Names or Disambiguators
+    const juanCarlos = extractPersonNameParts({ displayName: "King Juan Carlos I", classification: "monarch-royal" });
+    assert.equal(juanCarlos.firstName, "Juan Carlos");
+    assert.equal(juanCarlos.lastName, "Juan Carlos");
+
+    const carlGustaf = extractPersonNameParts({ displayName: "King Carl XVI Gustaf", classification: "monarch-royal" });
+    assert.equal(carlGustaf.firstName, "Carl Gustaf");
+    assert.equal(carlGustaf.lastName, "Carl Gustaf");
+
+    const edwardKent = extractPersonNameParts({ displayName: "Prince Edward of Kent", classification: "monarch-royal" });
+    assert.equal(edwardKent.firstName, "Edward");
+    assert.equal(edwardKent.lastName, "Edward");
+
+    // 6. Name ambiguity regression test (preserving Earl as name)
+    const earlWarren = extractPersonNameParts({ canonicalName: "Earl Warren" });
+    assert.deepEqual(earlWarren, {
+      firstName: "Earl",
+      lastName: "Warren",
+      displayName: "Earl Warren",
+    });
+
+    const samEarl = extractPersonNameParts({ canonicalName: "Sam Earl" });
+    assert.deepEqual(samEarl, {
+      firstName: "Sam",
+      lastName: "Earl",
+      displayName: "Sam Earl",
+    });
+  });
+
+  it("enforces universal comma-free standardized display names across all royal family seed records", () => {
+    const royals = masterPeopleSeed.filter((p) => p.classification === "monarch-royal");
+    assert.ok(royals.length >= 130, "Must have all royal family members in masterPeopleSeed");
+
+    for (const r of royals) {
+      assert.ok(
+        !r.displayName.includes(","),
+        `Royal figure ${r.slug} displayName must follow the universal comma-free standard, got "${r.displayName}"`
+      );
+      assert.ok(
+        !r.canonicalName.includes(","),
+        `Royal figure ${r.slug} canonicalName must follow the universal comma-free standard, got "${r.canonicalName}"`
+      );
+    }
   });
 
   it("strictly validates that 100% of people seed records have valid birth dates and clean demonym nationalities", () => {

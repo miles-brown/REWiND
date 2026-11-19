@@ -2,9 +2,9 @@ export default function PlacesLoading() {
   return (
     <div className="places-page-shell" aria-busy="true" aria-label="Loading places directory">
       <header className="page-hero" style={{ padding: "32px 24px" }}>
-        <span className="eyebrow">GEOGRAPHY & VENUES</span>
-        <h1>Global Places & Sovereign Venues</h1>
-        <p role="status">Loading historical diplomatic venues and coordinate registers...</p>
+        <span className="eyebrow">GEOGRAPHY</span>
+        <h1>Places</h1>
+        <p role="status">Loading historical venues and coordinate registers...</p>
       </header>
 
       <div

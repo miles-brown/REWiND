@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { EventExplorer } from "@/components/rewind/EventExplorer";
 import { getAtlasStatistics, getAllEventsWithStatus, type AtlasStatistics } from "@/lib/rewind";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
-  title: "Documented Events — REWIND Evidence Atlas",
+  title: "Events — REWIND Evidence Atlas",
   description: "Chronological registry of documented historical appearances, bilateral summits, and official actions.",
 };
 
@@ -32,28 +34,19 @@ export default async function EventsPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
-        <span className="eyebrow">EVIDENCE REGISTER</span>
-        <h1>Documented events</h1>
+        <span className="eyebrow">CHRONOLOGY</span>
+        <h1>Events</h1>
         <p>
-          Search {stats.eventCount} dated records. {stats.verifiedCount} currently meet the verified threshold;
-          the rest remain visibly provisional.
+          Search {stats.eventCount} dated records. {stats.verifiedCount} meet the verified primary evidence threshold.
         </p>
       </header>
       {eventsResult.error ? (
         <div
-          className="zero-state error-state"
+          className="error-state my-8 mx-auto max-w-xl rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-12 text-center"
           role="alert"
-          style={{
-            padding: "4rem 2rem",
-            textAlign: "center",
-            border: "1px dashed var(--line, #e2e8f0)",
-            borderRadius: "8px",
-            margin: "2rem auto",
-            maxWidth: "600px",
-          }}
         >
-          <h2>Events register temporarily unavailable</h2>
-          <p style={{ color: "var(--muted, #64748b)", marginTop: "0.5rem" }}>
+          <h2 className="text-lg font-bold text-slate-100">Events register temporarily unavailable</h2>
+          <p className="mt-2 text-sm text-slate-300">
             We are unable to load the events register right now. Please try again later.
           </p>
         </div>

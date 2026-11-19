@@ -7,8 +7,9 @@ The **REWIND Evidence Atlas** is a high-performance historical research and chro
 ## 1. Architectural Philosophy
 
 1. **Zero-Inference Ground Truth**: No chronological event is displayed without an explicit primary or corroborated secondary source.
-2. **Deterministic spatiotemporal points**: Human action is recorded as discrete `(latitude, longitude, date, participants, sources)` tuples.
-3. **Sub-millisecond State Synchronization**: Scrubbing through decades of history occurs instantly in the browser without server round-trips.
+2. **Person-Independent Event Knowledge Graph (Event Model v2)**: Events exist independently of any single participant; each participant attaches via a structured relationship recording their official title (`role`), event capacity (`association`), representation, and 3-tier presence location ([`EVENT_MODEL_V2.md`](EVENT_MODEL_V2.md)).
+3. **Sub-Millisecond State Synchronization & 60fps Telemetry**: Scrubbing through decades of history and animating 3D geospatial contrails occurs without server round-trips or React re-render bottlenecks ([`DESIGN_SYSTEM_AND_ALIGNMENT.md`](DESIGN_SYSTEM_AND_ALIGNMENT.md)).
+4. **Deterministic Taxonomy & Autonomous Agent Resolution**: Every domain taxonomy, system function, and AI decision rule is explicitly catalogued in [`TAXONOMY_AND_SYSTEM_FUNCTIONS.md`](../standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md) and [`AGENTS.md`](../../AGENTS.md).
 
 ---
 

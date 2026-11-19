@@ -27,9 +27,14 @@ test("verifies core documentation suite existence", () => {
     "README.md",
     "AGENTS.md",
     "docs/ACCESSIBILITY.md",
+    "docs/ARCHITECTURE.md",
     "docs/CONTRIBUTING.md",
     "docs/DATA_SCHEMA.md",
     "docs/METHODOLOGY.md",
+    "docs/architecture/DESIGN_SYSTEM_AND_ALIGNMENT.md",
+    "docs/architecture/EVENT_MODEL_V2.md",
+    "docs/architecture/GEOSPATIAL_AND_MAP_MODES.md",
+    "docs/standards/TAXONOMY_AND_SYSTEM_FUNCTIONS.md",
   ];
 
   for (const doc of requiredDocs) {
@@ -38,6 +43,14 @@ test("verifies core documentation suite existence", () => {
     const stat = fs.statSync(docPath);
     assert.ok(stat.size > 200, `Documentation file ${doc} must not be empty or truncated`);
   }
+
+  const agentsContent = fs.readFileSync(path.join(root, "AGENTS.md"), "utf-8");
+  assert.ok(
+    agentsContent.includes("Authoritative Query & Task Resolution Router") &&
+      agentsContent.includes("Autonomous Decision-Making & Escalation Protocol for Complex Tasks") &&
+      agentsContent.includes("Deterministic 5-Tier Tie-Breaking Hierarchy"),
+    "AGENTS.md must define the Query Resolution Router, Autonomous Decision-Making Protocol, and 5-Tier Tie-Breaking Hierarchy"
+  );
 });
 
 test("scans all markdown links and validates relative targets", () => {

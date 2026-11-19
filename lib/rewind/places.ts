@@ -242,6 +242,46 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "coogee synagogue perimeter": [-33.9189, 151.2547],
   "sydney cbd civic center": [-33.8732, 151.2069],
   "midtown manhattan commercial corridor": [40.7549, -73.9840],
+  "cnn broadcast studios (time warner center)": [40.7685, -73.9832],
+  "cnn studio": [40.7685, -73.9832],
+  "cnn remote studio": [40.7685, -73.9832],
+  "fox news headquarters (1211 avenue of the americas)": [40.7586, -73.9818],
+  "fox news studio": [40.7586, -73.9818],
+  "cnn washington bureau": [38.9004, -77.0062],
+  "cnn washington studio": [38.9004, -77.0062],
+  "fox news washington bureau": [38.8953, -77.0094],
+  "c-span washington broadcast studios": [38.8953, -77.0094],
+  "c-span studio": [38.8953, -77.0094],
+  "bloomberg television studios (731 lexington avenue)": [40.7616, -73.9680],
+  "charlie rose studio": [40.7616, -73.9680],
+  "wnet tisch studios (lincoln center)": [40.7736, -73.9822],
+  "firing line studio": [40.7736, -73.9822],
+  "abc news headquarters (77 west 66th street)": [40.7738, -73.9800],
+  "newsmax media new york bureau": [40.7556, -73.9712],
+  "full send podcast studios": [25.7617, -80.1918],
+  "triggernometry broadcast studio": [51.5072, -0.1276],
+  "jerusalem capital studios (jcs)": [31.7891, 35.2032],
+  "israeli broadcasting authority (iba) television house": [31.7912, 35.2015],
+  "kol israel broadcasting complex": [31.7820, 35.2215],
+  "reshet 13 broadcast studios (ramat hahayal)": [32.1098, 34.8402],
+  "herzliya studios (ulpanei herzliya)": [32.1624, 34.8447],
+  "jerusalem international convention center (binyanei hauma)": [31.7865, 35.2027],
+  "ministry of foreign affairs of israel": [31.7805, 35.1995],
+  "ministry of finance of israel": [31.7812, 35.2025],
+  "expo tel aviv (tel aviv convention center)": [32.1053, 34.8069],
+  "palace of the parliament (palatul parlamentului)": [44.4275, 26.0875],
+  "secretariat of foreign affairs (sre tlatelolco)": [19.4352, -99.1444],
+  "ministry of foreign affairs of the russian federation": [55.7463, 37.5844],
+  "ittihadiya palace (heliopolis palace)": [30.0886, 31.3194],
+  "now 14 washington bureau": [38.8972, -77.0315],
+  "washington hilton (international ballroom)": [38.9163, -77.0452],
+  "the washington institute for near east policy": [38.9042, -77.0435],
+  "zion square": [31.7828, 35.2185],
+  "erez border terminal": [31.5583, 34.5444],
+  "foreign correspondents' club of japan": [35.6748, 139.7618],
+  "jerusalem hilton hotel": [31.7865, 35.2023],
+  "lauder-reut educational complex": [44.4312, 26.1135],
+  "ma'ale adumim municipal complex": [31.7917, 35.2972],
 };
 
 /**
@@ -251,7 +291,7 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
 export interface GazetteerVenueMetadata {
   canonicalVenue: string;
   venueType: string;
-  streetAddress: string;
+  streetAddress?: string | null;
   district?: string;
   city: string;
   country: string;
@@ -259,6 +299,9 @@ export interface GazetteerVenueMetadata {
   latitude: number;
   longitude: number;
   venueAreas?: Array<{ id: string; name: string; areaType: string }>;
+  isMobileVessel?: boolean;
+  homeBasePlaceId?: string | null;
+  vesselType?: string | null;
 }
 
 export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> = {
@@ -1905,30 +1948,641 @@ export const GLOBAL_GAZETTEER_METADATA: Record<string, GazetteerVenueMetadata> =
       { id: "area-midtown-sixth-ave", name: "Sixth Avenue & 40th Street Pedestrian Perimeter", areaType: "outdoor" },
     ],
   },
+  "cnn broadcast studios (time warner center)": {
+    canonicalVenue: "CNN Broadcast Studios (Time Warner Center)",
+    venueType: "media-center",
+    streetAddress: "10 Columbus Circle",
+    district: "Midtown Manhattan",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7685,
+    longitude: -73.9832,
+    venueAreas: [
+      { id: "area-cnn-ny-studio-73", name: "Studio 73 (Larry King Live & Anderson Cooper 360°)", areaType: "room" },
+      { id: "area-cnn-ny-remote-studio", name: "CNN New York Remote Broadcast Suite", areaType: "room" },
+    ],
+  },
+  "fox news headquarters (1211 avenue of the americas)": {
+    canonicalVenue: "Fox News Headquarters (1211 Avenue of the Americas)",
+    venueType: "media-center",
+    streetAddress: "1211 Avenue of the Americas",
+    district: "Midtown Manhattan",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7586,
+    longitude: -73.9818,
+    venueAreas: [
+      { id: "area-fox-ny-studio-f", name: "Studio F (Prime-Time & Hannity)", areaType: "room" },
+      { id: "area-fox-ny-studio-j", name: "Studio J (The Sunday Briefing)", areaType: "room" },
+      { id: "area-fox-ny-studio-m", name: "Studio M (The Faulkner Focus)", areaType: "room" },
+    ],
+  },
+  "cnn washington bureau": {
+    canonicalVenue: "CNN Washington Bureau",
+    venueType: "media-center",
+    streetAddress: "820 First Street NE",
+    district: "Capitol Hill / NoMa",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.9004,
+    longitude: -77.0062,
+    venueAreas: [
+      { id: "area-cnn-dc-situation-room", name: "The Situation Room & State of the Union Studio", areaType: "room" },
+    ],
+  },
+  "fox news washington bureau": {
+    canonicalVenue: "Fox News Washington Bureau",
+    venueType: "media-center",
+    streetAddress: "400 North Capitol Street NW",
+    district: "Capitol Hill",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8953,
+    longitude: -77.0094,
+    venueAreas: [
+      { id: "area-fox-dc-studio-1", name: "Studio 1 (Special Report with Bret Baier)", areaType: "room" },
+    ],
+  },
+  "c-span washington broadcast studios": {
+    canonicalVenue: "C-SPAN Washington Broadcast Studios",
+    venueType: "media-center",
+    streetAddress: "400 North Capitol Street NW, Suite 650",
+    district: "Capitol Hill",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8953,
+    longitude: -77.0094,
+    venueAreas: [
+      { id: "area-cspan-dc-studio-a", name: "Washington Journal Broadcast Studio", areaType: "room" },
+    ],
+  },
+  "bloomberg television studios (731 lexington avenue)": {
+    canonicalVenue: "Bloomberg Television Studios (731 Lexington Avenue)",
+    venueType: "media-center",
+    streetAddress: "731 Lexington Avenue",
+    district: "Midtown East",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7616,
+    longitude: -73.9680,
+    venueAreas: [
+      { id: "area-charlie-rose-studio", name: "Charlie Rose Oak Table Studio", areaType: "room" },
+    ],
+  },
+  "wnet tisch studios (lincoln center)": {
+    canonicalVenue: "WNET Tisch Studios (Lincoln Center)",
+    venueType: "media-center",
+    streetAddress: "66th Street & Broadway",
+    district: "Upper West Side",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7736,
+    longitude: -73.9822,
+    venueAreas: [
+      { id: "area-firing-line-studio", name: "Firing Line Broadcast Studio", areaType: "room" },
+    ],
+  },
+  "abc news headquarters (77 west 66th street)": {
+    canonicalVenue: "ABC News Headquarters (77 West 66th Street)",
+    venueType: "media-center",
+    streetAddress: "77 West 66th Street",
+    district: "Upper West Side",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7738,
+    longitude: -73.9800,
+    venueAreas: [
+      { id: "area-abc-ny-tv1", name: "Studio TV-1 (This Week & World News Tonight)", areaType: "room" },
+    ],
+  },
+  "newsmax media new york bureau": {
+    canonicalVenue: "Newsmax Media New York Bureau",
+    venueType: "media-center",
+    streetAddress: "805 Third Avenue",
+    district: "Midtown East",
+    city: "New York",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.7556,
+    longitude: -73.9712,
+    venueAreas: [
+      { id: "area-newsmax-ny-record", name: "The Record Broadcast Studio", areaType: "room" },
+    ],
+  },
+  "full send podcast studios": {
+    canonicalVenue: "Full Send Podcast Studios",
+    venueType: "media-center",
+    streetAddress: "Brickell Avenue Media Complex",
+    district: "Brickell",
+    city: "Miami",
+    country: "United States",
+    countryCode: "US",
+    latitude: 25.7617,
+    longitude: -80.1918,
+    venueAreas: [
+      { id: "area-full-send-main", name: "Main Podcast Recording Studio", areaType: "room" },
+    ],
+  },
+  "triggernometry broadcast studio": {
+    canonicalVenue: "TRIGGERnometry Broadcast Studio",
+    venueType: "media-center",
+    streetAddress: "Central London Broadcast Suite",
+    district: "Westminster",
+    city: "London",
+    country: "United Kingdom",
+    countryCode: "GB",
+    latitude: 51.5072,
+    longitude: -0.1276,
+    venueAreas: [
+      { id: "area-triggernometry-set", name: "Main Interview Set", areaType: "room" },
+    ],
+  },
+  "jerusalem capital studios (jcs)": {
+    canonicalVenue: "Jerusalem Capital Studios (JCS)",
+    venueType: "media-center",
+    streetAddress: "206 Jaffa Road",
+    district: "Romema",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7891,
+    longitude: 35.2032,
+    venueAreas: [
+      { id: "area-jcs-channel-2", name: "Channel 2 News Broadcast Studio", areaType: "room" },
+    ],
+  },
+  "israeli broadcasting authority (iba) television house": {
+    canonicalVenue: "Israeli Broadcasting Authority (IBA) Television House",
+    venueType: "media-center",
+    streetAddress: "Torah MiTzion Street",
+    district: "Romema",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7912,
+    longitude: 35.2015,
+    venueAreas: [
+      { id: "area-iba-mabat-studio", name: "Mabat LaHadashot Main Studio", areaType: "room" },
+    ],
+  },
+  "kol israel broadcasting complex": {
+    canonicalVenue: "Kol Israel Broadcasting Complex",
+    venueType: "media-center",
+    streetAddress: "21 Heleni HaMalka Street",
+    district: "Russian Compound",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7820,
+    longitude: 35.2215,
+    venueAreas: [
+      { id: "area-kol-israel-news", name: "National Radio Newsroom", areaType: "room" },
+    ],
+  },
+  "reshet 13 broadcast studios (ramat hahayal)": {
+    canonicalVenue: "Reshet 13 Broadcast Studios (Ramat HaHayal)",
+    venueType: "media-center",
+    streetAddress: "24 HaBarzel Street",
+    district: "Ramat HaHayal",
+    city: "Tel Aviv",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 32.1098,
+    longitude: 34.8402,
+    venueAreas: [
+      { id: "area-reshet-13-news", name: "Channel 13 News Studio", areaType: "room" },
+    ],
+  },
+  "herzliya studios (ulpanei herzliya)": {
+    canonicalVenue: "Herzliya Studios (Ulpanei Herzliya)",
+    venueType: "media-center",
+    streetAddress: "4 HaKesem Street",
+    district: "Herzliya / Tel Aviv Metro",
+    city: "Tel Aviv",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 32.1624,
+    longitude: 34.8447,
+    venueAreas: [
+      { id: "area-herzliya-broadcast", name: "Soundstage 1 & Broadcast Desk", areaType: "hall" },
+    ],
+  },
+  "jerusalem international convention center (binyanei hauma)": {
+    canonicalVenue: "Jerusalem International Convention Center (Binyanei HaUma)",
+    venueType: "summit-center",
+    streetAddress: "1 Shazar Boulevard",
+    district: "Givat Ram",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7865,
+    longitude: 35.2027,
+    venueAreas: [
+      { id: "area-icc-jerusalem-ushishkin", name: "Ussishkin Auditorium", areaType: "hall" },
+    ],
+  },
+  "ministry of foreign affairs of israel": {
+    canonicalVenue: "Ministry of Foreign Affairs of Israel",
+    venueType: "diplomatic-mission",
+    streetAddress: "9 Yitzhak Rabin Boulevard, Kiryat Ben-Gurion",
+    district: "Givat Ram",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7805,
+    longitude: 35.1995,
+    venueAreas: [
+      { id: "area-mfa-israel-briefing", name: "Diplomatic Briefing Hall", areaType: "hall" },
+    ],
+  },
+  "ministry of finance of israel": {
+    canonicalVenue: "Ministry of Finance of Israel",
+    venueType: "executive-residence",
+    streetAddress: "1 Kaplan Street, Kiryat Ben-Gurion",
+    district: "Givat Ram",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7812,
+    longitude: 35.2025,
+    venueAreas: [
+      { id: "area-mof-israel-minister", name: "Minister's Conference Suite", areaType: "room" },
+    ],
+  },
+  "expo tel aviv (tel aviv convention center)": {
+    canonicalVenue: "Expo Tel Aviv (Tel Aviv Convention Center)",
+    venueType: "summit-center",
+    streetAddress: "101 Rokach Boulevard",
+    district: "Mercaz HaYeridim",
+    city: "Tel Aviv",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 32.1053,
+    longitude: 34.8069,
+    venueAreas: [
+      { id: "area-expo-tlv-pavilion-1", name: "Pavilion 1 Plenary Hall", areaType: "hall" },
+      { id: "area-expo-tlv-pavilion-10", name: "Pavilion 10 Convention Hall", areaType: "hall" },
+    ],
+  },
+  "palace of the parliament (palatul parlamentului)": {
+    canonicalVenue: "Palace of the Parliament (Palatul Parlamentului)",
+    venueType: "parliament",
+    streetAddress: "Strada Izvor 2-4",
+    district: "Sector 5",
+    city: "Bucharest",
+    country: "Romania",
+    countryCode: "RO",
+    latitude: 44.4275,
+    longitude: 26.0875,
+    venueAreas: [
+      { id: "area-bucharest-parliament-union", name: "Union Hall (Sala Unirii)", areaType: "hall" },
+    ],
+  },
+  "secretariat of foreign affairs (sre tlatelolco)": {
+    canonicalVenue: "Secretariat of Foreign Affairs (SRE Tlatelolco)",
+    venueType: "diplomatic-mission",
+    streetAddress: "Plaza Juárez 20, Centro",
+    district: "Cuauhtémoc",
+    city: "Mexico City",
+    country: "Mexico",
+    countryCode: "MX",
+    latitude: 19.4352,
+    longitude: -99.1444,
+    venueAreas: [
+      { id: "area-sre-mexico-morelos", name: "Salón José María Morelos y Pavón", areaType: "hall" },
+    ],
+  },
+  "ministry of foreign affairs of the russian federation": {
+    canonicalVenue: "Ministry of Foreign Affairs of the Russian Federation",
+    venueType: "diplomatic-mission",
+    streetAddress: "32/34 Smolenskaya-Sennaya Square",
+    district: "Arbat",
+    city: "Moscow",
+    country: "Russia",
+    countryCode: "RU",
+    latitude: 55.7463,
+    longitude: 37.5844,
+    venueAreas: [
+      { id: "area-mid-moscow-reception", name: "State Reception House (Spiridonovka 17)", areaType: "hall" },
+    ],
+  },
+  "ittihadiya palace (heliopolis palace)": {
+    canonicalVenue: "Ittihadiya Palace (Heliopolis Palace)",
+    venueType: "executive-residence",
+    streetAddress: "Al-Ahram Street, Heliopolis",
+    district: "Heliopolis",
+    city: "Cairo",
+    country: "Egypt",
+    countryCode: "EG",
+    latitude: 30.0886,
+    longitude: 31.3194,
+    venueAreas: [
+      { id: "area-ittihadiya-summit", name: "Presidential Summit Hall", areaType: "hall" },
+    ],
+  },
+  "now 14 washington bureau": {
+    canonicalVenue: "Now 14 Washington Bureau",
+    venueType: "media-center",
+    streetAddress: "529 14th Street NW",
+    district: "Downtown",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8972,
+    longitude: -77.0315,
+    venueAreas: [
+      { id: "area-now14-dc-briefing", name: "Diplomatic Interview Suite", areaType: "room" },
+    ],
+  },
+  "washington hilton (international ballroom)": {
+    canonicalVenue: "Washington Hilton (International Ballroom)",
+    venueType: "hotel",
+    streetAddress: "1919 Connecticut Avenue NW",
+    district: "Dupont Circle / Kalorama",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.9163,
+    longitude: -77.0452,
+    venueAreas: [
+      { id: "area-washington-hilton-ballroom", name: "International Ballroom", areaType: "hall" },
+    ],
+  },
+  "the washington institute for near east policy": {
+    canonicalVenue: "The Washington Institute for Near East Policy",
+    venueType: "academic-institution",
+    streetAddress: "1111 19th Street NW",
+    district: "Golden Triangle",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.9042,
+    longitude: -77.0435,
+    venueAreas: [
+      { id: "area-winep-soref", name: "Soref Conference Hall", areaType: "hall" },
+    ],
+  },
+  "national press club": {
+    canonicalVenue: "National Press Club",
+    venueType: "media-center",
+    streetAddress: "529 14th Street NW, 13th Floor",
+    district: "Downtown",
+    city: "Washington, D.C.",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8972,
+    longitude: -77.0315,
+    venueAreas: [
+      { id: "area-npc-ballroom", name: "Main Ballroom", areaType: "hall" },
+      { id: "area-npc-holeman", name: "Holeman Lounge", areaType: "room" },
+    ],
+  },
+  "mount herzl": {
+    canonicalVenue: "Mount Herzl National Cemetery",
+    venueType: "memorial",
+    streetAddress: "Herzl Boulevard",
+    district: "Bayit VeGan",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7744,
+    longitude: 35.1806,
+    venueAreas: [
+      { id: "area-herzl-great-leaders", name: "Plot of the Great Leaders of the Nation", areaType: "outdoor" },
+      { id: "area-herzl-plaza", name: "Mount Herzl Ceremonial Plaza", areaType: "outdoor" },
+    ],
+  },
+  "yad vashem": {
+    canonicalVenue: "Yad Vashem (World Holocaust Remembrance Center)",
+    venueType: "memorial",
+    streetAddress: "Har HaZikaron",
+    district: "Mount Herzl",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7742,
+    longitude: 35.1754,
+    venueAreas: [
+      { id: "area-yad-vashem-hall-remembrance", name: "Hall of Remembrance (Ohel Yizkor)", areaType: "hall" },
+      { id: "area-yad-vashem-warsaw-plaza", name: "Warsaw Ghetto Square", areaType: "outdoor" },
+    ],
+  },
+  "weizmann institute of science": {
+    canonicalVenue: "Weizmann Institute of Science",
+    venueType: "university",
+    streetAddress: "234 Herzl Street",
+    district: "Rehovot",
+    city: "Rehovot",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.9056,
+    longitude: 34.8094,
+    venueAreas: [
+      { id: "area-weizmann-wix", name: "Michael Sela Auditorium", areaType: "hall" },
+    ],
+  },
+  "770 eastern parkway": {
+    canonicalVenue: "770 Eastern Parkway (Lubavitch World Headquarters)",
+    venueType: "religious-center",
+    streetAddress: "770 Eastern Parkway",
+    district: "Crown Heights",
+    city: "Brooklyn",
+    country: "United States",
+    countryCode: "US",
+    latitude: 40.6689,
+    longitude: -73.9427,
+    venueAreas: [
+      { id: "area-770-main-synagogue", name: "Main Synagogue Sanctuary", areaType: "hall" },
+      { id: "area-770-rebbe-study", name: "The Rebbe's Study (Yechidus Room)", areaType: "room" },
+    ],
+  },
+  "air force one (boeing vc-25a / sam 28000 / sam 29000)": {
+    canonicalVenue: "Air Force One (Boeing VC-25A / SAM 28000 / SAM 29000)",
+    venueType: "transport",
+    isMobileVessel: true,
+    vesselType: "aircraft",
+    homeBasePlaceId: "plc-joint-base-andrews",
+    district: "Presidential Airlift Group",
+    city: "Camp Springs",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.8108,
+    longitude: -76.8670,
+    venueAreas: [
+      { id: "area-afo-presidential-suite", name: "Presidential Executive Suite", areaType: "room" },
+      { id: "area-afo-conference-room", name: "Airborne Situation & Conference Room", areaType: "room" },
+      { id: "area-afo-press-cabin", name: "Press Pool Cabin", areaType: "room" },
+    ],
+  },
+  "marine one (sikorsky vh-3d / vh-92a)": {
+    canonicalVenue: "Marine One (Sikorsky VH-3D / VH-92A)",
+    venueType: "transport",
+    isMobileVessel: true,
+    vesselType: "helicopter",
+    homeBasePlaceId: "plc-mcaf-quantico",
+    district: "Marine Helicopter Squadron One",
+    city: "Quantico",
+    country: "United States",
+    countryCode: "US",
+    latitude: 38.5035,
+    longitude: -77.3053,
+    venueAreas: [
+      { id: "area-m1-executive-cabin", name: "Presidential Passenger Cabin", areaType: "room" },
+    ],
+  },
+  "british royal train": {
+    canonicalVenue: "British Royal Train",
+    venueType: "transport",
+    isMobileVessel: true,
+    vesselType: "train",
+    homeBasePlaceId: "plc-wolverton-works",
+    district: "Network Rail Royal Operations",
+    city: "London",
+    country: "United Kingdom",
+    countryCode: "GB",
+    latitude: 51.5072,
+    longitude: -0.1276,
+    venueAreas: [
+      { id: "area-royal-train-saloon", name: "Sovereign's Saloon Carriage", areaType: "room" },
+    ],
+  },
+  "zion square": {
+    canonicalVenue: "Zion Square",
+    venueType: "public-square",
+    streetAddress: "Jaffa Road and Ben Yehuda Street",
+    district: "Downtown Triangle",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7828,
+    longitude: 35.2185,
+    venueAreas: [
+      { id: "area-zion-square-plenary", name: "Zion Square Open Plaza", areaType: "outdoor" },
+    ],
+  },
+  "erez border terminal": {
+    canonicalVenue: "Erez Border Terminal",
+    venueType: "border-terminal",
+    streetAddress: "Route 4, Erez Crossing Terminal",
+    district: "Northern Gaza Border",
+    city: "Erez",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.5583,
+    longitude: 34.5444,
+    venueAreas: [
+      { id: "area-erez-terminal-compound", name: "Erez Terminal VIP Conference Hall", areaType: "hall" },
+    ],
+  },
+  "foreign correspondents' club of japan": {
+    canonicalVenue: "Foreign Correspondents' Club of Japan",
+    venueType: "press-club",
+    streetAddress: "3-2-3 Marunouchi, Chiyoda-ku",
+    district: "Marunouchi",
+    city: "Tokyo",
+    country: "Japan",
+    countryCode: "JP",
+    latitude: 35.6748,
+    longitude: 139.7618,
+    venueAreas: [
+      { id: "area-fccj-main-hall", name: "FCCJ Main Press Conference Room", areaType: "hall" },
+    ],
+  },
+  "jerusalem hilton hotel": {
+    canonicalVenue: "Jerusalem Hilton Hotel",
+    venueType: "hotel",
+    streetAddress: "1 Ha-Aliya Street",
+    district: "Givat Ram",
+    city: "Jerusalem",
+    country: "Israel",
+    countryCode: "IL",
+    latitude: 31.7865,
+    longitude: 35.2023,
+    venueAreas: [
+      { id: "area-jerusalem-hilton-ballroom", name: "Grand Ballroom", areaType: "hall" },
+    ],
+  },
+  "lauder-reut educational complex": {
+    canonicalVenue: "Lauder-Reut Educational Complex",
+    venueType: "educational-institution",
+    streetAddress: "15 Iuliu Barasch Street",
+    district: "Sector 3",
+    city: "Bucharest",
+    country: "Romania",
+    countryCode: "RO",
+    latitude: 44.4312,
+    longitude: 26.1135,
+    venueAreas: [
+      { id: "area-lauder-reut-auditorium", name: "Main Auditorium", areaType: "hall" },
+    ],
+  },
+  "ma'ale adumim municipal complex": {
+    canonicalVenue: "Ma'ale Adumim Municipal Complex",
+    venueType: "civic-center",
+    streetAddress: "Derech Kedem",
+    district: "Judea and Samaria",
+    city: "Ma'ale Adumim",
+    country: "West Bank",
+    countryCode: "PS",
+    latitude: 31.7917,
+    longitude: 35.2972,
+    venueAreas: [
+      { id: "area-maale-adumim-plenary", name: "Municipal Assembly Hall", areaType: "hall" },
+    ],
+  },
 };
 
 const GAZETTEER_ALIASES: Record<string, string> = {
   "fontainebleau miami beach lobby": "fontainebleau miami beach",
   "white house": "the white house",
+  "the white house - oval office": "the white house",
+  "the white house - east room": "the white house",
+  "the white house - diplomatic reception room": "the white house",
+  "the white house - south lawn": "the white house",
+  "oval office, white house": "the white house",
+  "state dining room, white house": "the white house",
+  "white house east room": "the white house",
+  "white house oval office": "the white house",
   "us capitol": "united states capitol",
+  "united states capitol - house chamber": "united states capitol",
   "un headquarters": "united nations headquarters",
+  "flushing meadows plenary hall": "new york city building (flushing meadows)",
   "knesset": "the knesset",
+  "the knesset plenary chamber": "the knesset",
   "prime minister’s office": "prime minister's office",
   "mar-a-lago": "mar-a-lago club",
+  "camp david presidential retreat": "camp david",
+  "wye river conference centers": "wye river conference center",
   "royal palace of madrid (palacio real)": "royal palace of madrid",
+  "palacio real de madrid (royal palace)": "royal palace of madrid",
   "palacio real": "royal palace of madrid",
   "palacio de las cortes (congreso de los diputados)": "palacio de las cortes",
   "foreign and commonwealth office": "foreign, commonwealth & development office",
+  "foreign office, whitehall": "foreign, commonwealth & development office",
+  "westminster abbey and st george's chapel windsor": "westminster abbey",
   "bellevue palace (schloss bellevue)": "bellevue palace",
   "reichstag building (bundestag)": "reichstag building",
+  "palace of justice - courtroom 600": "palace of justice",
   "royal palace of brussels (palais royal)": "royal palace of brussels",
   "palace of the nation (belgian federal parliament)": "palace of the nation",
+  "de nieuwe kerk amsterdam": "de nieuwe kerk",
+  "peace palace - great hall of justice": "peace palace",
   "royal palace of stockholm (stockholms slott)": "royal palace of stockholm",
   "drottningholm palace (drottningholms slott)": "drottningholm palace",
   "stockholm concert hall (konserthuset)": "stockholm concert hall",
+  "stockholm concert hall (konserthuset) and stockholm city hall (stadshuset)": "stockholm concert hall",
   "stockholm city hall (stadshuset)": "stockholm city hall",
   "palais princier": "palais princier de monaco",
   "prince's palace of monaco": "palais princier de monaco",
+  "cour d'honneur du palais princier": "palais princier de monaco",
   "schloss vaduz (vaduz castle)": "schloss vaduz",
   "royal palace of bucharest (palatul regal)": "royal palace of bucharest",
   "elisabeta palace (palatul elisabeta)": "elisabeta palace",
@@ -1937,7 +2591,16 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "royal compound (kraljevski dvor)": "the royal palace (kraljevski dvor)",
   "royal palace of belgrade": "the royal palace (kraljevski dvor)",
   "oslo city hall (oslo radhus)": "oslo city hall",
+  "university of oslo - aula": "university of oslo",
+  "maison de saussure & villa fleur d'eau": "villa fleur d'eau",
+  "palais coburg hotel residenz": "palais coburg",
+  "headquarters of the food and agriculture organization (fao)": "food and agriculture organization (fao) headquarters",
+  "omaha beach international memorial tribune": "omaha beach memorial tribune",
+  "beit ha'am (gerard bechar center)": "gerard bechar center (beit ha'am)",
+  "tel aviv museum of art (independence hall)": "independence hall (dizengoff house)",
+  "kedma hotel & david ben-gurion gravesite": "kedma hotel isrotel",
   "ben-gurion international airport": "ben gurion international airport",
+  "ben gurion airport": "ben gurion international airport",
   "the oxford union": "the oxford union society",
   "oxford union": "the oxford union society",
   "dirksen building": "dirksen senate office building",
@@ -1945,6 +2608,51 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "hafnarstraeti pedestrian center": "hafnarstræti pedestrian center",
   "bankastraeti": "bankastræti",
   "talktv studio": "talktv studio (the news building)",
+  "cnn studio": "cnn broadcast studios (time warner center)",
+  "cnn remote studio": "cnn broadcast studios (time warner center)",
+  "fox news studio": "fox news headquarters (1211 avenue of the americas)",
+  "fox news / the sunday briefing": "fox news headquarters (1211 avenue of the americas)",
+  "fox news": "fox news headquarters (1211 avenue of the americas)",
+  "fox news / the faulkner focus": "fox news headquarters (1211 avenue of the americas)",
+  "cnn washington studio": "cnn washington bureau",
+  "fox news / hannity": "fox news washington bureau",
+  "fox news / life, liberty & levin": "fox news washington bureau",
+  "fox news / bret baier": "fox news washington bureau",
+  "fox news / special report": "fox news washington bureau",
+  "c-span studio": "c-span washington broadcast studios",
+  "charlie rose studio": "bloomberg television studios (731 lexington avenue)",
+  "firing line studio": "wnet tisch studios (lincoln center)",
+  "abc news": "abc news headquarters (77 west 66th street)",
+  "newsmax / the record": "newsmax media new york bureau",
+  "full send podcast": "full send podcast studios",
+  "triggernometry": "triggernometry broadcast studio",
+  "channel 2 studio": "jerusalem capital studios (jcs)",
+  "pbs frontline interview": "jerusalem capital studios (jcs)",
+  "israeli public television studio": "israeli broadcasting authority (iba) television house",
+  "kol israel": "kol israel broadcasting complex",
+  "channel 13": "reshet 13 broadcast studios (ramat hahayal)",
+  "cbs news interview location": "herzliya studios (ulpanei herzliya)",
+  "business community forum": "jerusalem international convention center (binyanei hauma)",
+  "likud leadership election": "jerusalem international convention center (binyanei hauma)",
+  "jns international policy summit": "jerusalem international convention center (binyanei hauma)",
+  "foreign ministry": "ministry of foreign affairs of israel",
+  "ministry of finance": "ministry of finance of israel",
+  "likud central committee": "expo tel aviv (tel aviv convention center)",
+  "likud conference": "expo tel aviv (tel aviv convention center)",
+  "likud primary": "expo tel aviv (tel aviv convention center)",
+  "business conference": "expo tel aviv (tel aviv convention center)",
+  "bucharest press venue": "palace of the parliament (palatul parlamentului)",
+  "mexico city press venue": "secretariat of foreign affairs (sre tlatelolco)",
+  "russian foreign ministry": "ministry of foreign affairs of the russian federation",
+  "channel 14": "now 14 washington bureau",
+  "ronald reagan banquet": "washington hilton (international ballroom)",
+  "the washington institute": "the washington institute for near east policy",
+  "erez crossing": "erez border terminal",
+  "foreign correspondents’ club of japan": "foreign correspondents' club of japan",
+  "maale adumim": "ma'ale adumim municipal complex",
+  "prime minister’s official media channels": "prime minister's office",
+  "prime minister's official media channels": "prime minister's office",
+  "israel": "the knesset",
 };
 
 for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
@@ -1970,6 +2678,7 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   "United Arab Emirates": "AE",
   "State of Palestine": "PS",
   "Palestine": "PS",
+  "West Bank": "PS",
   "China": "CN",
   "Russia": "RU",
   "Bahrain": "BH",
@@ -2226,16 +2935,8 @@ export function resolveVenueMetadata(venue?: string | null): GazetteerVenueMetad
   return null;
 }
 
-function sanitizePlaceSlug(str: string): string {
-  return (
-    str
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || "unknown"
-  );
-}
+import { getCanonicalCitySlug, sanitizePlaceSlug } from "./utils";
+export { getCanonicalCitySlug, sanitizePlaceSlug };
 
 /**
  * Retrieves the complete multi-tier geographical hierarchy from Supabase:
@@ -2270,20 +2971,103 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   }
 
   // 2. Fetch all events across all pages to compute exact event counts per venue, city, and country
-  const allEvents: EventRecord[] = [];
-  let currentPage = 1;
-  let totalPages = 1;
-  do {
-    const pageRes = await getEvents({ page: currentPage, limit: 100 });
-    if (pageRes.data && pageRes.data.length > 0) {
-      allEvents.push(...pageRes.data);
-    }
-    totalPages = pageRes.totalPages || 1;
-    currentPage++;
-  } while (currentPage <= totalPages && currentPage <= 100);
+  type SimpleEventRow = {
+    id: string;
+    slug?: string;
+    venueName?: string | null;
+    city?: string | null;
+    country?: string | null;
+    venueId?: string | null;
+    placeId?: string | null;
+  };
+  const allEvents: SimpleEventRow[] = [];
 
-  const eventCountsByVenueId = new Map<string, number>();
-  const eventCountsByVenueKey = new Map<string, number>();
+  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string; isVenue?: boolean }>();
+  rawPlaces.forEach((p) => {
+    const isVenue = Boolean(p.venue) || (p.placeType !== "city" && p.placeType !== "country");
+    const info = { venue: p.venue, city: p.city, country: p.country, isVenue };
+    placesMapById.set(p.id, info);
+    if (p.slug) {
+      placesMapById.set(p.slug, info);
+    }
+  });
+
+  if (supabase) {
+    try {
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: rows, error: eventsError } = await supabase
+          .from("events")
+          .select("id, slug, place_id, venue_id, address_id, city, country, venue_name")
+          .eq("publication_status", "published")
+          .order("id", { ascending: true })
+          .range(from, from + batchSize - 1);
+
+        if (eventsError) {
+          // Do not keep partial results on error; fail scan to invoke fallback
+          allEvents.length = 0;
+          break;
+        }
+
+        if (!rows || rows.length === 0) {
+          hasMore = false;
+        } else {
+          for (const r of rows) {
+            const loc =
+              (r.place_id && placesMapById.get(r.place_id)) ||
+              (r.venue_id && placesMapById.get(r.venue_id));
+
+            allEvents.push({
+              id: r.id,
+              slug: r.slug,
+              venueName: loc?.venue || r.venue_name || null,
+              city: loc?.city || r.city || null,
+              country: loc?.country || r.country || null,
+              venueId: r.venue_id,
+              placeId: r.place_id,
+            });
+          }
+          // Advance by actual rows received rather than assuming batchSize (guards against db-max-rows capping)
+          from += rows.length;
+        }
+      }
+    } catch {
+      // Clear any partial rows if an exception occurred to trigger clean complete fallback
+      allEvents.length = 0;
+    }
+  }
+
+  // Fallback to getEvents if Supabase didn't return any events or failed
+  if (allEvents.length === 0) {
+    let currentPage = 1;
+    let totalPages = 1;
+    do {
+      const pageRes = await getEvents({ page: currentPage, limit: 100 });
+      if (pageRes.error) {
+        break;
+      }
+      if (pageRes.data && pageRes.data.length > 0) {
+        for (const e of pageRes.data) {
+          allEvents.push({
+            id: e.id,
+            slug: e.slug,
+            venueName: e.venueName,
+            city: e.city,
+            country: e.country,
+            venueId: (e as { venueId?: string }).venueId,
+            placeId: (e as { placeId?: string }).placeId,
+          });
+        }
+      }
+      totalPages = pageRes.totalPages || 1;
+      currentPage++;
+    } while (currentPage <= totalPages && currentPage <= 100);
+  }
+
+  const venueEventIdsMap = new Map<string, Set<string>>();
+  const venueDedupEventIdsMap = new Map<string, Set<string>>();
   const eventCountsByCity = new Map<string, number>();
   const eventCountsByCountry = new Map<string, number>();
 
@@ -2293,20 +3077,57 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     const meta = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
     const canonicalVenueName = (meta?.canonicalVenue || rawVenue).trim();
     const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+    const eventId = e.id || e.slug || "";
+
+    const eventCountryName = resolveCanonicalCountryName(e.country);
+    const rawEventCity = (e.city || "Unknown").trim();
+    const normalizedEventCity = normalizeCityName(rawEventCity);
+    const eventCityName =
+      normalizedEventCity.toLowerCase() === "reykjavík"
+        ? "Reykjavik"
+        : normalizedEventCity.toLowerCase() === "keflavík"
+        ? "Keflavik"
+        : normalizedEventCity.toLowerCase() === "lod area"
+        ? "Lod"
+        : normalizedEventCity.toLowerCase() === "wye"
+        ? "Queenstown"
+        : normalizedEventCity;
+    const cityKey = `${eventCountryName}::${normalizeCityName(eventCityName)}`.toLowerCase();
 
     const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
-    if (vId) {
-      eventCountsByVenueId.set(vId, (eventCountsByVenueId.get(vId) || 0) + 1);
+    if (vId && eventId) {
+      if (!venueEventIdsMap.has(vId)) venueEventIdsMap.set(vId, new Set());
+      venueEventIdsMap.get(vId)!.add(eventId);
     }
-    if (canonicalVenueNorm) {
-      eventCountsByVenueKey.set(canonicalVenueNorm, (eventCountsByVenueKey.get(canonicalVenueNorm) || 0) + 1);
+    const eventVenueId = (e as { venueId?: string }).venueId;
+    if (eventVenueId && eventId) {
+      if (!venueEventIdsMap.has(eventVenueId)) venueEventIdsMap.set(eventVenueId, new Set());
+      venueEventIdsMap.get(eventVenueId)!.add(eventId);
     }
-    if (venueNorm && venueNorm !== canonicalVenueNorm) {
-      eventCountsByVenueKey.set(venueNorm, (eventCountsByVenueKey.get(venueNorm) || 0) + 1);
+    const eventPlaceId = (e as { placeId?: string }).placeId;
+    if (eventPlaceId && eventId) {
+      const placeMeta = placesMapById.get(eventPlaceId);
+      // Item 17: Count events under a place reference only when that reference identifies a venue
+      if (placeMeta?.isVenue) {
+        if (!venueEventIdsMap.has(eventPlaceId)) venueEventIdsMap.set(eventPlaceId, new Set());
+        venueEventIdsMap.get(eventPlaceId)!.add(eventId);
+      }
     }
-    const eventCountryName = resolveCanonicalCountryName(e.country);
-    const eventCityName = (e.city || "Unknown").trim();
-    const cityKey = `${eventCountryName}::${eventCityName}`.toLowerCase();
+    const scopedCanonicalKey = `${cityKey}::${canonicalVenueNorm}`;
+    if (canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(scopedCanonicalKey)) venueEventIdsMap.set(scopedCanonicalKey, new Set());
+      venueEventIdsMap.get(scopedCanonicalKey)!.add(eventId);
+    }
+    const scopedVenueKey = `${cityKey}::${venueNorm}`;
+    if (venueNorm && venueNorm !== canonicalVenueNorm && eventId) {
+      if (!venueEventIdsMap.has(scopedVenueKey)) venueEventIdsMap.set(scopedVenueKey, new Set());
+      venueEventIdsMap.get(scopedVenueKey)!.add(eventId);
+    }
+    if (meta?.isMobileVessel && canonicalVenueNorm && eventId) {
+      const mobileKey = `mobile::${canonicalVenueNorm}`;
+      if (!venueEventIdsMap.has(mobileKey)) venueEventIdsMap.set(mobileKey, new Set());
+      venueEventIdsMap.get(mobileKey)!.add(eventId);
+    }
     if (eventCityName) {
       eventCountsByCity.set(cityKey, (eventCountsByCity.get(cityKey) || 0) + 1);
     }
@@ -2321,35 +3142,86 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   const citiesMap = new Map<string, CityNode>();
   const venuesMap = new Map<string, VenueNode>();
   const addressesMap = new Map<string, AddressNode>();
+  const addressEventIdsMap = new Map<string, Set<string>>();
 
   const cityVenuesMap = new Map<string, VenueNode[]>();
   const cityAddressesMap = new Map<string, AddressNode[]>();
   const countryCitiesMap = new Map<string, CityNode[]>();
 
   rawPlaces.forEach((p) => {
-    const countryName = resolveCanonicalCountryName(p.country);
-    const countryCode = COUNTRY_CODE_MAP[countryName] || (p.country && p.country.trim().length === 2 ? p.country.trim().toUpperCase() : "UN");
+    const venueName = (p.venue || p.city || "Unknown").trim();
+    const venueNorm = venueName.toLowerCase();
+    const dbCity = String(p.city || "Unknown");
+    const dbCountry = String(p.country || "Unknown");
+
+    const checkLocationMatches = (candidateMeta: typeof GLOBAL_GAZETTEER_METADATA[string] | undefined) => {
+      if (!candidateMeta) return false;
+      const cityOk = !p.city || p.city === "Unknown" || p.city === "Location not established" || isSameCity(dbCity, candidateMeta.city);
+      const countryOk = !p.country || p.country === "Unknown" || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(candidateMeta.country).toLowerCase();
+      return cityOk && countryOk;
+    };
+
+    const directCandidate = venueNorm ? GLOBAL_GAZETTEER_METADATA[venueNorm] : undefined;
+    const directMatches = checkLocationMatches(directCandidate);
+
+    let meta = directMatches ? directCandidate : undefined;
+    if (!meta && directCandidate?.canonicalVenue) {
+      const canonicalCandidate = GLOBAL_GAZETTEER_METADATA[directCandidate.canonicalVenue.toLowerCase()];
+      if (checkLocationMatches(canonicalCandidate)) {
+        meta = canonicalCandidate;
+      }
+    }
+
+    const canonicalVenueName = (meta?.canonicalVenue || venueName).trim();
+    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
+
+    const resolvedRawCountry = p.country && p.country !== "Unknown" ? p.country : meta?.country || p.country;
+    const countryName = resolveCanonicalCountryName(resolvedRawCountry);
+    const countryCode =
+      COUNTRY_CODE_MAP[countryName] ||
+      meta?.countryCode ||
+      (p.country && p.country.trim().length === 2 ? p.country.trim().toUpperCase() : "UN");
     const countrySlug = sanitizePlaceSlug(countryName);
 
-    const cityName = (p.city || "Unknown").trim();
-    const citySlug = `${countrySlug}-${sanitizePlaceSlug(cityName)}`;
-    const cityCityKey = `${countryName}::${cityName}`.toLowerCase();
+    const rawCity = (p.city && p.city !== "Unknown" && p.city !== "Location not established" ? p.city : meta?.city || p.city || "Unknown").trim();
+    const normalizedRawCity = normalizeCityName(rawCity);
+    const cityName =
+      normalizedRawCity.toLowerCase() === "reykjavík"
+        ? "Reykjavik"
+        : normalizedRawCity.toLowerCase() === "keflavík"
+        ? "Keflavik"
+        : normalizedRawCity.toLowerCase() === "lod area"
+        ? "Lod"
+        : normalizedRawCity.toLowerCase() === "wye"
+        ? "Queenstown"
+        : normalizedRawCity;
+    const citySlug = getCanonicalCitySlug(countryName, cityName);
+    const cityCityKey = `${countryName}::${normalizeCityName(cityName)}`.toLowerCase();
 
-    const venueName = (p.venue || cityName).trim();
-    const venueNorm = venueName.toLowerCase();
-    const metaDirect = GLOBAL_GAZETTEER_METADATA[venueNorm];
-    const canonicalVenueName = (metaDirect?.canonicalVenue || venueName).trim();
-    const canonicalVenueNorm = canonicalVenueName.toLowerCase();
-    const meta = metaDirect || GLOBAL_GAZETTEER_METADATA[canonicalVenueNorm];
-
-    const streetAddress = meta?.streetAddress || (p.streetAddress || null);
+    const isMobileVessel = Boolean(meta?.isMobileVessel);
+    const streetAddress = isMobileVessel ? null : (meta?.streetAddress || (p.streetAddress || null));
     const venueType = meta?.venueType || p.placeType || "venue";
     const venueAreas = meta?.venueAreas || p.venueAreas || [];
-    const eventCount =
-      eventCountsByVenueId.get(p.id) ||
-      eventCountsByVenueKey.get(canonicalVenueNorm) ||
-      eventCountsByVenueKey.get(venueNorm) ||
-      0;
+
+    // Aggregate distinct event IDs for this venue
+    const currentVenueEventIds = new Set<string>();
+    if (venueEventIdsMap.has(p.id)) {
+      venueEventIdsMap.get(p.id)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    const scopedCanonicalKey = `${cityCityKey}::${canonicalVenueNorm}`;
+    if (venueEventIdsMap.has(scopedCanonicalKey)) {
+      venueEventIdsMap.get(scopedCanonicalKey)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    const scopedVenueKey = `${cityCityKey}::${venueNorm}`;
+    if (venueEventIdsMap.has(scopedVenueKey)) {
+      venueEventIdsMap.get(scopedVenueKey)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    if (isMobileVessel && canonicalVenueNorm) {
+      const mobileKey = `mobile::${canonicalVenueNorm}`;
+      if (venueEventIdsMap.has(mobileKey)) {
+        venueEventIdsMap.get(mobileKey)!.forEach((id) => currentVenueEventIds.add(id));
+      }
+    }
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
@@ -2373,8 +3245,8 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         name: cityName,
         country: countryName,
         countryCode,
-        latitude: p.latitude ?? null,
-        longitude: p.longitude ?? null,
+        latitude: p.latitude ?? meta?.latitude ?? null,
+        longitude: p.longitude ?? meta?.longitude ?? null,
         venueCount: 0,
         addressCount: 0,
         eventCount: eventCountsByCity.get(cityCityKey) || 0,
@@ -2386,45 +3258,82 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       countryCitiesMap.set(countrySlug, cList);
     }
 
-    // Venue Node
-    const venueNode: VenueNode = {
-      id: p.id,
-      slug: p.slug,
-      name: venueName,
-      venueType,
-      city: cityName,
-      country: countryName,
-      countryCode,
-      streetAddress,
-      latitude: p.latitude ?? null,
-      longitude: p.longitude ?? null,
-      venueAreas,
-      eventCount,
-    };
-    venuesMap.set(p.id, venueNode);
+    // Venue Node (deduplicated per city + canonical venue name)
+    const venueDedupKey = `${cityCityKey}::${canonicalVenueNorm}`;
+    if (!venuesMap.has(venueDedupKey)) {
+      const dedupSet = new Set(currentVenueEventIds);
+      venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
 
-    const vList = cityVenuesMap.get(cityCityKey) || [];
-    vList.push(venueNode);
-    cityVenuesMap.set(cityCityKey, vList);
+      const venueNode: VenueNode = {
+        id: p.id,
+        slug: sanitizePlaceSlug(p.slug || canonicalVenueName),
+        citySlug,
+        name: canonicalVenueName,
+        venueType,
+        city: cityName,
+        country: countryName,
+        countryCode,
+        streetAddress,
+        isMobileVessel: meta?.isMobileVessel,
+        vesselType: meta?.vesselType,
+        homeBasePlaceId: meta?.homeBasePlaceId,
+        latitude: p.latitude ?? meta?.latitude ?? null,
+        longitude: p.longitude ?? meta?.longitude ?? null,
+        venueAreas,
+        eventCount: dedupSet.size,
+      };
+      venuesMap.set(venueDedupKey, venueNode);
 
-    // Address Node (if physical street address exists)
-    if (streetAddress) {
+      const vList = cityVenuesMap.get(cityCityKey) || [];
+      vList.push(venueNode);
+      cityVenuesMap.set(cityCityKey, vList);
+    } else {
+      const existingVenue = venuesMap.get(venueDedupKey)!;
+      const dedupSet = venueDedupEventIdsMap.get(venueDedupKey) || new Set<string>();
+      currentVenueEventIds.forEach((id) => dedupSet.add(id));
+      venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
+      existingVenue.eventCount = dedupSet.size;
+
+      if (!existingVenue.streetAddress && streetAddress) {
+        existingVenue.streetAddress = streetAddress;
+      }
+      if ((existingVenue.latitude == null || existingVenue.longitude == null) && p.latitude != null && p.longitude != null) {
+        existingVenue.latitude = p.latitude;
+        existingVenue.longitude = p.longitude;
+      }
+      if ((!existingVenue.venueAreas || existingVenue.venueAreas.length === 0) && venueAreas.length > 0) {
+        existingVenue.venueAreas = venueAreas;
+      }
+      if (!existingVenue.citySlug) {
+        existingVenue.citySlug = citySlug;
+      }
+    }
+
+    // Address Node (if physical street address exists and not mobile vessel)
+    if (streetAddress && !isMobileVessel) {
       const addrSlug = `${citySlug}-${sanitizePlaceSlug(streetAddress).slice(0, 30)}`;
       const addrKey = `${cityCityKey}::${streetAddress}`.toLowerCase();
+
+      if (!addressEventIdsMap.has(addrKey)) {
+        addressEventIdsMap.set(addrKey, new Set());
+      }
+      const addrEventSet = addressEventIdsMap.get(addrKey)!;
+      currentVenueEventIds.forEach((id) => addrEventSet.add(id));
 
       if (!addressesMap.has(addrKey)) {
         const addressNode: AddressNode = {
           id: `addr-${addrSlug}`,
           slug: addrSlug,
+          citySlug,
           formattedAddress: streetAddress,
           district: meta?.district || null,
           city: cityName,
           country: countryName,
           countryCode,
-          latitude: p.latitude ?? null,
-          longitude: p.longitude ?? null,
-          venuesLocatedHere: [venueName],
-          eventCount,
+          latitude: p.latitude ?? meta?.latitude ?? null,
+          longitude: p.longitude ?? meta?.longitude ?? null,
+          venuesLocatedHere: [canonicalVenueName],
+          eventCount: addrEventSet.size,
         };
         addressesMap.set(addrKey, addressNode);
 
@@ -2433,9 +3342,10 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         cityAddressesMap.set(cityCityKey, aList);
       } else {
         const existing = addressesMap.get(addrKey)!;
-        if (!existing.venuesLocatedHere.includes(venueName)) {
-          existing.venuesLocatedHere.push(venueName);
+        if (!existing.venuesLocatedHere.includes(canonicalVenueName)) {
+          existing.venuesLocatedHere.push(canonicalVenueName);
         }
+        existing.eventCount = addrEventSet.size;
       }
     }
   });
@@ -2894,16 +3804,56 @@ export async function getPlaceBySlug(
     if (!place) return { data: null, error: null };
 
     const allEvents: EventRecord[] = [];
-    let page = 1;
-    while (true) {
-      const eventsResult = await getEvents({ placeSlug: slug, page, limit: 100 });
-      if (eventsResult.error) {
-        throw new Error(eventsResult.error);
+    const eventIdsSeen = new Set<string>();
+
+    const fetchEventsForSlug = async (querySlug: string) => {
+      let page = 1;
+      while (true) {
+        const eventsResult = await getEvents({ placeSlug: querySlug, page, limit: 100 });
+        if (eventsResult.error) {
+          throw new Error(eventsResult.error);
+        }
+        if (!eventsResult.data || eventsResult.data.length === 0) break;
+        for (const evt of eventsResult.data) {
+          if (!eventIdsSeen.has(evt.id)) {
+            eventIdsSeen.add(evt.id);
+            allEvents.push(evt);
+          }
+        }
+        if (page >= eventsResult.totalPages) break;
+        page++;
       }
-      if (!eventsResult.data || eventsResult.data.length === 0) break;
-      allEvents.push(...eventsResult.data);
-      if (page >= eventsResult.totalPages) break;
-      page++;
+    };
+
+    await fetchEventsForSlug(slug);
+
+    // If this place was resolved from a venue/place row, also include events from merged sibling place rows
+    if (p && supabase) {
+      let query = supabase
+        .from("places")
+        .select("id, slug")
+        .eq("city", p.city)
+        .eq("venue", p.venue);
+
+      if (p.country) {
+        query = query.eq("country", p.country);
+      }
+
+      const { data: siblingPlaces, error: siblingError } = await query;
+      if (siblingError) {
+        throw new Error(siblingError.message || "Failed to query sibling places");
+      }
+
+      if (siblingPlaces && siblingPlaces.length > 0) {
+        for (const sib of siblingPlaces) {
+          if (sib.slug && sib.slug !== slug) {
+            await fetchEventsForSlug(sib.slug);
+          }
+          if (sib.id && sib.id !== slug && sib.id !== p.id) {
+            await fetchEventsForSlug(sib.id);
+          }
+        }
+      }
     }
 
     return {

@@ -300,6 +300,19 @@ test("verifies person page code review fixes for focus-visible, tab count sync, 
 
   // 4. PersonPage co-attendee loop skips participant if personId matches person.id before slug derivation
   assert.match(personPageSource, /if \(p\.personId === person\.id \|\| p\.personId === person\.slug\) return;/);
+
+  // 5. PersonPage Record Summary replaces gimmicky Evidentiary Accuracy Index and radar beacon
+  assert.ok(
+    personPageSource.includes("Record Summary") &&
+      personPageSource.includes("Timeline Events") &&
+      personPageSource.includes("Locations") &&
+      personPageSource.includes("Official Roles") &&
+      personPageSource.includes("Milestones") &&
+      !personPageSource.includes("EVIDENTIARY ACCURACY INDEX") &&
+      !personPageSource.includes("telemetry-accuracy-gauge") &&
+      !personPageSource.includes("radar-status-beacon"),
+    "PersonPage must render a clean Record Summary card without gimmicky accuracy gauges or radar beacons"
+  );
 });
 
 test("verifies person dossier enhancements for biographical live regions, semantic topic participant links, and focus outlines", async () => {
