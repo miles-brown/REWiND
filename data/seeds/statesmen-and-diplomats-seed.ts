@@ -254,7 +254,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     monitoringPriority: "historical-only",
     publicationStatus: "published",
     wikidataId: "Q1257",
-    viafId: "100262624",
+    viafId: "230800036",
     avatarUrl: null,
     summary:
       "Boutros Boutros-Ghali was an Egyptian politician and diplomat who served as the 6th Secretary-General of the United Nations from 1992 to 1996. He previously played a critical role in Egypt's peace negotiations with Israel under Anwar Sadat.",

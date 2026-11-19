@@ -128,6 +128,16 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     classification,
   });
 
+  const rawDisplay = p.displayName || p.canonicalName || "";
+  const rawCanonical = p.canonicalName || "";
+  const rawAliases = Array.isArray(p.aliases) ? p.aliases.map(String) : [];
+  const mergedAliases = [...rawAliases];
+  for (const oldName of [rawDisplay, rawCanonical]) {
+    if (oldName && oldName !== standardDisplayName && !mergedAliases.includes(oldName)) {
+      mergedAliases.unshift(oldName);
+    }
+  }
+
   return {
     id: p.id,
     slug: p.slug,
@@ -135,7 +145,7 @@ function mapFallbackPerson(p: CanonicalPersonSeed): PersonRecord {
     canonicalName: p.canonicalName,
     displayName: standardDisplayName || p.displayName || p.canonicalName,
     description: p.primaryRole || p.summary || "",
-    aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : undefined,
+    aliases: mergedAliases.length > 0 ? mergedAliases : undefined,
     fullBirthName: p.fullBirthName ?? undefined,
     birth: p.birthDate,
     death: p.deathDate ?? undefined,
