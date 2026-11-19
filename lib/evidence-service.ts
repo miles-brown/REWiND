@@ -266,6 +266,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     let resolvedPlaceId = placeId;
     const persistedClaimIds = new Set<string>();
     const resolvedParticipantMap = new Map<string, string>();
+    let finalVerificationStatus: "verified" | "provisional" = "provisional";
+    let finalConfidenceScore = 0.7;
 
     if (db) {
       try {
@@ -424,6 +426,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
           const isVerifiedTier = sourceTier === "tier-a" || sourceTier === "tier-b";
           const derivedVerificationStatus = isVerifiedTier ? "verified" : "provisional";
           const derivedConfidenceScore = isVerifiedTier ? 0.98 : 0.7;
+          finalVerificationStatus = derivedVerificationStatus;
+          finalConfidenceScore = derivedConfidenceScore;
 
           // 4b. Insert published event
           await tx.insert(schema.events).values({
@@ -682,6 +686,11 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
     }
 
     if (!db) {
+      const memSource = store.sources.find((s) => s.id === data?.sourceId || s.id === sourceId);
+      const isMemVerified = memSource?.tier === "tier-a" || memSource?.tier === "tier-b";
+      finalVerificationStatus = isMemVerified ? "verified" : "provisional";
+      finalConfidenceScore = isMemVerified ? 0.98 : 0.7;
+
       let collisionIdx = 2;
       while (store.events.some((e) => e.id === eventSlug)) {
         eventSlug = `${baseSlug}-${collisionIdx++}`;
@@ -749,16 +758,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       venueId: null,
       subvenue: data.subvenue || null,
       addressId: null,
-      verificationStatus:
-        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-a" ||
-        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-b"
-          ? "verified"
-          : "provisional",
-      confidenceScore:
-        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-a" ||
-        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-b"
-          ? 0.98
-          : 0.7,
+      verificationStatus: finalVerificationStatus,
+      confidenceScore: finalConfidenceScore,
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,

@@ -7460,10 +7460,19 @@ svg { flex: 0 0 auto; }
 
 .roles-hud-sticky {
   background: #f8fafc;
+  color: #0f172a;
   border: 1px solid #cbd5e1;
   border-radius: 14px;
   padding: 22px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+.roles-hud-empty {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #475569;
+  padding: 16px 0;
+  text-align: center;
 }
 
 .roles-hud-eyebrow {
@@ -7473,7 +7482,7 @@ svg { flex: 0 0 auto; }
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #0284c7;
+  color: #0369a1;
   background: #e0f2fe;
   padding: 4px 8px;
   border-radius: 6px;
@@ -7580,13 +7589,13 @@ svg { flex: 0 0 auto; }
 }
 
 .roles-hud-btn-primary {
-  background: #0284c7;
+  background: #0369a1;
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.3);
 }
 
 .roles-hud-btn-primary:hover {
-  background: #0369a1;
+  background: #075985;
   transform: translateY(-1px);
 }
 
@@ -7903,7 +7912,7 @@ svg { flex: 0 0 auto; }
   margin-top: 16px;
   padding: 8px 16px;
   border-radius: 6px;
-  background: #0284c7;
+  background: #0369a1;
   color: #ffffff;
   font-weight: 600;
   font-size: 13px;
@@ -7912,7 +7921,7 @@ svg { flex: 0 0 auto; }
 }
 
 .roles-reset-btn:hover {
-  background: #0369a1;
+  background: #075985;
 }
 
 @media (max-width: 1024px) {

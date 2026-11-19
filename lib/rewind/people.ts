@@ -447,7 +447,7 @@ export async function getPersonBySlugWithStatus(
       }
 
       // Check fallback seed register before returning null
-      const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
+      const fb = masterPeopleSeed.find((x) => (x.slug === slug || x.id === slug) && x.publicationStatus === "published");
       if (fb) {
         return { data: mapFallbackPerson(fb), error: null };
       }
@@ -458,13 +458,13 @@ export async function getPersonBySlugWithStatus(
     if (process.env.NODE_ENV === "production") {
       return { data: null, error: "Database client unavailable" };
     }
-    const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
+    const fb = masterPeopleSeed.find((x) => (x.slug === slug || x.id === slug) && x.publicationStatus === "published");
     return { data: fb ? mapFallbackPerson(fb) : null, error: null };
   } catch (err) {
     if (process.env.NODE_ENV === "production") {
       return { data: null, error: err instanceof Error ? err.message : "Database error" };
     }
-    const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
+    const fb = masterPeopleSeed.find((x) => (x.slug === slug || x.id === slug) && x.publicationStatus === "published");
     return { data: fb ? mapFallbackPerson(fb) : null, error: null };
   }
 }

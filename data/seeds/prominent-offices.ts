@@ -343,6 +343,19 @@ export const prominentOfficesSeed: ProminentOffice[] = [
         keyEvents: ["1965 Capital Punishment Abolition", "1967 Sexual Offences Act", "1969 Open University Charter"]
       },
       {
+        ordinal: 69,
+        ordinalLabel: "69th Prime Minister",
+        name: "Harold Wilson",
+        personSlug: "harold-wilson",
+        startDate: "1974-03-04",
+        endDate: "1976-04-05",
+        isCurrent: false,
+        party: "Labour",
+        era: "1970s",
+        summary: "Second premiership; resolved the 1974 Three-Day Week industrial crisis, held the 1975 referendum confirming UK membership in the European Communities, and enacted the Sex Discrimination Act.",
+        keyEvents: ["1974 Three-Day Week Settlement", "1975 European Communities Referendum", "1975 Sex Discrimination Act"]
+      },
+      {
         ordinal: 71,
         ordinalLabel: "71st Prime Minister",
         name: "Margaret Thatcher",

@@ -159,19 +159,22 @@ async function run() {
   console.log(`Deleted ${totalDeletedPeople} placeholder people.`);
 
   // Verification
-  const { count, error: vErr } = await supabase
-    .from("people")
-    .select("*", { count: "exact", head: true })
-    .in("id", personIds);
+  for (let i = 0; i < personIds.length; i += 50) {
+    const chunk = personIds.slice(i, i + 50);
+    const { count, error: vErr } = await supabase
+      .from("people")
+      .select("*", { count: "exact", head: true })
+      .in("id", chunk);
 
-  if (vErr) {
-    console.error("Verification query failed:", vErr.message);
-    process.exit(1);
-  }
+    if (vErr) {
+      console.error("Verification query failed:", vErr.message);
+      process.exit(1);
+    }
 
-  if (count === null || count === undefined || count > 0) {
-    console.error(`Verification rejected: ${count ?? "unknown"} placeholder records still remain in database.`);
-    process.exit(1);
+    if (count === null || count === undefined || count > 0) {
+      console.error(`Verification rejected: ${count ?? "unknown"} placeholder records still remain in database.`);
+      process.exit(1);
+    }
   }
 
   console.log("Verification passed: 0 placeholder people remaining in database.");

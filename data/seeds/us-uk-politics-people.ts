@@ -86,11 +86,10 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
-      "senior-diplomatic-or-geopolitical",
-      "substantial-independent-coverage",
-      "central-nexus-to-historical-events"
+      "central-nexus-to-historical-events",
+      "substantial-independent-coverage"
     ],
-    "inclusionRationale": "Qualified under criterion 'senior-diplomatic-or-geopolitical' and 'central-nexus-to-historical-events' as 49th Vice President of the United States and presiding officer of the US Senate, with documented participation in executive bilateral summits and global diplomatic delegations.",
+    "inclusionRationale": "Qualified under criteria 'central-nexus-to-historical-events' and 'substantial-independent-coverage' as 49th Vice President of the United States and President of the Senate, acting as a central executive constitutional figure and continuous focus of extensive independent archival reporting across landmark federal legislation, presidential transitions, and international state summits.",
     "culturalImpactSummary": "First female, African American, and South Asian American Vice President of the United States.",
     "primaryFigureCategory": "politician"
   },

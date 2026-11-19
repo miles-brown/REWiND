@@ -3829,11 +3829,20 @@ export async function getPlaceBySlug(
 
     // If this place was resolved from a venue/place row, also include events from merged sibling place rows
     if (p && supabase) {
-      const { data: siblingPlaces } = await supabase
+      let query = supabase
         .from("places")
         .select("id, slug")
         .eq("city", p.city)
         .eq("venue", p.venue);
+
+      if (p.country) {
+        query = query.eq("country", p.country);
+      }
+
+      const { data: siblingPlaces, error: siblingError } = await query;
+      if (siblingError) {
+        throw new Error(siblingError.message || "Failed to query sibling places");
+      }
 
       if (siblingPlaces && siblingPlaces.length > 0) {
         for (const sib of siblingPlaces) {
