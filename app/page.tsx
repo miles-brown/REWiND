@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleDashed, Database, GitBranch, MapPinned, Quote, Search, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDashed, Database, GitBranch, Landmark, MapPinned, Quote, Search, Users } from "lucide-react";
 import { getAtlasStatisticsWithStatus, getPeopleWithStatus } from "@/lib/rewind";
 
 export default async function Home() {
@@ -67,6 +67,15 @@ export default async function Home() {
               <small>PEOPLE</small>
               <b>People</b>
               <p>Explore historical figures and their chronologies.</p>
+            </span>
+            <ArrowRight />
+          </Link>
+          <Link href="/roles">
+            <Landmark />
+            <span>
+              <small>SUCCESSION</small>
+              <b>Roles</b>
+              <p>Explore offices & scrollytelling succession timelines.</p>
             </span>
             <ArrowRight />
           </Link>

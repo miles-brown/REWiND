@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2, Calendar, CheckCircle2, Award } from "lucide-react";
+import Link from "next/link";
+import { Building2, Calendar, CheckCircle2, Award, Landmark, ArrowRight } from "lucide-react";
 import type { PersonRoleRecord } from "@/lib/rewind/roles";
 import type { PersonCareer } from "@/lib/rewind/types";
 
@@ -21,6 +22,24 @@ export function RolesTimeline({
         <p style={{ color: "var(--muted, #94a3b8)", fontSize: "0.9rem" }}>
           Official state offices, cabinet posts, and parliamentary titles are continuously added to the atlas register.
         </p>
+        <div style={{ marginTop: "16px" }}>
+          <Link
+            href="/roles"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              color: "#38bdf8",
+              fontSize: "13px",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <Landmark size={14} aria-hidden="true" />
+            Browse all constitutional offices & succession timelines
+            <ArrowRight size={13} aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     );
   }
@@ -33,6 +52,24 @@ export function RolesTimeline({
         <p>
           Chronological record of official state mandates, cabinet positions, military commands, and party leaderships.
         </p>
+        <div style={{ marginTop: "12px" }}>
+          <Link
+            href="/roles"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              color: "#38bdf8",
+              fontSize: "13px",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <Landmark size={14} aria-hidden="true" />
+            Explore major state offices & succession timelines
+            <ArrowRight size={13} aria-hidden="true" />
+          </Link>
+        </div>
       </div>
 
       <div className="roles-list" role="list" aria-label="Official roles and public offices timeline">
