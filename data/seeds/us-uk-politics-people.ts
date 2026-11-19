@@ -86,11 +86,11 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
-      "head-of-state-or-government",
+      "senior-diplomatic-or-geopolitical",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under criterion 'head-of-state-or-government' as Vice President of the United States and presiding officer of the US Senate, with documented participation in executive bilateral summits and global diplomatic delegations.",
+    "inclusionRationale": "Qualified under criterion 'senior-diplomatic-or-geopolitical' and 'central-nexus-to-historical-events' as 49th Vice President of the United States and presiding officer of the US Senate, with documented participation in executive bilateral summits and global diplomatic delegations.",
     "culturalImpactSummary": "First female, African American, and South Asian American Vice President of the United States.",
     "primaryFigureCategory": "politician"
   },
@@ -128,11 +128,11 @@ export const usUkPoliticsPeopleSeed: CanonicalPersonSeed[] = [
     "religiousDenomination": null,
     "religionStatus": "not-publicly-stated",
     "inclusionBasis": [
-      "head-of-state-or-government",
+      "senior-diplomatic-or-geopolitical",
       "substantial-independent-coverage",
       "central-nexus-to-historical-events"
     ],
-    "inclusionRationale": "Qualified under criterion 'head-of-state-or-government' as 46th Vice President of the United States and Secretary of Defense, central to Operation Desert Storm, post-9/11 national security architecture, and authorization of the Global War on Terror.",
+    "inclusionRationale": "Qualified under criterion 'senior-diplomatic-or-geopolitical' as 46th Vice President of the United States and Secretary of Defense, central to Operation Desert Storm, post-9/11 national security architecture, and authorization of the Global War on Terror.",
     "culturalImpactSummary": "Pivotal architect of American defense and intelligence policy across four presidential administrations spanning five decades.",
     "primaryFigureCategory": "politician"
   },

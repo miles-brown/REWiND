@@ -4,7 +4,7 @@ import { getQuotesWithStatus, getSpeechEventsWithStatus } from "@/lib/rewind";
 
 export const metadata = {
   title: "Quotes — REWIND Evidence Atlas",
-  description: "Attributable speeches, statements, and verified quotations linked to documented events.",
+  description: "Attributable speeches, statements, and transcripts linked to documented events.",
 };
 
 export default async function QuotesPage() {
@@ -23,7 +23,7 @@ export default async function QuotesPage() {
         <span className="eyebrow">VERBATIM STATEMENTS</span>
         <h1>Quotes</h1>
         <p>
-          Attributable speeches, statements, and verified transcripts linked to documented historical events.
+          Attributable speeches, statements, and transcripts linked to documented historical events.
         </p>
       </header>
 

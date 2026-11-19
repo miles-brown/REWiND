@@ -2,6 +2,8 @@ import { getGeographicHierarchy } from "@/lib/rewind";
 import { PlacesExplorer } from "@/components/rewind/PlacesExplorer";
 import { MapPin } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Places — REWIND Evidence Atlas",
   description: "Global gazetteer and map of countries, cities, venues, and physical addresses documented in the REWIND evidence corpus.",
@@ -38,7 +40,7 @@ export default async function PlacesPage() {
             }}
           >
             <h2>Geography register temporarily unavailable</h2>
-            <p style={{ color: "var(--muted, #94a3b8)", marginTop: "0.5rem" }}>
+            <p style={{ color: "#cbd5e1", marginTop: "0.5rem" }}>
               {error || "We are unable to load the geographic hierarchy right now. Please try again later."}
             </p>
           </div>

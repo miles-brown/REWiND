@@ -1542,7 +1542,9 @@ export function MapGraphic({
       {/* Live Region for Screen Readers */}
       <div className="sr-only" role="status" aria-live="polite">
         {selected && selectedEvent && selectedEvent.id === selected
-          ? `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}`
+          ? !selectedEvent.startDate || selectedEvent.startDate === "1970-01-01"
+            ? `Selected venue: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.country}`
+            : `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}`
           : ""}
       </div>
 

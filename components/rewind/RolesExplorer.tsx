@@ -42,8 +42,11 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
     if (!selectedOffice) return [];
     if (!searchQuery.trim()) return selectedOffice.holders;
     const q = searchQuery.toLowerCase().trim();
-    return selectedOffice.holders.filter(
-      (h) =>
+    const yearMatch = /^\d{4}$/.test(q.trim());
+    const queryYear = yearMatch ? parseInt(q.trim(), 10) : null;
+
+    return selectedOffice.holders.filter((h) => {
+      if (
         h.name.toLowerCase().includes(q) ||
         h.ordinalLabel.toLowerCase().includes(q) ||
         (h.party && h.party.toLowerCase().includes(q)) ||
@@ -51,7 +54,18 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
         (h.startDate && h.startDate.includes(q)) ||
         (h.endDate && h.endDate.includes(q)) ||
         h.summary.toLowerCase().includes(q)
-    );
+      ) {
+        return true;
+      }
+      if (queryYear !== null && h.startDate) {
+        const startYear = parseInt(h.startDate.slice(0, 4), 10);
+        const endYear = h.endDate ? parseInt(h.endDate.slice(0, 4), 10) : new Date().getFullYear();
+        if (queryYear >= startYear && queryYear <= endYear) {
+          return true;
+        }
+      }
+      return false;
+    });
   }, [selectedOffice, searchQuery]);
 
   // Unique eras for quick navigation
@@ -73,7 +87,13 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
   const yearSpanText = useMemo(() => {
     if (!selectedOffice || selectedOffice.holders.length === 0) return "";
     const firstYear = selectedOffice.holders[0]?.startDate?.slice(0, 4) || "";
-    return `${firstYear} — Present`;
+    const hasCurrent = selectedOffice.holders.some((h) => h.isCurrent);
+    if (hasCurrent) {
+      return `${firstYear} — Present`;
+    }
+    const lastHolder = selectedOffice.holders[selectedOffice.holders.length - 1];
+    const lastYear = lastHolder?.endDate?.slice(0, 4) || lastHolder?.startDate?.slice(0, 4) || "";
+    return `${firstYear} — ${lastYear || "Present"}`;
   }, [selectedOffice]);
 
   // Scrollytelling observer: track which card is currently in view
@@ -102,9 +122,7 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
     });
 
     return () => {
-      cards.forEach((card) => {
-        if (card) observer.unobserve(card);
-      });
+      observer.disconnect();
     };
   }, [filteredHolders]);
 
@@ -328,7 +346,7 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
         </aside>
 
         {/* Right Main Scrollytelling Succession Rail */}
-        <main
+        <div
           className="roles-succession-rail"
           role="list"
           aria-label={`${selectedOffice?.title || "Office"} chronological succession timeline`}
@@ -394,14 +412,29 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
 
                     {/* Person Identity */}
                     <div className="roles-person-row">
-                      <div className="roles-monogram" aria-hidden="true">
-                        {holder.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .join("")}
-                      </div>
+                      {holder.personSlug ? (
+                        <Link
+                          href={`/person/${holder.personSlug}`}
+                          className="roles-monogram roles-monogram-link"
+                          aria-label={`View dossier for ${holder.name}`}
+                        >
+                          {holder.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join("")}
+                        </Link>
+                      ) : (
+                        <div className="roles-monogram" aria-hidden="true">
+                          {holder.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join("")}
+                        </div>
+                      )}
 
                       <div className="roles-person-meta">
                         <h2 className="roles-person-name">
@@ -465,7 +498,7 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
               );
             })
           )}
-        </main>
+        </div>
       </div>
     </div>
   );

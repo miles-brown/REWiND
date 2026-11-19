@@ -2982,11 +2982,13 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   };
   const allEvents: SimpleEventRow[] = [];
 
-  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string }>();
+  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string; isVenue?: boolean }>();
   rawPlaces.forEach((p) => {
-    placesMapById.set(p.id, { venue: p.venue, city: p.city, country: p.country });
+    const isVenue = Boolean(p.venue) || (p.placeType !== "city" && p.placeType !== "country");
+    const info = { venue: p.venue, city: p.city, country: p.country, isVenue };
+    placesMapById.set(p.id, info);
     if (p.slug) {
-      placesMapById.set(p.slug, { venue: p.venue, city: p.city, country: p.country });
+      placesMapById.set(p.slug, info);
     }
   });
 
@@ -2998,7 +3000,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       while (hasMore) {
         const { data: rows, error: eventsError } = await supabase
           .from("events")
-          .select("id, slug, place_id, venue_id, address_id")
+          .select("id, slug, place_id, venue_id, address_id, city, country, venue_name")
           .eq("publication_status", "published")
           .order("id", { ascending: true })
           .range(from, from + batchSize - 1);
@@ -3015,15 +3017,14 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
           for (const r of rows) {
             const loc =
               (r.place_id && placesMapById.get(r.place_id)) ||
-              (r.venue_id && placesMapById.get(r.venue_id)) ||
-              (r.address_id && placesMapById.get(r.address_id));
+              (r.venue_id && placesMapById.get(r.venue_id));
 
             allEvents.push({
               id: r.id,
               slug: r.slug,
-              venueName: loc?.venue || null,
-              city: loc?.city || null,
-              country: loc?.country || null,
+              venueName: loc?.venue || r.venue_name || null,
+              city: loc?.city || r.city || null,
+              country: loc?.country || r.country || null,
               venueId: r.venue_id,
               placeId: r.place_id,
             });
@@ -3105,8 +3106,12 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     }
     const eventPlaceId = (e as { placeId?: string }).placeId;
     if (eventPlaceId && eventId) {
-      if (!venueEventIdsMap.has(eventPlaceId)) venueEventIdsMap.set(eventPlaceId, new Set());
-      venueEventIdsMap.get(eventPlaceId)!.add(eventId);
+      const placeMeta = placesMapById.get(eventPlaceId);
+      // Item 17: Count events under a place reference only when that reference identifies a venue
+      if (placeMeta?.isVenue) {
+        if (!venueEventIdsMap.has(eventPlaceId)) venueEventIdsMap.set(eventPlaceId, new Set());
+        venueEventIdsMap.get(eventPlaceId)!.add(eventId);
+      }
     }
     const scopedCanonicalKey = `${cityKey}::${canonicalVenueNorm}`;
     if (canonicalVenueNorm && eventId) {
@@ -3137,6 +3142,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   const citiesMap = new Map<string, CityNode>();
   const venuesMap = new Map<string, VenueNode>();
   const addressesMap = new Map<string, AddressNode>();
+  const addressEventIdsMap = new Map<string, Set<string>>();
 
   const cityVenuesMap = new Map<string, VenueNode[]>();
   const cityAddressesMap = new Map<string, AddressNode[]>();
@@ -3216,7 +3222,6 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         venueEventIdsMap.get(mobileKey)!.forEach((id) => currentVenueEventIds.add(id));
       }
     }
-    const eventCount = currentVenueEventIds.size;
 
     // Country Node
     if (!countriesMap.has(countrySlug)) {
@@ -3309,6 +3314,12 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       const addrSlug = `${citySlug}-${sanitizePlaceSlug(streetAddress).slice(0, 30)}`;
       const addrKey = `${cityCityKey}::${streetAddress}`.toLowerCase();
 
+      if (!addressEventIdsMap.has(addrKey)) {
+        addressEventIdsMap.set(addrKey, new Set());
+      }
+      const addrEventSet = addressEventIdsMap.get(addrKey)!;
+      currentVenueEventIds.forEach((id) => addrEventSet.add(id));
+
       if (!addressesMap.has(addrKey)) {
         const addressNode: AddressNode = {
           id: `addr-${addrSlug}`,
@@ -3322,7 +3333,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
           latitude: p.latitude ?? meta?.latitude ?? null,
           longitude: p.longitude ?? meta?.longitude ?? null,
           venuesLocatedHere: [canonicalVenueName],
-          eventCount,
+          eventCount: addrEventSet.size,
         };
         addressesMap.set(addrKey, addressNode);
 
@@ -3334,9 +3345,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         if (!existing.venuesLocatedHere.includes(canonicalVenueName)) {
           existing.venuesLocatedHere.push(canonicalVenueName);
         }
-        if (eventCount > existing.eventCount) {
-          existing.eventCount = eventCount;
-        }
+        existing.eventCount = addrEventSet.size;
       }
     }
   });
@@ -3795,16 +3804,47 @@ export async function getPlaceBySlug(
     if (!place) return { data: null, error: null };
 
     const allEvents: EventRecord[] = [];
-    let page = 1;
-    while (true) {
-      const eventsResult = await getEvents({ placeSlug: slug, page, limit: 100 });
-      if (eventsResult.error) {
-        throw new Error(eventsResult.error);
+    const eventIdsSeen = new Set<string>();
+
+    const fetchEventsForSlug = async (querySlug: string) => {
+      let page = 1;
+      while (true) {
+        const eventsResult = await getEvents({ placeSlug: querySlug, page, limit: 100 });
+        if (eventsResult.error) {
+          throw new Error(eventsResult.error);
+        }
+        if (!eventsResult.data || eventsResult.data.length === 0) break;
+        for (const evt of eventsResult.data) {
+          if (!eventIdsSeen.has(evt.id)) {
+            eventIdsSeen.add(evt.id);
+            allEvents.push(evt);
+          }
+        }
+        if (page >= eventsResult.totalPages) break;
+        page++;
       }
-      if (!eventsResult.data || eventsResult.data.length === 0) break;
-      allEvents.push(...eventsResult.data);
-      if (page >= eventsResult.totalPages) break;
-      page++;
+    };
+
+    await fetchEventsForSlug(slug);
+
+    // If this place was resolved from a venue/place row, also include events from merged sibling place rows
+    if (p && supabase) {
+      const { data: siblingPlaces } = await supabase
+        .from("places")
+        .select("id, slug")
+        .eq("city", p.city)
+        .eq("venue", p.venue);
+
+      if (siblingPlaces && siblingPlaces.length > 0) {
+        for (const sib of siblingPlaces) {
+          if (sib.slug && sib.slug !== slug) {
+            await fetchEventsForSlug(sib.slug);
+          }
+          if (sib.id && sib.id !== slug && sib.id !== p.id) {
+            await fetchEventsForSlug(sib.id);
+          }
+        }
+      }
     }
 
     return {

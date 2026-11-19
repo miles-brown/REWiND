@@ -35,10 +35,17 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const isLocal =
-  connectionString.includes("localhost") ||
-  connectionString.includes("127.0.0.1") ||
-  connectionString.includes("::1");
+let isLocal = false;
+try {
+  const parsedUrl = new URL(connectionString);
+  const hostname = parsedUrl.hostname.toLowerCase();
+  isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+} catch {
+  isLocal =
+    connectionString.includes("localhost") ||
+    connectionString.includes("127.0.0.1") ||
+    connectionString.includes("::1");
+}
 
 const sql = postgres(connectionString, {
   max: 5,

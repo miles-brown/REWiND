@@ -23,23 +23,85 @@ const supabase = createClient(supabaseUrl, serviceKey, {
 
 async function run() {
   console.log("Querying placeholder people via Supabase REST API...");
-  const { data: people, error: pErr } = await supabase
-    .from("people")
-    .select("id, canonical_name")
-    .ilike("canonical_name", "%Delegation%");
+  const rawPeople = [];
+  let from = 0;
+  const pageSize = 1000;
 
-  if (pErr) {
-    console.error("Failed to query people:", pErr);
-    process.exit(1);
+  while (true) {
+    const { data, error: pErr } = await supabase
+      .from("people")
+      .select("id, canonical_name, slug, classification, primary_role")
+      .ilike("canonical_name", "%Delegation%")
+      .range(from, from + pageSize - 1);
+
+    if (pErr) {
+      console.error("Failed to query people:", pErr);
+      process.exit(1);
+    }
+
+    if (!data || data.length === 0) break;
+    rawPeople.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
   }
 
-  console.log(`Found ${people.length} placeholder people.`);
+  // Restrict to verified synthetic delegation placeholders
+  const people = rawPeople.filter((p) => {
+    const name = (p.canonical_name || "").trim().toLowerCase();
+    const slug = (p.slug || "").trim().toLowerCase();
+    const isSyntheticName =
+      name.endsWith("delegation") ||
+      name.includes("delegation (") ||
+      name.startsWith("delegation of") ||
+      slug.endsWith("-delegation");
+    const isNotRealPerson =
+      p.classification === "delegation" ||
+      p.classification === "entity" ||
+      p.primary_role === "Delegation" ||
+      !p.primary_role ||
+      isSyntheticName;
+    return isSyntheticName && isNotRealPerson;
+  });
+
+  console.log(`Found ${people.length} verified placeholder records.`);
   if (people.length === 0) {
     console.log("Nothing to delete.");
     return;
   }
 
+  console.log("Verified placeholders identified for purge:");
+  people.slice(0, 10).forEach((p) => console.log(`  - [${p.id}] ${p.canonical_name} (${p.slug})`));
+  if (people.length > 10) {
+    console.log(`  ... and ${people.length - 10} more.`);
+  }
+
   const personIds = people.map((p) => p.id);
+
+  // 0a. Clear claims attribution references
+  console.log("Clearing claims attribution references...");
+  for (let i = 0; i < personIds.length; i += 50) {
+    const chunk = personIds.slice(i, i + 50);
+    const { error } = await supabase
+      .from("claims")
+      .update({ attribution_speaker_id: null })
+      .in("attribution_speaker_id", chunk);
+    if (error) {
+      console.warn("Claims attribution update chunk warning:", error.message);
+    }
+  }
+
+  // 0b. Delete quotes where speaker_id references placeholder
+  console.log("Clearing quotes referencing placeholder speakers...");
+  for (let i = 0; i < personIds.length; i += 50) {
+    const chunk = personIds.slice(i, i + 50);
+    const { error } = await supabase
+      .from("quotes")
+      .delete()
+      .in("speaker_id", chunk);
+    if (error) {
+      console.warn("Quotes delete chunk warning:", error.message);
+    }
+  }
 
   // 1. Delete dependent claims in chunks of 50
   console.log("Deleting dependent claims...");
@@ -97,12 +159,22 @@ async function run() {
   console.log(`Deleted ${totalDeletedPeople} placeholder people.`);
 
   // Verification
-  const { count } = await supabase
+  const { count, error: vErr } = await supabase
     .from("people")
     .select("*", { count: "exact", head: true })
-    .ilike("canonical_name", "%Delegation%");
+    .in("id", personIds);
 
-  console.log(`Verification: ${count ?? 0} placeholder people remaining in database.`);
+  if (vErr) {
+    console.error("Verification query failed:", vErr.message);
+    process.exit(1);
+  }
+
+  if (count === null || count === undefined || count > 0) {
+    console.error(`Verification rejected: ${count ?? "unknown"} placeholder records still remain in database.`);
+    process.exit(1);
+  }
+
+  console.log("Verification passed: 0 placeholder people remaining in database.");
 }
 
 run().catch((err) => {

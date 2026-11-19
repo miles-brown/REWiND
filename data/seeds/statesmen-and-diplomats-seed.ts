@@ -102,7 +102,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q312456",
+    wikidataId: "Q296661",
     viafId: "56663246",
     avatarUrl: null,
     summary:
@@ -698,7 +698,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "normal",
     publicationStatus: "published",
-    wikidataId: "Q4666352",
+    wikidataId: "Q4666152",
     viafId: "109315573",
     avatarUrl: null,
     summary:
@@ -1195,7 +1195,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "normal",
     publicationStatus: "published",
-    wikidataId: "Q10547087",
+    wikidataId: "Q3741557",
     viafId: "109315579",
     avatarUrl: null,
     summary:
@@ -1820,7 +1820,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q464303",
+    wikidataId: "Q659792",
     viafId: "109315581",
     avatarUrl: null,
     summary:
@@ -2198,7 +2198,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
       "central-nexus-to-historical-events",
     ],
     inclusionRationale:
-      "Independent media commentator with substantial digital viewership covering US political controversies, congressional proceedings, and public interest investigations.",
+      "Documented independent media commentator and digital broadcaster with substantial independent press coverage and archival records covering US political conventions, congressional proceedings, and public interest investigations over sustained multi-year periods.",
     culturalImpactSummary:
       "Represents the modern era of independent citizen live-broadcasting and adversarial political commentary.",
     achievements: [

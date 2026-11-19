@@ -81,6 +81,10 @@ describe("People Directory & Name Parsing Architecture", async () => {
     assert.equal(juanCarlos.firstName, "Juan Carlos");
     assert.equal(juanCarlos.lastName, "Juan Carlos");
 
+    const carlGustaf = extractPersonNameParts({ displayName: "King Carl XVI Gustaf", classification: "monarch-royal" });
+    assert.equal(carlGustaf.firstName, "Carl Gustaf");
+    assert.equal(carlGustaf.lastName, "Carl Gustaf");
+
     const edwardKent = extractPersonNameParts({ displayName: "Prince Edward of Kent", classification: "monarch-royal" });
     assert.equal(edwardKent.firstName, "Edward");
     assert.equal(edwardKent.lastName, "Edward");

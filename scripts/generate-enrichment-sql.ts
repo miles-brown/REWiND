@@ -253,6 +253,7 @@ export function generateAllEnrichmentSql(): {
          inclusion_basis = EXCLUDED.inclusion_basis,
          inclusion_rationale = EXCLUDED.inclusion_rationale,
          cultural_impact_summary = COALESCE(EXCLUDED.cultural_impact_summary, public.people.cultural_impact_summary),
+         is_living = EXCLUDED.is_living,
          wikidata_id = COALESCE(EXCLUDED.wikidata_id, public.people.wikidata_id),
          viaf_id = COALESCE(EXCLUDED.viaf_id, public.people.viaf_id),
          summary = EXCLUDED.summary;`

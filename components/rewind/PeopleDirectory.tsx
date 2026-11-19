@@ -320,9 +320,30 @@ export function PeopleDirectory({
       .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
       .map(([nationality, members]) => {
         const allRoyals = members.every((m) => m.classification === "monarch-royal");
-        const title = allRoyals && ROYAL_HOUSE_LABELS[nationality]
-          ? ROYAL_HOUSE_LABELS[nationality]
-          : `${nationality} Figures`;
+        const houseLabel = ROYAL_HOUSE_LABELS[nationality];
+        const allMatchHouse =
+          allRoyals &&
+          Boolean(houseLabel) &&
+          members.every((m) => {
+            const text = `${m.ancestry || ""} ${m.description || ""} ${m.inclusionRationale || ""} ${(m.aliases || []).join(" ")}`.toLowerCase();
+            const houseName = houseLabel.split("· ")[1]?.replace(/^House of\s+/i, "").toLowerCase() || "";
+            if (houseName.includes("bourbon") && (text.includes("bourbon") || text.includes("borbón") || text.includes("spanish royal"))) return true;
+            if (houseName.includes("windsor") && (text.includes("windsor") || text.includes("british royal"))) return true;
+            if (houseName.includes("belgium") && (text.includes("belgi") || text.includes("saxe-coburg"))) return true;
+            if (houseName.includes("orange") && text.includes("orange")) return true;
+            if (houseName.includes("bernadotte") && text.includes("bernadotte")) return true;
+            if (houseName.includes("glücksburg") && (text.includes("glücksburg") || text.includes("glucksburg"))) return true;
+            if (houseName.includes("grimaldi") && text.includes("grimaldi")) return true;
+            if (houseName.includes("liechtenstein") && text.includes("liechtenstein")) return true;
+            if (houseName.includes("nassau") && text.includes("nassau")) return true;
+            return houseName ? text.includes(houseName) : false;
+          });
+
+        const title = allMatchHouse
+          ? houseLabel
+          : allRoyals
+            ? `${nationality} Royalty & Dynasties`
+            : `${nationality} Figures`;
         return { nationality, title, members };
       });
   }, [filteredPeople, groupByCountry]);

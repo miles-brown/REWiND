@@ -415,7 +415,17 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             }
           }
 
-          // 4. Insert published event
+          // 4. Derive verification status from source tier
+          const [sourceRow] = await tx
+            .select({ tier: schema.sources.tier })
+            .from(schema.sources)
+            .where(eq(schema.sources.id, sourceId));
+          const sourceTier = sourceRow?.tier || (store.sources.find((s) => s.id === sourceId)?.tier);
+          const isVerifiedTier = sourceTier === "tier-a" || sourceTier === "tier-b";
+          const derivedVerificationStatus = isVerifiedTier ? "verified" : "provisional";
+          const derivedConfidenceScore = isVerifiedTier ? 0.98 : 0.7;
+
+          // 4b. Insert published event
           await tx.insert(schema.events).values({
             id: eventSlug,
             slug: eventSlug,
@@ -432,8 +442,8 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
             seriesId: null,
             venueId: null,
             addressId: null,
-            verificationStatus: "verified",
-            confidenceScore: 0.98,
+            verificationStatus: derivedVerificationStatus,
+            confidenceScore: derivedConfidenceScore,
             publicationStatus: "published",
             publicationLane: "human-review",
             significanceScore: 80,
@@ -739,8 +749,16 @@ export function approveCandidate(candidateId: string, editorName = "Senior Histo
       venueId: null,
       subvenue: data.subvenue || null,
       addressId: null,
-      verificationStatus: "verified",
-      confidenceScore: 0.98,
+      verificationStatus:
+        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-a" ||
+        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-b"
+          ? "verified"
+          : "provisional",
+      confidenceScore:
+        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-a" ||
+        store.sources.find((s) => s.id === data?.sourceId)?.tier === "tier-b"
+          ? 0.98
+          : 0.7,
       publicationStatus: "published",
       publicationLane: "human-review",
       significanceScore: 80,

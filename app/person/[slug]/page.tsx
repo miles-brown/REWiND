@@ -9,7 +9,7 @@ import {
   GitCompare,
   Globe,
   MapPin,
-  ShieldCheck,
+  Shield,
   Users,
 } from "lucide-react";
 import { getPersonTimelineWithStatus, getPersonRoles, getPersonMilestones, getMonogram } from "@/lib/rewind";
@@ -123,11 +123,15 @@ export default async function PersonPage({
   const rolesCount = roles.length || person.career?.length || 0;
   const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
 
-  // Evidentiary Accuracy Index metrics
+  // Evidentiary Verification & Coverage metrics
   const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
   const provisionalCount = linked.filter((e) => e.verificationStatus === "provisional").length;
   const disputedCount = linked.filter((e) => e.verificationStatus === "disputed").length;
-  const verifiedPercent = hasChronology ? Math.round((verifiedCount / linked.length) * 100) : null;
+  const verifiedPercent = hasChronology
+    ? verifiedCount === linked.length
+      ? 100
+      : Math.min(99, Math.round((verifiedCount / linked.length) * 100))
+    : null;
   const confirmedConfidenceCount = linked.filter((e) => e.confidence === "confirmed").length;
   const isHighConfidence = hasChronology && verifiedPercent !== null
     ? verifiedPercent >= 80 && (confirmedConfidenceCount / linked.length) >= 0.4
@@ -214,42 +218,40 @@ export default async function PersonPage({
             </div>
           </div>
 
-          {/* Evidentiary Accuracy & Verification Status */}
-          <div className="telemetry-accuracy-section" aria-label="Evidentiary accuracy and verification status">
+          {/* Chronology Evidentiary Verification Status */}
+          <div className="telemetry-accuracy-section" aria-label="Chronology evidentiary verification status">
             <div className="telemetry-accuracy-header">
-              <span className="telemetry-accuracy-title">Evidentiary Accuracy & Verification</span>
+              <span className="telemetry-accuracy-title">Chronology Evidentiary Verification</span>
               <span className={`telemetry-accuracy-badge ${!hasChronology || confidenceLevel === "Limited" ? "limited" : ""}`}>
                 {!hasChronology || confidenceLevel === "Limited" ? (
-                  <ShieldCheck size={12} aria-hidden="true" />
+                  <Shield size={12} aria-hidden="true" />
                 ) : (
                   <CheckCircle2 size={12} aria-hidden="true" />
                 )}
                 <span>
                   {hasChronology && verifiedPercent !== null
-                    ? `${verifiedPercent}% Verified (${confidenceLevel})`
+                    ? `${verifiedPercent}% Source-Verified (${confidenceLevel})`
                     : "No Chronology Evidenced"}
                 </span>
               </span>
             </div>
 
-            <div
-              className="telemetry-confidence-bar"
-              role="meter"
-              aria-label="Chronology evidentiary verification percentage"
-              aria-valuenow={hasChronology && verifiedPercent !== null ? verifiedPercent : 0}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuetext={
-                hasChronology && verifiedPercent !== null
-                  ? `${verifiedPercent}% verified chronology, ${confidenceLevel} confidence`
-                  : "No chronology evidenced yet (Limited confidence)"
-              }
-            >
+            {hasChronology && verifiedPercent !== null && (
               <div
-                className={`bar-fill ${hasChronology ? "verified" : "pending"}`}
-                style={{ width: `${hasChronology && verifiedPercent !== null ? verifiedPercent : 0}%` }}
-              />
-            </div>
+                className="telemetry-confidence-bar"
+                role="meter"
+                aria-label="Chronology evidentiary verification percentage"
+                aria-valuenow={verifiedPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={`${verifiedPercent}% verified chronology, ${confidenceLevel} confidence`}
+              >
+                <div
+                  className="bar-fill verified"
+                  style={{ width: `${verifiedPercent}%` }}
+                />
+              </div>
+            )}
 
             <div className="telemetry-breakdown-row">
               <span>

@@ -276,7 +276,10 @@ export function extractPersonNameParts(person: {
     }
   }
 
-  const cleanTokens = tokens.slice(startIndex, endIndex);
+  // When sorting royals, remove regnal ordinal tokens wherever they occur (e.g. "King Carl XVI Gustaf" -> "Carl Gustaf")
+  const cleanTokens = tokens
+    .slice(startIndex, endIndex)
+    .filter((tok) => !isRoyal || !REGNAL_ORDINAL_REGEX.test(tok));
 
   if (cleanTokens.length === 0) {
     return { firstName: tokens[0] || displayName, lastName: tokens[tokens.length - 1] || displayName, displayName };

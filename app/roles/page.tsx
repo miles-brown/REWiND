@@ -22,14 +22,16 @@ export default async function RolesPage({ searchParams }: RolesPageProps) {
 
   return (
     <div className="page-shell">
-      <header className="page-hero">
-        <span className="eyebrow">CONSTITUTIONAL SUCCESSION</span>
-        <h1>Offices & Leadership</h1>
-        <p>
-          Chronological succession records and scrollytelling timelines for prominent heads of state,
-          prime ministers, foreign ministers, and international mandates.
-        </p>
-      </header>
+      <div className="roles-hero-container">
+        <header className="roles-hero-card">
+          <span className="roles-hero-eyebrow">CONSTITUTIONAL SUCCESSION</span>
+          <h1 className="roles-hero-title">Offices & Leadership</h1>
+          <p className="roles-hero-desc">
+            Chronological succession records and scrollytelling timelines for prominent heads of state,
+            prime ministers, foreign ministers, and international mandates.
+          </p>
+        </header>
+      </div>
 
       <RolesExplorer
         offices={offices}
@@ -38,3 +40,4 @@ export default async function RolesPage({ searchParams }: RolesPageProps) {
     </div>
   );
 }
+

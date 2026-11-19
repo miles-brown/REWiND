@@ -446,7 +446,12 @@ export async function getPersonBySlugWithStatus(
         };
       }
 
-      // Successful Supabase query with no matching record: return null canonical miss
+      // Check fallback seed register before returning null
+      const fb = masterPeopleSeed.find((x) => x.slug === slug || x.id === slug);
+      if (fb) {
+        return { data: mapFallbackPerson(fb), error: null };
+      }
+
       return { data: null, error: null };
     }
 
