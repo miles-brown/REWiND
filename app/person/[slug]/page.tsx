@@ -120,7 +120,11 @@ export default async function PersonPage({
 
   const roles = await getPersonRoles(person.slug);
   const milestones = await getPersonMilestones(person.slug);
-  const rolesCount = roles.length || person.career?.length || 0;
+  const distinctCareer = (person.career || []).filter((c) => {
+    const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase().trim();
+    return cTitle && !roles.some((r) => r.title.toLowerCase().trim() === cTitle);
+  });
+  const rolesCount = roles.length + distinctCareer.length;
   const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
 
   // Evidentiary Verification & Coverage metrics

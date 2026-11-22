@@ -132,7 +132,7 @@ export const GLOBAL_GAZETTEER_COORDINATES: Record<string, [number, number]> = {
   "king khalid international airport": [24.9576, 46.6988],
   "cairo international airport": [30.1219, 31.4056],
   "wadi araba border crossing": [29.5786, 34.9781],
-  
+
   // Cities & Districts
   "jerusalem": [31.7683, 35.2137],
   "tel aviv": [32.0853, 34.7818],
@@ -2952,20 +2952,20 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     rawPlaces = Object.entries(GLOBAL_GAZETTEER_METADATA)
       .filter(([key]) => !Object.hasOwn(GAZETTEER_ALIASES, key))
       .map(([key, meta]) => {
-      const slug = sanitizePlaceSlug(key);
-      return {
-        id: `plc-${slug}`,
-        slug,
-        venue: meta.canonicalVenue,
-        city: meta.city,
-        country: meta.country,
-        latitude: meta.latitude,
-        longitude: meta.longitude,
-        placeType: meta.venueType,
-        streetAddress: meta.streetAddress,
-        venueAreas: meta.venueAreas,
-      };
-    });
+        const slug = sanitizePlaceSlug(key);
+        return {
+          id: `plc-${slug}`,
+          slug,
+          venue: meta.canonicalVenue,
+          city: meta.city,
+          country: meta.country,
+          latitude: meta.latitude,
+          longitude: meta.longitude,
+          placeType: meta.venueType,
+          streetAddress: meta.streetAddress,
+          venueAreas: meta.venueAreas,
+        };
+      });
   } else {
     rawPlaces = await getPlacesStrict(supabase);
   }
@@ -3040,12 +3040,14 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   }
 
   // Fallback to getEvents if Supabase didn't return any events or failed
+  let fallbackError: string | null = null;
   if (allEvents.length === 0) {
     let currentPage = 1;
     let totalPages = 1;
     do {
       const pageRes = await getEvents({ page: currentPage, limit: 100 });
       if (pageRes.error) {
+        fallbackError = pageRes.error;
         break;
       }
       if (pageRes.data && pageRes.data.length > 0) {
@@ -3086,12 +3088,12 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       normalizedEventCity.toLowerCase() === "reykjavík"
         ? "Reykjavik"
         : normalizedEventCity.toLowerCase() === "keflavík"
-        ? "Keflavik"
-        : normalizedEventCity.toLowerCase() === "lod area"
-        ? "Lod"
-        : normalizedEventCity.toLowerCase() === "wye"
-        ? "Queenstown"
-        : normalizedEventCity;
+          ? "Keflavik"
+          : normalizedEventCity.toLowerCase() === "lod area"
+            ? "Lod"
+            : normalizedEventCity.toLowerCase() === "wye"
+              ? "Queenstown"
+              : normalizedEventCity;
     const cityKey = `${eventCountryName}::${normalizeCityName(eventCityName)}`.toLowerCase();
 
     const vId = rawVenue ? `plc-${(e.city || "unknown").toLowerCase().replace(/\s+/g, "-")}-${rawVenue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 20)}` : "";
@@ -3156,6 +3158,9 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
     const checkLocationMatches = (candidateMeta: typeof GLOBAL_GAZETTEER_METADATA[string] | undefined) => {
       if (!candidateMeta) return false;
+      if (candidateMeta.isMobileVessel) {
+        return true;
+      }
       const cityOk = !p.city || p.city === "Unknown" || p.city === "Location not established" || isSameCity(dbCity, candidateMeta.city);
       const countryOk = !p.country || p.country === "Unknown" || resolveCanonicalCountryName(dbCountry).toLowerCase() === resolveCanonicalCountryName(candidateMeta.country).toLowerCase();
       return cityOk && countryOk;
@@ -3189,12 +3194,12 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       normalizedRawCity.toLowerCase() === "reykjavík"
         ? "Reykjavik"
         : normalizedRawCity.toLowerCase() === "keflavík"
-        ? "Keflavik"
-        : normalizedRawCity.toLowerCase() === "lod area"
-        ? "Lod"
-        : normalizedRawCity.toLowerCase() === "wye"
-        ? "Queenstown"
-        : normalizedRawCity;
+          ? "Keflavik"
+          : normalizedRawCity.toLowerCase() === "lod area"
+            ? "Lod"
+            : normalizedRawCity.toLowerCase() === "wye"
+              ? "Queenstown"
+              : normalizedRawCity;
     const citySlug = getCanonicalCitySlug(countryName, cityName);
     const cityCityKey = `${countryName}::${normalizeCityName(cityName)}`.toLowerCase();
 
@@ -3258,8 +3263,11 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       countryCitiesMap.set(countrySlug, cList);
     }
 
-    // Venue Node (deduplicated per city + canonical venue name)
-    const venueDedupKey = `${cityCityKey}::${canonicalVenueNorm}`;
+    // Venue Node (deduplicated per city + canonical venue name, preserving distinct physical addresses)
+    const normStreet = streetAddress ? sanitizePlaceSlug(streetAddress) : "";
+    const venueDedupKey = (meta?.canonicalVenue || !normStreet)
+      ? `${cityCityKey}::${canonicalVenueNorm}`
+      : `${cityCityKey}::${canonicalVenueNorm}::${normStreet}`;
     if (!venuesMap.has(venueDedupKey)) {
       const dedupSet = new Set(currentVenueEventIds);
       venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
@@ -3401,6 +3409,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     totalVenues: allVenues.length,
     totalAddresses: allAddresses.length,
     totalEvents: allEvents.length,
+    ...(fallbackError ? { error: fallbackError } : {}),
   };
 
   return {
@@ -3410,6 +3419,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     allVenues,
     allAddresses,
     summary,
+    ...(fallbackError ? { error: fallbackError } : {}),
   };
 }
 
@@ -3421,7 +3431,7 @@ export async function getGeographicHierarchy(
 ): Promise<{ data: GeographicHierarchyTree | null; error: string | null }> {
   try {
     const data = await getGeographicHierarchyStrict(supabaseClient);
-    return { data, error: null };
+    return { data, error: data.error || null };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to load geographic hierarchy";
     return { data: null, error: msg };

@@ -40,10 +40,10 @@ import { events as legacyEvents, sources as legacySources } from "../archive/leg
 if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === "function") {
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile(".env.local");
-  } catch {}
+  } catch { }
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile();
-  } catch {}
+  } catch { }
 }
 
 const isDryRun = process.argv.includes("--dry-run");
@@ -64,11 +64,11 @@ console.log("===================================================================
 
 const client = connectionString
   ? postgres(connectionString, {
-      max: 10,
-      idle_timeout: 60,
-      connect_timeout: 30,
-      ssl: getPostgresSslConfig(isLocal),
-    })
+    max: 10,
+    idle_timeout: 60,
+    connect_timeout: 30,
+    ssl: getPostgresSslConfig(isLocal),
+  })
   : null;
 
 const db = client ? drizzle(client, { schema }) : null;
@@ -318,7 +318,7 @@ async function syncCorpus() {
   // 2. Canonical People Catalog
   // ---------------------------------------------------------
   console.log(`\n👤 2. Synchronizing ${masterPeopleSeed.length} Canonical Public Figures...`);
-  
+
   // Load existing people to match by ID or slug to avoid duplicate key violations
   const existingDbPeople = await db.select().from(schema.people);
   const existingPersonBySlug = new Map(existingDbPeople.map((p) => [p.slug, p]));
@@ -734,20 +734,13 @@ async function syncCorpus() {
   console.log(`\n🗓️ 5. Synchronizing Historical Events Corpus (${eventsCorpus.length} Events)...`);
   for (const evt of eventsCorpus) {
     const city = (evt.city || "Unknown").trim();
-    const venue = (evt.venueName || city).trim();
+    const rawVenue = (evt.venueName || "").trim();
+    const venue = rawVenue || city;
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
 
-    let resolvedVenueName = venue;
-    if (!resolvedVenueName) {
-      if (city === "Jerusalem") resolvedVenueName = "The Knesset";
-      else if (city === "Washington") resolvedVenueName = "The White House";
-      else if (city === "Cairo") resolvedVenueName = "Ittihadiya Palace";
-      else if (city === "London") resolvedVenueName = "10 Downing Street";
-      else if (city === "Moscow") resolvedVenueName = "Ministry of Foreign Affairs of the Russian Federation";
-    }
-
-    const venueMeta = resolveVenueMetadata(resolvedVenueName);
+    // Only resolve physical venue metadata when explicit venueName evidence exists; do not infer physical venues from city alone
+    const venueMeta = rawVenue ? resolveVenueMetadata(rawVenue) : null;
     let venueId: string | null = null;
     let addressId: string | null = null;
     if (venueMeta) {
@@ -876,41 +869,41 @@ async function syncCorpus() {
           prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
           remoteLocation: part.remoteLocation
             ? (() => {
-                const vis = part.remoteLocation.publicVisibility;
-                const isRestricted =
-                  vis === "restricted" || vis === "internal" || vis === "private";
-                const allowExact = vis === "public-exact";
-                return {
-                  ...(isRestricted
-                    ? {}
-                    : {
-                        ...(part.remoteLocation.venueName
-                          ? { venueName: part.remoteLocation.venueName }
-                          : {}),
-                        ...(part.remoteLocation.city
-                          ? { city: part.remoteLocation.city }
-                          : {}),
-                        ...(part.remoteLocation.country
-                          ? { country: part.remoteLocation.country }
-                          : {}),
-                        ...(part.remoteLocation.label
-                          ? { label: part.remoteLocation.label }
-                          : {}),
-                        ...(part.remoteLocation.overlayText
-                          ? { overlayText: part.remoteLocation.overlayText }
-                          : {}),
-                        ...(part.remoteLocation.visibleLocationNotes
-                          ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
-                          : {}),
-                      }),
-                  ...(part.remoteLocation.connectionType
-                    ? { connectionType: part.remoteLocation.connectionType }
-                    : {}),
-                  ...(vis ? { publicVisibility: vis } : {}),
-                  latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
-                  longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
-                };
-              })()
+              const vis = part.remoteLocation.publicVisibility;
+              const isRestricted =
+                vis === "restricted" || vis === "internal" || vis === "private";
+              const allowExact = vis === "public-exact";
+              return {
+                ...(isRestricted
+                  ? {}
+                  : {
+                    ...(part.remoteLocation.venueName
+                      ? { venueName: part.remoteLocation.venueName }
+                      : {}),
+                    ...(part.remoteLocation.city
+                      ? { city: part.remoteLocation.city }
+                      : {}),
+                    ...(part.remoteLocation.country
+                      ? { country: part.remoteLocation.country }
+                      : {}),
+                    ...(part.remoteLocation.label
+                      ? { label: part.remoteLocation.label }
+                      : {}),
+                    ...(part.remoteLocation.overlayText
+                      ? { overlayText: part.remoteLocation.overlayText }
+                      : {}),
+                    ...(part.remoteLocation.visibleLocationNotes
+                      ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
+                      : {}),
+                  }),
+                ...(part.remoteLocation.connectionType
+                  ? { connectionType: part.remoteLocation.connectionType }
+                  : {}),
+                ...(vis ? { publicVisibility: vis } : {}),
+                latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
+                longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
+              };
+            })()
             : null,
         };
 

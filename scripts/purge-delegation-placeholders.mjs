@@ -32,6 +32,7 @@ async function run() {
       .from("people")
       .select("id, canonical_name, slug, classification, primary_role")
       .ilike("canonical_name", "%Delegation%")
+      .order("id")
       .range(from, from + pageSize - 1);
 
     if (pErr) {

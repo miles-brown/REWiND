@@ -6604,6 +6604,7 @@ svg { flex: 0 0 auto; }
   border-radius: 12px;
   text-align: center;
   gap: 12px;
+  color: #0f172a;
 }
 
 .hierarchy-empty-state svg {
@@ -6614,6 +6615,7 @@ svg { flex: 0 0 auto; }
   margin: 0;
   font-size: 16px;
   font-weight: 700;
+  color: #0f172a;
 }
 
 .hierarchy-empty-state p {

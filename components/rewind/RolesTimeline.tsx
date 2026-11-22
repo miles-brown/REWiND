@@ -12,7 +12,11 @@ export function RolesTimeline({
   roles: PersonRoleRecord[];
   career?: PersonCareer[];
 }) {
-  const hasItems = roles.length > 0 || career.length > 0;
+  const visibleCareer = career.filter((c) => {
+    const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase().trim();
+    return cTitle && !roles.some((r) => r.title.toLowerCase().trim() === cTitle);
+  });
+  const hasItems = roles.length > 0 || visibleCareer.length > 0;
 
   if (!hasItems) {
     return (
@@ -103,60 +107,55 @@ export function RolesTimeline({
         })}
 
         {/* Structured career records if distinct from roles */}
-        {career
-          .filter((c) => {
-            const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase();
-            return cTitle && !roles.some((r) => r.title.toLowerCase() === cTitle);
-          })
-          .map((c) => {
-            const startText = c.startDate ? c.startDate.slice(0, 4) : "";
-            const isCurrent = Boolean((c as { isCurrent?: boolean }).isCurrent);
-            const endText = c.endDate
-              ? c.endDate.slice(0, 4)
-              : isCurrent
+        {visibleCareer.map((c) => {
+          const startText = c.startDate ? c.startDate.slice(0, 4) : "";
+          const isCurrent = Boolean((c as { isCurrent?: boolean }).isCurrent);
+          const endText = c.endDate
+            ? c.endDate.slice(0, 4)
+            : isCurrent
               ? "Present"
               : startText
-              ? "End date unrecorded"
-              : "";
-            const tenureText = startText ? `${startText} — ${endText || "End date unrecorded"}` : endText || "Tenure documented";
+                ? "End date unrecorded"
+                : "";
+          const tenureText = startText ? `${startText} — ${endText || "End date unrecorded"}` : endText || "Tenure documented";
 
-            return (
-              <div key={c.id} className="role-card career-item" role="listitem">
-                <div className="role-card-body">
-                  <div className="role-card-title-row">
-                    <h3 className="role-card-title">{c.positionTitle || (c as { roleTitle?: string }).roleTitle}</h3>
-                    {c.occupationCategory && (
-                      <span className="role-type-tag">
-                        <Award size={11} aria-hidden="true" /> {c.occupationCategory}
-                      </span>
-                    )}
-                  </div>
-                  <div className="role-org-row">
-                    <Building2 size={14} aria-hidden="true" />
-                    <span>
-                      {c.organisationName}
-                      {c.location ? ` · ${c.location}` : ""}
+          return (
+            <div key={c.id} className="role-card career-item" role="listitem">
+              <div className="role-card-body">
+                <div className="role-card-title-row">
+                  <h3 className="role-card-title">{c.positionTitle || (c as { roleTitle?: string }).roleTitle}</h3>
+                  {c.occupationCategory && (
+                    <span className="role-type-tag">
+                      <Award size={11} aria-hidden="true" /> {c.occupationCategory}
                     </span>
-                  </div>
-                  {c.appointmentMethod && (
-                    <small className="role-appointment-meta">
-                      Appointment: {c.appointmentMethod}
-                    </small>
-                  )}
-                  {c.notes && (
-                    <p className="role-notes-copy">
-                      {c.notes}
-                    </p>
                   )}
                 </div>
-
-                <div className="role-tenure-badge">
-                  <Calendar size={13} aria-hidden="true" />
-                  <span>{tenureText}</span>
+                <div className="role-org-row">
+                  <Building2 size={14} aria-hidden="true" />
+                  <span>
+                    {c.organisationName}
+                    {c.location ? ` · ${c.location}` : ""}
+                  </span>
                 </div>
+                {c.appointmentMethod && (
+                  <small className="role-appointment-meta">
+                    Appointment: {c.appointmentMethod}
+                  </small>
+                )}
+                {c.notes && (
+                  <p className="role-notes-copy">
+                    {c.notes}
+                  </p>
+                )}
               </div>
-            );
-          })}
+
+              <div className="role-tenure-badge">
+                <Calendar size={13} aria-hidden="true" />
+                <span>{tenureText}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

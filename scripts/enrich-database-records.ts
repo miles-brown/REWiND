@@ -16,16 +16,16 @@
  */
 
 import postgres from "postgres";
-import { getPostgresSslConfig } from "../lib/db/client";
+import { getPostgresSslConfig, isLocalDatabaseHost } from "../lib/db/client";
 import { generateAllEnrichmentSql } from "./generate-enrichment-sql";
 
 if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === "function") {
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile(".env.local");
-  } catch {}
+  } catch { }
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile();
-  } catch {}
+  } catch { }
 }
 
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -35,17 +35,7 @@ if (!connectionString) {
   process.exit(1);
 }
 
-let isLocal = false;
-try {
-  const parsedUrl = new URL(connectionString);
-  const hostname = parsedUrl.hostname.toLowerCase();
-  isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
-} catch {
-  isLocal =
-    connectionString.includes("localhost") ||
-    connectionString.includes("127.0.0.1") ||
-    connectionString.includes("::1");
-}
+const isLocal = isLocalDatabaseHost(connectionString);
 
 const sql = postgres(connectionString, {
   max: 5,
@@ -156,11 +146,6 @@ async function main() {
       await tx.unsafe(stmt);
     }
   });
-  try {
-    await sql`SELECT setval(pg_get_serial_sequence('public.person_roles', 'id'), COALESCE(max(id), 1) + 1, false) FROM public.person_roles;`;
-  } catch (err) {
-    console.warn("   ⚠️ Sequence setval skipped:", (err as Error).message);
-  }
   const roleCount = await sql`SELECT count(*) FROM public.person_roles`;
   console.log(`   ✅ Official Roles synchronized: ${roleCount[0].count} total rows in public.person_roles.`);
 

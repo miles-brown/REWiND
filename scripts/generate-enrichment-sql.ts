@@ -418,7 +418,8 @@ export function generateAllEnrichmentSql(): {
     { personId: "nasser-bourita", title: "Minister of Foreign Affairs of Morocco", org: "Kingdom of Morocco", start: "2017-04-05", end: null, curr: true },
     { personId: "mohammad-javad-zarif", title: "Minister of Foreign Affairs of Iran", org: "Islamic Republic of Iran", start: "2013-08-15", end: "2021-08-25", curr: false },
     { personId: "sergey-lavrov", title: "Minister of Foreign Affairs of the Russian Federation", org: "Government of the Russian Federation", start: "2004-03-09", end: null, curr: true },
-    { personId: "wang-yi", title: "Minister of Foreign Affairs of the PRC", org: "State Council of the People's Republic of China", start: "2013-03-16", end: null, curr: true },
+    { personId: "wang-yi", title: "Minister of Foreign Affairs of the PRC", org: "State Council of the People's Republic of China", start: "2013-03-16", end: "2022-12-30", curr: false },
+    { personId: "wang-yi", title: "Minister of Foreign Affairs of the PRC", org: "State Council of the People's Republic of China", start: "2023-07-25", end: null, curr: true },
     { personId: "frank-walter-steinmeier", title: "President of the Federal Republic of Germany", org: "Federal Republic of Germany", start: "2017-03-19", end: null, curr: true },
     { personId: "laurent-fabius", title: "Minister of Foreign Affairs of France", org: "French Republic", start: "2012-05-16", end: "2016-02-11", curr: false },
     { personId: "philip-hammond", title: "Secretary of State for Foreign and Commonwealth Affairs", org: "HM Government", start: "2014-07-15", end: "2016-07-13", curr: false },
@@ -446,6 +447,17 @@ export function generateAllEnrichmentSql(): {
   ];
 
   const rolesSql: string[] = [];
+
+  // Repair continuous interval for Wang Yi if previously written without the 2022-2023 gap
+  rolesSql.push(
+    `UPDATE public.person_roles
+     SET end_date = '2022-12-30', is_current = false
+     WHERE person_id = COALESCE((SELECT id FROM public.people WHERE slug = 'wang-yi' OR id = 'wang-yi' LIMIT 1), 'wang-yi')
+       AND title = 'Minister of Foreign Affairs of the PRC'
+       AND start_date = '2013-03-16'
+       AND (end_date IS NULL OR is_current = true);`
+  );
+
   for (const r of newRoles) {
     rolesSql.push(
       `INSERT INTO public.person_roles (person_id, title, start_date, end_date, is_current)
@@ -454,6 +466,7 @@ export function generateAllEnrichmentSql(): {
          SELECT 1 FROM public.person_roles
          WHERE person_id = COALESCE((SELECT id FROM public.people WHERE slug = ${escapeSql(r.personId)} OR id = ${escapeSql(r.personId)} LIMIT 1), ${escapeSql(r.personId)})
            AND title = ${escapeSql(r.title)}
+           AND (start_date = ${escapeSql(r.start)} OR (start_date IS NULL AND ${escapeSql(r.start)} IS NULL))
        );`
     );
   }

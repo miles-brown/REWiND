@@ -907,6 +907,7 @@ export interface GeographicHierarchySummary {
   totalVenues: number;
   totalAddresses: number;
   totalEvents: number;
+  error?: string | null;
 }
 
 export interface GeographicHierarchyTree {
@@ -921,6 +922,7 @@ export interface GeographicHierarchyTree {
   allVenues: VenueNode[];
   allAddresses: AddressNode[];
   summary: GeographicHierarchySummary;
+  error?: string | null;
 }
 
 export interface PlaceRecord {

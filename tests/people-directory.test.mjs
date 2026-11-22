@@ -89,6 +89,10 @@ describe("People Directory & Name Parsing Architecture", async () => {
     assert.equal(edwardKent.firstName, "Edward");
     assert.equal(edwardKent.lastName, "Edward");
 
+    const vives = extractPersonNameParts({ displayName: "Joan-Enric Vives i Sicília", classification: "monarch-royal" });
+    assert.equal(vives.firstName, "Joan-Enric");
+    assert.equal(vives.lastName, "Sicília");
+
     // 6. Name ambiguity regression test (preserving Earl as name)
     const earlWarren = extractPersonNameParts({ canonicalName: "Earl Warren" });
     assert.deepEqual(earlWarren, {

@@ -289,14 +289,16 @@ export function extractPersonNameParts(person: {
     return { firstName: cleanTokens[0], lastName: cleanTokens[0], displayName };
   }
 
-  // Royals with a title prefix (unless bearing an explicit dynastic surname like d'Orléans or Napoléon)
+  // Royals with a title prefix (unless bearing an explicit dynastic or civil surname)
   // use compound given names ("King Juan Carlos I", "King Carl XVI Gustaf", "Princess Ingrid Alexandra")
   // and should sort by their given name under both First Name and Last Name sort modes.
+  // Royals without a title prefix (or with civil surnames like Joan-Enric Vives i Sicília, David Armstrong-Jones)
+  // retain their civil surname under Last Name mode.
   const lastToken = cleanTokens[cleanTokens.length - 1];
-  const hasDynasticSurname = /^(d'Orléans|Napoléon|Windsor|Mountbatten-Windsor|Chatto|Phillips|Tindall|Armstrong-Jones|Habsburg|Medforth-Mills)$/i.test(
+  const hasDynasticSurname = /^(d'Orléans|Napoléon|Windsor|Mountbatten-Windsor|Chatto|Phillips|Tindall|Armstrong-Jones|Habsburg|Medforth-Mills|Sicília)$/i.test(
     lastToken
   );
-  if ((isRoyal || hasRoyalTitlePrefix) && !hasDynasticSurname) {
+  if (hasRoyalTitlePrefix && !hasDynasticSurname) {
     const givenName = cleanTokens.join(" ");
     return { firstName: givenName, lastName: givenName, displayName };
   }
@@ -372,14 +374,14 @@ export function findTopCoAttendee(
     people = isArg2People
       ? (arg2 as PersonRecord[])
       : isArg3People
-      ? (arg3 as PersonRecord[])
-      : ((arg2 as PersonRecord[]) || []);
+        ? (arg3 as PersonRecord[])
+        : ((arg2 as PersonRecord[]) || []);
 
     events = isArg2People
       ? (arg3 as EventRecord[])
       : isArg3People
-      ? ((arg2 as EventRecord[]) || [])
-      : ((arg3 as EventRecord[]) || (arg2 as EventRecord[]) || []);
+        ? ((arg2 as EventRecord[]) || [])
+        : ((arg3 as EventRecord[]) || (arg2 as EventRecord[]) || []);
   }
 
   if (!target || events.length === 0) {

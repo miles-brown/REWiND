@@ -679,7 +679,13 @@ export function PeopleDirectory({
             <select
               aria-label="Filter by category"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCategoryFilter(val);
+                if (val === "monarch-royal") {
+                  setGroupByCountry(true);
+                }
+              }}
               style={{
                 padding: "0.4rem 0.65rem",
                 background: "rgba(0, 0, 0, 0.35)",
@@ -848,555 +854,555 @@ export function PeopleDirectory({
         (() => {
           const renderPeopleItems = (items: PersonRecord[]) =>
             viewMode === "extended" ? (
-      /* ========================================================================= */
-      /* 1. EXTENDED VIEW (Rich Card Grid)                                         */
-      /* ========================================================================= */
-      <div
-        className="people-extended-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-          gap: "1.25rem",
-        }}
-      >
-        {items.map((p) => {
-            const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
-            const deathYear = p.death ? p.death.slice(0, 4) : "Present";
-            const catMeta = getClassificationMeta(p.classification);
-            const CatIcon = catMeta.icon;
-            const initials = getInitials(p.name);
-            const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
-
-            return (
-              <Link
-                href={`/person/${p.slug}`}
-                key={p.id}
-                className="person-extended-card"
+              /* ========================================================================= */
+              /* 1. EXTENDED VIEW (Rich Card Grid)                                         */
+              /* ========================================================================= */
+              <div
+                className="people-extended-grid"
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  background: "var(--bg-card, rgba(15, 23, 42, 0.7))",
-                  border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))",
-                  borderRadius: "12px",
-                  padding: "1.25rem",
-                  textDecoration: "none",
-                  color: "inherit",
-                  position: "relative",
-                  overflow: "hidden",
-                  transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                  gap: "1.25rem",
                 }}
               >
-                {/* Header: Monogram Avatar, Name, Dates & Living Dot */}
-                <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginBottom: "0.85rem" }}>
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "10px",
-                      background: "linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(147, 51, 234, 0.35))",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: "1.1rem",
-                      color: "#f8fafc",
-                      flexShrink: 0,
-                      position: "relative",
-                    }}
-                  >
-                    {initials}
-                    {/* Living Status Dot */}
-                    <span
-                      title={p.death ? "Historical Figure" : "Living Figure"}
-                      style={{
-                        position: "absolute",
-                        bottom: "-2px",
-                        right: "-2px",
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        background: p.death ? "#94a3b8" : "#10b981",
-                        border: "2px solid #0f172a",
-                      }}
-                    />
-                  </div>
+                {items.map((p) => {
+                  const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
+                  const deathYear = p.death ? p.death.slice(0, 4) : "Present";
+                  const catMeta = getClassificationMeta(p.classification);
+                  const CatIcon = catMeta.icon;
+                  const initials = getInitials(p.name);
+                  const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.15rem" }}>
-                      <span
-                        style={{
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          color: "var(--text-muted, #94a3b8)",
-                          letterSpacing: "0.03em",
-                        }}
-                      >
-                        {birthYear} — {deathYear}
-                      </span>
-                      {eventsCount > 0 && (
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            padding: "0.1rem 0.4rem",
-                            borderRadius: "4px",
-                            background: "rgba(37, 99, 235, 0.15)",
-                            color: "#93c5fd",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {eventsCount} {eventsCount === 1 ? "event" : "events"}
-                        </span>
-                      )}
-                    </div>
-                    <h2
+                  return (
+                    <Link
+                      href={`/person/${p.slug}`}
+                      key={p.id}
+                      className="person-extended-card"
                       style={{
-                        fontSize: "1.08rem",
-                        fontWeight: 700,
-                        color: "var(--text-primary, #f8fafc)",
-                        margin: 0,
-                        whiteSpace: "nowrap",
+                        display: "flex",
+                        flexDirection: "column",
+                        background: "var(--bg-card, rgba(15, 23, 42, 0.7))",
+                        border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))",
+                        borderRadius: "12px",
+                        padding: "1.25rem",
+                        textDecoration: "none",
+                        color: "inherit",
+                        position: "relative",
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
                       }}
                     >
-                      {p.name}
-                    </h2>
-                  </div>
-                </div>
-
-                {/* Primary Role / Title */}
-                {p.description && (
-                  <p
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "#cbd5e1",
-                      lineHeight: "1.35",
-                      margin: "0 0 0.85rem",
-                      fontWeight: 500,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {p.description}
-                  </p>
-                )}
-
-                {/* Tags Strip (Nationality & Category) */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "auto", marginBottom: "0.75rem" }}>
-                  {p.nationality && (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        fontSize: "0.72rem",
-                        fontWeight: 600,
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: "4px",
-                        background: "rgba(255, 255, 255, 0.06)",
-                        color: "#e2e8f0",
-                      }}
-                    >
-                      <Globe size={11} />
-                      {p.nationality}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.3rem",
-                      fontSize: "0.72rem",
-                      fontWeight: 600,
-                      padding: "0.2rem 0.5rem",
-                      borderRadius: "4px",
-                      background: `rgba(${catMeta.color === "#eab308" ? "234, 179, 8" : "59, 130, 246"}, 0.12)`,
-                      color: catMeta.color,
-                    }}
-                  >
-                    <CatIcon size={11} />
-                    {catMeta.label}
-                  </span>
-                </div>
-
-                {/* Card Footer: View Timeline Link */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "0.75rem",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-                    fontSize: "0.8rem",
-                    color: "var(--primary-color, #60a5fa)",
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>Explore chronology & evidence</span>
-                  <ArrowRight size={15} />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      ) : viewMode === "list" ? (
-        /* ========================================================================= */
-        /* 2. LIST VIEW (Structured Table View)                                      */
-        /* ========================================================================= */
-        <div
-          className="people-list-container"
-          style={{
-            background: "var(--bg-card, rgba(15, 23, 42, 0.7))",
-            border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))",
-            borderRadius: "12px",
-            overflowX: "auto",
-          }}
-        >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              textAlign: "left",
-              fontSize: "0.85rem",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  borderBottom: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))",
-                  background: "rgba(0, 0, 0, 0.25)",
-                }}
-              >
-                <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Historical Figure
-                </th>
-                <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Era / Life Span
-                </th>
-                <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Nationality
-                </th>
-                <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Classification
-                </th>
-                <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Primary Office / Role
-                </th>
-                <th style={{ padding: "0.85rem 1rem", textAlign: "right", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                  Events
-                </th>
-                <th style={{ padding: "0.85rem 1rem", width: "40px" }} aria-label="Actions"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((p) => {
-                const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
-                const deathYear = p.death ? p.death.slice(0, 4) : "Present";
-                const catMeta = getClassificationMeta(p.classification);
-                const CatIcon = catMeta.icon;
-                const initials = getInitials(p.name);
-                const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
-
-                return (
-                  <tr
-                    key={p.id}
-                    className="people-list-row"
-                    style={{
-                      borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                      transition: "background 0.15s ease",
-                    }}
-                  >
-                    {/* Figure Name & Monogram */}
-                    <td style={{ padding: "0.75rem 1rem" }}>
-                      <Link
-                        href={`/person/${p.slug}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          textDecoration: "none",
-                          color: "inherit",
-                        }}
-                      >
-                        <span
+                      {/* Header: Monogram Avatar, Name, Dates & Living Dot */}
+                      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginBottom: "0.85rem" }}>
+                        <div
                           style={{
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "6px",
-                            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(147, 51, 234, 0.3))",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                            width: "48px",
+                            height: "48px",
+                            borderRadius: "10px",
+                            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(147, 51, 234, 0.35))",
+                            border: "1px solid rgba(255, 255, 255, 0.15)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             fontWeight: 700,
-                            fontSize: "0.8rem",
+                            fontSize: "1.1rem",
                             color: "#f8fafc",
                             flexShrink: 0,
+                            position: "relative",
                           }}
                         >
                           {initials}
-                        </span>
-                        <div>
-                          <strong style={{ display: "block", color: "var(--text-primary, #f8fafc)" }}>
-                            {p.name}
-                          </strong>
+                          {/* Living Status Dot */}
+                          <span
+                            title={p.death ? "Historical Figure" : "Living Figure"}
+                            style={{
+                              position: "absolute",
+                              bottom: "-2px",
+                              right: "-2px",
+                              width: "10px",
+                              height: "10px",
+                              borderRadius: "50%",
+                              background: p.death ? "#94a3b8" : "#10b981",
+                              border: "2px solid #0f172a",
+                            }}
+                          />
                         </div>
-                      </Link>
-                    </td>
 
-                    {/* Dates */}
-                    <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted, #94a3b8)", whiteSpace: "nowrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-                        <span
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.15rem" }}>
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                color: "var(--text-muted, #94a3b8)",
+                                letterSpacing: "0.03em",
+                              }}
+                            >
+                              {birthYear} — {deathYear}
+                            </span>
+                            {eventsCount > 0 && (
+                              <span
+                                style={{
+                                  fontSize: "0.7rem",
+                                  padding: "0.1rem 0.4rem",
+                                  borderRadius: "4px",
+                                  background: "rgba(37, 99, 235, 0.15)",
+                                  color: "#93c5fd",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {eventsCount} {eventsCount === 1 ? "event" : "events"}
+                              </span>
+                            )}
+                          </div>
+                          <h2
+                            style={{
+                              fontSize: "1.08rem",
+                              fontWeight: 700,
+                              color: "var(--text-primary, #f8fafc)",
+                              margin: 0,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {p.name}
+                          </h2>
+                        </div>
+                      </div>
+
+                      {/* Primary Role / Title */}
+                      {p.description && (
+                        <p
                           style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "50%",
-                            background: p.death ? "#94a3b8" : "#10b981",
+                            fontSize: "0.85rem",
+                            color: "#cbd5e1",
+                            lineHeight: "1.35",
+                            margin: "0 0 0.85rem",
+                            fontWeight: 500,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
                           }}
-                        />
-                        {birthYear} — {deathYear}
-                      </span>
-                    </td>
+                        >
+                          {p.description}
+                        </p>
+                      )}
 
-                    {/* Nationality */}
-                    <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
-                      {p.nationality ? (
+                      {/* Tags Strip (Nationality & Category) */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "auto", marginBottom: "0.75rem" }}>
+                        {p.nationality && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                              fontSize: "0.72rem",
+                              fontWeight: 600,
+                              padding: "0.2rem 0.5rem",
+                              borderRadius: "4px",
+                              background: "rgba(255, 255, 255, 0.06)",
+                              color: "#e2e8f0",
+                            }}
+                          >
+                            <Globe size={11} />
+                            {p.nationality}
+                          </span>
+                        )}
                         <span
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "0.3rem",
-                            fontSize: "0.75rem",
-                            padding: "0.15rem 0.45rem",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            padding: "0.2rem 0.5rem",
                             borderRadius: "4px",
-                            background: "rgba(255, 255, 255, 0.06)",
-                            color: "#e2e8f0",
+                            background: `rgba(${catMeta.color === "#eab308" ? "234, 179, 8" : "59, 130, 246"}, 0.12)`,
+                            color: catMeta.color,
                           }}
                         >
-                          <Globe size={11} />
-                          {p.nationality}
+                          <CatIcon size={11} />
+                          {catMeta.label}
                         </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+                      </div>
 
-                    {/* Category */}
-                    <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.3rem",
-                          fontSize: "0.75rem",
-                          padding: "0.15rem 0.45rem",
-                          borderRadius: "4px",
-                          background: `rgba(59, 130, 246, 0.1)`,
-                          color: catMeta.color,
-                        }}
-                      >
-                        <CatIcon size={11} />
-                        {catMeta.label}
-                      </span>
-                    </td>
-
-                    {/* Role */}
-                    <td style={{ padding: "0.75rem 1rem", color: "#cbd5e1", maxWidth: "320px" }}>
+                      {/* Card Footer: View Timeline Link */}
                       <div
                         style={{
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingTop: "0.75rem",
+                          borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                          fontSize: "0.8rem",
+                          color: "var(--primary-color, #60a5fa)",
+                          fontWeight: 600,
                         }}
                       >
-                        {p.description || "—"}
+                        <span>Explore chronology & evidence</span>
+                        <ArrowRight size={15} />
                       </div>
-                    </td>
-
-                    {/* Event Count */}
-                    <td style={{ padding: "0.75rem 1rem", textAlign: "right", fontWeight: 600, color: "#93c5fd" }}>
-                      {eventsCount > 0 ? eventsCount : "—"}
-                    </td>
-
-                    {/* Chevron Link */}
-                    <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                      <Link href={`/person/${p.slug}`} aria-label={`View dossier for ${p.name}`} style={{ color: "#60a5fa" }}>
-                        <ChevronRight size={16} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        /* ========================================================================= */
-        /* 3. BADGE VIEW (Visual Thumbnail Grid)                                     */
-        /* ========================================================================= */
-        <div
-          className="people-badge-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: "1rem",
-          }}
-        >
-          {items.map((p) => {
-            const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
-            const deathYear = p.death ? p.death.slice(0, 4) : "Present";
-            const catMeta = getClassificationMeta(p.classification);
-            const CatIcon = catMeta.icon;
-            const initials = getInitials(p.name);
-            const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
-
-            return (
-              <Link
-                href={`/person/${p.slug}`}
-                key={p.id}
-                className="person-badge-card"
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : viewMode === "list" ? (
+              /* ========================================================================= */
+              /* 2. LIST VIEW (Structured Table View)                                      */
+              /* ========================================================================= */
+              <div
+                className="people-list-container"
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
                   background: "var(--bg-card, rgba(15, 23, 42, 0.7))",
                   border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))",
                   borderRadius: "12px",
-                  padding: "1.25rem 0.85rem",
-                  textDecoration: "none",
-                  color: "inherit",
-                  position: "relative",
-                  transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                  overflowX: "auto",
                 }}
               >
-                {/* Large Monogram / Portrait Avatar */}
-                <div
+                <table
                   style={{
-                    width: "56px",
-                    height: "56px",
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(147, 51, 234, 0.35))",
-                    border: "2px solid rgba(255, 255, 255, 0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: "1.25rem",
-                    color: "#f8fafc",
-                    marginBottom: "0.75rem",
-                    position: "relative",
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    textAlign: "left",
+                    fontSize: "0.85rem",
                   }}
                 >
-                  {initials}
-                  {/* Living Status Dot */}
-                  <span
-                    title={p.death ? "Historical Figure" : "Living Figure"}
-                    style={{
-                      position: "absolute",
-                      bottom: "0",
-                      right: "0",
-                      width: "12px",
-                      height: "12px",
-                      borderRadius: "50%",
-                      background: p.death ? "#94a3b8" : "#10b981",
-                      border: "2px solid #0f172a",
-                    }}
-                  />
-                </div>
-
-                {/* Figure Name */}
-                <h3
-                  style={{
-                    fontSize: "0.95rem",
-                    fontWeight: 700,
-                    color: "var(--text-primary, #f8fafc)",
-                    margin: "0 0 0.25rem",
-                    lineHeight: "1.25",
-                    maxHeight: "2.5rem",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                  }}
-                >
-                  {p.name}
-                </h3>
-
-                {/* Era / Dates */}
-                <span
-                  style={{
-                    fontSize: "0.72rem",
-                    color: "var(--text-muted, #94a3b8)",
-                    fontWeight: 500,
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  {birthYear} — {deathYear}
-                </span>
-
-                {/* Nationality & Category Badges */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "0.3rem",
-                    justifyContent: "center",
-                    marginTop: "auto",
-                  }}
-                >
-                  {p.nationality && (
-                    <span
+                  <thead>
+                    <tr
                       style={{
-                        fontSize: "0.68rem",
-                        padding: "0.15rem 0.4rem",
-                        borderRadius: "4px",
-                        background: "rgba(255, 255, 255, 0.06)",
-                        color: "#cbd5e1",
-                        fontWeight: 500,
+                        borderBottom: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))",
+                        background: "rgba(0, 0, 0, 0.25)",
                       }}
                     >
-                      {p.nationality}
-                    </span>
-                  )}
-                  <span
-                    title={catMeta.label}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "0.15rem 0.35rem",
-                      borderRadius: "4px",
-                      background: "rgba(59, 130, 246, 0.1)",
-                      color: catMeta.color,
-                    }}
-                  >
-                    <CatIcon size={11} />
-                  </span>
-                  {eventsCount > 0 && (
-                    <span
-                      title={`${eventsCount} documented historical events`}
+                      <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Historical Figure
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Era / Life Span
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Nationality
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Classification
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Primary Office / Role
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", textAlign: "right", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                        Events
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", width: "40px" }} aria-label="Actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((p) => {
+                      const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
+                      const deathYear = p.death ? p.death.slice(0, 4) : "Present";
+                      const catMeta = getClassificationMeta(p.classification);
+                      const CatIcon = catMeta.icon;
+                      const initials = getInitials(p.name);
+                      const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
+
+                      return (
+                        <tr
+                          key={p.id}
+                          className="people-list-row"
+                          style={{
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                            transition: "background 0.15s ease",
+                          }}
+                        >
+                          {/* Figure Name & Monogram */}
+                          <td style={{ padding: "0.75rem 1rem" }}>
+                            <Link
+                              href={`/person/${p.slug}`}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.75rem",
+                                textDecoration: "none",
+                                color: "inherit",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "32px",
+                                  height: "32px",
+                                  borderRadius: "6px",
+                                  background: "linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(147, 51, 234, 0.3))",
+                                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: "0.8rem",
+                                  color: "#f8fafc",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {initials}
+                              </span>
+                              <div>
+                                <strong style={{ display: "block", color: "var(--text-primary, #f8fafc)" }}>
+                                  {p.name}
+                                </strong>
+                              </div>
+                            </Link>
+                          </td>
+
+                          {/* Dates */}
+                          <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted, #94a3b8)", whiteSpace: "nowrap" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  background: p.death ? "#94a3b8" : "#10b981",
+                                }}
+                              />
+                              {birthYear} — {deathYear}
+                            </span>
+                          </td>
+
+                          {/* Nationality */}
+                          <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
+                            {p.nationality ? (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.3rem",
+                                  fontSize: "0.75rem",
+                                  padding: "0.15rem 0.45rem",
+                                  borderRadius: "4px",
+                                  background: "rgba(255, 255, 255, 0.06)",
+                                  color: "#e2e8f0",
+                                }}
+                              >
+                                <Globe size={11} />
+                                {p.nationality}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+
+                          {/* Category */}
+                          <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.3rem",
+                                fontSize: "0.75rem",
+                                padding: "0.15rem 0.45rem",
+                                borderRadius: "4px",
+                                background: `rgba(59, 130, 246, 0.1)`,
+                                color: catMeta.color,
+                              }}
+                            >
+                              <CatIcon size={11} />
+                              {catMeta.label}
+                            </span>
+                          </td>
+
+                          {/* Role */}
+                          <td style={{ padding: "0.75rem 1rem", color: "#cbd5e1", maxWidth: "320px" }}>
+                            <div
+                              style={{
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {p.description || "—"}
+                            </div>
+                          </td>
+
+                          {/* Event Count */}
+                          <td style={{ padding: "0.75rem 1rem", textAlign: "right", fontWeight: 600, color: "#93c5fd" }}>
+                            {eventsCount > 0 ? eventsCount : "—"}
+                          </td>
+
+                          {/* Chevron Link */}
+                          <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                            <Link href={`/person/${p.slug}`} aria-label={`View dossier for ${p.name}`} style={{ color: "#60a5fa" }}>
+                              <ChevronRight size={16} />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* ========================================================================= */
+              /* 3. BADGE VIEW (Visual Thumbnail Grid)                                     */
+              /* ========================================================================= */
+              <div
+                className="people-badge-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                  gap: "1rem",
+                }}
+              >
+                {items.map((p) => {
+                  const birthYear = p.birth ? p.birth.slice(0, 4) : "—";
+                  const deathYear = p.death ? p.death.slice(0, 4) : "Present";
+                  const catMeta = getClassificationMeta(p.classification);
+                  const CatIcon = catMeta.icon;
+                  const initials = getInitials(p.name);
+                  const eventsCount = eventCounts[p.slug] || eventCounts[p.id] || p.eventCount || 0;
+
+                  return (
+                    <Link
+                      href={`/person/${p.slug}`}
+                      key={p.id}
+                      className="person-badge-card"
                       style={{
-                        fontSize: "0.68rem",
-                        padding: "0.15rem 0.35rem",
-                        borderRadius: "4px",
-                        background: "rgba(59, 130, 246, 0.12)",
-                        color: "#93c5fd",
-                        fontWeight: 600,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        textAlign: "center",
+                        background: "var(--bg-card, rgba(15, 23, 42, 0.7))",
+                        border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))",
+                        borderRadius: "12px",
+                        padding: "1.25rem 0.85rem",
+                        textDecoration: "none",
+                        color: "inherit",
+                        position: "relative",
+                        transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
                       }}
                     >
-                      {eventsCount} {eventsCount === 1 ? "event" : "events"}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                      {/* Large Monogram / Portrait Avatar */}
+                      <div
+                        style={{
+                          width: "56px",
+                          height: "56px",
+                          borderRadius: "50%",
+                          background: "linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(147, 51, 234, 0.35))",
+                          border: "2px solid rgba(255, 255, 255, 0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 700,
+                          fontSize: "1.25rem",
+                          color: "#f8fafc",
+                          marginBottom: "0.75rem",
+                          position: "relative",
+                        }}
+                      >
+                        {initials}
+                        {/* Living Status Dot */}
+                        <span
+                          title={p.death ? "Historical Figure" : "Living Figure"}
+                          style={{
+                            position: "absolute",
+                            bottom: "0",
+                            right: "0",
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            background: p.death ? "#94a3b8" : "#10b981",
+                            border: "2px solid #0f172a",
+                          }}
+                        />
+                      </div>
+
+                      {/* Figure Name */}
+                      <h3
+                        style={{
+                          fontSize: "0.95rem",
+                          fontWeight: 700,
+                          color: "var(--text-primary, #f8fafc)",
+                          margin: "0 0 0.25rem",
+                          lineHeight: "1.25",
+                          maxHeight: "2.5rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {p.name}
+                      </h3>
+
+                      {/* Era / Dates */}
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--text-muted, #94a3b8)",
+                          fontWeight: 500,
+                          marginBottom: "0.5rem",
+                        }}
+                      >
+                        {birthYear} — {deathYear}
+                      </span>
+
+                      {/* Nationality & Category Badges */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "0.3rem",
+                          justifyContent: "center",
+                          marginTop: "auto",
+                        }}
+                      >
+                        {p.nationality && (
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              padding: "0.15rem 0.4rem",
+                              borderRadius: "4px",
+                              background: "rgba(255, 255, 255, 0.06)",
+                              color: "#cbd5e1",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {p.nationality}
+                          </span>
+                        )}
+                        <span
+                          title={catMeta.label}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "0.15rem 0.35rem",
+                            borderRadius: "4px",
+                            background: "rgba(59, 130, 246, 0.1)",
+                            color: catMeta.color,
+                          }}
+                        >
+                          <CatIcon size={11} />
+                        </span>
+                        {eventsCount > 0 && (
+                          <span
+                            title={`${eventsCount} documented historical events`}
+                            style={{
+                              fontSize: "0.68rem",
+                              padding: "0.15rem 0.35rem",
+                              borderRadius: "4px",
+                              background: "rgba(59, 130, 246, 0.12)",
+                              color: "#93c5fd",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {eventsCount} {eventsCount === 1 ? "event" : "events"}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             );
 
           if (groupByCountry && groupedByCountrySections.length > 0) {

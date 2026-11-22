@@ -42,12 +42,12 @@ export function PersonWorkspaceTabs({
   const allYears = years.length > 0
     ? years
     : Array.from(
-        new Set(
-          records
-            .map((r) => extractYearFromDate(r.startDate))
-            .filter((y): y is number => y !== null)
-        )
-      ).sort((a, b) => a - b);
+      new Set(
+        records
+          .map((r) => extractYearFromDate(r.startDate))
+          .filter((y): y is number => y !== null)
+      )
+    ).sort((a, b) => a - b);
 
   // Group years by decade eras for coverage view
   const decadesMap = new Map<string, { year: number; count: number }[]>();
@@ -60,7 +60,11 @@ export function PersonWorkspaceTabs({
   });
   const decadeEras = Array.from(decadesMap.entries());
 
-  const rolesCount = roles.length || person.career?.length || 0;
+  const distinctCareer = (person.career || []).filter((c) => {
+    const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase().trim();
+    return cTitle && !roles.some((r) => r.title.toLowerCase().trim() === cTitle);
+  });
+  const rolesCount = roles.length + distinctCareer.length;
   const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
 
   const tabs: { id: WorkspaceTab; label: string; icon: typeof Calendar; count?: number }[] = [
@@ -101,14 +105,14 @@ export function PersonWorkspaceTabs({
     activeTab === "events"
       ? `Events Chronology selected, showing ${records.length} dated events for ${person.name}.`
       : activeTab === "roles"
-      ? `Official Roles selected, showing ${rolesCount} public mandates for ${person.name}.`
-      : activeTab === "milestones"
-      ? `Milestones & Honors selected, showing ${milestonesCount} achievements for ${person.name}.`
-      : activeTab === "biography"
-      ? `Biographical Record selected for ${person.name}.`
-      : activeTab === "standards"
-      ? `Inclusion Basis & Standards selected for ${person.name}.`
-      : `Year Coverage Matrix selected, showing ${allYears.length} indexed years for ${person.name}.`;
+        ? `Official Roles selected, showing ${rolesCount} public mandates for ${person.name}.`
+        : activeTab === "milestones"
+          ? `Milestones & Honors selected, showing ${milestonesCount} achievements for ${person.name}.`
+          : activeTab === "biography"
+            ? `Biographical Record selected for ${person.name}.`
+            : activeTab === "standards"
+              ? `Inclusion Basis & Standards selected for ${person.name}.`
+              : `Year Coverage Matrix selected, showing ${allYears.length} indexed years for ${person.name}.`;
 
   return (
     <div className="person-workspace-tabs">

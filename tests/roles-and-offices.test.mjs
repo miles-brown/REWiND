@@ -105,6 +105,17 @@ test("Roles & Succession — Canonical Prominent Offices Register", async (t) =>
       ?.holders.find((h) => h.isCurrent);
     assert.ok(currentUKPM, "UK Prime Minister must have a current incumbent");
     assert.equal(currentUKPM.name, "Sir Keir Starmer");
+    assert.equal(currentUKPM.ordinal, 58);
+    assert.equal(currentUKPM.ordinalLabel, "58th Prime Minister");
+
+    const unSecGenOffice = prominentOfficesSeed.find((o) => o.id === "secretary-general-of-the-united-nations");
+    const unHoldersWithoutDossier = unSecGenOffice?.holders.filter((h) =>
+      ["Trygve Lie", "U Thant", "Kurt Waldheim"].includes(h.name)
+    );
+    assert.ok(unHoldersWithoutDossier && unHoldersWithoutDossier.length === 3);
+    for (const h of unHoldersWithoutDossier) {
+      assert.equal(h.personSlug, null, `Holder ${h.name} without dossier seed must have personSlug: null`);
+    }
 
     const currentUNSecGen = prominentOfficesSeed
       .find((o) => o.id === "secretary-general-of-the-united-nations")
