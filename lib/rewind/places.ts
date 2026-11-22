@@ -2992,6 +2992,8 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     }
   });
 
+  const addressesMapById = new Map<string, { city: string | null; country: string | null; streetAddress: string | null }>();
+
   if (supabase) {
     try {
       let from = 0;
@@ -3014,20 +3016,55 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         if (!rows || rows.length === 0) {
           hasMore = false;
         } else {
+          // Resolve event-level address_id from addresses table when neither place_id nor venue_id matched
+          const unmappedAddressIds = Array.from(
+            new Set(
+              rows
+                .filter(
+                  (r: { place_id?: string | null; venue_id?: string | null; address_id?: string | null }) =>
+                    !((r.place_id && placesMapById.has(r.place_id)) || (r.venue_id && placesMapById.has(r.venue_id))) &&
+                    r.address_id &&
+                    !addressesMapById.has(r.address_id)
+                )
+                .map((r: { address_id?: string | null }) => r.address_id as string)
+            )
+          );
+
+          if (unmappedAddressIds.length > 0) {
+            const chunkSize = 200;
+            for (let i = 0; i < unmappedAddressIds.length; i += chunkSize) {
+              const chunk = unmappedAddressIds.slice(i, i + chunkSize);
+              const { data: addressRows, error: addrError } = await supabase
+                .from("addresses")
+                .select("id, city, country_code, formatted_english")
+                .in("id", chunk);
+              if (!addrError && addressRows) {
+                for (const a of addressRows) {
+                  addressesMapById.set(a.id, {
+                    city: a.city || null,
+                    country: a.country_code ? resolveCanonicalCountryName(a.country_code) : null,
+                    streetAddress: a.formatted_english || null,
+                  });
+                }
+              }
+            }
+          }
+
           for (const r of rows) {
             const loc =
               (r.place_id && placesMapById.get(r.place_id)) ||
               (r.venue_id && placesMapById.get(r.venue_id));
+            const addrLoc = (!loc && r.address_id) ? addressesMapById.get(r.address_id) : undefined;
 
             allEvents.push({
               id: r.id,
               slug: r.slug,
               venueName: loc?.venue || r.venue_name || null,
-              city: loc?.city || r.city || null,
-              country: loc?.country || r.country || null,
+              city: loc?.city || addrLoc?.city || r.city || null,
+              country: loc?.country || addrLoc?.country || r.country || null,
               venueId: r.venue_id,
               placeId: r.place_id,
-              address: loc?.streetAddress || (r as { address?: string }).address || null,
+              address: loc?.streetAddress || addrLoc?.streetAddress || (r as { address?: string }).address || null,
             });
           }
           // Advance by actual rows received rather than assuming batchSize (guards against db-max-rows capping)

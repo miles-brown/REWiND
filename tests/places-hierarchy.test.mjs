@@ -223,4 +223,126 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     const evt4 = { venueName: "United States Capitol", city: "Washington, D.C.", country: "United States" };
     assert.equal(formatEventLocation(evt4), "United States Capitol, Washington, D.C., United States");
   });
+
+  it("verifies address-only event resolution from address records in hierarchy loader", async () => {
+    // Mock Supabase client providing an event with address_id but null place_id and venue_id
+    const createQueryChain = () => {
+      const chain = {
+        order() {
+          return chain;
+        },
+        range() {
+          return Promise.resolve({ data: [], error: null });
+        },
+      };
+      return chain;
+    };
+
+    let eventsCallCount = 0;
+    const mockSupabase = {
+      from(table) {
+        if (table === "places") {
+          return {
+            select() {
+              return {
+                order() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          return Promise.resolve({
+                            data: [
+                              {
+                                id: "plc-iceland-reykjavik",
+                                slug: "iceland-reykjavik",
+                                city: "Reykjavík",
+                                country: "Iceland",
+                                venue: null,
+                                place_type: "city",
+                              },
+                            ],
+                            error: null,
+                          });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (table === "venues") {
+          return {
+            select() {
+              return createQueryChain();
+            },
+          };
+        }
+        if (table === "addresses") {
+          return {
+            select() {
+              return {
+                in(field, ids) {
+                  return Promise.resolve({
+                    data: ids.map((id) => ({
+                      id,
+                      city: "Reykjavík",
+                      country_code: "IS",
+                      formatted_english: "Hafnarstræti 1, 101 Reykjavík",
+                    })),
+                    error: null,
+                  });
+                },
+              };
+            },
+          };
+        }
+        if (table === "events") {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          eventsCallCount++;
+                          if (eventsCallCount === 1) {
+                            return Promise.resolve({
+                              data: [
+                                {
+                                  id: "evt-addr-test-1",
+                                  slug: "addr-test-event",
+                                  place_id: null,
+                                  venue_id: null,
+                                  address_id: "addr-is-reykjavik-hafnarstraeti-1",
+                                  city: null,
+                                  country: null,
+                                  venue_name: null,
+                                },
+                              ],
+                              error: null,
+                            });
+                          }
+                          return Promise.resolve({ data: [], error: null });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase);
+    assert.ok(hierarchy, "Hierarchy should build successfully with mock address-only events");
+    assert.equal(hierarchy.summary.totalEvents, 1, "Should count the address-only event");
+    const isCountry = hierarchy.countries.find((c) => c.name === "Iceland");
+    assert.ok(isCountry, "Derived Iceland country from address_id should be present");
+  });
 });
