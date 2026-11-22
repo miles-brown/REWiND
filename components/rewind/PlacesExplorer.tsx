@@ -532,6 +532,26 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
   // When filters exclude the selected venue, invalidate the active selection
   const activeSelectedMapVenueId = selectedVenue ? (selectedMapVenueId || undefined) : undefined;
 
+  // Helper to resolve home base location for mobile vessels without mislabeling their current operating city
+  const getHomeBaseLabel = (v: VenueNode) => {
+    if (v.homeBasePlaceId) {
+      const cleanId = v.homeBasePlaceId.replace(/^plc-|^ven-/, "");
+      const match = hierarchy.allVenues.find(
+        (cand) => cand.id === v.homeBasePlaceId || cand.slug === cleanId
+      );
+      if (match) {
+        return `${match.name}, ${match.city}`;
+      }
+      const cityMatch = hierarchy.allCities.find(
+        (cand) => cand.id === v.homeBasePlaceId || cand.slug === cleanId
+      );
+      if (cityMatch) {
+        return `${cityMatch.name}, ${cityMatch.country}`;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="places-explorer-wrapper">
       {/* Screen Reader Live Announcement Region */}
@@ -1023,7 +1043,10 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                               <span className="venue-address-label">Mobile Vessel:</span>
                                                               <span className="venue-address-val">
                                                                 {venue.vesselType ? venue.vesselType.toUpperCase() : "Mobile Vessel"}
-                                                                {venue.homeBasePlaceId ? ` (Home Base: ${venue.city})` : ` (${venue.city})`}
+                                                                {(() => {
+                                                                  const homeBase = getHomeBaseLabel(venue);
+                                                                  return homeBase ? ` (Home Base: ${homeBase})` : ` (${venue.city})`;
+                                                                })()}
                                                               </span>
                                                             </div>
                                                           ) : venue.streetAddress ? (
@@ -1293,7 +1316,10 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                 <small>Mobile Venue Specification:</small>
                                 <p>
                                   {venue.vesselType ? `${venue.vesselType.toUpperCase()} Mobile Vessel` : "Mobile Transport Vessel"}
-                                  {venue.homeBasePlaceId ? ` · Home Base: ${venue.city}, ${venue.country}` : ` · Operational Hub: ${venue.city}`}
+                                  {(() => {
+                                    const homeBase = getHomeBaseLabel(venue);
+                                    return homeBase ? ` · Home Base: ${homeBase}` : ` · Operational Hub: ${venue.city}`;
+                                  })()}
                                 </p>
                               </div>
                             </div>

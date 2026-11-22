@@ -3038,7 +3038,8 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
                 .from("addresses")
                 .select("id, city, country_code, formatted_english")
                 .in("id", chunk);
-              if (!addrError && addressRows) {
+              if (addrError) throw addrError;
+              if (addressRows) {
                 for (const a of addressRows) {
                   addressesMapById.set(a.id, {
                     city: a.city || null,

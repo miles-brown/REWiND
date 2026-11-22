@@ -342,7 +342,87 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase);
     assert.ok(hierarchy, "Hierarchy should build successfully with mock address-only events");
     assert.equal(hierarchy.summary.totalEvents, 1, "Should count the address-only event");
+    assert.equal(hierarchy.error || null, null, "Hierarchy should have no error");
     const isCountry = hierarchy.countries.find((c) => c.name === "Iceland");
     assert.ok(isCountry, "Derived Iceland country from address_id should be present");
+    assert.equal(isCountry.eventCount, 1, "Derived Iceland country should have eventCount of 1");
+    const rvkCity = isCountry.cities.find((c) => c.name.toLowerCase().includes("reykjavik"));
+    assert.ok(rvkCity, "Derived Reykjavík city should be present under Iceland");
+    assert.equal(rvkCity.eventCount, 1, "Derived Reykjavík city should have eventCount of 1");
+  });
+
+  it("verifies address-query errors trigger scan recovery and fallback", async () => {
+    let eventsCallCount = 0;
+    const mockSupabase = {
+      from(table) {
+        if (table === "places" || table === "venues") {
+          const chain = {
+            order() {
+              return chain;
+            },
+            range() {
+              return Promise.resolve({ data: [], error: null });
+            },
+          };
+          return {
+            select() {
+              return chain;
+            },
+          };
+        }
+        if (table === "addresses") {
+          return {
+            select() {
+              return {
+                in() {
+                  return Promise.resolve({ data: null, error: new Error("Simulated addresses table network error") });
+                },
+              };
+            },
+          };
+        }
+        if (table === "events") {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          eventsCallCount++;
+                          if (eventsCallCount === 1) {
+                            return Promise.resolve({
+                              data: [
+                                {
+                                  id: "evt-err-1",
+                                  slug: "err-event",
+                                  place_id: null,
+                                  venue_id: null,
+                                  address_id: "addr-fail-1",
+                                  city: null,
+                                  country: null,
+                                  venue_name: null,
+                                },
+                              ],
+                              error: null,
+                            });
+                          }
+                          return Promise.resolve({ data: [], error: null });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase);
+    assert.ok(hierarchy, "Hierarchy should recover cleanly via fallback when address query fails");
   });
 });
