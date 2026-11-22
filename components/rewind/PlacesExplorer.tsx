@@ -1017,13 +1017,22 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                                                           </div>
 
                                                           {/* Street Address Association (CRITICAL) */}
-                                                          {venue.streetAddress && (
+                                                          {venue.isMobileVessel ? (
+                                                            <div className="venue-address-row mobile-venue">
+                                                              <Compass size={13} className="address-pin-icon" />
+                                                              <span className="venue-address-label">Mobile Vessel:</span>
+                                                              <span className="venue-address-val">
+                                                                {venue.vesselType ? venue.vesselType.toUpperCase() : "Mobile Vessel"}
+                                                                {venue.homeBasePlaceId ? ` (Home Base: ${venue.city})` : ` (${venue.city})`}
+                                                              </span>
+                                                            </div>
+                                                          ) : venue.streetAddress ? (
                                                             <div className="venue-address-row">
                                                               <MapPin size={13} className="address-pin-icon" />
                                                               <span className="venue-address-label">Address:</span>
                                                               <span className="venue-address-val">{venue.streetAddress}</span>
                                                             </div>
-                                                          )}
+                                                          ) : null}
 
                                                           {/* Sub-Venue Areas (e.g. Oval Office, Cabinet Room) */}
                                                           {venue.venueAreas && venue.venueAreas.length > 0 && (
@@ -1277,7 +1286,18 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
                           <p className="entity-parent-location">🏛️ {venue.city}, {venue.country}</p>
 
                           {/* Linked Physical Street Address (CRITICAL) */}
-                          {venue.streetAddress ? (
+                          {venue.isMobileVessel ? (
+                            <div className="venue-street-address-box mobile-venue">
+                              <Compass size={14} className="address-pin-icon" />
+                              <div>
+                                <small>Mobile Venue Specification:</small>
+                                <p>
+                                  {venue.vesselType ? `${venue.vesselType.toUpperCase()} Mobile Vessel` : "Mobile Transport Vessel"}
+                                  {venue.homeBasePlaceId ? ` · Home Base: ${venue.city}, ${venue.country}` : ` · Operational Hub: ${venue.city}`}
+                                </p>
+                              </div>
+                            </div>
+                          ) : venue.streetAddress ? (
                             <div className="venue-street-address-box">
                               <MapPin size={14} className="address-pin-icon" />
                               <div>

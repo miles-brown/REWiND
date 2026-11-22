@@ -558,7 +558,8 @@ async function syncCorpus() {
 
   for (const e of allRawEvents) {
     const city = (e.city || "Unknown").trim();
-    const venue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || city).trim();
+    const rawVenue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || "").trim();
+    const venue = rawVenue || city;
     const country = normalizePlaceCountry(e.country);
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;

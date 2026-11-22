@@ -2652,7 +2652,6 @@ const GAZETTEER_ALIASES: Record<string, string> = {
   "maale adumim": "ma'ale adumim municipal complex",
   "prime minister’s official media channels": "prime minister's office",
   "prime minister's official media channels": "prime minister's office",
-  "israel": "the knesset",
 };
 
 for (const [alias, canonicalKey] of Object.entries(GAZETTEER_ALIASES)) {
@@ -2979,6 +2978,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     country?: string | null;
     venueId?: string | null;
     placeId?: string | null;
+    address?: string | null;
   };
   const allEvents: SimpleEventRow[] = [];
 
@@ -3027,6 +3027,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
               country: loc?.country || r.country || null,
               venueId: r.venue_id,
               placeId: r.place_id,
+              address: loc?.streetAddress || (r as { address?: string }).address || null,
             });
           }
           // Advance by actual rows received rather than assuming batchSize (guards against db-max-rows capping)
@@ -3060,6 +3061,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
             country: e.country,
             venueId: (e as { venueId?: string }).venueId,
             placeId: (e as { placeId?: string }).placeId,
+            address: e.address || null,
           });
         }
       }
@@ -3115,6 +3117,13 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         venueEventIdsMap.get(eventPlaceId)!.add(eventId);
       }
     }
+    const eventAddress = (e as { address?: string }).address;
+    const normEventAddress = eventAddress ? sanitizePlaceSlug(eventAddress) : "";
+    if (normEventAddress && canonicalVenueNorm && eventId) {
+      const addressKey = `${cityKey}::${canonicalVenueNorm}::${normEventAddress}`;
+      if (!venueEventIdsMap.has(addressKey)) venueEventIdsMap.set(addressKey, new Set());
+      venueEventIdsMap.get(addressKey)!.add(eventId);
+    }
     const scopedCanonicalKey = `${cityKey}::${canonicalVenueNorm}`;
     if (canonicalVenueNorm && eventId) {
       if (!venueEventIdsMap.has(scopedCanonicalKey)) venueEventIdsMap.set(scopedCanonicalKey, new Set());
@@ -3149,6 +3158,24 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   const cityVenuesMap = new Map<string, VenueNode[]>();
   const cityAddressesMap = new Map<string, AddressNode[]>();
   const countryCitiesMap = new Map<string, CityNode[]>();
+
+  // Pre-calculate physical venue keys per city-venue name to detect duplicates with distinct physical addresses
+  const venuePhysicalKeysByName = new Map<string, Set<string>>();
+  rawPlaces.forEach((p) => {
+    const rawCity = (p.city || "Unknown").trim();
+    const city = normalizeCityName(rawCity);
+    const country = resolveCanonicalCountryName(p.country);
+    const cityKey = `${country}::${city}`.toLowerCase();
+    const rawV = (p.venue || "").trim();
+    const meta = resolveVenueMetadata(rawV);
+    const cNorm = (meta?.canonicalVenue || rawV).trim().toLowerCase();
+    const isMobile = Boolean(meta?.isMobileVessel);
+    const street = isMobile ? "" : sanitizePlaceSlug(meta?.streetAddress || p.streetAddress || "");
+    const nameKey = `${cityKey}::${cNorm}`;
+    const dedupKey = (meta?.canonicalVenue || !street) ? nameKey : `${nameKey}::${street}`;
+    if (!venuePhysicalKeysByName.has(nameKey)) venuePhysicalKeysByName.set(nameKey, new Set());
+    venuePhysicalKeysByName.get(nameKey)!.add(dedupKey);
+  });
 
   rawPlaces.forEach((p) => {
     const venueName = (p.venue || p.city || "Unknown").trim();
@@ -3210,16 +3237,28 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
 
     // Aggregate distinct event IDs for this venue
     const currentVenueEventIds = new Set<string>();
-    if (venueEventIdsMap.has(p.id)) {
+    if (p.id && venueEventIdsMap.has(p.id)) {
       venueEventIdsMap.get(p.id)!.forEach((id) => currentVenueEventIds.add(id));
     }
-    const scopedCanonicalKey = `${cityCityKey}::${canonicalVenueNorm}`;
-    if (venueEventIdsMap.has(scopedCanonicalKey)) {
-      venueEventIdsMap.get(scopedCanonicalKey)!.forEach((id) => currentVenueEventIds.add(id));
+    if (p.slug && venueEventIdsMap.has(p.slug)) {
+      venueEventIdsMap.get(p.slug)!.forEach((id) => currentVenueEventIds.add(id));
     }
-    const scopedVenueKey = `${cityCityKey}::${venueNorm}`;
-    if (venueEventIdsMap.has(scopedVenueKey)) {
-      venueEventIdsMap.get(scopedVenueKey)!.forEach((id) => currentVenueEventIds.add(id));
+    const scopedCanonicalKey = `${cityCityKey}::${canonicalVenueNorm}`;
+    const normStreet = streetAddress ? sanitizePlaceSlug(streetAddress) : "";
+    const addressVenueKey = normStreet ? `${cityCityKey}::${canonicalVenueNorm}::${normStreet}` : "";
+    if (addressVenueKey && venueEventIdsMap.has(addressVenueKey)) {
+      venueEventIdsMap.get(addressVenueKey)!.forEach((id) => currentVenueEventIds.add(id));
+    }
+    // Only fall back to name-based aggregation when the name uniquely identifies one physical venue
+    const physicalVenueCount = venuePhysicalKeysByName.get(scopedCanonicalKey)?.size ?? 1;
+    if (physicalVenueCount <= 1) {
+      if (venueEventIdsMap.has(scopedCanonicalKey)) {
+        venueEventIdsMap.get(scopedCanonicalKey)!.forEach((id) => currentVenueEventIds.add(id));
+      }
+      const scopedVenueKey = `${cityCityKey}::${venueNorm}`;
+      if (venueEventIdsMap.has(scopedVenueKey)) {
+        venueEventIdsMap.get(scopedVenueKey)!.forEach((id) => currentVenueEventIds.add(id));
+      }
     }
     if (isMobileVessel && canonicalVenueNorm) {
       const mobileKey = `mobile::${canonicalVenueNorm}`;
@@ -3264,7 +3303,6 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
     }
 
     // Venue Node (deduplicated per city + canonical venue name, preserving distinct physical addresses)
-    const normStreet = streetAddress ? sanitizePlaceSlug(streetAddress) : "";
     const venueDedupKey = (meta?.canonicalVenue || !normStreet)
       ? `${cityCityKey}::${canonicalVenueNorm}`
       : `${cityCityKey}::${canonicalVenueNorm}::${normStreet}`;
