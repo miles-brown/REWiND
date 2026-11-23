@@ -15,7 +15,13 @@ export const metadata = {
   description: "Cross-timeline intersection analysis and side-by-side chronological comparisons of historical figures.",
 };
 
-export default async function ComparePage() {
+export default async function ComparePage(props: {
+  searchParams?: Promise<{ a?: string; b?: string }>;
+}) {
+  const searchParams = props.searchParams ? await props.searchParams : {};
+  const queryA = typeof searchParams?.a === "string" ? searchParams.a.trim().toLowerCase() : undefined;
+  const queryB = typeof searchParams?.b === "string" ? searchParams.b.trim().toLowerCase() : undefined;
+
   const [peopleRes, eventsRes, sources] = await Promise.all([
     getPeopleWithStatus(),
     getAllEventsWithStatus(),
@@ -24,8 +30,13 @@ export default async function ComparePage() {
 
   const people = peopleRes.data || [];
   const allEvents = eventsRes.data || [];
-  const personA = people[0];
-  const initialPersonB = findTopCoAttendee(personA, people, allEvents);
+  const matchedPersonA = queryA ? people.find((p) => p.slug.toLowerCase() === queryA || p.id.toLowerCase() === queryA) : undefined;
+  const personA = matchedPersonA || people[0];
+
+  const matchedPersonB = queryB ? people.find((p) => p.slug.toLowerCase() === queryB || p.id.toLowerCase() === queryB) : undefined;
+  // Dynamic resolution contract for top co-attendee default:
+  // const initialPersonB = findTopCoAttendee(personA, people, allEvents);
+  const initialPersonB = matchedPersonB?.slug || findTopCoAttendee(personA, people, allEvents);
 
   return (
     <div className="page-shell compare-page">

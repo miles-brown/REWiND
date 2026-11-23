@@ -279,7 +279,6 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
 test("verifies person page code review fixes for focus-visible, tab count sync, and empty criteria state", async () => {
   const globalsCss = await readFile(path.join(root, "app/globals.css"), "utf8");
   const inclusionBadgeSource = await readFile(path.join(root, "components/rewind/InclusionBadge.tsx"), "utf8");
-  const workspaceTabsSource = await readFile(path.join(root, "components/rewind/PersonWorkspaceTabs.tsx"), "utf8");
   const personPageSource = await readFile(path.join(root, "app/person/[slug]/page.tsx"), "utf8");
 
   // 1. Focus-visible CSS styles
@@ -293,10 +292,64 @@ test("verifies person page code review fixes for focus-visible, tab count sync, 
   assert.match(inclusionBadgeSource, /Formal inclusion rationale under REWiND historical indexing standards has not yet been documented for this profile/);
   assert.doesNotMatch(inclusionBadgeSource, /Central nexus to documented historical and diplomatic events/);
 
-  // 3. PersonWorkspaceTabs rolesCount and milestonesCount reuse and role="status"
-  assert.match(workspaceTabsSource, /const rolesCount = roles\.length \+ distinctCareer\.length;/);
-  assert.match(workspaceTabsSource, /const milestonesCount = \(milestones\.length \|\| 0\) \+ \(person\.awards\?\.length \|\| 0\);/);
-  assert.match(workspaceTabsSource, /<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">/);
+  // 3. PersonWorkspaceTabs rendered rolesCount de-duplication, badge count, and live region
+  const { PersonWorkspaceTabs } = await vite.ssrLoadModule("/components/rewind/PersonWorkspaceTabs.tsx");
+  const samplePersonForTabs = {
+    id: "test-person",
+    slug: "test-person",
+    name: "Test Leader",
+    career: [
+      { id: "c1", positionTitle: "Ambassador to the UN" }, // Distinct career title -> counted
+      { id: "c2", positionTitle: "  MINISTER OF FOREIGN AFFAIRS  " }, // Matching title with casing/whitespace -> not counted
+      { id: "c3", positionTitle: "   " }, // Empty title -> not counted
+    ],
+    awards: [{ id: "aw-1", title: "Honorary Medal" }],
+  };
+  const sampleRoles = [
+    {
+      id: "r1",
+      personId: "test-person",
+      title: "Minister of Foreign Affairs",
+      category: "cabinet",
+      country: "United States",
+      startDate: "1990-01-01",
+      confidence: "confirmed",
+    },
+  ];
+  const sampleMilestones = [
+    {
+      id: "m1",
+      personId: "test-person",
+      title: "Sworn In",
+      date: "1990-01-01",
+    },
+  ];
+
+  const tabsHtml = renderToStaticMarkup(
+    React.createElement(PersonWorkspaceTabs, {
+      person: samplePersonForTabs,
+      records: [],
+      roles: sampleRoles,
+      milestones: sampleMilestones,
+      years: [],
+    })
+  );
+
+  assert.match(
+    tabsHtml,
+    /id="tab-roles"[^>]*>[\s\S]*?<span class="tab-count-badge">2<\/span>/,
+    "Displayed role count must be 2 (1 official role + 1 distinct career title)"
+  );
+  assert.match(
+    tabsHtml,
+    /id="tab-milestones"[^>]*>[\s\S]*?<span class="tab-count-badge">2<\/span>/,
+    "Displayed milestones count must be 2 (1 milestone + 1 award)"
+  );
+  assert.match(
+    tabsHtml,
+    /<div class="sr-only" role="status" aria-live="polite" aria-atomic="true">/,
+    "Workspace tabs must provide a polite status live region"
+  );
 
   // 4. PersonPage co-attendee loop skips participant if personId matches person.id before slug derivation
   assert.match(personPageSource, /if \(p\.personId === person\.id \|\| p\.personId === person\.slug\) return;/);

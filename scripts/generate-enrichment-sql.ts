@@ -1,4 +1,4 @@
-import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata } from "../lib/rewind/places";
+import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata, getCanonicalVenueId } from "../lib/rewind/places";
 import { sanitizePlaceSlug } from "../lib/rewind/utils";
 import { masterPeopleSeed, statesmenAndDiplomatsSeed } from "../data/seeds/index";
 import { eventsCorpus } from "../data/seeds/events-corpus";
@@ -45,13 +45,13 @@ export function generateAllEnrichmentSql(): {
   const venueAreasSql: string[] = [];
 
   for (const [, meta] of uniqueVenues) {
-    const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
-    const citySlug = sanitizePlaceSlug(meta.city);
-    const countrySlug = sanitizePlaceSlug(meta.country);
-    const venueId = `ven-${countrySlug}-${citySlug}-${venueSlug}`;
+    const venueId = getCanonicalVenueId(meta);
 
     let addressId: string | null = null;
     if (!meta.isMobileVessel) {
+      const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+      const citySlug = sanitizePlaceSlug(meta.city);
+      const countrySlug = sanitizePlaceSlug(meta.country);
       addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
       const formatted = `${meta.streetAddress ? meta.streetAddress + ", " : ""}${meta.city}, ${meta.country}`;
       addressesSql.push(
@@ -70,9 +70,15 @@ export function generateAllEnrichmentSql(): {
       );
     }
 
+    const homeBaseSql = meta.homeBasePlaceId
+      ? `(SELECT id FROM public.places WHERE id = ${escapeSql(meta.homeBasePlaceId)} OR slug = ${escapeSql(meta.homeBasePlaceId.replace(/^plc-/, ""))} LIMIT 1)`
+      : "NULL";
+    const venueLat = meta.isMobileVessel ? "NULL" : escapeSql(meta.latitude);
+    const venueLng = meta.isMobileVessel ? "NULL" : escapeSql(meta.longitude);
+
     venuesSql.push(
       `INSERT INTO public.venues (id, name, address_id, is_mobile_vessel, home_base_place_id, vessel_type, latitude, longitude)
-       VALUES (${escapeSql(venueId)}, ${escapeSql(meta.canonicalVenue)}, ${escapeSql(addressId)}, ${escapeSql(Boolean(meta.isMobileVessel))}, ${escapeSql(meta.homeBasePlaceId || null)}, ${escapeSql(meta.vesselType || null)}, ${escapeSql(meta.latitude)}, ${escapeSql(meta.longitude)})
+       VALUES (${escapeSql(venueId)}, ${escapeSql(meta.canonicalVenue)}, ${escapeSql(addressId)}, ${escapeSql(Boolean(meta.isMobileVessel))}, ${homeBaseSql}, ${escapeSql(meta.vesselType || null)}, ${venueLat}, ${venueLng})
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          address_id = EXCLUDED.address_id,
@@ -84,9 +90,11 @@ export function generateAllEnrichmentSql(): {
     );
 
     for (const area of meta.venueAreas || []) {
+      const areaLat = meta.isMobileVessel ? "NULL" : escapeSql(meta.latitude);
+      const areaLng = meta.isMobileVessel ? "NULL" : escapeSql(meta.longitude);
       venueAreasSql.push(
         `INSERT INTO public.venue_areas (id, venue_id, name, area_type, latitude, longitude)
-         VALUES (${escapeSql(area.id)}, ${escapeSql(venueId)}, ${escapeSql(area.name)}, ${escapeSql(area.areaType)}, ${escapeSql(meta.latitude)}, ${escapeSql(meta.longitude)})
+         VALUES (${escapeSql(area.id)}, ${escapeSql(venueId)}, ${escapeSql(area.name)}, ${escapeSql(area.areaType)}, ${areaLat}, ${areaLng})
          ON CONFLICT (id) DO UPDATE SET
            venue_id = EXCLUDED.venue_id,
            name = EXCLUDED.name,
@@ -108,11 +116,11 @@ export function generateAllEnrichmentSql(): {
     let addressId: string | null = null;
 
     if (meta) {
-      const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
-      const citySlug = sanitizePlaceSlug(meta.city);
-      const countrySlug = sanitizePlaceSlug(meta.country);
-      venueId = `ven-${countrySlug}-${citySlug}-${venueSlug}`;
+      venueId = getCanonicalVenueId(meta);
       if (!meta.isMobileVessel) {
+        const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+        const citySlug = sanitizePlaceSlug(meta.city);
+        const countrySlug = sanitizePlaceSlug(meta.country);
         addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
       }
     }

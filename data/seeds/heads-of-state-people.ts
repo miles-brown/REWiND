@@ -2450,7 +2450,7 @@ export const headsOfStatePeopleSeed: CanonicalPersonSeed[] = [
     isLiving: false,
     monitoringPriority: "historical-only",
     publicationStatus: "published",
-    wikidataId: "Q8018",
+    wikidataId: "Q2604",
     viafId: "64803707",
     avatarUrl: null,
     summary: "Head of the Catholic Church and sovereign of the Vatican City State from 1939 until his death in 1958, navigating the moral and humanitarian crises of World War II.",

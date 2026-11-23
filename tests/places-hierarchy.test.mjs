@@ -355,7 +355,36 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     let eventsCallCount = 0;
     const mockSupabase = {
       from(table) {
-        if (table === "places" || table === "venues") {
+        if (table === "places") {
+          const chain = {
+            order() {
+              return chain;
+            },
+            range() {
+              return Promise.resolve({
+                data: [
+                  {
+                    id: "plc-reykjavik-hofdi-house",
+                    slug: "reykjavik-hofdi-house",
+                    venue: "Hofdi House",
+                    city: "Reykjavik",
+                    country: "Iceland",
+                    latitude: 64.1475,
+                    longitude: -21.9064,
+                    place_type: "historic-house",
+                  },
+                ],
+                error: null,
+              });
+            },
+          };
+          return {
+            select() {
+              return chain;
+            },
+          };
+        }
+        if (table === "venues") {
           const chain = {
             order() {
               return chain;
@@ -422,7 +451,26 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
       },
     };
 
-    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase);
+    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase, {
+      fallbackEvents: [
+        {
+          id: "evt-fallback-recovered",
+          slug: "evt-fallback-recovered",
+          city: "Reykjavik",
+          country: "Iceland",
+          venueName: "Hofdi House",
+        },
+      ],
+    });
     assert.ok(hierarchy, "Hierarchy should recover cleanly via fallback when address query fails");
+    assert.equal(hierarchy.summary.totalEvents, 1, "Total events count should reflect recovered fallback event");
+    assert.equal(hierarchy.summary.error || null, null, "Summary error should be absent");
+    const allEventIds = hierarchy.countries.flatMap((c) =>
+      c.cities.flatMap((ct) =>
+        (ct.venues || []).flatMap((v) => v.eventIds || [])
+      )
+    );
+    assert.ok(!allEventIds.includes("evt-err-1"), "evt-err-1 should not be present in hierarchy");
+    assert.ok(allEventIds.includes("evt-fallback-recovered"), "evt-fallback-recovered should be present in hierarchy");
   });
 });

@@ -214,6 +214,15 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
         </section>
       )}
 
+      {/* Live status region for screen readers announcing search results */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {filteredHolders.length === 0
+          ? `No officeholders match ${searchQuery}.`
+          : searchQuery
+            ? `${filteredHolders.length} officeholder${filteredHolders.length === 1 ? "" : "s"} match ${searchQuery}.`
+            : ""}
+      </div>
+
       {/* 3. Search & Era Fast Navigation Bar */}
       <section className="roles-nav-toolbar" aria-label="Timeline navigation controls">
         <div className="roles-search-wrapper">

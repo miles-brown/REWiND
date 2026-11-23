@@ -42,6 +42,7 @@ const sql = postgres(connectionString, {
   idle_timeout: 30,
   connect_timeout: 20,
   ssl: getPostgresSslConfig(isLocal),
+  prepare: false,
 });
 
 async function main() {

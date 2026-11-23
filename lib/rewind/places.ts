@@ -2938,10 +2938,34 @@ import { getCanonicalCitySlug, sanitizePlaceSlug } from "./utils";
 export { getCanonicalCitySlug, sanitizePlaceSlug };
 
 /**
+ * Resolves a canonical venue ID for mobile vessels or standard physical venues.
+ */
+export function getCanonicalVenueId(meta: {
+  canonicalVenue: string;
+  city: string;
+  country: string;
+  isMobileVessel?: boolean;
+}): string {
+  if (meta.isMobileVessel) {
+    const norm = meta.canonicalVenue.toLowerCase();
+    if (norm.includes("air force one")) return "ven-usaf-air-force-one";
+    if (norm.includes("marine one")) return "ven-usmc-marine-one";
+    if (norm.includes("royal train")) return "ven-uk-royal-train";
+  }
+  const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+  const citySlug = sanitizePlaceSlug(meta.city);
+  const countrySlug = sanitizePlaceSlug(meta.country);
+  return `ven-${countrySlug}-${citySlug}-${venueSlug}`;
+}
+
+/**
  * Retrieves the complete multi-tier geographical hierarchy from Supabase:
  * Country -> City -> Address -> Venue & Venue Areas, with documented event metrics.
  */
-export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Promise<GeographicHierarchyTree> {
+export async function getGeographicHierarchyStrict(
+  supabaseClient?: unknown,
+  options?: { fallbackEvents?: Array<Partial<EventRecord>> }
+): Promise<GeographicHierarchyTree> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = (supabaseClient !== undefined ? supabaseClient : (await createClient())) as any;
 
@@ -2982,10 +3006,10 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   };
   const allEvents: SimpleEventRow[] = [];
 
-  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string; isVenue?: boolean }>();
+  const placesMapById = new Map<string, { venue?: string; city?: string; country?: string; isVenue?: boolean; streetAddress?: string | null }>();
   rawPlaces.forEach((p) => {
     const isVenue = Boolean(p.venue) || (p.placeType !== "city" && p.placeType !== "country");
-    const info = { venue: p.venue, city: p.city, country: p.country, isVenue };
+    const info = { venue: p.venue, city: p.city, country: p.country, isVenue, streetAddress: p.streetAddress || null };
     placesMapById.set(p.id, info);
     if (p.slug) {
       placesMapById.set(p.slug, info);
@@ -3002,7 +3026,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       while (hasMore) {
         const { data: rows, error: eventsError } = await supabase
           .from("events")
-          .select("id, slug, place_id, venue_id, address_id, city, country, venue_name")
+          .select("id, slug, place_id, venue_id, address_id, city, country, venue_name, address")
           .eq("publication_status", "published")
           .order("id", { ascending: true })
           .range(from, from + batchSize - 1);
@@ -3081,31 +3105,46 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
   // Fallback to getEvents if Supabase didn't return any events or failed
   let fallbackError: string | null = null;
   if (allEvents.length === 0) {
-    let currentPage = 1;
-    let totalPages = 1;
-    do {
-      const pageRes = await getEvents({ page: currentPage, limit: 100 });
-      if (pageRes.error) {
-        fallbackError = pageRes.error;
-        break;
+    if (options?.fallbackEvents && options.fallbackEvents.length > 0) {
+      for (const e of options.fallbackEvents) {
+        allEvents.push({
+          id: e.id || "evt-fallback",
+          slug: e.slug || e.id || "evt-fallback",
+          venueName: e.venueName || null,
+          city: e.city || null,
+          country: e.country || null,
+          venueId: (e as { venueId?: string }).venueId,
+          placeId: (e as { placeId?: string }).placeId,
+          address: e.address || null,
+        });
       }
-      if (pageRes.data && pageRes.data.length > 0) {
-        for (const e of pageRes.data) {
-          allEvents.push({
-            id: e.id,
-            slug: e.slug,
-            venueName: e.venueName,
-            city: e.city,
-            country: e.country,
-            venueId: (e as { venueId?: string }).venueId,
-            placeId: (e as { placeId?: string }).placeId,
-            address: e.address || null,
-          });
+    } else {
+      let currentPage = 1;
+      let totalPages = 1;
+      do {
+        const pageRes = await getEvents({ page: currentPage, limit: 100 });
+        if (pageRes.error) {
+          fallbackError = pageRes.error;
+          break;
         }
-      }
-      totalPages = pageRes.totalPages || 1;
-      currentPage++;
-    } while (currentPage <= totalPages && currentPage <= 100);
+        if (pageRes.data && pageRes.data.length > 0) {
+          for (const e of pageRes.data) {
+            allEvents.push({
+              id: e.id,
+              slug: e.slug,
+              venueName: e.venueName,
+              city: e.city,
+              country: e.country,
+              venueId: (e as { venueId?: string }).venueId,
+              placeId: (e as { placeId?: string }).placeId,
+              address: e.address || null,
+            });
+          }
+        }
+        totalPages = pageRes.totalPages || 1;
+        currentPage++;
+      } while (currentPage <= totalPages && currentPage <= 100);
+    }
   }
 
   const venueEventIdsMap = new Map<string, Set<string>>();
@@ -3365,6 +3404,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
         longitude: p.longitude ?? meta?.longitude ?? null,
         venueAreas,
         eventCount: dedupSet.size,
+        eventIds: Array.from(dedupSet),
       };
       venuesMap.set(venueDedupKey, venueNode);
 
@@ -3377,6 +3417,7 @@ export async function getGeographicHierarchyStrict(supabaseClient?: unknown): Pr
       currentVenueEventIds.forEach((id) => dedupSet.add(id));
       venueDedupEventIdsMap.set(venueDedupKey, dedupSet);
       existingVenue.eventCount = dedupSet.size;
+      existingVenue.eventIds = Array.from(dedupSet);
 
       if (!existingVenue.streetAddress && streetAddress) {
         existingVenue.streetAddress = streetAddress;

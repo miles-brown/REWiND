@@ -510,7 +510,8 @@ export function PlacesExplorer({ hierarchy, error }: PlacesExplorerProps) {
           confidence: "confirmed",
           sourceIds: [],
           participants: [],
-        });
+          ...(v.eventCount != null ? { eventCount: v.eventCount } : {}),
+        } as EventRecord);
       }
     }
     return list;

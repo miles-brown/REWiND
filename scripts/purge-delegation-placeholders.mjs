@@ -77,6 +77,8 @@ async function run() {
   }
 
   const personIds = people.map((p) => p.id);
+  const personSlugs = people.map((p) => p.slug).filter(Boolean);
+  const personIdsAndSlugs = Array.from(new Set([...personIds, ...personSlugs]));
 
   // 0a. Clear claims attribution references
   console.log("Clearing claims attribution references...");
@@ -116,6 +118,22 @@ async function run() {
       .select("id");
     if (error) {
       console.warn("Claims delete chunk warning:", error.message);
+    } else {
+      totalDeletedClaims += (data || []).length;
+    }
+  }
+
+  // Also clean claims where subject_entity_type = 'person' and subject_entity_id references placeholder ID or slug
+  for (let i = 0; i < personIdsAndSlugs.length; i += 50) {
+    const chunk = personIdsAndSlugs.slice(i, i + 50);
+    const { data, error } = await supabase
+      .from("claims")
+      .delete()
+      .eq("subject_entity_type", "person")
+      .in("subject_entity_id", chunk)
+      .select("id");
+    if (error) {
+      console.warn("Claims entity delete chunk warning:", error.message);
     } else {
       totalDeletedClaims += (data || []).length;
     }

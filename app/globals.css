@@ -7394,6 +7394,11 @@ svg { flex: 0 0 auto; }
   box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
 }
 
+.roles-search-input:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
 .roles-search-clear {
   position: absolute;
   right: 10px;

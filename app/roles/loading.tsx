@@ -43,13 +43,7 @@ export default function RolesLoading() {
           }}
         />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "360px 1fr",
-            gap: "32px",
-          }}
-        >
+        <div className="roles-scrollytelling-layout">
           <div
             style={{
               height: "400px",

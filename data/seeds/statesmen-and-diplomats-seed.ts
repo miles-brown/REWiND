@@ -303,7 +303,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "normal",
     publicationStatus: "published",
-    wikidataId: "Q312450",
+    wikidataId: "Q381113",
     viafId: "48995393",
     avatarUrl: null,
     summary:
@@ -946,7 +946,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     isLiving: true,
     monitoringPriority: "intensive",
     publicationStatus: "published",
-    wikidataId: "Q7747",
+    wikidataId: "Q58217",
     viafId: "48480371",
     avatarUrl: null,
     summary:

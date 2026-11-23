@@ -20,7 +20,7 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
 import { normalizePlaceCountry } from "../lib/ingestion/resolve";
-import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata } from "../lib/rewind/places";
+import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata, getCanonicalVenueId } from "../lib/rewind/places";
 import { sanitizePlaceSlug } from "../lib/rewind/utils";
 import {
   masterPeopleSeed,
@@ -626,13 +626,13 @@ async function syncCorpus() {
   const venueAreasToInsert = [];
 
   for (const [, meta] of uniqueVenues) {
-    const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
-    const citySlug = sanitizePlaceSlug(meta.city);
-    const countrySlug = sanitizePlaceSlug(meta.country);
-    const venueId = `ven-${countrySlug}-${citySlug}-${venueSlug}`;
+    const venueId = getCanonicalVenueId(meta);
 
     let addressId: string | null = null;
     if (!meta.isMobileVessel) {
+      const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+      const citySlug = sanitizePlaceSlug(meta.city);
+      const countrySlug = sanitizePlaceSlug(meta.country);
       addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
       const formatted = `${meta.streetAddress ? meta.streetAddress + ", " : ""}${meta.city}, ${meta.country}`;
       addressesToInsert.push({
@@ -649,15 +649,25 @@ async function syncCorpus() {
       });
     }
 
+    let resolvedHomeBaseId: string | null = null;
+    if (meta.homeBasePlaceId) {
+      const rawHomeBase = meta.homeBasePlaceId;
+      const cleanSlug = rawHomeBase.replace(/^plc-/, "");
+      const matchedPlace = placeList.find(
+        (p) => p.id === rawHomeBase || p.slug === cleanSlug || p.slug === rawHomeBase
+      );
+      resolvedHomeBaseId = matchedPlace ? matchedPlace.id : rawHomeBase;
+    }
+
     venuesToInsert.push({
       id: venueId,
       name: meta.canonicalVenue,
       addressId,
       isMobileVessel: Boolean(meta.isMobileVessel),
-      homeBasePlaceId: meta.homeBasePlaceId || null,
+      homeBasePlaceId: resolvedHomeBaseId,
       vesselType: meta.vesselType || null,
-      latitude: meta.latitude,
-      longitude: meta.longitude,
+      latitude: meta.isMobileVessel ? null : meta.latitude,
+      longitude: meta.isMobileVessel ? null : meta.longitude,
     });
 
     for (const area of meta.venueAreas || []) {
@@ -666,8 +676,8 @@ async function syncCorpus() {
         venueId,
         name: area.name,
         areaType: area.areaType,
-        latitude: meta.latitude,
-        longitude: meta.longitude,
+        latitude: meta.isMobileVessel ? null : meta.latitude,
+        longitude: meta.isMobileVessel ? null : meta.longitude,
       });
     }
   }
@@ -745,11 +755,11 @@ async function syncCorpus() {
     let venueId: string | null = null;
     let addressId: string | null = null;
     if (venueMeta) {
-      const vSlug = sanitizePlaceSlug(venueMeta.canonicalVenue);
-      const cSlug = sanitizePlaceSlug(venueMeta.city);
-      const coSlug = sanitizePlaceSlug(venueMeta.country);
-      venueId = `ven-${coSlug}-${cSlug}-${vSlug}`;
+      venueId = getCanonicalVenueId(venueMeta);
       if (!venueMeta.isMobileVessel) {
+        const vSlug = sanitizePlaceSlug(venueMeta.canonicalVenue);
+        const cSlug = sanitizePlaceSlug(venueMeta.city);
+        const coSlug = sanitizePlaceSlug(venueMeta.country);
         addressId = `addr-${coSlug}-${cSlug}-${vSlug}`;
       }
     }

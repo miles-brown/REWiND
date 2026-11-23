@@ -1118,9 +1118,18 @@ export function MapGraphic({
         const tooltipText = `${venueDisplayName} · ${
           eventList.length > 1 ? `${eventList.length} events` : rep.eventName
         }`;
-        const ariaLabelText = `${isSelected ? "Active stop: " : ""}${rep.eventName}, ${
-          rep.venueName ? `Venue: ${rep.venueName}, ` : ""
-        }${rep.city}, ${rep.country} (${eventList.length} documented record${eventList.length > 1 ? "s" : ""})`;
+        const rawVenueCount = (rep as { eventCount?: number }).eventCount;
+        const countLabel = disableJourneys
+          ? rawVenueCount != null
+            ? ` (${rawVenueCount} documented record${rawVenueCount === 1 ? "" : "s"})`
+            : ""
+          : ` (${eventList.length} documented record${eventList.length > 1 ? "s" : ""})`;
+
+        const ariaLabelText = disableJourneys
+          ? `${isSelected ? "Selected venue: " : "Venue: "}${rep.eventName}, ${rep.city}, ${rep.country}${countLabel}`
+          : `${isSelected ? "Active stop: " : ""}${rep.eventName}, ${
+              rep.venueName ? `Venue: ${rep.venueName}, ` : ""
+            }${rep.city}, ${rep.country}${countLabel}`;
 
         el.setAttribute("aria-label", ariaLabelText);
         el.setAttribute("aria-pressed", isSelected ? "true" : "false");
@@ -1542,7 +1551,7 @@ export function MapGraphic({
       {/* Live Region for Screen Readers */}
       <div className="sr-only" role="status" aria-live="polite">
         {selected && selectedEvent && selectedEvent.id === selected
-          ? !selectedEvent.startDate || selectedEvent.startDate === "1970-01-01"
+          ? disableJourneys || !selectedEvent.startDate
             ? `Selected venue: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.country}`
             : `Selected event: ${selectedEvent.eventName}, ${selectedEvent.city}, ${selectedEvent.startDate}`
           : ""}

@@ -846,6 +846,7 @@ export interface VenueNode {
   longitude?: number | null;
   venueAreas?: VenueAreaNode[];
   eventCount: number;
+  eventIds?: string[];
 }
 
 /**
