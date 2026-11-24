@@ -337,12 +337,12 @@ test("verifies person page code review fixes for focus-visible, tab count sync, 
 
   assert.match(
     tabsHtml,
-    /id="tab-roles"[^>]*>[\s\S]*?<span class="tab-count-badge">2<\/span>/,
+    /id="tab-roles"[^>]*>(?:(?!<\/button>)[\s\S])*?<span class="tab-count-badge">2<\/span>/,
     "Displayed role count must be 2 (1 official role + 1 distinct career title)"
   );
   assert.match(
     tabsHtml,
-    /id="tab-milestones"[^>]*>[\s\S]*?<span class="tab-count-badge">2<\/span>/,
+    /id="tab-milestones"[^>]*>(?:(?!<\/button>)[\s\S])*?<span class="tab-count-badge">2<\/span>/,
     "Displayed milestones count must be 2 (1 milestone + 1 award)"
   );
   assert.match(

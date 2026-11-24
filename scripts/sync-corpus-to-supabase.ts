@@ -20,7 +20,13 @@ import { and, eq, notInArray, sql } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
 import { normalizePlaceCountry } from "../lib/ingestion/resolve";
-import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata, getCanonicalVenueId } from "../lib/rewind/places";
+import {
+  GLOBAL_GAZETTEER_METADATA,
+  resolveVenueMetadata,
+  getCanonicalVenueId,
+  isSameCity,
+  resolveCanonicalCountryName,
+} from "../lib/rewind/places";
 import { sanitizePlaceSlug } from "../lib/rewind/utils";
 import {
   masterPeopleSeed,
@@ -656,7 +662,7 @@ async function syncCorpus() {
       const matchedPlace = placeList.find(
         (p) => p.id === rawHomeBase || p.slug === cleanSlug || p.slug === rawHomeBase
       );
-      resolvedHomeBaseId = matchedPlace ? matchedPlace.id : rawHomeBase;
+      resolvedHomeBaseId = matchedPlace ? matchedPlace.id : null;
     }
 
     venuesToInsert.push({
@@ -755,12 +761,22 @@ async function syncCorpus() {
     let venueId: string | null = null;
     let addressId: string | null = null;
     if (venueMeta) {
-      venueId = getCanonicalVenueId(venueMeta);
-      if (!venueMeta.isMobileVessel) {
-        const vSlug = sanitizePlaceSlug(venueMeta.canonicalVenue);
-        const cSlug = sanitizePlaceSlug(venueMeta.city);
-        const coSlug = sanitizePlaceSlug(venueMeta.country);
-        addressId = `addr-${coSlug}-${cSlug}-${vSlug}`;
+      const isMobile = Boolean(venueMeta.isMobileVessel);
+      const isCityMatch = !evt.city || evt.city === "Unknown" || isSameCity(city, venueMeta.city);
+      const isCountryMatch =
+        !evt.country ||
+        evt.country === "Unknown" ||
+        resolveCanonicalCountryName(evt.country).toLowerCase() ===
+          resolveCanonicalCountryName(venueMeta.country).toLowerCase();
+
+      if (isMobile || (isCityMatch && isCountryMatch)) {
+        venueId = getCanonicalVenueId(venueMeta);
+        if (!venueMeta.isMobileVessel) {
+          const vSlug = sanitizePlaceSlug(venueMeta.canonicalVenue);
+          const cSlug = sanitizePlaceSlug(venueMeta.city);
+          const coSlug = sanitizePlaceSlug(venueMeta.country);
+          addressId = `addr-${coSlug}-${cSlug}-${vSlug}`;
+        }
       }
     }
 
@@ -824,11 +840,11 @@ async function syncCorpus() {
     const updateSet: Record<string, unknown> = {
       ...eventValues,
     };
-    if (!venueMeta) {
-      // Failed corpus venue lookup: preserve existing verified links instead of overwriting with null
+    if (!venueId) {
+      // Failed or mismatched corpus venue lookup: preserve existing verified links instead of overwriting with null
       delete updateSet.venueId;
       delete updateSet.addressId;
-    } else if (venueMeta.isMobileVessel) {
+    } else if (venueMeta?.isMobileVessel) {
       // Matched mobile vessel: intentionally clear addressId
       updateSet.addressId = null;
     }

@@ -161,7 +161,7 @@ export function formatStandardPersonName(person: {
   classification?: string;
 }): string {
   const key = (person.slug || person.id || "").trim();
-  if (key && ROYAL_NAME_OVERRIDES[key]) {
+  if (key && Object.hasOwn(ROYAL_NAME_OVERRIDES, key)) {
     return ROYAL_NAME_OVERRIDES[key];
   }
 

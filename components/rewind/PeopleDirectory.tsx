@@ -852,7 +852,7 @@ export function PeopleDirectory({
         </div>
       ) : (
         (() => {
-          const renderPeopleItems = (items: PersonRecord[]) =>
+          const renderPeopleItems = (items: PersonRecord[], tableAriaLabel = "Historical people directory") =>
             viewMode === "extended" ? (
               /* ========================================================================= */
               /* 1. EXTENDED VIEW (Rich Card Grid)                                         */
@@ -1062,6 +1062,7 @@ export function PeopleDirectory({
                 }}
               >
                 <table
+                  aria-label={tableAriaLabel}
                   style={{
                     width: "100%",
                     borderCollapse: "collapse",
@@ -1445,14 +1446,14 @@ export function PeopleDirectory({
                         {section.members.length} {section.members.length === 1 ? "figure" : "figures"}
                       </span>
                     </div>
-                    {renderPeopleItems(section.members)}
+                    {renderPeopleItems(section.members, `${section.title} table`)}
                   </section>
                 ))}
               </div>
             );
           }
 
-          return renderPeopleItems(filteredPeople);
+          return renderPeopleItems(filteredPeople, "Historical people directory");
         })()
       )}
     </div>

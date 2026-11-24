@@ -341,7 +341,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     inclusionRationale:
       "Four-term President of the Government (Prime Minister) of Spain; hosted and opened the historic 1991 Madrid Peace Conference at the Royal Palace of Madrid, cementing Spain's role as an international diplomatic convener.",
     culturalImpactSummary:
-      "Modernizer of post-Franco Spain who oversaw Spain's accession to the European Economic Community and NATO, while positioning Madrid as a neutral bridge between the Western and Arab worlds.",
+      "Modernizer of post-Franco Spain who oversaw Spain's accession to the European Economic Community and the 1986 NATO membership referendum, while positioning Madrid as a neutral bridge between the Western and Arab worlds.",
     achievements: [
       { milestone: "Hosted and officially opened the Madrid Peace Conference of 1991", year: 1991 },
       { milestone: "Led Spain into the European Community", year: 1986 },
@@ -925,10 +925,9 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     primaryRole: "Minister of Foreign Affairs of the Russian Federation (2004–present)",
     classification: "diplomat",
     primaryFigureCategory: "diplomat",
-    notabilityBasis: "Longest-serving Foreign Minister of Russia, signatory of JCPOA, and permanent UN negotiator",
+    notabilityBasis: "Longest-serving Foreign Minister of Russia, key negotiator of the 2015 JCPOA, and permanent UN negotiator",
     inclusionBasis: [
       "senior-diplomatic-or-geopolitical",
-      "treaty-signatory",
       "cabinet-minister",
       "central-nexus-to-historical-events",
       "substantial-independent-coverage",
@@ -938,7 +937,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     culturalImpactSummary:
       "Venerable and contentious figure in 21st-century diplomacy, shaping Russian foreign policy across the administrations of Vladimir Putin and Dmitry Medvedev.",
     achievements: [
-      { milestone: "Represented Russia as P5+1 signatory of the 2015 JCPOA in Vienna", year: 2015 },
+      { milestone: "Represented Russia in negotiating and concluding the 2015 JCPOA in Vienna", year: 2015 },
       { milestone: "Permanent Representative of Russia to the United Nations for 10 years", year: 1994 },
       { milestone: "Appointed Minister of Foreign Affairs of Russia", year: 2004 },
     ],
@@ -975,21 +974,20 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     primaryRole: "Director of the Office of the Central Foreign Affairs Commission & Minister of Foreign Affairs of China",
     classification: "diplomat",
     primaryFigureCategory: "diplomat",
-    notabilityBasis: "Chief foreign policy official of the PRC, P5+1 signatory of the JCPOA, and broker of the 2023 Saudi-Iran pact",
+    notabilityBasis: "Chief foreign policy official of the PRC, lead negotiator of the 2015 JCPOA, and broker of the 2023 Saudi-Iran pact",
     inclusionBasis: [
       "senior-diplomatic-or-geopolitical",
-      "treaty-signatory",
       "cabinet-minister",
       "central-nexus-to-historical-events",
       "substantial-independent-coverage",
     ],
     inclusionRationale:
-      "Brokered and hosted the breakthrough Saudi Arabia–Iran rapprochement agreement in Beijing in March 2023, and previously represented the People's Republic of China in the 2015 JCPOA nuclear accord in Vienna.",
+      "Brokered and hosted the breakthrough Saudi Arabia–Iran rapprochement agreement in Beijing in March 2023, and previously represented the People's Republic of China in negotiating the 2015 JCPOA nuclear accord in Vienna.",
     culturalImpactSummary:
       "Architect of contemporary Chinese global diplomacy, expanding Beijing's diplomatic mediation footprint across Eurasia and the Middle East.",
     achievements: [
       { milestone: "Brokered the Saudi-Iran diplomatic reconciliation in Beijing", year: 2023 },
-      { milestone: "P5+1 signatory of the JCPOA Iran nuclear agreement in Vienna", year: 2015 },
+      { milestone: "Represented China in concluding the 2015 JCPOA in Vienna", year: 2015 },
       { milestone: "Appointed to the 20th Politburo of the Chinese Communist Party", year: 2022 },
     ],
     programmeId: "prog-senior-diplomats",
@@ -1025,20 +1023,19 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     primaryRole: "President of Germany (2017–present) / Federal Minister for Foreign Affairs (2005–2009, 2013–2017)",
     classification: "head-of-state",
     primaryFigureCategory: "head-of-state",
-    notabilityBasis: "President of Germany and P5+1 foreign minister signatory of the 2015 JCPOA Vienna Agreement",
+    notabilityBasis: "President of Germany and P5+1 foreign minister negotiator of the 2015 JCPOA Vienna Agreement",
     inclusionBasis: [
       "head-of-state-or-government",
       "senior-diplomatic-or-geopolitical",
-      "treaty-signatory",
       "central-nexus-to-historical-events",
       "substantial-independent-coverage",
     ],
     inclusionRationale:
-      "Represented the Federal Republic of Germany as Foreign Minister during the P5+1 negotiations and signed the 2015 Joint Comprehensive Plan of Action (JCPOA) in Vienna before being elected President of Germany in 2017.",
+      "Represented the Federal Republic of Germany as Foreign Minister during the P5+1 negotiations that concluded the 2015 Joint Comprehensive Plan of Action (JCPOA) in Vienna before being elected President of Germany in 2017.",
     culturalImpactSummary:
       "Key institutional statesman of unified Germany, mediating European crises, the Normandy Format on Ukraine, and Middle East de-escalation initiatives.",
     achievements: [
-      { milestone: "Signed the 2015 JCPOA in Vienna on behalf of Germany", year: 2015 },
+      { milestone: "Represented Germany in concluding the 2015 JCPOA in Vienna", year: 2015 },
       { milestone: "Elected 12th President of the Federal Republic of Germany", year: 2017 },
       { milestone: "Re-elected to a second term as Federal President", year: 2022 },
     ],
@@ -1050,7 +1047,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     viafId: "84241123",
     avatarUrl: null,
     summary:
-      "Frank-Walter Steinmeier is a German politician who has served as President of Germany since 2017. As Federal Minister for Foreign Affairs, he represented Germany as a key signatory of the 2015 JCPOA nuclear accord in Vienna.",
+      "Frank-Walter Steinmeier is a German politician who has served as President of Germany since 2017. As Federal Minister for Foreign Affairs, he represented Germany in negotiating the 2015 JCPOA nuclear accord in Vienna.",
     aliases: ["Bundespräsident Steinmeier", "Frank Walter Steinmeier"],
   },
   {
@@ -1075,20 +1072,19 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     primaryRole: "Prime Minister of France (1984–1986) / Minister of Foreign Affairs (2012–2016)",
     classification: "head-of-state",
     primaryFigureCategory: "head-of-state",
-    notabilityBasis: "Prime Minister of France, P5+1 signatory of the 2015 JCPOA, and President of COP21 Paris Climate Agreement",
+    notabilityBasis: "Prime Minister of France, negotiator of the 2015 JCPOA, and President of COP21 Paris Climate Agreement",
     inclusionBasis: [
       "head-of-state-or-government",
       "senior-diplomatic-or-geopolitical",
-      "treaty-signatory",
       "central-nexus-to-historical-events",
       "substantial-independent-coverage",
     ],
     inclusionRationale:
-      "Served as Prime Minister of France and later Foreign Minister; represented France as a P5+1 signatory of the 2015 JCPOA nuclear deal in Vienna and presided over the adoption of the historic COP21 Paris Agreement in 2015.",
+      "Served as Prime Minister of France and later Foreign Minister; represented France in concluding the 2015 JCPOA nuclear deal in Vienna and presided over the adoption of the historic COP21 Paris Agreement in 2015.",
     culturalImpactSummary:
       "Youngest Prime Minister of the French Fifth Republic (at age 37) and subsequent President of the Constitutional Council of France since 2016.",
     achievements: [
-      { milestone: "Signed the 2015 JCPOA in Vienna on behalf of France", year: 2015 },
+      { milestone: "Represented France in concluding the 2015 JCPOA in Vienna", year: 2015 },
       { milestone: "Presided over the adoption of the Paris Climate Agreement (COP21)", year: 2015 },
       { milestone: "Appointed President of the Constitutional Council of France", year: 2016 },
     ],
@@ -1100,7 +1096,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     viafId: "71390819",
     avatarUrl: null,
     summary:
-      "Laurent Fabius is a French politician who served as Prime Minister of France from 1984 to 1986 and as Minister of Foreign Affairs from 2012 to 2016. He was France's signatory to the 2015 JCPOA in Vienna and presided over COP21.",
+      "Laurent Fabius is a French politician who served as Prime Minister of France from 1984 to 1986 and as Minister of Foreign Affairs from 2012 to 2016. He represented France in concluding the 2015 JCPOA in Vienna and presided over COP21.",
     aliases: ["Laurent Fabius", "Premier Ministre Fabius"],
   },
   {
@@ -1109,7 +1105,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     canonicalName: "Philip Hammond",
     displayName: "Philip Hammond",
     nativeName: "Philip Hammond",
-    fullBirthName: "Philip Hammond, Baron Hammond of Runnymede",
+    fullBirthName: "Philip Hammond",
     birthDate: "1955-12-04",
     deathDate: null,
     datePrecision: "exact-day",
@@ -1125,20 +1121,19 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     primaryRole: "British Secretary of State for Foreign and Commonwealth Affairs (2014–2016) / Chancellor of the Exchequer",
     classification: "diplomat",
     primaryFigureCategory: "diplomat",
-    notabilityBasis: "British Foreign Secretary and P5+1 signatory of the 2015 JCPOA in Vienna",
+    notabilityBasis: "British Foreign Secretary and negotiator of the 2015 JCPOA in Vienna",
     inclusionBasis: [
       "senior-diplomatic-or-geopolitical",
-      "treaty-signatory",
       "cabinet-minister",
       "central-nexus-to-historical-events",
       "substantial-independent-coverage",
     ],
     inclusionRationale:
-      "Represented the United Kingdom as Foreign Secretary during the final P5+1 negotiations and signed the 2015 Joint Comprehensive Plan of Action (JCPOA) in Vienna before serving as Chancellor of the Exchequer.",
+      "Represented the United Kingdom as Foreign Secretary during the final P5+1 negotiations that concluded the 2015 Joint Comprehensive Plan of Action (JCPOA) in Vienna before serving as Chancellor of the Exchequer.",
     culturalImpactSummary:
       "Senior British cabinet minister across the Cameron and May governments, managing defense, foreign affairs, and national economic policy.",
     achievements: [
-      { milestone: "Signed the 2015 JCPOA in Vienna on behalf of the United Kingdom", year: 2015 },
+      { milestone: "Represented the United Kingdom in concluding the 2015 JCPOA in Vienna", year: 2015 },
       { milestone: "Appointed Chancellor of the Exchequer", year: 2016 },
       { milestone: "Created a life peer as Baron Hammond of Runnymede", year: 2020 },
     ],
@@ -1150,7 +1145,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     viafId: "109315578",
     avatarUrl: null,
     summary:
-      "Philip Hammond, Baron Hammond of Runnymede, is a British politician who served as Foreign Secretary from 2014 to 2016 and Chancellor of the Exchequer from 2016 to 2019. He was the UK signatory to the 2015 JCPOA in Vienna.",
+      "Philip Hammond, Baron Hammond of Runnymede, is a British politician who served as Foreign Secretary from 2014 to 2016 and Chancellor of the Exchequer from 2016 to 2019. He represented the UK in concluding the 2015 JCPOA in Vienna.",
     aliases: ["Lord Hammond of Runnymede", "Philip Hammond"],
   },
   {
@@ -1858,7 +1853,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     inclusionRationale:
       "First woman elected to the International Court of Justice; sat on the bench for the 2004 Wall Advisory Opinion and authored an influential Separate Opinion on international humanitarian law and proportionality before serving as ICJ President from 2006 to 2009.",
     culturalImpactSummary:
-      "Pioneering international legal scholar and jurist appointed Dame Commander of the Order of the British Empire (DBE) and created a life peer.",
+      "Pioneering international legal scholar and jurist appointed Dame Commander of the Order of the British Empire (DBE) and first female President of the International Court of Justice.",
     achievements: [
       { milestone: "First female Judge and President of the International Court of Justice", year: 2006 },
       { milestone: "Authored influential separate opinion in the 2004 ICJ Wall Advisory Opinion", year: 2004 },
@@ -2207,7 +2202,7 @@ export const statesmenAndDiplomatsSeed: CanonicalPersonSeed[] = [
     programmeId: "prog-journalists",
     isLiving: true,
     monitoringPriority: "normal",
-    publicationStatus: "published",
+    publicationStatus: "draft",
     wikidataId: null,
     viafId: null,
     avatarUrl: null,

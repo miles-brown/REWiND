@@ -3149,6 +3149,7 @@ export async function getGeographicHierarchyStrict(
 
   const venueEventIdsMap = new Map<string, Set<string>>();
   const venueDedupEventIdsMap = new Map<string, Set<string>>();
+  const addressOnlyEventIdsMap = new Map<string, Set<string>>();
   const eventCountsByCity = new Map<string, number>();
   const eventCountsByCountry = new Map<string, number>();
 
@@ -3195,6 +3196,11 @@ export async function getGeographicHierarchyStrict(
       }
     }
     const eventAddress = (e as { address?: string }).address;
+    if (eventAddress && eventId) {
+      const directAddrKey = `${cityKey}::${eventAddress}`.toLowerCase();
+      if (!addressOnlyEventIdsMap.has(directAddrKey)) addressOnlyEventIdsMap.set(directAddrKey, new Set());
+      addressOnlyEventIdsMap.get(directAddrKey)!.add(eventId);
+    }
     const normEventAddress = eventAddress ? sanitizePlaceSlug(eventAddress) : "";
     if (normEventAddress && canonicalVenueNorm && eventId) {
       const addressKey = `${cityKey}::${canonicalVenueNorm}::${normEventAddress}`;
@@ -3444,6 +3450,10 @@ export async function getGeographicHierarchyStrict(
       }
       const addrEventSet = addressEventIdsMap.get(addrKey)!;
       currentVenueEventIds.forEach((id) => addrEventSet.add(id));
+      const directAddrEvents = addressOnlyEventIdsMap.get(addrKey);
+      if (directAddrEvents) {
+        directAddrEvents.forEach((id) => addrEventSet.add(id));
+      }
 
       if (!addressesMap.has(addrKey)) {
         const addressNode: AddressNode = {

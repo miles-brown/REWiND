@@ -36,7 +36,8 @@ export default async function ComparePage(props: {
   const matchedPersonB = queryB ? people.find((p) => p.slug.toLowerCase() === queryB || p.id.toLowerCase() === queryB) : undefined;
   // Dynamic resolution contract for top co-attendee default:
   // const initialPersonB = findTopCoAttendee(personA, people, allEvents);
-  const initialPersonB = matchedPersonB?.slug || findTopCoAttendee(personA, people, allEvents);
+  const validPersonB = matchedPersonB && matchedPersonB.slug !== personA?.slug && matchedPersonB.id !== personA?.id ? matchedPersonB.slug : undefined;
+  const initialPersonB = validPersonB || findTopCoAttendee(personA, people, allEvents);
 
   return (
     <div className="page-shell compare-page">

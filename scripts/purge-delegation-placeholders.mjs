@@ -117,7 +117,8 @@ async function run() {
       .in("subject_id", chunk)
       .select("id");
     if (error) {
-      console.warn("Claims delete chunk warning:", error.message);
+      console.error("Claims delete chunk error:", error.message);
+      process.exit(1);
     } else {
       totalDeletedClaims += (data || []).length;
     }
@@ -133,7 +134,8 @@ async function run() {
       .in("subject_entity_id", chunk)
       .select("id");
     if (error) {
-      console.warn("Claims entity delete chunk warning:", error.message);
+      console.error("Claims entity delete chunk error:", error.message);
+      process.exit(1);
     } else {
       totalDeletedClaims += (data || []).length;
     }
@@ -151,7 +153,8 @@ async function run() {
       .in("person_id", chunk)
       .select("id");
     if (error) {
-      console.warn("event_people delete chunk warning:", error.message);
+      console.error("event_people delete chunk error:", error.message);
+      process.exit(1);
     } else {
       totalDeletedEventPeople += (data || []).length;
     }

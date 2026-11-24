@@ -131,8 +131,11 @@ export default async function PersonPage({
   const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
   const provisionalCount = linked.filter((e) => e.verificationStatus === "provisional").length;
   const disputedCount = linked.filter((e) => e.verificationStatus === "disputed").length;
-  const verifiedPercent = hasChronology
-    ? verifiedCount === linked.length
+  const unverifiedCount = linked.filter(
+    (e) => (e as { verificationStatus?: string }).verificationStatus === "unverified" || (e as { verificationStatus?: string }).verificationStatus === "retracted"
+  ).length;
+  const verifiedPercent = hasChronology && linked.length > 0
+    ? verifiedCount === linked.length && disputedCount === 0 && provisionalCount === 0 && unverifiedCount === 0
       ? 100
       : Math.min(99, Math.round((verifiedCount / linked.length) * 100))
     : null;
@@ -273,6 +276,14 @@ export default async function PersonPage({
                         {" · "}
                         <span className="telemetry-breakdown-item disputed">
                           <b>{disputedCount}</b> disputed
+                        </span>
+                      </>
+                    )}
+                    {unverifiedCount > 0 && (
+                      <>
+                        {" · "}
+                        <span className="telemetry-breakdown-item unverified">
+                          <b>{unverifiedCount}</b> unverified
                         </span>
                       </>
                     )}

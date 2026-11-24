@@ -282,6 +282,8 @@ export function generateAllEnrichmentSql(): {
     peopleSql.push(
       `UPDATE public.people SET
          inclusion_basis = ${inclusionBasisSql},
+         citizenship = CASE WHEN citizenship IS NULL OR cardinality(citizenship) = 0 THEN ${escapeSql(p.citizenship || null)} ELSE citizenship END,
+         languages = CASE WHEN languages IS NULL OR cardinality(languages) = 0 THEN ${escapeSql(p.languages || null)} ELSE languages END,
          inclusion_rationale = COALESCE(inclusion_rationale, ${escapeSql(p.inclusionRationale || null)}),
          cultural_impact_summary = COALESCE(cultural_impact_summary, ${escapeSql(p.culturalImpactSummary || null)}),
          wikidata_id = COALESCE(wikidata_id, ${escapeSql(p.wikidataId || null)}),

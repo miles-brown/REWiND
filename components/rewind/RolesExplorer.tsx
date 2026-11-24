@@ -98,21 +98,38 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
 
   // Scrollytelling observer: track which card is currently in view
   useEffect(() => {
+    const intersectingMap = new Map<number, number>();
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const indexStr = entry.target.getAttribute("data-holder-index");
-            if (indexStr !== null) {
-              setActiveHolderIndex(parseInt(indexStr, 10));
+          const indexStr = entry.target.getAttribute("data-holder-index");
+          if (indexStr !== null) {
+            const idx = parseInt(indexStr, 10);
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.2) {
+              intersectingMap.set(idx, entry.intersectionRatio);
+            } else {
+              intersectingMap.delete(idx);
             }
+          }
+        }
+        if (intersectingMap.size > 0) {
+          let bestIdx = -1;
+          let maxRatio = -1;
+          for (const [idx, ratio] of intersectingMap.entries()) {
+            if (ratio > maxRatio) {
+              maxRatio = ratio;
+              bestIdx = idx;
+            }
+          }
+          if (bestIdx !== -1) {
+            setActiveHolderIndex(bestIdx);
           }
         }
       },
       {
         root: null,
         rootMargin: "-20% 0px -40% 0px",
-        threshold: 0.2,
+        threshold: [0, 0.2, 0.5, 0.8, 1.0],
       }
     );
 
@@ -132,7 +149,7 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
     const index = filteredHolders.indexOf(target);
     const element = holderCardRefs.current[index];
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.scrollIntoView({ behavior: "auto", block: "center" });
     }
   };
 
@@ -154,7 +171,7 @@ export function RolesExplorer({ offices, initialOfficeId }: RolesExplorerProps) 
                   setSelectedOfficeId(office.id);
                   setSearchQuery("");
                   setActiveHolderIndex(0);
-                  window.scrollTo({ top: 200, behavior: "smooth" });
+                  window.scrollTo({ top: 200, behavior: "auto" });
                 }}
                 aria-pressed={isSelected}
               >
