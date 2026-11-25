@@ -196,3 +196,69 @@ test("Roles & Succession — Navigation and Viewport Integration", async (t) => 
     );
   });
 });
+
+test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Venue Areas", async (t) => {
+  const { getPersonBySlugWithStatus } = await vite.ssrLoadModule("/lib/rewind/people.ts");
+  const { generateAllEnrichmentSql } = await vite.ssrLoadModule("/scripts/generate-enrichment-sql.ts");
+
+  await t.test("getPersonBySlugWithStatus suppresses withdrawn database records without seed fallback", async () => {
+    const mockSupabase = {
+      from: () => ({
+        select: () => ({
+          or: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "person-withdrawn",
+                slug: "benjamin-netanyahu",
+                publication_status: "withdrawn",
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const res = await getPersonBySlugWithStatus("benjamin-netanyahu", mockSupabase);
+    assert.equal(res.data, null, "Withdrawn database row must return null data and suppress dossier");
+    assert.equal(res.error, null, "Suppression must not return database error");
+  });
+
+  await t.test("getPersonBySlugWithStatus falls back to seed only when record is absent from DB", async () => {
+    const mockSupabase = {
+      from: () => ({
+        select: () => ({
+          or: () => ({
+            maybeSingle: async () => ({
+              data: null,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const res = await getPersonBySlugWithStatus("benjamin-netanyahu", mockSupabase);
+    assert.ok(res.data, "Absent database row must safely fall back to seed");
+    assert.equal(res.data.slug, "benjamin-netanyahu");
+  });
+
+  await t.test("generateAllEnrichmentSql preserves existing room coordinates and home base IDs", () => {
+    const sqls = generateAllEnrichmentSql();
+    const venueAreaStatements = sqls.venueAreasSql;
+    assert.ok(venueAreaStatements.length > 0, "Expected venue area statements");
+
+    // Room position preservation check
+    const sampleArea = venueAreaStatements.find((s) => s.includes("COALESCE(public.venue_areas.latitude"));
+    assert.ok(sampleArea, "Venue areas upsert must preserve existing room positions using COALESCE");
+
+    // Home base place preservation check
+    const sampleVenue = sqls.venuesSql.find((s) => s.includes("COALESCE(EXCLUDED.home_base_place_id, public.venues.home_base_place_id)"));
+    assert.ok(sampleVenue, "Venues upsert must preserve existing home base places using COALESCE");
+  });
+
+  await t.test("PlacesExplorer VenueTargetButton specifies outline-offset-2", () => {
+    const placesExplorerCode = fs.readFileSync(path.join(process.cwd(), "components/rewind/PlacesExplorer.tsx"), "utf8");
+    assert.match(placesExplorerCode, /focus-visible:outline-offset-2/, "VenueTargetButton must use focus-visible:outline-offset-2");
+  });
+});

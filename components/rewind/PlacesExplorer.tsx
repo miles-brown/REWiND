@@ -161,7 +161,7 @@ function VenueTargetButton({
           onToggle(venue.id);
         }
       }}
-      className={`focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-400 rounded font-medium border transition ${paddingClass} ${!hasCoords
+      className={`focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 rounded font-medium border transition ${paddingClass} ${!hasCoords
           ? "bg-slate-200 text-slate-500 border-slate-300 cursor-not-allowed opacity-50"
           : isSelected
             ? "bg-sky-600 text-white border-sky-600 shadow-sm"

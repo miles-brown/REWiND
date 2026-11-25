@@ -620,6 +620,15 @@ async function syncCorpus() {
 
   // Synchronize Canonical Venues, Addresses, and Venue Areas from GLOBAL_GAZETTEER_METADATA
   console.log("   Synchronizing Canonical Addresses & Venues Gazetteer Hierarchy...");
+  const existingPlaces = await db
+    .select({ id: schema.places.id, slug: schema.places.slug })
+    .from(schema.places);
+  const existingPlacesMap = new Map<string, string>();
+  for (const p of existingPlaces) {
+    existingPlacesMap.set(p.id, p.id);
+    if (p.slug) existingPlacesMap.set(p.slug, p.id);
+  }
+
   const uniqueVenues = new Map<string, typeof GLOBAL_GAZETTEER_METADATA[string]>();
   for (const [, meta] of Object.entries(GLOBAL_GAZETTEER_METADATA)) {
     if (!uniqueVenues.has(meta.canonicalVenue)) {
@@ -662,7 +671,9 @@ async function syncCorpus() {
       const matchedPlace = placeList.find(
         (p) => p.id === rawHomeBase || p.slug === cleanSlug || p.slug === rawHomeBase
       );
-      resolvedHomeBaseId = matchedPlace ? matchedPlace.id : null;
+      resolvedHomeBaseId = matchedPlace
+        ? matchedPlace.id
+        : (existingPlacesMap.get(rawHomeBase) || existingPlacesMap.get(cleanSlug) || null);
     }
 
     venuesToInsert.push({
@@ -677,13 +688,16 @@ async function syncCorpus() {
     });
 
     for (const area of meta.venueAreas || []) {
+      const explicitLat = (area as { latitude?: number | null }).latitude ?? null;
+      const explicitLng = (area as { longitude?: number | null }).longitude ?? null;
+      const hasSpecificCoords = explicitLat != null && explicitLng != null;
       venueAreasToInsert.push({
         id: area.id,
         venueId,
         name: area.name,
         areaType: area.areaType,
-        latitude: meta.isMobileVessel ? null : meta.latitude,
-        longitude: meta.isMobileVessel ? null : meta.longitude,
+        latitude: meta.isMobileVessel ? null : (hasSpecificCoords ? explicitLat : meta.latitude),
+        longitude: meta.isMobileVessel ? null : (hasSpecificCoords ? explicitLng : meta.longitude),
       });
     }
   }
@@ -719,7 +733,7 @@ async function syncCorpus() {
           name: sql`excluded.name`,
           addressId: sql`excluded.address_id`,
           isMobileVessel: sql`excluded.is_mobile_vessel`,
-          homeBasePlaceId: sql`excluded.home_base_place_id`,
+          homeBasePlaceId: sql`COALESCE(excluded.home_base_place_id, public.venues.home_base_place_id)`,
           vesselType: sql`excluded.vessel_type`,
           latitude: sql`excluded.latitude`,
           longitude: sql`excluded.longitude`,
@@ -738,8 +752,14 @@ async function syncCorpus() {
           venueId: sql`excluded.venue_id`,
           name: sql`excluded.name`,
           areaType: sql`excluded.area_type`,
-          latitude: sql`excluded.latitude`,
-          longitude: sql`excluded.longitude`,
+          latitude: sql`CASE
+            WHEN excluded.latitude IS NULL THEN NULL
+            ELSE COALESCE(public.venue_areas.latitude, excluded.latitude)
+          END`,
+          longitude: sql`CASE
+            WHEN excluded.longitude IS NULL THEN NULL
+            ELSE COALESCE(public.venue_areas.longitude, excluded.longitude)
+          END`,
         },
       });
   }

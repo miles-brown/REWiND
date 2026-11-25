@@ -1,4 +1,4 @@
-import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata, getCanonicalVenueId } from "../lib/rewind/places";
+import { GLOBAL_GAZETTEER_METADATA, resolveVenueMetadata, getCanonicalVenueId, isSameCity, resolveCanonicalCountryName } from "../lib/rewind/places";
 import { sanitizePlaceSlug } from "../lib/rewind/utils";
 import { masterPeopleSeed, statesmenAndDiplomatsSeed } from "../data/seeds/index";
 import { eventsCorpus } from "../data/seeds/events-corpus";
@@ -83,15 +83,29 @@ export function generateAllEnrichmentSql(): {
          name = EXCLUDED.name,
          address_id = EXCLUDED.address_id,
          is_mobile_vessel = EXCLUDED.is_mobile_vessel,
-         home_base_place_id = EXCLUDED.home_base_place_id,
+         home_base_place_id = COALESCE(EXCLUDED.home_base_place_id, public.venues.home_base_place_id),
          vessel_type = EXCLUDED.vessel_type,
          latitude = EXCLUDED.latitude,
          longitude = EXCLUDED.longitude;`
     );
 
     for (const area of meta.venueAreas || []) {
-      const areaLat = meta.isMobileVessel ? "NULL" : escapeSql(meta.latitude);
-      const areaLng = meta.isMobileVessel ? "NULL" : escapeSql(meta.longitude);
+      const explicitLat = (area as { latitude?: number | null }).latitude ?? null;
+      const explicitLng = (area as { longitude?: number | null }).longitude ?? null;
+      const hasSpecificCoords = explicitLat != null && explicitLng != null;
+      const areaLat = meta.isMobileVessel ? "NULL" : hasSpecificCoords ? escapeSql(explicitLat) : escapeSql(meta.latitude);
+      const areaLng = meta.isMobileVessel ? "NULL" : hasSpecificCoords ? escapeSql(explicitLng) : escapeSql(meta.longitude);
+      const latUpdate = meta.isMobileVessel
+        ? "NULL"
+        : hasSpecificCoords
+          ? "EXCLUDED.latitude"
+          : "COALESCE(public.venue_areas.latitude, EXCLUDED.latitude)";
+      const lngUpdate = meta.isMobileVessel
+        ? "NULL"
+        : hasSpecificCoords
+          ? "EXCLUDED.longitude"
+          : "COALESCE(public.venue_areas.longitude, EXCLUDED.longitude)";
+
       venueAreasSql.push(
         `INSERT INTO public.venue_areas (id, venue_id, name, area_type, latitude, longitude)
          VALUES (${escapeSql(area.id)}, ${escapeSql(venueId)}, ${escapeSql(area.name)}, ${escapeSql(area.areaType)}, ${areaLat}, ${areaLng})
@@ -99,8 +113,8 @@ export function generateAllEnrichmentSql(): {
            venue_id = EXCLUDED.venue_id,
            name = EXCLUDED.name,
            area_type = EXCLUDED.area_type,
-           latitude = EXCLUDED.latitude,
-           longitude = EXCLUDED.longitude;`
+           latitude = ${latUpdate},
+           longitude = ${lngUpdate};`
       );
     }
   }
@@ -116,19 +130,29 @@ export function generateAllEnrichmentSql(): {
     let addressId: string | null = null;
 
     if (meta) {
-      venueId = getCanonicalVenueId(meta);
-      if (!meta.isMobileVessel) {
-        const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
-        const citySlug = sanitizePlaceSlug(meta.city);
-        const countrySlug = sanitizePlaceSlug(meta.country);
-        addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
+      const isMobile = Boolean(meta.isMobileVessel);
+      const isCityMatch = !evt.city || evt.city === "Unknown" || isSameCity(evt.city, meta.city);
+      const isCountryMatch =
+        !evt.country ||
+        evt.country === "Unknown" ||
+        resolveCanonicalCountryName(evt.country).toLowerCase() ===
+          resolveCanonicalCountryName(meta.country).toLowerCase();
+
+      if (isMobile || (isCityMatch && isCountryMatch)) {
+        venueId = getCanonicalVenueId(meta);
+        if (!meta.isMobileVessel) {
+          const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+          const citySlug = sanitizePlaceSlug(meta.city);
+          const countrySlug = sanitizePlaceSlug(meta.country);
+          addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
+        }
       }
     }
 
     const desc = (evt as { description?: string }).description || evt.summary || null;
-    const venueUpdateSql = meta ? `venue_id = ${escapeSql(venueId)}` : `venue_id = venue_id`;
-    const addressUpdateSql = meta
-      ? (meta.isMobileVessel ? `address_id = NULL` : `address_id = COALESCE(${escapeSql(addressId)}, address_id)`)
+    const venueUpdateSql = venueId ? `venue_id = ${escapeSql(venueId)}` : `venue_id = venue_id`;
+    const addressUpdateSql = venueId
+      ? (meta?.isMobileVessel ? `address_id = NULL` : `address_id = COALESCE(${escapeSql(addressId)}, address_id)`)
       : `address_id = address_id`;
 
     eventsSql.push(

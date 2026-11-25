@@ -325,7 +325,6 @@ export async function getPersonBySlugWithStatus(
         .from("people")
         .select("*")
         .or(`slug.eq.${slug},id.eq.${slug}`)
-        .eq("publication_status", "published")
         .maybeSingle();
 
       if (error) {
@@ -337,6 +336,10 @@ export async function getPersonBySlugWithStatus(
       }
 
       if (p) {
+        if (p.publication_status && p.publication_status !== "published") {
+          // If the record exists in the database but is withdrawn, draft, or un-published, suppress public dossier
+          return { data: null, error: null };
+        }
         let eduData: Record<string, unknown>[] = [];
         let careerData: Record<string, unknown>[] = [];
         let awardsData: Record<string, unknown>[] = [];
