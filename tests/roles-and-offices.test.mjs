@@ -289,4 +289,13 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
       "Queen Elizabeth II"
     );
   });
+
+  await t.test("event page surfaces and foregrounds comply with Forensic Obsidian high-contrast standards", () => {
+    const globalsCss = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+    assert.match(globalsCss, /\.event-page\s*\{[^}]*background:\s*var\(--bg-primary,\s*#050811\);[^}]*color:\s*#f8fafc;/, "event-page must use dark Obsidian background and #f8fafc text");
+    assert.match(globalsCss, /\.participant-list a\s*\{[^}]*color:\s*#f8fafc;/, "participant-list a must set #f8fafc foreground on dark surface");
+    assert.match(globalsCss, /\.evidence-rail article\s*\{[^}]*color:\s*#f8fafc;/, "evidence-rail article must set #f8fafc foreground on dark surface");
+    assert.match(globalsCss, /\.event-pager > a\s*\{[^}]*color:\s*#f8fafc;/, "event-pager a must set #f8fafc foreground on dark surface");
+    assert.match(globalsCss, /\.event-summary\s*\{[^}]*color:\s*#cbd5e1;/, "event-summary must use high-contrast #cbd5e1 on dark canvas");
+  });
 });
