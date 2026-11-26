@@ -164,7 +164,7 @@ function VenueTargetButton({
       className={`focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#38bdf8] rounded font-medium border transition ${paddingClass} ${!hasCoords
         ? "bg-slate-200 text-slate-500 border-slate-300 cursor-not-allowed opacity-50"
         : isSelected
-          ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+          ? "bg-sky-700 text-white border-sky-700 shadow-sm"
           : "bg-slate-800 text-white border-slate-700 hover:bg-slate-700 hover:text-white shadow-sm"
         }`}
       title={hasCoords ? undefined : "Map location unavailable for this venue"}

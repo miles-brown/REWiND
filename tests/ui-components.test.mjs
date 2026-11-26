@@ -262,6 +262,12 @@ test("verifies WCAG 2.1 AA color contrast compliance across dark palette pairs",
     { fg: yearTileIconColor, bg: yearTileBg, name: "Year tile link icon on white card background", minContrast: 4.5 },
     { fg: filterBtnColor, bg: filterBtnBg, name: "Inactive category filter button text on button background", minContrast: 4.5 },
     { fg: activeFilterBtnColor, bg: activeFilterBtnBg, name: "Active category filter button text on active button background", minContrast: 4.5 },
+    { fg: "var(--text-muted)", bg: "var(--bg-primary)", name: "Forensic Obsidian: text-muted on bg-primary", minContrast: 4.5 },
+    { fg: "var(--text-muted)", bg: "var(--bg-secondary)", name: "Forensic Obsidian: text-muted on bg-secondary", minContrast: 4.5 },
+    { fg: "var(--text-secondary)", bg: "var(--bg-primary)", name: "Forensic Obsidian: text-secondary on bg-primary", minContrast: 4.5 },
+    { fg: "var(--text-primary)", bg: "var(--bg-primary)", name: "Forensic Obsidian: text-primary on bg-primary", minContrast: 4.5 },
+    { fg: "var(--accent-primary)", bg: "var(--bg-primary)", name: "Forensic Obsidian: accent-primary on bg-primary", minContrast: 4.5 },
+    { fg: "#ffffff", bg: "#0369a1", name: "VenueTargetButton selected state (text-white on bg-sky-700)", minContrast: 4.5 },
   ];
 
   for (const pair of contrastPairs) {

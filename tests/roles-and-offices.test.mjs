@@ -261,6 +261,7 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     const placesExplorerCode = fs.readFileSync(path.join(process.cwd(), "components/rewind/PlacesExplorer.tsx"), "utf8");
     assert.match(placesExplorerCode, /focus-visible:outline-\[#38bdf8\]/, "VenueTargetButton must use focus-visible:outline-[#38bdf8] per the focus-visible standard");
     assert.match(placesExplorerCode, /focus-visible:outline-offset-2/, "VenueTargetButton must use focus-visible:outline-offset-2");
+    assert.match(placesExplorerCode, /bg-sky-700\s+text-white\s+border-sky-700/, "VenueTargetButton selected state must use bg-sky-700 for >= 4.5:1 contrast against white text");
   });
 
   await t.test("formatStandardPersonName maps King and Queen in comma-form royal names", async () => {
