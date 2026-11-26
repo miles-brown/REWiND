@@ -260,7 +260,9 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.ok(scriptCode.includes('publication_status: "archived"'), "Script must archive records in place");
     assert.ok(scriptCode.includes("Archival Provenance Audit"), "Script must record archival provenance audit notes");
     assert.ok(scriptCode.includes('typeof qRes.count !== "number"'), "Script must validate evidence counts");
-    assert.ok(scriptCode.includes('query.is("summary", null)'), "Script must handle null condition on summary update");
+    assert.ok(scriptCode.includes('query.is("primary_role", null)'), "Script must handle null condition on primary_role predicate");
+    assert.ok(scriptCode.includes('query.is("updated_at", null)'), "Script must handle bounded revision token on update");
+    assert.ok(!scriptCode.includes('query.eq("summary"'), "Script must not place unbounded summary into URL-encoded filter");
     assert.ok(scriptCode.includes("missingIds.length > 0"), "Script must reject verification if expected IDs are missing");
   });
 

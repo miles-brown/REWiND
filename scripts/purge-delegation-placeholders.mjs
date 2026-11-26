@@ -30,7 +30,7 @@ async function run() {
   while (true) {
     const { data, error: pErr } = await supabase
       .from("people")
-      .select("id, canonical_name, slug, classification, primary_role, summary")
+      .select("id, canonical_name, slug, classification, primary_role, summary, updated_at")
       .ilike("canonical_name", "%Delegation%")
       .order("id")
       .range(from, from + pageSize - 1);
@@ -140,6 +140,8 @@ async function run() {
     const chunk = people.slice(i, i + 50);
     for (const p of chunk) {
       let currentSummary = p.summary;
+      let currentPrimaryRole = p.primary_role;
+      let currentUpdatedAt = p.updated_at;
       let updateSucceeded = false;
 
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -156,7 +158,7 @@ async function run() {
           .from("people")
           .update({
             classification: "delegation",
-            primary_role: p.primary_role || "Official Delegation",
+            primary_role: currentPrimaryRole || "Official Delegation",
             notability_basis: "diplomatic-delegation-composite",
             publication_status: "archived",
             summary: updatedSummary,
@@ -164,10 +166,16 @@ async function run() {
           })
           .eq("id", p.id);
 
-        if (currentSummary === null || currentSummary === undefined) {
-          query = query.is("summary", null);
+        if (currentPrimaryRole === null || currentPrimaryRole === undefined) {
+          query = query.is("primary_role", null);
         } else {
-          query = query.eq("summary", currentSummary);
+          query = query.eq("primary_role", currentPrimaryRole);
+        }
+
+        if (currentUpdatedAt === null || currentUpdatedAt === undefined) {
+          query = query.is("updated_at", null);
+        } else {
+          query = query.eq("updated_at", currentUpdatedAt);
         }
 
         const { data: updatedRows, error: uErr } = await query.select("id");
@@ -183,11 +191,11 @@ async function run() {
           break;
         }
 
-        // Conflict: summary changed concurrently. Re-read fresh summary and retry.
-        console.warn(`Concurrent summary conflict on person [${p.id}], retrying update...`);
+        // Conflict: record state or primary_role changed concurrently. Re-read fresh record and retry.
+        console.warn(`Concurrent modification conflict on person [${p.id}], retrying update...`);
         const { data: freshRecord, error: fErr } = await supabase
           .from("people")
-          .select("summary")
+          .select("summary, primary_role, updated_at")
           .eq("id", p.id)
           .maybeSingle();
 
@@ -196,6 +204,8 @@ async function run() {
           process.exit(1);
         }
         currentSummary = freshRecord.summary;
+        currentPrimaryRole = freshRecord.primary_role;
+        currentUpdatedAt = freshRecord.updated_at;
       }
 
       if (!updateSucceeded) {
