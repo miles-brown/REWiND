@@ -188,6 +188,10 @@ test("Roles & Succession — Navigation and Viewport Integration", async (t) => 
     assert.match(cssContent, /\.roles-scrolly-card/, "globals.css must define .roles-scrolly-card");
     assert.match(cssContent, /\.roles-scrolly-hud/, "globals.css must define .roles-scrolly-hud");
 
+    assert.match(cssContent, /\.roles-overview-stats\s*\{[^}]*flex-wrap:\s*wrap;/, ".roles-overview-stats must allow wrapping on narrow viewports");
+    assert.match(cssContent, /\.roles-search-wrapper\s*\{[^}]*min-width:\s*min\(260px,\s*100%\);/, ".roles-search-wrapper must cap min-width at 100%");
+    assert.doesNotMatch(cssContent, /\.roles-badge-active-pulse\s*\{[^}]*animation:\s*pulse/, ".roles-badge-active-pulse must not use opacity pulse animation on text badge");
+
     // Strict contrast check
     assert.doesNotMatch(
       cssContent,
@@ -255,6 +259,9 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.ok(!scriptCode.includes(".delete()"), "Script must never call .delete() per AGENTS.md Permanent Addition & Non-Deletion Rule");
     assert.ok(scriptCode.includes('publication_status: "archived"'), "Script must archive records in place");
     assert.ok(scriptCode.includes("Archival Provenance Audit"), "Script must record archival provenance audit notes");
+    assert.ok(scriptCode.includes('typeof qRes.count !== "number"'), "Script must validate evidence counts");
+    assert.ok(scriptCode.includes('query.is("summary", null)'), "Script must handle null condition on summary update");
+    assert.ok(scriptCode.includes("missingIds.length > 0"), "Script must reject verification if expected IDs are missing");
   });
 
   await t.test("generateAllEnrichmentSql preserves existing room coordinates as pairs and home base IDs", () => {

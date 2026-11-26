@@ -7333,6 +7333,7 @@ svg { flex: 0 0 auto; }
 
 .roles-overview-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
@@ -7383,7 +7384,7 @@ svg { flex: 0 0 auto; }
 .roles-search-wrapper {
   position: relative;
   flex: 1;
-  min-width: 260px;
+  min-width: min(260px, 100%);
   max-width: 480px;
 }
 
@@ -7535,7 +7536,6 @@ svg { flex: 0 0 auto; }
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 999px;
-  animation: pulse 2s infinite;
 }
 
 .roles-hud-name {

@@ -111,9 +111,22 @@ async function run() {
       supabase.from("event_people").select("id", { count: "exact", head: true }).in("person_id", chunk),
     ]);
 
-    attachedQuotesCount += qRes.count || 0;
-    attachedClaimsCount += cRes.count || 0;
-    attachedEventsCount += epRes.count || 0;
+    if (qRes.error || typeof qRes.count !== "number") {
+      console.error("Failed to count attached quotes:", qRes.error?.message || "Non-numeric count");
+      process.exit(1);
+    }
+    if (cRes.error || typeof cRes.count !== "number") {
+      console.error("Failed to count attached claims:", cRes.error?.message || "Non-numeric count");
+      process.exit(1);
+    }
+    if (epRes.error || typeof epRes.count !== "number") {
+      console.error("Failed to count attached event participations:", epRes.error?.message || "Non-numeric count");
+      process.exit(1);
+    }
+
+    attachedQuotesCount += qRes.count;
+    attachedClaimsCount += cRes.count;
+    attachedEventsCount += epRes.count;
   }
 
   console.log(
@@ -126,32 +139,69 @@ async function run() {
   for (let i = 0; i < people.length; i += 50) {
     const chunk = people.slice(i, i + 50);
     for (const p of chunk) {
-      const existingSummary = (p.summary || "").trim();
-      const auditNote =
-        "[Archival Provenance Audit]: Preserved in place per AGENTS.md Permanent Addition & Non-Deletion Rule. Reclassified as composite diplomatic delegation record; historical event participation, claims, and quotes retained.";
-      const updatedSummary = existingSummary.includes("Archival Provenance Audit")
-        ? existingSummary
-        : existingSummary
-          ? `${existingSummary}\n\n${auditNote}`
-          : auditNote;
+      let currentSummary = p.summary;
+      let updateSucceeded = false;
 
-      const { error: uErr } = await supabase
-        .from("people")
-        .update({
-          classification: "delegation",
-          primary_role: p.primary_role || "Official Delegation",
-          notability_basis: "diplomatic-delegation-composite",
-          publication_status: "archived",
-          summary: updatedSummary,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", p.id);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const existingSummary = (currentSummary || "").trim();
+        const auditNote =
+          "[Archival Provenance Audit]: Preserved in place per AGENTS.md Permanent Addition & Non-Deletion Rule. Reclassified as composite diplomatic delegation record; historical event participation, claims, and quotes retained.";
+        const updatedSummary = existingSummary.includes("Archival Provenance Audit")
+          ? existingSummary
+          : existingSummary
+            ? `${existingSummary}\n\n${auditNote}`
+            : auditNote;
 
-      if (uErr) {
-        console.error(`Failed to update placeholder person [${p.id}]:`, uErr.message);
+        let query = supabase
+          .from("people")
+          .update({
+            classification: "delegation",
+            primary_role: p.primary_role || "Official Delegation",
+            notability_basis: "diplomatic-delegation-composite",
+            publication_status: "archived",
+            summary: updatedSummary,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", p.id);
+
+        if (currentSummary === null || currentSummary === undefined) {
+          query = query.is("summary", null);
+        } else {
+          query = query.eq("summary", currentSummary);
+        }
+
+        const { data: updatedRows, error: uErr } = await query.select("id");
+
+        if (uErr) {
+          console.error(`Failed to update placeholder person [${p.id}]:`, uErr.message);
+          process.exit(1);
+        }
+
+        if (updatedRows && updatedRows.length > 0) {
+          updateSucceeded = true;
+          totalUpdatedPeople++;
+          break;
+        }
+
+        // Conflict: summary changed concurrently. Re-read fresh summary and retry.
+        console.warn(`Concurrent summary conflict on person [${p.id}], retrying update...`);
+        const { data: freshRecord, error: fErr } = await supabase
+          .from("people")
+          .select("summary")
+          .eq("id", p.id)
+          .maybeSingle();
+
+        if (fErr || !freshRecord) {
+          console.error(`Failed to re-read person [${p.id}] on conflict:`, fErr?.message || "Record not found");
+          process.exit(1);
+        }
+        currentSummary = freshRecord.summary;
+      }
+
+      if (!updateSucceeded) {
+        console.error(`Archival update failed for person [${p.id}]: could not resolve concurrent conflict.`);
         process.exit(1);
       }
-      totalUpdatedPeople++;
     }
   }
 
@@ -167,6 +217,13 @@ async function run() {
 
     if (vErr) {
       console.error("Verification query failed:", vErr.message);
+      process.exit(1);
+    }
+
+    const verifiedIds = new Set((verified || []).map((r) => r.id));
+    const missingIds = chunk.filter((id) => !verifiedIds.has(id));
+    if (missingIds.length > 0) {
+      console.error(`Verification rejected: ${missingIds.length} expected records were missing from database.`);
       process.exit(1);
     }
 
