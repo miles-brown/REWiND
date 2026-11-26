@@ -30,7 +30,7 @@ async function run() {
   while (true) {
     const { data, error: pErr } = await supabase
       .from("people")
-      .select("id, canonical_name, slug, classification, primary_role")
+      .select("id, canonical_name, slug, classification, primary_role, summary")
       .ilike("canonical_name", "%Delegation%")
       .order("id")
       .range(from, from + pageSize - 1);
@@ -66,126 +66,103 @@ async function run() {
 
   console.log(`Found ${people.length} verified placeholder records.`);
   if (people.length === 0) {
-    console.log("Nothing to delete.");
+    console.log("No placeholder records found requiring audited correction.");
     return;
   }
 
-  console.log("Verified placeholders identified for purge:");
+  console.log("Verified placeholders identified for audited archival correction:");
   people.slice(0, 10).forEach((p) => console.log(`  - [${p.id}] ${p.canonical_name} (${p.slug})`));
   if (people.length > 10) {
     console.log(`  ... and ${people.length - 10} more.`);
   }
 
   const personIds = people.map((p) => p.id);
-  const personSlugs = people.map((p) => p.slug).filter(Boolean);
-  const personIdsAndSlugs = Array.from(new Set([...personIds, ...personSlugs]));
 
-  // 0a. Clear claims attribution references
-  console.log("Clearing claims attribution references...");
+  // In accordance with AGENTS.md Section 5.6 Permanent Addition & Non-Deletion Rule:
+  // "Once an entity has been added to the REWiND Evidence Atlas, it must NEVER be deleted.
+  // Data is strictly additive and progressive. Records must only be improved, extended,
+  // enriched, modified, or merged under strict audited conditions. Erroneous / Disputed Data:
+  // Correct factual details in place or mark status as 'disputed' / 'limited', maintaining
+  // archival provenance audit logs rather than removing records."
+  //
+  // Evidence Preservation Protocol:
+  // 1. Attached quotes are PRESERVED (speaker_id retained).
+  // 2. Attached claims are PRESERVED (subject_id and attribution retained).
+  // 3. Historical event participation in event_people is PRESERVED intact.
+  // 4. Person records are NOT hard-deleted; they are updated in place with archival status:
+  //    - classification: "delegation"
+  //    - primary_role: "Official Delegation"
+  //    - notability_basis: "diplomatic-delegation-composite"
+  //    - publication_status: "archived"
+  //    - summary: updated with archival provenance audit log
+  //    - updated_at: current timestamp
+
+  console.log("Auditing attached evidence across quotes, claims, and event participations...");
+  let attachedQuotesCount = 0;
+  let attachedClaimsCount = 0;
+  let attachedEventsCount = 0;
+
   for (let i = 0; i < personIds.length; i += 50) {
     const chunk = personIds.slice(i, i + 50);
-    const { error } = await supabase
-      .from("claims")
-      .update({ attribution_speaker_id: null })
-      .in("attribution_speaker_id", chunk);
-    if (error) {
-      console.warn("Claims attribution update chunk warning:", error.message);
+
+    const [qRes, cRes, epRes] = await Promise.all([
+      supabase.from("quotes").select("id", { count: "exact", head: true }).in("speaker_id", chunk),
+      supabase.from("claims").select("id", { count: "exact", head: true }).in("subject_id", chunk),
+      supabase.from("event_people").select("id", { count: "exact", head: true }).in("person_id", chunk),
+    ]);
+
+    attachedQuotesCount += qRes.count || 0;
+    attachedClaimsCount += cRes.count || 0;
+    attachedEventsCount += epRes.count || 0;
+  }
+
+  console.log(
+    `Audited evidence to preserve intact: ${attachedQuotesCount} quotes, ${attachedClaimsCount} claims, ${attachedEventsCount} event participations.`
+  );
+
+  console.log("Applying audited archival updates to placeholder people records (preserving all evidence)...");
+  let totalUpdatedPeople = 0;
+
+  for (let i = 0; i < people.length; i += 50) {
+    const chunk = people.slice(i, i + 50);
+    for (const p of chunk) {
+      const existingSummary = (p.summary || "").trim();
+      const auditNote =
+        "[Archival Provenance Audit]: Preserved in place per AGENTS.md Permanent Addition & Non-Deletion Rule. Reclassified as composite diplomatic delegation record; historical event participation, claims, and quotes retained.";
+      const updatedSummary = existingSummary.includes("Archival Provenance Audit")
+        ? existingSummary
+        : existingSummary
+          ? `${existingSummary}\n\n${auditNote}`
+          : auditNote;
+
+      const { error: uErr } = await supabase
+        .from("people")
+        .update({
+          classification: "delegation",
+          primary_role: p.primary_role || "Official Delegation",
+          notability_basis: "diplomatic-delegation-composite",
+          publication_status: "archived",
+          summary: updatedSummary,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", p.id);
+
+      if (uErr) {
+        console.error(`Failed to update placeholder person [${p.id}]:`, uErr.message);
+        process.exit(1);
+      }
+      totalUpdatedPeople++;
     }
   }
 
-  // 0b. Delete quotes where speaker_id references placeholder
-  console.log("Clearing quotes referencing placeholder speakers...");
+  console.log(`Successfully updated and archived ${totalUpdatedPeople} delegation placeholder records.`);
+
+  // Verification: Ensure all placeholder records have publication_status = 'archived' and zero deletions occurred
   for (let i = 0; i < personIds.length; i += 50) {
     const chunk = personIds.slice(i, i + 50);
-    const { error } = await supabase
-      .from("quotes")
-      .delete()
-      .in("speaker_id", chunk);
-    if (error) {
-      console.warn("Quotes delete chunk warning:", error.message);
-    }
-  }
-
-  // 1. Delete dependent claims in chunks of 50
-  console.log("Deleting dependent claims...");
-  let totalDeletedClaims = 0;
-  for (let i = 0; i < personIds.length; i += 50) {
-    const chunk = personIds.slice(i, i + 50);
-    const { data, error } = await supabase
-      .from("claims")
-      .delete()
-      .in("subject_id", chunk)
-      .select("id");
-    if (error) {
-      console.error("Claims delete chunk error:", error.message);
-      process.exit(1);
-    } else {
-      totalDeletedClaims += (data || []).length;
-    }
-  }
-
-  // Also clean claims where subject_entity_type = 'person' and subject_entity_id references placeholder ID or slug
-  for (let i = 0; i < personIdsAndSlugs.length; i += 50) {
-    const chunk = personIdsAndSlugs.slice(i, i + 50);
-    const { data, error } = await supabase
-      .from("claims")
-      .delete()
-      .eq("subject_entity_type", "person")
-      .in("subject_entity_id", chunk)
-      .select("id");
-    if (error) {
-      console.error("Claims entity delete chunk error:", error.message);
-      process.exit(1);
-    } else {
-      totalDeletedClaims += (data || []).length;
-    }
-  }
-  console.log(`Deleted ${totalDeletedClaims} claims.`);
-
-  // 2. Delete dependent event_people in chunks of 50
-  console.log("Deleting dependent event_people links...");
-  let totalDeletedEventPeople = 0;
-  for (let i = 0; i < personIds.length; i += 50) {
-    const chunk = personIds.slice(i, i + 50);
-    const { data, error } = await supabase
-      .from("event_people")
-      .delete()
-      .in("person_id", chunk)
-      .select("id");
-    if (error) {
-      console.error("event_people delete chunk error:", error.message);
-      process.exit(1);
-    } else {
-      totalDeletedEventPeople += (data || []).length;
-    }
-  }
-  console.log(`Deleted ${totalDeletedEventPeople} event_people.`);
-
-  // 3. Delete placeholder people in chunks of 50
-  console.log("Deleting placeholder people records...");
-  let totalDeletedPeople = 0;
-  for (let i = 0; i < personIds.length; i += 50) {
-    const chunk = personIds.slice(i, i + 50);
-    const { data, error } = await supabase
+    const { data: verified, error: vErr } = await supabase
       .from("people")
-      .delete()
-      .in("id", chunk)
-      .select("id");
-    if (error) {
-      console.error("people delete chunk error:", error);
-      process.exit(1);
-    } else {
-      totalDeletedPeople += (data || []).length;
-    }
-  }
-  console.log(`Deleted ${totalDeletedPeople} placeholder people.`);
-
-  // Verification
-  for (let i = 0; i < personIds.length; i += 50) {
-    const chunk = personIds.slice(i, i + 50);
-    const { count, error: vErr } = await supabase
-      .from("people")
-      .select("*", { count: "exact", head: true })
+      .select("id, publication_status, classification")
       .in("id", chunk);
 
     if (vErr) {
@@ -193,16 +170,17 @@ async function run() {
       process.exit(1);
     }
 
-    if (count === null || count === undefined || count > 0) {
-      console.error(`Verification rejected: ${count ?? "unknown"} placeholder records still remain in database.`);
+    const unarchived = (verified || []).filter((r) => r.publication_status !== "archived");
+    if (unarchived.length > 0) {
+      console.error(`Verification rejected: ${unarchived.length} records were not correctly archived.`);
       process.exit(1);
     }
   }
 
-  console.log("Verification passed: 0 placeholder people remaining in database.");
+  console.log("Verification passed: 100% of delegation records safely archived with all evidence preserved.");
 }
 
 run().catch((err) => {
-  console.error("Purge error:", err);
+  console.error("Audit and archive error:", err);
   process.exit(1);
 });

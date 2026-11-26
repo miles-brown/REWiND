@@ -224,7 +224,7 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.equal(res.error, null, "Suppression must not return database error");
   });
 
-  await t.test("getPersonBySlugWithStatus falls back to seed only when record is absent from DB", async () => {
+  await t.test("getPersonBySlugWithStatus preserves publication restrictions and returns canonical miss for absent or unpublished records", async () => {
     const mockSupabase = {
       from: () => ({
         select: () => ({
@@ -239,8 +239,22 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     };
 
     const res = await getPersonBySlugWithStatus("benjamin-netanyahu", mockSupabase);
-    assert.ok(res.data, "Absent database row must safely fall back to seed");
+    assert.equal(res.data, null, "Public query with no matching published DB row must return canonical miss to preserve RLS publication restrictions");
+    assert.equal(res.error, null);
+  });
+
+  await t.test("getPersonBySlugWithStatus falls back to seed when Supabase client is unavailable in dev/test", async () => {
+    const res = await getPersonBySlugWithStatus("benjamin-netanyahu", null);
+    assert.ok(res.data, "Unavailable DB client in dev/test must safely fall back to seed");
     assert.equal(res.data.slug, "benjamin-netanyahu");
+  });
+
+  await t.test("purge-delegation-placeholders script strictly enforces AGENTS.md Permanent Addition & Non-Deletion Rule", () => {
+    const scriptPath = path.join(process.cwd(), "scripts/purge-delegation-placeholders.mjs");
+    const scriptCode = fs.readFileSync(scriptPath, "utf8");
+    assert.ok(!scriptCode.includes(".delete()"), "Script must never call .delete() per AGENTS.md Permanent Addition & Non-Deletion Rule");
+    assert.ok(scriptCode.includes('publication_status: "archived"'), "Script must archive records in place");
+    assert.ok(scriptCode.includes("Archival Provenance Audit"), "Script must record archival provenance audit notes");
   });
 
   await t.test("generateAllEnrichmentSql preserves existing room coordinates as pairs and home base IDs", () => {

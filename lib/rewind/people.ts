@@ -459,12 +459,8 @@ export async function getPersonBySlugWithStatus(
         };
       }
 
-      // Check fallback seed register before returning null
-      const fb = masterPeopleSeed.find((x) => (x.slug === slug || x.id === slug) && x.publicationStatus === "published");
-      if (fb) {
-        return { data: mapFallbackPerson(fb), error: null };
-      }
-
+      // Successful Supabase query with no matching published record: return canonical miss
+      // (Preserve canonical miss for public database queries to respect RLS publication restrictions)
       return { data: null, error: null };
     }
 
