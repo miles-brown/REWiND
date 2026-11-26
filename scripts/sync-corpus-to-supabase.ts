@@ -753,12 +753,14 @@ async function syncCorpus() {
           name: sql`excluded.name`,
           areaType: sql`excluded.area_type`,
           latitude: sql`CASE
-            WHEN excluded.latitude IS NULL THEN NULL
-            ELSE COALESCE(public.venue_areas.latitude, excluded.latitude)
+            WHEN excluded.latitude IS NULL OR excluded.longitude IS NULL THEN NULL
+            WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.latitude
+            ELSE excluded.latitude
           END`,
           longitude: sql`CASE
-            WHEN excluded.longitude IS NULL THEN NULL
-            ELSE COALESCE(public.venue_areas.longitude, excluded.longitude)
+            WHEN excluded.latitude IS NULL OR excluded.longitude IS NULL THEN NULL
+            WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.longitude
+            ELSE excluded.longitude
           END`,
         },
       });
@@ -787,7 +789,7 @@ async function syncCorpus() {
         !evt.country ||
         evt.country === "Unknown" ||
         resolveCanonicalCountryName(evt.country).toLowerCase() ===
-          resolveCanonicalCountryName(venueMeta.country).toLowerCase();
+        resolveCanonicalCountryName(venueMeta.country).toLowerCase();
 
       if (isMobile || (isCityMatch && isCountryMatch)) {
         venueId = getCanonicalVenueId(venueMeta);

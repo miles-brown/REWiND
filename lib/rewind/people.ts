@@ -190,8 +190,8 @@ function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
   const rawAliases = Array.isArray(p.aliases)
     ? (p.aliases as unknown[]).map(String)
     : Array.isArray(p.person_aliases)
-    ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
-    : [];
+      ? (p.person_aliases as { alias?: string }[]).map((a) => a.alias || "").filter(Boolean)
+      : [];
   const mergedAliases = [...rawAliases];
   for (const oldName of [rawDisplay, rawCanonical]) {
     if (oldName && oldName !== standardDisplayName && !mergedAliases.includes(oldName)) {
@@ -226,14 +226,14 @@ function mapDatabasePerson(p: Record<string, unknown>): PersonRecord {
     culturalImpactSummary: p.cultural_impact_summary ? String(p.cultural_impact_summary) : undefined,
     achievements: Array.isArray(p.achievements)
       ? (p.achievements as Array<Record<string, unknown> | string>).map((ach) =>
-          typeof ach === "string"
-            ? { milestone: ach }
-            : {
-                milestone: String(ach.milestone || ""),
-                year: typeof ach.year === "number" ? ach.year : undefined,
-                evidence: ach.evidence ? String(ach.evidence) : undefined,
-              }
-        )
+        typeof ach === "string"
+          ? { milestone: ach }
+          : {
+            milestone: String(ach.milestone || ""),
+            year: typeof ach.year === "number" ? ach.year : undefined,
+            evidence: ach.evidence ? String(ach.evidence) : undefined,
+          }
+      )
       : undefined,
     avatarUrl: p.avatar_url ? String(p.avatar_url) : undefined,
   };

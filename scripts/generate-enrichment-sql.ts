@@ -99,12 +99,12 @@ export function generateAllEnrichmentSql(): {
         ? "NULL"
         : hasSpecificCoords
           ? "EXCLUDED.latitude"
-          : "COALESCE(public.venue_areas.latitude, EXCLUDED.latitude)";
+          : "CASE WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.latitude ELSE EXCLUDED.latitude END";
       const lngUpdate = meta.isMobileVessel
         ? "NULL"
         : hasSpecificCoords
           ? "EXCLUDED.longitude"
-          : "COALESCE(public.venue_areas.longitude, EXCLUDED.longitude)";
+          : "CASE WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.longitude ELSE EXCLUDED.longitude END";
 
       venueAreasSql.push(
         `INSERT INTO public.venue_areas (id, venue_id, name, area_type, latitude, longitude)
@@ -136,7 +136,7 @@ export function generateAllEnrichmentSql(): {
         !evt.country ||
         evt.country === "Unknown" ||
         resolveCanonicalCountryName(evt.country).toLowerCase() ===
-          resolveCanonicalCountryName(meta.country).toLowerCase();
+        resolveCanonicalCountryName(meta.country).toLowerCase();
 
       if (isMobile || (isCityMatch && isCountryMatch)) {
         venueId = getCanonicalVenueId(meta);

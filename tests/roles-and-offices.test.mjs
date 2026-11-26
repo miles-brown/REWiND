@@ -243,22 +243,23 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.equal(res.data.slug, "benjamin-netanyahu");
   });
 
-  await t.test("generateAllEnrichmentSql preserves existing room coordinates and home base IDs", () => {
+  await t.test("generateAllEnrichmentSql preserves existing room coordinates as pairs and home base IDs", () => {
     const sqls = generateAllEnrichmentSql();
     const venueAreaStatements = sqls.venueAreasSql;
     assert.ok(venueAreaStatements.length > 0, "Expected venue area statements");
 
-    // Room position preservation check
-    const sampleArea = venueAreaStatements.find((s) => s.includes("COALESCE(public.venue_areas.latitude"));
-    assert.ok(sampleArea, "Venue areas upsert must preserve existing room positions using COALESCE");
+    // Room position preservation check (pair-wise coordinate preservation)
+    const sampleArea = venueAreaStatements.find((s) => s.includes("public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL"));
+    assert.ok(sampleArea, "Venue areas upsert must preserve existing room positions as complete pairs");
 
     // Home base place preservation check
     const sampleVenue = sqls.venuesSql.find((s) => s.includes("COALESCE(EXCLUDED.home_base_place_id, public.venues.home_base_place_id)"));
     assert.ok(sampleVenue, "Venues upsert must preserve existing home base places using COALESCE");
   });
 
-  await t.test("PlacesExplorer VenueTargetButton specifies outline-offset-2", () => {
+  await t.test("PlacesExplorer VenueTargetButton specifies accessible focus outline and offset", () => {
     const placesExplorerCode = fs.readFileSync(path.join(process.cwd(), "components/rewind/PlacesExplorer.tsx"), "utf8");
+    assert.match(placesExplorerCode, /focus-visible:outline-sky-600/, "VenueTargetButton must use focus-visible:outline-sky-600 for contrast");
     assert.match(placesExplorerCode, /focus-visible:outline-offset-2/, "VenueTargetButton must use focus-visible:outline-offset-2");
   });
 });
