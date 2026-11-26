@@ -259,7 +259,19 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
 
   await t.test("PlacesExplorer VenueTargetButton specifies accessible focus outline and offset", () => {
     const placesExplorerCode = fs.readFileSync(path.join(process.cwd(), "components/rewind/PlacesExplorer.tsx"), "utf8");
-    assert.match(placesExplorerCode, /focus-visible:outline-sky-600/, "VenueTargetButton must use focus-visible:outline-sky-600 for contrast");
+    assert.match(placesExplorerCode, /focus-visible:outline-\[#38bdf8\]/, "VenueTargetButton must use focus-visible:outline-[#38bdf8] per the focus-visible standard");
     assert.match(placesExplorerCode, /focus-visible:outline-offset-2/, "VenueTargetButton must use focus-visible:outline-offset-2");
+  });
+
+  await t.test("formatStandardPersonName maps King and Queen in comma-form royal names", async () => {
+    const { formatStandardPersonName } = await vite.ssrLoadModule("/lib/rewind/utils.ts");
+    assert.equal(
+      formatStandardPersonName({ displayName: "Louis XIV, King of France", classification: "monarch-royal" }),
+      "King Louis XIV"
+    );
+    assert.equal(
+      formatStandardPersonName({ displayName: "Elizabeth II, Queen of the United Kingdom", classification: "monarch-royal" }),
+      "Queen Elizabeth II"
+    );
   });
 });

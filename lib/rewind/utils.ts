@@ -171,7 +171,7 @@ export function formatStandardPersonName(person: {
   const isRoyal =
     person.classification === "monarch-royal" ||
     ROYAL_TITLE_START_REGEX.test(raw) ||
-    /,\s*(Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i.test(
+    /,\s*(King|Queen|Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i.test(
       raw
     );
 
@@ -183,7 +183,7 @@ export function formatStandardPersonName(person: {
       raw = firstPart;
     } else {
       const titleMatch = secondPart.match(
-        /^(Crown\s+Princess|Crown\s+Prince|Hereditary\s+Grand\s+Duchess|Hereditary\s+Grand\s+Duke|Hereditary\s+Princess|Hereditary\s+Prince|Grand\s+Duchess|Grand\s+Duke|Princess|Prince|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i
+        /^(King|Queen|Crown\s+Princess|Crown\s+Prince|Hereditary\s+Grand\s+Duchess|Hereditary\s+Grand\s+Duke|Hereditary\s+Princess|Hereditary\s+Prince|Grand\s+Duchess|Grand\s+Duke|Princess|Prince|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i
       );
       const title = titleMatch
         ? titleMatch[1].toLowerCase() === "custodian"
