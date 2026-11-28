@@ -14,7 +14,7 @@ import { getPostgresSslConfig } from "../lib/db/client";
 import { people, events, sources } from "../archive/legacy-data/rewind";
 
 async function main() {
-  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+  if (process.env.NODE_ENV === "production") {
     console.error("❌ SEEDING BLOCKED: Seeding legacy prototype records into production environments is strictly prohibited.");
     process.exit(1);
   }

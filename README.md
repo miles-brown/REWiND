@@ -108,7 +108,7 @@ npx tsc --noEmit
 npm run lint
 
 # Run Next.js production build verification
-npm run build:vercel
+npm run build:next
 
 # Run automated unit test suite
 node --test tests/ui-components.test.mjs

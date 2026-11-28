@@ -2,6 +2,8 @@ import { getGeographicHierarchy } from "@/lib/rewind";
 import { PlacesExplorer } from "@/components/rewind/PlacesExplorer";
 import { MapPin } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Documented Geography & Hierarchy — REWIND Evidence Atlas",
   description: "Hierarchical global gazetteer organizing sovereign countries, metropolitan cities, institutional venues, and physical street addresses documented in the REWIND evidence corpus.",

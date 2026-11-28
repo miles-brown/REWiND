@@ -44,8 +44,8 @@ test("validates ai-code-review.yml security and verification gates", () => {
 
   // Check build gate
   assert.ok(
-    content.includes("npm run build:vercel"),
-    "CI must include npm run build:vercel before tests"
+    content.includes("npm run build:next"),
+    "CI must include npm run build:next before tests"
   );
 
   // Check contents read permission

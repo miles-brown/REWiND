@@ -180,7 +180,7 @@ ${changedFiles.map((f) => `- \`${f}\``).join("\n")}
 - [x] **TypeScript Strict Typing**: Clean strong contracts with no \`any\` escape hatches.
 - [x] **WCAG 2.1 AA Accessibility**: Semantic button markers, focus visible outlines, and Radix slider semantics.
 - [x] **Map Resilience & Error Recovery**: Scoped MapLibre initialization, unmount cleanup, and fallback raster tiles.
-- [x] **CI Verification Pipeline**: Mandatory \`npm run build:vercel\` gate and \`persist-credentials: false\` security.
+- [x] **CI Verification Pipeline**: Mandatory \`npm run build:next\` gate and \`persist-credentials: false\` security.
 ${branchIsolationItem}
 
 > [!NOTE]
