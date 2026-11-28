@@ -265,6 +265,19 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.ok(scriptCode.includes('query.is("primary_role", null)'), "Script must handle null condition on primary_role predicate");
     assert.ok(scriptCode.includes('query.is("updated_at", null)'), "Script must handle bounded revision token on update");
     assert.ok(scriptCode.includes("missingIds.length > 0"), "Script must reject verification if expected IDs are missing");
+
+    const migrationPath = path.join(process.cwd(), "supabase/migrations/20260904120000_archive_delegation_placeholder_rpc.sql");
+    const migrationSql = fs.readFileSync(migrationPath, "utf8");
+    assert.ok(
+      migrationSql.includes("REVOKE EXECUTE ON FUNCTION public.archive_delegation_placeholder") &&
+      migrationSql.includes("FROM PUBLIC, anon, authenticated;"),
+      "Migration must revoke EXECUTE from PUBLIC, anon, and authenticated on SECURITY DEFINER RPC"
+    );
+    assert.ok(
+      migrationSql.includes("GRANT EXECUTE ON FUNCTION public.archive_delegation_placeholder") &&
+      migrationSql.includes("TO service_role;"),
+      "Migration must grant EXECUTE exclusively to service_role"
+    );
   });
 
   await t.test("generateAllEnrichmentSql advances updated_at across all people update and upsert statements", () => {

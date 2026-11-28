@@ -47,3 +47,12 @@ BEGIN
   RETURN v_updated > 0;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.archive_delegation_placeholder(
+  TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ
+) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.archive_delegation_placeholder(
+  TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ
+) TO service_role;
+
