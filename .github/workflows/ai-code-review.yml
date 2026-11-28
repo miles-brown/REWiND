@@ -50,7 +50,7 @@ jobs:
         run: npm run test:security
 
       - name: Production Build & Bundle Optimization
-        run: npm run build:vercel
+        run: npm run build:next
 
       - name: Full Automated Test Suite
         run: npm run test:all

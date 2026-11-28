@@ -55,7 +55,7 @@ graph LR
    npm run lint
 
    # 3. Production Build
-   npm run build:vercel
+   npm run build:next
 
    # 4. Automated Tests
    node --test tests/*.test.mjs

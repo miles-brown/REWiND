@@ -39,8 +39,8 @@ npx tsc --noEmit
 # 2. Lint JavaScript / TypeScript / React components
 npm run lint
 
-# 3. Verify Vercel & Next.js production build
-npm run build:vercel
+# 3. Verify Next.js production build
+npm run build:next
 
 # 4. Run test suite
 npm test

@@ -6,7 +6,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      REWIND Web Layer                       │
-│  (Next.js 16 App Router / Turbopack / Vercel Edge Runtime)  │
+│      (Next.js 16 App Router / Turbopack / Node Runtime)     │
 └───────────────┬─────────────────────────────┬───────────────┘
                 │                             │
     ┌───────────▼───────────┐     ┌───────────▼───────────┐
@@ -111,5 +111,5 @@
 ---
 
 ## Build Targets & Deployment
-- **Vercel Edge / Node Runtime**: `npm run build:vercel` (`next build`) runs full static page generation and serverless route bundles.
+- **Next.js Production Runtime**: `npm run build:next` (`next build`) runs full static page generation and serverless route bundles.
 - **Cloudflare / Vinext**: `npm run build` runs bounded static bundle generation with Cloudflare Worker targets.
