@@ -3,7 +3,7 @@ export default function EventsLoading() {
     <div className="page-shell" role="status" aria-busy="true" aria-label="Loading events directory">
       <header className="page-hero">
         <span className="eyebrow">CHRONOLOGY</span>
-        <h1>Historical Events & Diplomatic Summits</h1>
+        <h1>Events</h1>
         <p>Loading verified historical timeline and primary evidence records...</p>
       </header>
 

@@ -99,15 +99,118 @@ export function formatEventLocation(event: { venueName?: string | null; subvenue
   return parts.filter(Boolean).join(", ") || "Recorded Location";
 }
 
+const ROYAL_NAME_OVERRIDES: Record<string, string> = {
+  "charles-iii": "King Charles III",
+  "king-charles-iii": "King Charles III",
+  "david-armstrong-jones-snowdon": "David Armstrong-Jones",
+  "peter-phillips": "Peter Phillips",
+  "zara-tindall": "Zara Tindall",
+  "lady-sarah-chatto": "Lady Sarah Chatto",
+  "lady-louise-windsor": "Lady Louise Windsor",
+  "james-earl-of-wessex": "James Mountbatten-Windsor",
+  "prince-edward-duke-of-kent": "Prince Edward of Kent",
+  "nicholas-medforth-mills": "Nicholas Medforth-Mills",
+  "karl-von-habsburg": "Karl von Habsburg",
+  "georg-von-habsburg": "Georg von Habsburg",
+  "ferdinand-zvonimir-habsburg": "Ferdinand Zvonimir von Habsburg",
+  "archduke-eduard-of-austria": "Archduke Eduard",
+  "archduke-lorenz-of-austria-este": "Archduke Lorenz",
+  "archduke-martin-of-austria-este": "Archduke Martin",
+  "joan-enric-vives-sicilia": "Joan-Enric Vives i Sicília",
+  "margareta-custodian-of-the-crown-romania": "Princess Margareta",
+  "heinrich-donatus-landgrave-of-hesse": "Landgrave Donatus",
+  "bernhard-margrave-of-baden": "Margrave Bernhard",
+  "jean-count-of-paris": "Prince Jean d'Orléans",
+  "philomena-countess-of-paris": "Countess Philomena d'Orléans",
+  "prince-gaston-of-orleans": "Prince Gaston d'Orléans",
+  "louis-alphonse-duke-of-anjou": "Prince Louis Alphonse",
+  "marie-marguerite-duchess-of-anjou": "Duchess Marie-Marguerite",
+  "jean-christophe-prince-napoleon": "Prince Jean-Christophe Napoléon",
+  "olympia-princess-napoleon": "Princess Olympia Napoléon",
+  "franz-duke-of-bavaria": "Duke Franz of Bavaria",
+  "duarte-pio-duke-of-braganza": "Duke Duarte Pio",
+  "isabel-duchess-of-braganza": "Duchess Isabel",
+  "afonso-prince-of-beira": "Prince Afonso",
+  "camilla-duchess-of-castro": "Princess Camilla of Bourbon-Two Sicilies",
+  "carlo-duke-of-castro": "Prince Carlo of Bourbon-Two Sicilies",
+  "pedro-duke-of-calabria": "Prince Pedro of Bourbon-Two Sicilies",
+  "carlos-duke-of-parma": "Prince Carlos of Bourbon-Parma",
+  "aimone-duke-of-aosta": "Prince Aimone of Savoy",
+  "princess-olga-of-savoy-aosta": "Princess Olga of Savoy",
+  "emanuele-filiberto-of-savoy": "Prince Emanuele Filiberto of Savoy",
+  "sophie-princess-of-prussia": "Princess Sophie of Prussia",
+  "sophie-hereditary-princess-liechtenstein": "Hereditary Princess Sophie",
+};
+
+const ROYAL_TITLE_START_REGEX =
+  /^(King|Queen|Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Infanta|Infante|Archduke|Archduchess|Duke|Duchess|Count|Countess|Margrave|Landgrave|Tsar)\b/i;
+
+/**
+ * Formats a person's display name according to the REWiND Universal Naming Standard:
+ * - Standard figures use clean personal + surname ("Benjamin Netanyahu", "David Armstrong-Jones").
+ * - Royal family members ("monarch-royal") use a single uniform "[Primary Title] [Given Name]" format
+ *   without comma-chained subsidiary titles, married styles ("Mrs ..."), or lengthy territorial suffixes,
+ *   preserving fuller titles and styles for their profile page biography and aliases.
+ */
+export function formatStandardPersonName(person: {
+  slug?: string;
+  id?: string;
+  name?: string;
+  displayName?: string;
+  canonicalName?: string;
+  classification?: string;
+}): string {
+  const key = (person.slug || person.id || "").trim();
+  if (key && Object.hasOwn(ROYAL_NAME_OVERRIDES, key)) {
+    return ROYAL_NAME_OVERRIDES[key];
+  }
+
+  let raw = (person.displayName || person.canonicalName || person.name || "").trim();
+  if (!raw) return "";
+
+  const isRoyal =
+    person.classification === "monarch-royal" ||
+    ROYAL_TITLE_START_REGEX.test(raw) ||
+    /,\s*(King|Queen|Crown\s+Prince|Crown\s+Princess|Hereditary\s+Grand\s+Duke|Hereditary\s+Grand\s+Duchess|Hereditary\s+Prince|Hereditary\s+Princess|Grand\s+Duke|Grand\s+Duchess|Prince|Princess|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i.test(
+      raw
+    );
+
+  if (!isRoyal) return raw;
+
+  if (raw.includes(",")) {
+    const [firstPart, secondPart] = raw.split(",").map((s) => s.trim());
+    if (ROYAL_TITLE_START_REGEX.test(firstPart)) {
+      raw = firstPart;
+    } else {
+      const titleMatch = secondPart.match(
+        /^(King|Queen|Crown\s+Princess|Crown\s+Prince|Hereditary\s+Grand\s+Duchess|Hereditary\s+Grand\s+Duke|Hereditary\s+Princess|Hereditary\s+Prince|Grand\s+Duchess|Grand\s+Duke|Princess|Prince|Duchess|Duke|Countess|Count|Margrave|Landgrave|Earl|Custodian)\b/i
+      );
+      const title = titleMatch
+        ? titleMatch[1].toLowerCase() === "custodian"
+          ? "Princess"
+          : titleMatch[1]
+        : "Prince";
+      raw = `${title} ${firstPart}`;
+    }
+  }
+
+  return raw.replace(/\s+of\s+.+$/i, "").trim();
+}
+
 /**
  * Extracts first name, last name, and display name for sorting and display.
  * Handles titular suffixes, commas, and royal honorifics.
+ * For royal family members without a civil family surname, both firstName and lastName
+ * resolve to their personal given name so they sort predictably under their known name.
  */
 export function extractPersonNameParts(person: {
+  slug?: string;
+  id?: string;
   name?: string;
   canonicalName?: string;
   displayName?: string;
   fullBirthName?: string | null;
+  classification?: string;
 }): { firstName: string; lastName: string; displayName: string } {
   const displayName = (person.displayName || person.canonicalName || person.name || "").trim();
 
@@ -122,13 +225,61 @@ export function extractPersonNameParts(person: {
     return { firstName, lastName, displayName };
   }
 
-  const tokens = displayName.split(/\s+/).filter(Boolean);
-  const cleanTokens = tokens.filter(
-    (t) =>
-      !/^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Tsar|Emperor|Empress|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
+  // Strip trailing "of <Territory>" on royal title names (e.g. "Prince Edward of Kent" -> "Prince Edward")
+  const isRoyal = person.classification === "monarch-royal";
+  const hasRoyalTitlePrefix =
+    ROYAL_TITLE_START_REGEX.test(displayName) ||
+    (Boolean(isRoyal) && /^Earl\b/i.test(displayName));
+
+  const baseForTokens = (isRoyal || hasRoyalTitlePrefix)
+    ? displayName.replace(/\s+of\s+.+$/i, "").trim()
+    : displayName;
+
+  const tokens = baseForTokens.split(/\s+/).filter(Boolean);
+
+  // Strip leading honorific/title tokens ONLY from the start of the token array.
+  // When person is not classified as royal, "Earl" is treated as a personal given name (e.g. "Earl Warren"),
+  // and tokens at later positions are preserved (e.g. "Sam Earl" -> lastName: "Earl").
+  let startIndex = 0;
+  while (startIndex < tokens.length - 1) {
+    const t = tokens[startIndex];
+    if (REGNAL_ORDINAL_REGEX.test(t)) {
+      startIndex++;
+      continue;
+    }
+    if (/^Earl$/i.test(t)) {
+      if (isRoyal) {
+        startIndex++;
+        continue;
+      }
+      break;
+    }
+    if (
+      /^(King|Queen|Prince|Princess|Duke|Duchess|Grand|Crown|Hereditary|Tsar|Emperor|Empress|Archduke|Archduchess|Margrave|Landgrave|Count|Countess|Archbishop|Pope|Sir|Lord|Lady|Dame|Infanta|Infante|Rabbi|Father|Pastor|Sheikh|Ayatollah|President|Prime|Minister|Senator|Governor|Ambassador|General|Admiral|Justice|Judge|Secretary|Director|Dr|Dr\.)$/i.test(
         t
-      ) && !REGNAL_ORDINAL_REGEX.test(t)
-  );
+      )
+    ) {
+      startIndex++;
+      continue;
+    }
+    break;
+  }
+
+  // Also strip trailing regnal ordinals from the end of name tokens (e.g. "King Charles III" -> "Charles")
+  let endIndex = tokens.length;
+  while (endIndex > startIndex + 1) {
+    const last = tokens[endIndex - 1];
+    if (REGNAL_ORDINAL_REGEX.test(last)) {
+      endIndex--;
+    } else {
+      break;
+    }
+  }
+
+  // When sorting royals, remove regnal ordinal tokens wherever they occur (e.g. "King Carl XVI Gustaf" -> "Carl Gustaf")
+  const cleanTokens = tokens
+    .slice(startIndex, endIndex)
+    .filter((tok) => !isRoyal || !REGNAL_ORDINAL_REGEX.test(tok));
 
   if (cleanTokens.length === 0) {
     return { firstName: tokens[0] || displayName, lastName: tokens[tokens.length - 1] || displayName, displayName };
@@ -136,6 +287,20 @@ export function extractPersonNameParts(person: {
 
   if (cleanTokens.length === 1) {
     return { firstName: cleanTokens[0], lastName: cleanTokens[0], displayName };
+  }
+
+  // Royals with a title prefix (unless bearing an explicit dynastic or civil surname)
+  // use compound given names ("King Juan Carlos I", "King Carl XVI Gustaf", "Princess Ingrid Alexandra")
+  // and should sort by their given name under both First Name and Last Name sort modes.
+  // Royals without a title prefix (or with civil surnames like Joan-Enric Vives i Sicília, David Armstrong-Jones)
+  // retain their civil surname under Last Name mode.
+  const lastToken = cleanTokens[cleanTokens.length - 1];
+  const hasDynasticSurname = /^(d'Orléans|Napoléon|Windsor|Mountbatten-Windsor|Chatto|Phillips|Tindall|Armstrong-Jones|Habsburg|Medforth-Mills|Sicília)$/i.test(
+    lastToken
+  );
+  if (hasRoyalTitlePrefix && !hasDynasticSurname) {
+    const givenName = cleanTokens.join(" ");
+    return { firstName: givenName, lastName: givenName, displayName };
   }
 
   const firstName = cleanTokens[0];
@@ -209,14 +374,14 @@ export function findTopCoAttendee(
     people = isArg2People
       ? (arg2 as PersonRecord[])
       : isArg3People
-      ? (arg3 as PersonRecord[])
-      : ((arg2 as PersonRecord[]) || []);
+        ? (arg3 as PersonRecord[])
+        : ((arg2 as PersonRecord[]) || []);
 
     events = isArg2People
       ? (arg3 as EventRecord[])
       : isArg3People
-      ? ((arg2 as EventRecord[]) || [])
-      : ((arg3 as EventRecord[]) || (arg2 as EventRecord[]) || []);
+        ? ((arg2 as EventRecord[]) || [])
+        : ((arg3 as EventRecord[]) || (arg2 as EventRecord[]) || []);
   }
 
   if (!target || events.length === 0) {
@@ -271,4 +436,51 @@ export function findTopCoAttendee(
 
   // Graceful fallback: return the next distinct person in the register if no co-attendees exist
   return people.find((p) => p.slug !== targetSlug && p.id !== targetId)?.slug;
+}
+
+/**
+ * Deterministically sanitizes place, city, and country strings into URL-safe canonical slugs.
+ */
+export function sanitizePlaceSlug(str: string): string {
+  return (
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "unknown"
+  );
+}
+
+/**
+ * Deterministically computes the canonical city slug for a given country and city.
+ * Normalizes city aliases (e.g. "Washington", "Washington DC", "Washington, D.C." -> "washington-d-c")
+ * so client filters and server hierarchy nodes produce identical slugs.
+ */
+export function getCanonicalCitySlug(country?: string | null, city?: string | null): string {
+  const rawCountry = (country || "unknown").toLowerCase().trim();
+  const countrySlug = sanitizePlaceSlug(rawCountry);
+  const rawCity = (city || "unknown").toLowerCase().trim();
+  let normalizedCity = rawCity.replace(/,\s*(?:[a-z]{2}|[a-z]+)$/i, "").trim();
+  if (
+    normalizedCity === "washington" ||
+    normalizedCity === "washington dc" ||
+    normalizedCity === "washington, dc" ||
+    normalizedCity === "washington, d.c." ||
+    normalizedCity === "washington d.c." ||
+    normalizedCity === "district of columbia"
+  ) {
+    normalizedCity = "washington-d-c";
+  } else if (normalizedCity === "reykjavík") {
+    normalizedCity = "reykjavik";
+  } else if (normalizedCity === "keflavík") {
+    normalizedCity = "keflavik";
+  } else if (normalizedCity === "lod area") {
+    normalizedCity = "lod";
+  } else if (normalizedCity === "wye") {
+    normalizedCity = "queenstown";
+  } else if (normalizedCity === "nyc" || normalizedCity === "new york") {
+    normalizedCity = "new-york-city";
+  }
+  return `${countrySlug}-${sanitizePlaceSlug(normalizedCity)}`;
 }

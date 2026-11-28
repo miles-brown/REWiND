@@ -21,6 +21,14 @@ import * as schema from "../db/schema";
 import { getPostgresSslConfig } from "../lib/db/client";
 import { normalizePlaceCountry } from "../lib/ingestion/resolve";
 import {
+  GLOBAL_GAZETTEER_METADATA,
+  resolveVenueMetadata,
+  getCanonicalVenueId,
+  isSameCity,
+  resolveCanonicalCountryName,
+} from "../lib/rewind/places";
+import { sanitizePlaceSlug } from "../lib/rewind/utils";
+import {
   masterPeopleSeed,
   officialRolesSeed,
   milestonesSeed,
@@ -38,10 +46,10 @@ import { events as legacyEvents, sources as legacySources } from "../archive/leg
 if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === "function") {
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile(".env.local");
-  } catch {}
+  } catch { }
   try {
     (process as unknown as { loadEnvFile: (path?: string) => void }).loadEnvFile();
-  } catch {}
+  } catch { }
 }
 
 const isDryRun = process.argv.includes("--dry-run");
@@ -62,11 +70,11 @@ console.log("===================================================================
 
 const client = connectionString
   ? postgres(connectionString, {
-      max: 10,
-      idle_timeout: 60,
-      connect_timeout: 30,
-      ssl: getPostgresSslConfig(isLocal),
-    })
+    max: 10,
+    idle_timeout: 60,
+    connect_timeout: 30,
+    ssl: getPostgresSslConfig(isLocal),
+  })
   : null;
 
 const db = client ? drizzle(client, { schema }) : null;
@@ -316,7 +324,7 @@ async function syncCorpus() {
   // 2. Canonical People Catalog
   // ---------------------------------------------------------
   console.log(`\n👤 2. Synchronizing ${masterPeopleSeed.length} Canonical Public Figures...`);
-  
+
   // Load existing people to match by ID or slug to avoid duplicate key violations
   const existingDbPeople = await db.select().from(schema.people);
   const existingPersonBySlug = new Map(existingDbPeople.map((p) => [p.slug, p]));
@@ -556,7 +564,8 @@ async function syncCorpus() {
 
   for (const e of allRawEvents) {
     const city = (e.city || "Unknown").trim();
-    const venue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || city).trim();
+    const rawVenue = ((e as { venueName?: string }).venueName || (e as { venue?: string }).venue || "").trim();
+    const venue = rawVenue || city;
     const country = normalizePlaceCountry(e.country);
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
@@ -576,6 +585,20 @@ async function syncCorpus() {
   }
 
   const placeList = Array.from(placesMap.values());
+  // Ensure prerequisite maintenance/home bases exist in places
+  if (!placesMap.has("plc-wolverton-works")) {
+    placeList.push({
+      id: "plc-wolverton-works",
+      slug: "wolverton-works",
+      venue: "Wolverton Works",
+      city: "Milton Keynes",
+      country: "United Kingdom",
+      latitude: 52.0622,
+      longitude: -0.8142,
+      placeType: "maintenance-depot",
+    });
+  }
+
   for (let i = 0; i < placeList.length; i += 50) {
     const chunk = placeList.slice(i, i + 50);
     await db
@@ -593,7 +616,156 @@ async function syncCorpus() {
         },
       });
   }
-  console.log(`✅ ${placesMap.size} Places synchronized.`);
+  console.log(`✅ ${placeList.length} Places synchronized.`);
+
+  // Synchronize Canonical Venues, Addresses, and Venue Areas from GLOBAL_GAZETTEER_METADATA
+  console.log("   Synchronizing Canonical Addresses & Venues Gazetteer Hierarchy...");
+  const existingPlaces = await db
+    .select({ id: schema.places.id, slug: schema.places.slug })
+    .from(schema.places);
+  const existingPlacesMap = new Map<string, string>();
+  for (const p of existingPlaces) {
+    existingPlacesMap.set(p.id, p.id);
+    if (p.slug) existingPlacesMap.set(p.slug, p.id);
+  }
+
+  const uniqueVenues = new Map<string, typeof GLOBAL_GAZETTEER_METADATA[string]>();
+  for (const [, meta] of Object.entries(GLOBAL_GAZETTEER_METADATA)) {
+    if (!uniqueVenues.has(meta.canonicalVenue)) {
+      uniqueVenues.set(meta.canonicalVenue, meta);
+    }
+  }
+
+  const addressesToInsert = [];
+  const venuesToInsert = [];
+  const venueAreasToInsert = [];
+
+  for (const [, meta] of uniqueVenues) {
+    const venueId = getCanonicalVenueId(meta);
+
+    let addressId: string | null = null;
+    if (!meta.isMobileVessel) {
+      const venueSlug = sanitizePlaceSlug(meta.canonicalVenue);
+      const citySlug = sanitizePlaceSlug(meta.city);
+      const countrySlug = sanitizePlaceSlug(meta.country);
+      addressId = `addr-${countrySlug}-${citySlug}-${venueSlug}`;
+      const formatted = `${meta.streetAddress ? meta.streetAddress + ", " : ""}${meta.city}, ${meta.country}`;
+      addressesToInsert.push({
+        id: addressId,
+        countryCode: meta.countryCode,
+        buildingName: meta.canonicalVenue,
+        streetName: meta.streetAddress || null,
+        district: meta.district || null,
+        city: meta.city,
+        formattedLocal: formatted,
+        formattedEnglish: formatted,
+        latitude: meta.latitude,
+        longitude: meta.longitude,
+      });
+    }
+
+    let resolvedHomeBaseId: string | null = null;
+    if (meta.homeBasePlaceId) {
+      const rawHomeBase = meta.homeBasePlaceId;
+      const cleanSlug = rawHomeBase.replace(/^plc-/, "");
+      const matchedPlace = placeList.find(
+        (p) => p.id === rawHomeBase || p.slug === cleanSlug || p.slug === rawHomeBase
+      );
+      resolvedHomeBaseId = matchedPlace
+        ? matchedPlace.id
+        : (existingPlacesMap.get(rawHomeBase) || existingPlacesMap.get(cleanSlug) || null);
+    }
+
+    venuesToInsert.push({
+      id: venueId,
+      name: meta.canonicalVenue,
+      addressId,
+      isMobileVessel: Boolean(meta.isMobileVessel),
+      homeBasePlaceId: resolvedHomeBaseId,
+      vesselType: meta.vesselType || null,
+      latitude: meta.isMobileVessel ? null : meta.latitude,
+      longitude: meta.isMobileVessel ? null : meta.longitude,
+    });
+
+    for (const area of meta.venueAreas || []) {
+      const explicitLat = (area as { latitude?: number | null }).latitude ?? null;
+      const explicitLng = (area as { longitude?: number | null }).longitude ?? null;
+      const hasSpecificCoords = explicitLat != null && explicitLng != null;
+      venueAreasToInsert.push({
+        id: area.id,
+        venueId,
+        name: area.name,
+        areaType: area.areaType,
+        latitude: meta.isMobileVessel ? null : (hasSpecificCoords ? explicitLat : meta.latitude),
+        longitude: meta.isMobileVessel ? null : (hasSpecificCoords ? explicitLng : meta.longitude),
+      });
+    }
+  }
+
+  for (let i = 0; i < addressesToInsert.length; i += 50) {
+    await db
+      .insert(schema.addresses)
+      .values(addressesToInsert.slice(i, i + 50))
+      .onConflictDoUpdate({
+        target: schema.addresses.id,
+        set: {
+          countryCode: sql`excluded.country_code`,
+          buildingName: sql`excluded.building_name`,
+          streetName: sql`excluded.street_name`,
+          district: sql`excluded.district`,
+          city: sql`excluded.city`,
+          formattedLocal: sql`excluded.formatted_local`,
+          formattedEnglish: sql`excluded.formatted_english`,
+          latitude: sql`excluded.latitude`,
+          longitude: sql`excluded.longitude`,
+        },
+      });
+  }
+  console.log(`   ✅ ${addressesToInsert.length} Physical Addresses synchronized.`);
+
+  for (let i = 0; i < venuesToInsert.length; i += 50) {
+    await db
+      .insert(schema.venues)
+      .values(venuesToInsert.slice(i, i + 50))
+      .onConflictDoUpdate({
+        target: schema.venues.id,
+        set: {
+          name: sql`excluded.name`,
+          addressId: sql`excluded.address_id`,
+          isMobileVessel: sql`excluded.is_mobile_vessel`,
+          homeBasePlaceId: sql`COALESCE(excluded.home_base_place_id, public.venues.home_base_place_id)`,
+          vesselType: sql`excluded.vessel_type`,
+          latitude: sql`excluded.latitude`,
+          longitude: sql`excluded.longitude`,
+        },
+      });
+  }
+  console.log(`   ✅ ${venuesToInsert.length} Canonical Venues synchronized.`);
+
+  for (let i = 0; i < venueAreasToInsert.length; i += 50) {
+    await db
+      .insert(schema.venueAreas)
+      .values(venueAreasToInsert.slice(i, i + 50))
+      .onConflictDoUpdate({
+        target: schema.venueAreas.id,
+        set: {
+          venueId: sql`excluded.venue_id`,
+          name: sql`excluded.name`,
+          areaType: sql`excluded.area_type`,
+          latitude: sql`CASE
+            WHEN excluded.latitude IS NULL OR excluded.longitude IS NULL THEN NULL
+            WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.latitude
+            ELSE excluded.latitude
+          END`,
+          longitude: sql`CASE
+            WHEN excluded.latitude IS NULL OR excluded.longitude IS NULL THEN NULL
+            WHEN public.venue_areas.latitude IS NOT NULL AND public.venue_areas.longitude IS NOT NULL THEN public.venue_areas.longitude
+            ELSE excluded.longitude
+          END`,
+        },
+      });
+  }
+  console.log(`   ✅ ${venueAreasToInsert.length} Venue Areas synchronized.`);
 
   // ---------------------------------------------------------
   // 5. Historical Events Corpus
@@ -601,9 +773,34 @@ async function syncCorpus() {
   console.log(`\n🗓️ 5. Synchronizing Historical Events Corpus (${eventsCorpus.length} Events)...`);
   for (const evt of eventsCorpus) {
     const city = (evt.city || "Unknown").trim();
-    const venue = (evt.venueName || city).trim();
+    const rawVenue = (evt.venueName || "").trim();
+    const venue = rawVenue || city;
     const placeSlug = `${city.toLowerCase().replace(/\s+/g, "-")}-${venue.toLowerCase().replace(/[^\w]/g, "-").slice(0, 25)}`;
     const placeId = `plc-${placeSlug}`;
+
+    // Only resolve physical venue metadata when explicit venueName evidence exists; do not infer physical venues from city alone
+    const venueMeta = rawVenue ? resolveVenueMetadata(rawVenue) : null;
+    let venueId: string | null = null;
+    let addressId: string | null = null;
+    if (venueMeta) {
+      const isMobile = Boolean(venueMeta.isMobileVessel);
+      const isCityMatch = !evt.city || evt.city === "Unknown" || isSameCity(city, venueMeta.city);
+      const isCountryMatch =
+        !evt.country ||
+        evt.country === "Unknown" ||
+        resolveCanonicalCountryName(evt.country).toLowerCase() ===
+        resolveCanonicalCountryName(venueMeta.country).toLowerCase();
+
+      if (isMobile || (isCityMatch && isCountryMatch)) {
+        venueId = getCanonicalVenueId(venueMeta);
+        if (!venueMeta.isMobileVessel) {
+          const vSlug = sanitizePlaceSlug(venueMeta.canonicalVenue);
+          const cSlug = sanitizePlaceSlug(venueMeta.city);
+          const coSlug = sanitizePlaceSlug(venueMeta.country);
+          addressId = `addr-${coSlug}-${cSlug}-${vSlug}`;
+        }
+      }
+    }
 
     const eventValues = {
       id: evt.id,
@@ -651,6 +848,8 @@ async function syncCorpus() {
       journeyLegs: evt.journeyLegs || null,
 
       placeId,
+      venueId,
+      addressId,
       subvenue: evt.subvenue || null,
       verificationStatus: evt.verificationStatus || "verified",
       confidenceScore: evt.confidenceScore ?? (evt.confidence === "confirmed" ? 1.0 : (evt.confidence === "strong" ? 0.85 : 0.7)),
@@ -660,6 +859,18 @@ async function syncCorpus() {
       updatedAt: new Date(),
     };
 
+    const updateSet: Record<string, unknown> = {
+      ...eventValues,
+    };
+    if (!venueId) {
+      // Failed or mismatched corpus venue lookup: preserve existing verified links instead of overwriting with null
+      delete updateSet.venueId;
+      delete updateSet.addressId;
+    } else if (venueMeta?.isMobileVessel) {
+      // Matched mobile vessel: intentionally clear addressId
+      updateSet.addressId = null;
+    }
+
     // Execute in a transaction so deferred trigger trg_verify_published_event_sources passes upon commit
     await db.transaction(async (tx) => {
       await tx
@@ -667,7 +878,7 @@ async function syncCorpus() {
         .values(eventValues)
         .onConflictDoUpdate({
           target: schema.events.id,
-          set: eventValues,
+          set: updateSet,
         });
 
       // Reconcile and synchronize event sources (event_sources)
@@ -707,41 +918,41 @@ async function syncCorpus() {
           prominence: part.prominence || (part.isCentralFigure ? "central" : "participant"),
           remoteLocation: part.remoteLocation
             ? (() => {
-                const vis = part.remoteLocation.publicVisibility;
-                const isRestricted =
-                  vis === "restricted" || vis === "internal" || vis === "private";
-                const allowExact = vis === "public-exact";
-                return {
-                  ...(isRestricted
-                    ? {}
-                    : {
-                        ...(part.remoteLocation.venueName
-                          ? { venueName: part.remoteLocation.venueName }
-                          : {}),
-                        ...(part.remoteLocation.city
-                          ? { city: part.remoteLocation.city }
-                          : {}),
-                        ...(part.remoteLocation.country
-                          ? { country: part.remoteLocation.country }
-                          : {}),
-                        ...(part.remoteLocation.label
-                          ? { label: part.remoteLocation.label }
-                          : {}),
-                        ...(part.remoteLocation.overlayText
-                          ? { overlayText: part.remoteLocation.overlayText }
-                          : {}),
-                        ...(part.remoteLocation.visibleLocationNotes
-                          ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
-                          : {}),
-                      }),
-                  ...(part.remoteLocation.connectionType
-                    ? { connectionType: part.remoteLocation.connectionType }
-                    : {}),
-                  ...(vis ? { publicVisibility: vis } : {}),
-                  latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
-                  longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
-                };
-              })()
+              const vis = part.remoteLocation.publicVisibility;
+              const isRestricted =
+                vis === "restricted" || vis === "internal" || vis === "private";
+              const allowExact = vis === "public-exact";
+              return {
+                ...(isRestricted
+                  ? {}
+                  : {
+                    ...(part.remoteLocation.venueName
+                      ? { venueName: part.remoteLocation.venueName }
+                      : {}),
+                    ...(part.remoteLocation.city
+                      ? { city: part.remoteLocation.city }
+                      : {}),
+                    ...(part.remoteLocation.country
+                      ? { country: part.remoteLocation.country }
+                      : {}),
+                    ...(part.remoteLocation.label
+                      ? { label: part.remoteLocation.label }
+                      : {}),
+                    ...(part.remoteLocation.overlayText
+                      ? { overlayText: part.remoteLocation.overlayText }
+                      : {}),
+                    ...(part.remoteLocation.visibleLocationNotes
+                      ? { visibleLocationNotes: part.remoteLocation.visibleLocationNotes }
+                      : {}),
+                  }),
+                ...(part.remoteLocation.connectionType
+                  ? { connectionType: part.remoteLocation.connectionType }
+                  : {}),
+                ...(vis ? { publicVisibility: vis } : {}),
+                latitude: allowExact ? (part.remoteLocation.latitude ?? null) : null,
+                longitude: allowExact ? (part.remoteLocation.longitude ?? null) : null,
+              };
+            })()
             : null,
         };
 

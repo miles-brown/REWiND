@@ -25,8 +25,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "jean-count-of-paris",
     slug: "jean-count-of-paris",
-    canonicalName: "Jean, Count of Paris",
-    displayName: "Prince Jean, Count of Paris",
+    canonicalName: "Prince Jean d'Orléans",
+    displayName: "Prince Jean d'Orléans",
     nativeName: "Jean Charles Pierre Marie d'Orléans",
     fullBirthName: "Jean Charles Pierre Marie d'Orléans",
     birthDate: "1965-05-19",
@@ -56,12 +56,12 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034400",
     avatarUrl: "/avatars/jean-count-of-paris.jpg",
     summary: "Jean, Count of Paris is the head of the House of Orléans and the Orléanist claimant to the French throne since 2019.",
-    aliases: ["Count of Paris", "Prince Jean d'Orléans", "Duke of Vendôme", "Jean IV of France"]
+    aliases: ["Prince Jean, Count of Paris", "Jean, Count of Paris", "Count of Paris", "Prince Jean d'Orléans", "Duke of Vendôme", "Jean IV of France"]
   },
   {
     id: "jean-christophe-prince-napoleon",
     slug: "jean-christophe-prince-napoleon",
-    canonicalName: "Jean-Christophe, Prince Napoléon",
+    canonicalName: "Prince Jean-Christophe Napoléon",
     displayName: "Prince Jean-Christophe Napoléon",
     nativeName: "Jean-Christophe Louis Ferdinand Albéric Napoléon",
     fullBirthName: "Jean-Christophe Louis Ferdinand Albéric Napoléon Bonaparte",
@@ -91,13 +91,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034405",
     avatarUrl: "/avatars/jean-christophe-napoleon.jpg",
     summary: "Jean-Christophe, Prince Napoléon is the head of the Imperial House of France and the disputed pretender to the imperial throne of France as Napoléon VII.",
-    aliases: ["Prince Napoléon", "Jean-Christophe Napoléon", "Napoléon VII"]
+    aliases: ["Jean-Christophe, Prince Napoléon", "Prince Napoléon", "Jean-Christophe Napoléon", "Napoléon VII"]
   },
   {
     id: "louis-alphonse-duke-of-anjou",
     slug: "louis-alphonse-duke-of-anjou",
-    canonicalName: "Louis Alphonse, Duke of Anjou",
-    displayName: "Prince Louis Alphonse, Duke of Anjou",
+    canonicalName: "Prince Louis Alphonse",
+    displayName: "Prince Louis Alphonse",
     nativeName: "Luis Alfonso Gonzalo Víctor Manuel Marco de Borbón y Martínez-Bordiú",
     fullBirthName: "Luis Alfonso de Borbón y Martínez-Bordiú",
     birthDate: "1974-04-25",
@@ -126,7 +126,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034410",
     avatarUrl: "/avatars/louis-alphonse-anjou.jpg",
     summary: "Louis Alphonse de Bourbon, Duke of Anjou is the senior legitimate male-line descendant of the French royal Capetian dynasty and the Legitimist claimant to the throne of France.",
-    aliases: ["Duke of Anjou", "Louis XX", "Luis Alfonso de Borbón"]
+    aliases: ["Prince Louis Alphonse, Duke of Anjou", "Louis Alphonse, Duke of Anjou", "Duke of Anjou", "Louis XX", "Luis Alfonso de Borbón"]
   },
 
   // =========================================================================
@@ -135,8 +135,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "georg-friedrich-prince-of-prussia",
     slug: "georg-friedrich-prince-of-prussia",
-    canonicalName: "Georg Friedrich, Prince of Prussia",
-    displayName: "Prince Georg Friedrich of Prussia",
+    canonicalName: "Prince Georg Friedrich",
+    displayName: "Prince Georg Friedrich",
     nativeName: "Georg Friedrich Ferdinand Prinz von Preußen",
     fullBirthName: "Georg Friedrich Ferdinand Prinz von Preußen",
     birthDate: "1976-06-10",
@@ -165,13 +165,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034420",
     avatarUrl: "/avatars/georg-friedrich-prussia.jpg",
     summary: "Georg Friedrich, Prince of Prussia is the head of the House of Hohenzollern, the former ruling dynasty of the German Empire and Kingdom of Prussia.",
-    aliases: ["Prince of Prussia", "Georg Friedrich von Preußen", "Head of House of Hohenzollern"]
+    aliases: ["Prince Georg Friedrich of Prussia", "Georg Friedrich, Prince of Prussia", "Prince of Prussia", "Georg Friedrich von Preußen", "Head of House of Hohenzollern"]
   },
   {
     id: "franz-duke-of-bavaria",
     slug: "franz-duke-of-bavaria",
-    canonicalName: "Franz, Duke of Bavaria",
-    displayName: "Franz, Duke of Bavaria",
+    canonicalName: "Duke Franz of Bavaria",
+    displayName: "Duke Franz of Bavaria",
     nativeName: "Franz Bonaventura Adalbert Maria Herzog von Bayern",
     fullBirthName: "Franz Bonaventura Adalbert Maria von Wittelsbach",
     birthDate: "1933-07-14",
@@ -200,13 +200,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034425",
     avatarUrl: "/avatars/franz-duke-of-bavaria.jpg",
     summary: "Franz, Duke of Bavaria is head of the House of Wittelsbach, the former ruling family of the Kingdom of Bavaria. He is also the heir-general of the House of Stuart (Jacobite succession).",
-    aliases: ["Duke of Bavaria", "Franz von Bayern", "Head of House of Wittelsbach"]
+    aliases: ["Franz, Duke of Bavaria", "Duke of Bavaria", "Franz von Bayern", "Head of House of Wittelsbach"]
   },
   {
     id: "ernst-august-prince-of-hanover",
     slug: "ernst-august-prince-of-hanover",
-    canonicalName: "Ernst August, Prince of Hanover",
-    displayName: "Prince Ernst August of Hanover",
+    canonicalName: "Prince Ernst August",
+    displayName: "Prince Ernst August",
     nativeName: "Ernst August Albert Paul Otto Rupprecht Oskar Berthold Friedrich-Ferdinand Christian-Ludwig",
     fullBirthName: "Ernst August Prinz von Hannover",
     birthDate: "1954-02-26",
@@ -235,7 +235,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034430",
     avatarUrl: "/avatars/ernst-august-hanover.jpg",
     summary: "Ernst August, Prince of Hanover is the head of the royal House of Hanover and Duke of Brunswick and Lüneburg.",
-    aliases: ["Prince of Hanover", "Duke of Brunswick-Lüneburg", "Ernst August von Hannover"]
+    aliases: ["Prince Ernst August of Hanover", "Ernst August, Prince of Hanover", "Prince of Hanover", "Duke of Brunswick-Lüneburg", "Ernst August von Hannover"]
   },
 
   // =========================================================================
@@ -244,8 +244,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "aimone-duke-of-aosta",
     slug: "aimone-duke-of-aosta",
-    canonicalName: "Prince Aimone of Savoy, Duke of Aosta",
-    displayName: "Prince Aimone, Duke of Aosta",
+    canonicalName: "Prince Aimone of Savoy",
+    displayName: "Prince Aimone of Savoy",
     nativeName: "Aimone Umberto Emanuele Filiberto Luigi Amedeo Elena Maria Fiorenzo di Savoia",
     fullBirthName: "Aimone di Savoia-Aosta",
     birthDate: "1967-10-13",
@@ -274,12 +274,12 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034440",
     avatarUrl: "/avatars/aimone-duke-of-aosta.jpg",
     summary: "Prince Aimone of Savoy, Duke of Aosta, Duke of Savoy is an Italian businessman and claimant to the headship of the House of Savoy.",
-    aliases: ["Duke of Aosta", "Duke of Savoy", "Aimone di Savoia"]
+    aliases: ["Prince Aimone, Duke of Aosta", "Prince Aimone of Savoy, Duke of Aosta", "Duke of Aosta", "Duke of Savoy", "Aimone di Savoia"]
   },
   {
     id: "emanuele-filiberto-of-savoy",
     slug: "emanuele-filiberto-of-savoy",
-    canonicalName: "Emanuele Filiberto of Savoy",
+    canonicalName: "Prince Emanuele Filiberto of Savoy",
     displayName: "Prince Emanuele Filiberto of Savoy",
     nativeName: "Emanuele Filiberto Umberto Reza Ciro René Maria di Savoia",
     fullBirthName: "Emanuele Filiberto di Savoia",
@@ -309,13 +309,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034445",
     avatarUrl: "/avatars/emanuele-filiberto.jpg",
     summary: "Emanuele Filiberto of Savoy, Prince of Venice is an Italian television personality and member of the House of Savoy.",
-    aliases: ["Prince of Venice", "Emanuele Filiberto di Savoia"]
+    aliases: ["Emanuele Filiberto of Savoy", "Prince of Venice", "Emanuele Filiberto di Savoia"]
   },
   {
     id: "pedro-duke-of-calabria",
     slug: "pedro-duke-of-calabria",
-    canonicalName: "Prince Pedro, Duke of Calabria",
-    displayName: "Prince Pedro, Duke of Calabria",
+    canonicalName: "Prince Pedro of Bourbon-Two Sicilies",
+    displayName: "Prince Pedro of Bourbon-Two Sicilies",
     nativeName: "Pedro Juan María Alejo Saturnino de Todos los Santos de Borbón-Dos Sicilias y Orleáns",
     fullBirthName: "Pedro de Borbón-Dos Sicilias y Orleáns",
     birthDate: "1968-10-16",
@@ -344,7 +344,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034450",
     avatarUrl: "/avatars/pedro-duke-of-calabria.jpg",
     summary: "Prince Pedro, Duke of Calabria is head of the House of Bourbon-Two Sicilies and Grand Master of the Sacred Military Constantinian Order of Saint George.",
-    aliases: ["Duke of Calabria", "Pedro de Borbón-Dos Sicilias", "Head of the House of the Two Sicilies"]
+    aliases: ["Prince Pedro, Duke of Calabria", "Duke of Calabria", "Pedro de Borbón-Dos Sicilias", "Head of the House of the Two Sicilies"]
   },
 
   // =========================================================================
@@ -354,7 +354,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     id: "karl-von-habsburg",
     slug: "karl-von-habsburg",
     canonicalName: "Karl von Habsburg",
-    displayName: "Archduke Karl von Habsburg",
+    displayName: "Karl von Habsburg",
     nativeName: "Karl Thomas Robert Maria Franziskus Georg Bahnam von Habsburg-Lothringen",
     fullBirthName: "Karl von Habsburg-Lothringen",
     birthDate: "1961-01-11",
@@ -388,13 +388,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034460",
     avatarUrl: "/avatars/karl-von-habsburg.jpg",
     summary: "Karl von Habsburg is the head of the House of Habsburg-Lorraine, the former ruling dynasty of the Austro-Hungarian Empire. He served as a Member of the European Parliament from 1996 to 1999.",
-    aliases: ["Archduke Karl of Austria", "Karl von Habsburg-Lothringen", "Head of the House of Habsburg"]
+    aliases: ["Archduke Karl von Habsburg", "Archduke Karl of Austria", "Karl von Habsburg-Lothringen", "Head of the House of Habsburg"]
   },
   {
     id: "georg-von-habsburg",
     slug: "georg-von-habsburg",
     canonicalName: "Georg von Habsburg",
-    displayName: "Archduke Georg von Habsburg",
+    displayName: "Georg von Habsburg",
     nativeName: "Paul Georg Maria Joseph Dominikus von Habsburg-Lothringen",
     fullBirthName: "Georg von Habsburg-Lothringen",
     birthDate: "1964-12-16",
@@ -423,13 +423,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034465",
     avatarUrl: "/avatars/georg-von-habsburg.jpg",
     summary: "Georg von Habsburg is an Austrian-Hungarian diplomat, currently serving as the Ambassador of Hungary to France and to Monaco. He is the younger son of Otto von Habsburg.",
-    aliases: ["Archduke Georg of Austria", "Habsburg György", "Ambassador Georg von Habsburg"]
+    aliases: ["Archduke Georg von Habsburg", "Archduke Georg of Austria", "Habsburg György", "Ambassador Georg von Habsburg"]
   },
   {
     id: "ferdinand-zvonimir-habsburg",
     slug: "ferdinand-zvonimir-habsburg",
-    canonicalName: "Ferdinand Zvonimir Habsburg-Lothringen",
-    displayName: "Archduke Ferdinand Zvonimir of Austria",
+    canonicalName: "Ferdinand Zvonimir von Habsburg",
+    displayName: "Ferdinand Zvonimir von Habsburg",
     nativeName: "Ferdinand Zvonimir Maria Balthus Soranza Peter Martin Luigi Philipp Tadeus von Habsburg-Lothringen",
     fullBirthName: "Ferdinand Zvonimir von Habsburg-Lothringen",
     birthDate: "1997-06-21",
@@ -458,7 +458,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034470",
     avatarUrl: "/avatars/ferdinand-habsburg.jpg",
     summary: "Ferdinand Zvonimir Habsburg-Lothringen is an Austrian motor racing driver and the heir apparent to the headship of the House of Habsburg-Lorraine as the son of Karl von Habsburg.",
-    aliases: ["Ferdinand Habsburg", "Archduke Ferdinand of Austria"]
+    aliases: ["Archduke Ferdinand Zvonimir of Austria", "Ferdinand Zvonimir Habsburg-Lothringen", "Ferdinand Habsburg", "Archduke Ferdinand of Austria"]
   },
 
   // =========================================================================
@@ -467,8 +467,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "maria-vladimirovna-russia",
     slug: "maria-vladimirovna-russia",
-    canonicalName: "Grand Duchess Maria Vladimirovna of Russia",
-    displayName: "Grand Duchess Maria Vladimirovna of Russia",
+    canonicalName: "Grand Duchess Maria Vladimirovna",
+    displayName: "Grand Duchess Maria Vladimirovna",
     nativeName: "Mariya Vladimirovna Romanova",
     fullBirthName: "Maria Vladimirovna Romanova",
     birthDate: "1953-12-23",
@@ -497,13 +497,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034480",
     avatarUrl: "/avatars/maria-vladimirovna.jpg",
     summary: "Grand Duchess Maria Vladimirovna of Russia is a claimant to the headship of the Imperial House of Romanov as de jure Empress of Russia since 1992.",
-    aliases: ["Grand Duchess Maria", "Maria I of Russia", "Mariya Vladimirovna Romanova"]
+    aliases: ["Grand Duchess Maria Vladimirovna of Russia", "Grand Duchess Maria", "Maria I of Russia", "Mariya Vladimirovna Romanova"]
   },
   {
     id: "george-mikhailovich-russia",
     slug: "george-mikhailovich-russia",
-    canonicalName: "Grand Duke George Mikhailovich of Russia",
-    displayName: "Grand Duke George Mikhailovich of Russia",
+    canonicalName: "Grand Duke George Mikhailovich",
+    displayName: "Grand Duke George Mikhailovich",
     nativeName: "Georgiy Mikhailovich Romanov",
     fullBirthName: "George Mikhailovich of Prussia and Russia",
     birthDate: "1981-03-13",
@@ -535,7 +535,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034485",
     avatarUrl: "/avatars/george-mikhailovich.jpg",
     summary: "Grand Duke George Mikhailovich of Russia is the heir apparent to Grand Duchess Maria Vladimirovna, claimant to the Russian Imperial throne.",
-    aliases: ["Grand Duke George", "Prince of Prussia", "Georgiy Mikhailovich Romanov"]
+    aliases: ["Grand Duke George Mikhailovich of Russia", "Grand Duke George", "Prince of Prussia", "Georgiy Mikhailovich Romanov"]
   },
 
   // =========================================================================
@@ -544,8 +544,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "pavlos-crown-prince-greece",
     slug: "pavlos-crown-prince-greece",
-    canonicalName: "Pavlos, Crown Prince of Greece",
-    displayName: "Crown Prince Pavlos of Greece",
+    canonicalName: "Crown Prince Pavlos",
+    displayName: "Crown Prince Pavlos",
     nativeName: "Pávlos tis Elládas",
     fullBirthName: "Pavlos of Schleswig-Holstein-Sonderburg-Glücksburg",
     birthDate: "1967-05-20",
@@ -574,13 +574,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034490",
     avatarUrl: "/avatars/crown-prince-pavlos.jpg",
     summary: "Pavlos, Crown Prince of Greece, Prince of Denmark is the current head of the former royal family of Greece as the eldest son of King Constantine II and Queen Anne-Marie.",
-    aliases: ["Crown Prince Pavlos", "Prince Paul of Greece", "Pavlos of Greece"]
+    aliases: ["Crown Prince Pavlos of Greece", "Pavlos, Crown Prince of Greece", "Crown Prince Pavlos", "Prince Paul of Greece", "Pavlos of Greece"]
   },
   {
     id: "anne-marie-queen-of-greece",
     slug: "anne-marie-queen-of-greece",
-    canonicalName: "Queen Anne-Marie of Greece",
-    displayName: "Queen Anne-Marie of Greece",
+    canonicalName: "Queen Anne-Marie",
+    displayName: "Queen Anne-Marie",
     nativeName: "Anne-Marie Dagmar Ingrid",
     fullBirthName: "Anne-Marie Dagmar Ingrid of Denmark / Glücksburg",
     birthDate: "1946-08-30",
@@ -609,7 +609,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034495",
     avatarUrl: "/avatars/queen-anne-marie.jpg",
     summary: "Anne-Marie of Denmark is the widow of King Constantine II of Greece, who reigned as the last King of the Hellenes from 1964 to 1973.",
-    aliases: ["Queen Anne-Marie", "Princess Anne-Marie of Denmark"]
+    aliases: ["Queen Anne-Marie of Greece", "Queen Anne-Marie", "Princess Anne-Marie of Denmark"]
   },
 
   // =========================================================================
@@ -618,8 +618,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "duarte-pio-duke-of-braganza",
     slug: "duarte-pio-duke-of-braganza",
-    canonicalName: "Duarte Pio, Duke of Braganza",
-    displayName: "Duarte Pio, Duke of Braganza",
+    canonicalName: "Duke Duarte Pio",
+    displayName: "Duke Duarte Pio",
     nativeName: "Duarte Pio João Miguel Gabriel Rafael de Bragança",
     fullBirthName: "Duarte Pio de Bragança",
     birthDate: "1945-05-15",
@@ -651,7 +651,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034500",
     avatarUrl: "/avatars/duarte-pio-braganza.jpg",
     summary: "Duarte Pio, Duke of Braganza is the claimant to the defunct Portuguese throne as the head of the House of Braganza.",
-    aliases: ["Duke of Braganza", "Duarte Pio de Bragança", "Duarte III of Portugal"]
+    aliases: ["Duarte Pio, Duke of Braganza", "Duke of Braganza", "Duarte Pio de Bragança", "Duarte III of Portugal"]
   },
 
   // =========================================================================
@@ -660,8 +660,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "bertrand-prince-of-brazil",
     slug: "bertrand-prince-of-brazil",
-    canonicalName: "Bertrand, Prince of Brazil",
-    displayName: "Prince Bertrand of Brazil",
+    canonicalName: "Prince Bertrand",
+    displayName: "Prince Bertrand",
     nativeName: "Bertrand Maria José Pio Januário Miguel Gabriel Rafael Gonzaga de Orléans e Bragança",
     fullBirthName: "Bertrand de Orléans e Bragança",
     birthDate: "1941-02-02",
@@ -690,7 +690,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034510",
     avatarUrl: "/avatars/bertrand-prince-of-brazil.jpg",
     summary: "Bertrand of Orléans-Braganza is the head of the Vassouras branch of the House of Orléans-Braganza and claimant to the Brazilian imperial throne as Bertrand I.",
-    aliases: ["Prince Bertrand of Brazil", "Dom Bertrand", "Bertrand I of Brazil"]
+    aliases: ["Bertrand, Prince of Brazil", "Prince Bertrand of Brazil", "Dom Bertrand", "Bertrand I of Brazil"]
   },
 
   // =========================================================================
@@ -699,8 +699,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "margareta-custodian-of-the-crown-romania",
     slug: "margareta-custodian-of-the-crown-romania",
-    canonicalName: "Margareta, Custodian of the Crown of Romania",
-    displayName: "Margareta, Custodian of the Crown of Romania",
+    canonicalName: "Princess Margareta",
+    displayName: "Princess Margareta",
     nativeName: "Margareta a României",
     fullBirthName: "Margareta of Hohenzollern-Sigmaringen / Romania",
     birthDate: "1949-03-26",
@@ -733,7 +733,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034520",
     avatarUrl: "/avatars/margareta-of-romania.jpg",
     summary: "Margareta, Custodian of the Crown of Romania is the head of the House of Romania and eldest daughter of King Michael I and Queen Anne.",
-    aliases: ["Custodian of the Crown of Romania", "Princess Margareta of Romania", "Margareta a României"]
+    aliases: ["Margareta, Custodian of the Crown of Romania", "Custodian of the Crown of Romania", "Princess Margareta of Romania", "Margareta a României"]
   },
 
   // =========================================================================
@@ -742,8 +742,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "simeon-ii-bulgaria",
     slug: "simeon-ii-bulgaria",
-    canonicalName: "Simeon II of Bulgaria",
-    displayName: "Tsar Simeon II of Bulgaria",
+    canonicalName: "Tsar Simeon II",
+    displayName: "Tsar Simeon II",
     nativeName: "Simeon Borisov Sakskoburggotski",
     fullBirthName: "Simeon Borisov of Saxe-Coburg and Gotha",
     birthDate: "1937-06-16",
@@ -777,7 +777,7 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034530",
     avatarUrl: "/avatars/simeon-ii.jpg",
     summary: "Simeon Saxecoburggotski (Simeon II) reigned as Tsar of Bulgaria from 1943 to 1946 and later served as Prime Minister of Bulgaria from 2001 to 2005.",
-    aliases: ["Simeon Sakskoburggotski", "Tsar Simeon II", "Prime Minister Simeon Saxecoburggotski"]
+    aliases: ["Tsar Simeon II of Bulgaria", "Simeon II of Bulgaria", "Simeon Sakskoburggotski", "Tsar Simeon II", "Prime Minister Simeon Saxecoburggotski"]
   },
 
   // =========================================================================
@@ -786,8 +786,8 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
   {
     id: "alexander-crown-prince-yugoslavia",
     slug: "alexander-crown-prince-yugoslavia",
-    canonicalName: "Alexander, Crown Prince of Yugoslavia",
-    displayName: "Crown Prince Alexander of Yugoslavia",
+    canonicalName: "Crown Prince Alexander",
+    displayName: "Crown Prince Alexander",
     nativeName: "Aleksandar Karađorđević",
     fullBirthName: "Alexander Karađorđević",
     birthDate: "1945-07-17",
@@ -816,13 +816,13 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034540",
     avatarUrl: "/avatars/crown-prince-alexander.jpg",
     summary: "Alexander, Crown Prince of Yugoslavia is the head of the House of Karađorđević, the former royal family of the Kingdom of Yugoslavia and the Kingdom of Serbia.",
-    aliases: ["Crown Prince Alexander", "Aleksandar Karađorđević", "Crown Prince of Serbia"]
+    aliases: ["Crown Prince Alexander of Yugoslavia", "Alexander, Crown Prince of Yugoslavia", "Crown Prince Alexander", "Aleksandar Karađorđević", "Crown Prince of Serbia"]
   },
   {
     id: "philip-hereditary-prince-yugoslavia",
     slug: "philip-hereditary-prince-yugoslavia",
-    canonicalName: "Philip, Hereditary Prince of Yugoslavia",
-    displayName: "Hereditary Prince Philip of Yugoslavia",
+    canonicalName: "Hereditary Prince Philip",
+    displayName: "Hereditary Prince Philip",
     nativeName: "Filip Karađorđević",
     fullBirthName: "Philip Karađorđević",
     birthDate: "1982-01-15",
@@ -851,6 +851,6 @@ export const historicRoyalHousesPeopleSeed: CanonicalPersonSeed[] = [
     viafId: "84034545",
     avatarUrl: "/avatars/hereditary-prince-philip.jpg",
     summary: "Philip, Hereditary Prince of Yugoslavia is a member of the House of Karađorđević and the heir apparent to Crown Prince Alexander.",
-    aliases: ["Hereditary Prince Philip", "Filip Karađorđević", "Prince Philip of Serbia"]
+    aliases: ["Hereditary Prince Philip of Yugoslavia", "Philip, Hereditary Prince of Yugoslavia", "Hereditary Prince Philip", "Filip Karađorđević", "Prince Philip of Serbia"]
   }
 ];

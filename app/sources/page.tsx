@@ -3,7 +3,7 @@ import { SourcesCatalog } from "@/components/rewind/SourcesCatalog";
 import type { EventRecord } from "@/lib/rewind";
 
 export const metadata = {
-  title: "Archival Sources Register — REWIND Evidence Atlas",
+  title: "Sources — REWIND Evidence Atlas",
   description:
     "Primary and secondary documentary sources supporting the REWiND Evidence Atlas timeline.",
 };

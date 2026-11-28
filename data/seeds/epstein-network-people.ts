@@ -11,9 +11,10 @@ export const epsteinNetworkPeopleSeed: CanonicalPersonSeed[] = [
   {
     "id": "prince-andrew",
     "slug": "prince-andrew",
-    "canonicalName": "Prince Andrew, Duke of York",
+    "canonicalName": "Prince Andrew",
     "displayName": "Prince Andrew",
     "nativeName": null,
+    "fullBirthName": "Andrew Albert Christian Edward Mountbatten-Windsor",
     "birthDate": "1960-02-19",
     "deathDate": null,
     "datePrecision": "exact-day",
@@ -30,6 +31,7 @@ export const epsteinNetworkPeopleSeed: CanonicalPersonSeed[] = [
     "avatarUrl": null,
     "summary": "Member of the British royal family who served in the Royal Navy and as Britain's Special Representative for International Trade.",
     "aliases": [
+      "Prince Andrew, Duke of York",
       "Andrew Albert Christian Edward",
       "Duke of York"
     ],

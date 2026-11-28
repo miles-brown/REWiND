@@ -6,7 +6,7 @@ import { eventsCorpus } from "@/data/seeds/events-corpus";
 import { PeopleDirectory } from "@/components/rewind/PeopleDirectory";
 
 export const metadata: Metadata = {
-  title: "Documented People Directory — REWIND Evidence Atlas",
+  title: "People — REWIND Evidence Atlas",
   description: "Historical figures, diplomats, sovereigns, and key actors documented across the REWIND forensic evidence corpus.",
 };
 
@@ -63,11 +63,10 @@ export default async function PeoplePage() {
   return (
     <div className="page-shell">
       <header className="page-hero" style={{ marginBottom: "2rem" }}>
-        <span className="eyebrow">HISTORICAL FIGURES DIRECTORY</span>
-        <h1>Lives in the Record</h1>
+        <span className="eyebrow">PEOPLE DIRECTORY</span>
+        <h1>People</h1>
         <p>
-          Monitored historical actors, heads of state, diplomats, and royalty linked through primary dated evidence,
-          co-attendance rosters, and jurisdictional mandates.
+          Historical figures, diplomats, heads of state, and key actors documented across primary dated evidence.
         </p>
       </header>
 

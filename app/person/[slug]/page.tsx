@@ -6,11 +6,10 @@ import {
   Calendar,
   CalendarRange,
   CheckCircle2,
-  CircleDashed,
   GitCompare,
   Globe,
   MapPin,
-  Sparkles,
+  Shield,
   Users,
 } from "lucide-react";
 import { getPersonTimelineWithStatus, getPersonRoles, getPersonMilestones, getMonogram } from "@/lib/rewind";
@@ -77,19 +76,19 @@ export default async function PersonPage({
 
   const { person, events: linked, years } = timelineData;
   const cities = Array.from(new Set(linked.map((e) => e.city).filter(Boolean)));
-  const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
-  const provisionalCount = linked.filter((e) => e.verificationStatus !== "verified").length;
   const hasChronology = linked.length > 0;
-  const verifiedPercent = hasChronology ? Math.round((verifiedCount / linked.length) * 100) : null;
 
   const startYear = years[0];
   const endYear = years[years.length - 1];
-  const spanYearsText = startYear && endYear ? `${startYear} — ${endYear}` : "—";
+  const spanYearsText = startYear && endYear ? `${startYear}–${endYear}` : "Profile indexed";
 
   const birthYear = person.birth ? person.birth.slice(0, 4) : undefined;
   const deathYear = person.death ? person.death.slice(0, 4) : undefined;
-  const lifespan = birthYear ? `${birthYear} — ${deathYear || "Present"}` : undefined;
+  const lifespan = birthYear ? `${birthYear}–${deathYear || "Present"}` : undefined;
   const nationality = person.nationality || (person.citizenship && person.citizenship[0]);
+  const classificationLabel = person.classification
+    ? person.classification.replace(/-/g, " ").toUpperCase()
+    : "HISTORICAL FIGURE";
 
   // Compute top co-attendees from documented events
   const coCounts = new Map<string, { name: string; slug: string; role?: string; count: number }>();
@@ -108,7 +107,7 @@ export default async function PersonPage({
     .sort((a, b) => b.count - a.count)
     .slice(0, 4);
 
-  // Compute top geographic theatres / cities
+  // Compute top geographic locations / cities
   const cityCounts = new Map<string, number>();
   linked.forEach((e) => {
     if (e.city) {
@@ -121,6 +120,36 @@ export default async function PersonPage({
 
   const roles = await getPersonRoles(person.slug);
   const milestones = await getPersonMilestones(person.slug);
+  const distinctCareer = (person.career || []).filter((c) => {
+    const cTitle = (c.positionTitle || (c as { roleTitle?: string }).roleTitle || "").toLowerCase().trim();
+    return cTitle && !roles.some((r) => r.title.toLowerCase().trim() === cTitle);
+  });
+  const rolesCount = roles.length + distinctCareer.length;
+  const milestonesCount = (milestones.length || 0) + (person.awards?.length || 0);
+
+  // Evidentiary Verification & Coverage metrics
+  const verifiedCount = linked.filter((e) => e.verificationStatus === "verified").length;
+  const provisionalCount = linked.filter((e) => e.verificationStatus === "provisional").length;
+  const disputedCount = linked.filter((e) => e.verificationStatus === "disputed").length;
+  const unverifiedCount = linked.filter(
+    (e) => (e as { verificationStatus?: string }).verificationStatus === "unverified" || (e as { verificationStatus?: string }).verificationStatus === "retracted"
+  ).length;
+  const verifiedPercent = hasChronology && linked.length > 0
+    ? verifiedCount === linked.length && disputedCount === 0 && provisionalCount === 0 && unverifiedCount === 0
+      ? 100
+      : Math.min(99, Math.round((verifiedCount / linked.length) * 100))
+    : null;
+  const confirmedConfidenceCount = linked.filter((e) => e.confidence === "confirmed").length;
+  const isHighConfidence = hasChronology && verifiedPercent !== null
+    ? verifiedPercent >= 80 && (confirmedConfidenceCount / linked.length) >= 0.4
+    : false;
+  const confidenceLevel = !hasChronology
+    ? "Limited"
+    : isHighConfidence
+      ? "Confirmed"
+      : verifiedPercent !== null && verifiedPercent >= 50
+        ? "Corroborated"
+        : "Limited";
 
   return (
     <div className="page-shell person-page">
@@ -129,14 +158,13 @@ export default async function PersonPage({
           <div className="person-monogram-container">
             <div className="person-monogram large radar-frame">
               {getMonogram(person.name)}
-              <span className="radar-status-beacon" aria-hidden="true" />
             </div>
           </div>
 
           <div className="person-hero-details">
             <div className="person-hero-badges">
               <span className="eyebrow">
-                TEMPORAL DOSSIER · {person.classification ? person.classification.toUpperCase() : "HISTORICAL FIGURE"}
+                {classificationLabel}
               </span>
             </div>
 
@@ -145,19 +173,19 @@ export default async function PersonPage({
             <div className="person-hero-meta-chips">
               {lifespan && (
                 <span className="hero-meta-chip">
-                  <Calendar size={13} />
+                  <Calendar size={13} aria-hidden="true" />
                   <span>{lifespan}</span>
                 </span>
               )}
               {nationality && (
                 <span className="hero-meta-chip">
-                  <Globe size={13} />
+                  <Globe size={13} aria-hidden="true" />
                   <span>{nationality}</span>
                 </span>
               )}
               {person.canonicalName && person.canonicalName !== person.name && (
-                <span className="hero-meta-chip mono-chip">
-                  <span>AKA: {person.canonicalName}</span>
+                <span className="hero-meta-chip">
+                  <span>Full name: {person.canonicalName}</span>
                 </span>
               )}
             </div>
@@ -166,54 +194,109 @@ export default async function PersonPage({
           </div>
         </div>
 
-        {/* Telemetry & Accuracy Card */}
-        <aside className="person-telemetry-card" aria-label="Evidentiary telemetry and verification summary">
+        {/* Record Summary Card */}
+        <aside className="person-telemetry-card" aria-label="Record summary">
           <div className="telemetry-card-header">
-            <div className="telemetry-header-title">
-              <Sparkles size={14} className="telemetry-sparkle" />
-              <span>EVIDENTIARY ACCURACY INDEX</span>
-            </div>
-            {hasChronology ? (
-              <span className="telemetry-pct-badge">{verifiedPercent}% VERIFIED</span>
-            ) : (
-              <span className="telemetry-pct-badge pending-badge">NO CHRONOLOGY ADDED YET</span>
-            )}
-          </div>
-
-          <div className="telemetry-accuracy-gauge" aria-hidden="true">
-            {hasChronology ? (
-              <>
-                <div className="gauge-fill verified" style={{ width: `${verifiedPercent}%` }} />
-                <div className="gauge-fill provisional" style={{ width: `${100 - (verifiedPercent ?? 0)}%` }} />
-              </>
-            ) : (
-              <div className="gauge-fill pending" style={{ width: "100%" }} />
-            )}
+            <span className="telemetry-header-title">Record Summary</span>
+            <span className="telemetry-pct-badge">
+              {hasChronology ? spanYearsText : "Profile indexed"}
+            </span>
           </div>
 
           <div className="telemetry-grid">
             <div className="telemetry-stat">
-              <span className="stat-label"><CalendarRange size={13} /> EVENTS</span>
               <b className="stat-value">{linked.length}</b>
-              <small className="stat-sub">{spanYearsText}</small>
+              <span className="stat-label">Timeline Events</span>
             </div>
 
             <div className="telemetry-stat">
-              <span className="stat-label"><MapPin size={13} /> PLACES</span>
               <b className="stat-value">{cities.length}</b>
-              <small className="stat-sub">theatres</small>
+              <span className="stat-label">Locations</span>
             </div>
 
             <div className="telemetry-stat">
-              <span className="stat-label"><CheckCircle2 size={13} /> VERIFIED</span>
-              <b className="stat-value verified-color">{verifiedCount}</b>
-              <small className="stat-sub">primary</small>
+              <b className="stat-value">{rolesCount}</b>
+              <span className="stat-label">Official Roles</span>
             </div>
 
             <div className="telemetry-stat">
-              <span className="stat-label"><CircleDashed size={13} /> PROVISIONAL</span>
-              <b className="stat-value provisional-color">{provisionalCount}</b>
-              <small className="stat-sub">corroborating</small>
+              <b className="stat-value">{milestonesCount}</b>
+              <span className="stat-label">Milestones</span>
+            </div>
+          </div>
+
+          {/* Chronology Evidentiary Verification Status */}
+          <div className="telemetry-accuracy-section" aria-label="Chronology evidentiary verification status">
+            <div className="telemetry-accuracy-header">
+              <span className="telemetry-accuracy-title">Chronology Evidentiary Verification</span>
+              <span className={`telemetry-accuracy-badge ${!hasChronology || confidenceLevel === "Limited" ? "limited" : ""}`}>
+                {!hasChronology || confidenceLevel === "Limited" ? (
+                  <Shield size={12} aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 size={12} aria-hidden="true" />
+                )}
+                <span>
+                  {hasChronology && verifiedPercent !== null
+                    ? `${verifiedPercent}% Source-Verified (${confidenceLevel})`
+                    : "No Chronology Evidenced"}
+                </span>
+              </span>
+            </div>
+
+            {hasChronology && verifiedPercent !== null && (
+              <div
+                className="telemetry-confidence-bar"
+                role="meter"
+                aria-label="Chronology evidentiary verification percentage"
+                aria-valuenow={verifiedPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={`${verifiedPercent}% verified chronology, ${confidenceLevel} confidence`}
+              >
+                <div
+                  className="bar-fill verified"
+                  style={{ width: `${verifiedPercent}%` }}
+                />
+              </div>
+            )}
+
+            <div className="telemetry-breakdown-row">
+              <span>
+                {hasChronology ? (
+                  <>
+                    <span className="telemetry-breakdown-item verified">
+                      <b>{verifiedCount}</b> verified
+                    </span>
+                    {" · "}
+                    <span className="telemetry-breakdown-item provisional">
+                      <b>{provisionalCount}</b> provisional
+                    </span>
+                    {disputedCount > 0 && (
+                      <>
+                        {" · "}
+                        <span className="telemetry-breakdown-item disputed">
+                          <b>{disputedCount}</b> disputed
+                        </span>
+                      </>
+                    )}
+                    {unverifiedCount > 0 && (
+                      <>
+                        {" · "}
+                        <span className="telemetry-breakdown-item unverified">
+                          <b>{unverifiedCount}</b> unverified
+                        </span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <span className="telemetry-breakdown-item unevidenced">
+                    No timeline events evidenced yet
+                  </span>
+                )}
+              </span>
+              <span className="telemetry-breakdown-item confidence">
+                Confidence: <b>{confidenceLevel}</b>
+              </span>
             </div>
           </div>
 
@@ -223,8 +306,8 @@ export default async function PersonPage({
               className="telemetry-action-btn"
               title={`Compare ${person.name} with another historical figure`}
             >
-              <GitCompare size={14} />
-              <span>Compare Figure</span>
+              <GitCompare size={14} aria-hidden="true" />
+              <span>Compare Timeline</span>
             </Link>
 
             <Link
@@ -232,22 +315,22 @@ export default async function PersonPage({
               className="telemetry-action-btn secondary"
               title="Return to people directory"
             >
-              <Users size={14} />
-              <span>Atlas Roster</span>
+              <Users size={14} aria-hidden="true" />
+              <span>All People</span>
             </Link>
           </div>
         </aside>
       </header>
 
-      {/* Relational Nexus Strip */}
+      {/* Frequent Counterparts & Key Locations Strip */}
       {(topCoAttendees.length > 0 || topCities.length > 0) && (
-        <section className="person-relational-nexus" aria-label="Relational Nexus & Theatres">
+        <section className="person-relational-nexus" aria-label="Frequent counterparts and key locations">
           <div className="nexus-container">
             {topCoAttendees.length > 0 && (
               <div className="nexus-group">
                 <div className="nexus-label">
-                  <Users size={13} />
-                  <span>DOCUMENTED COUNTERPARTS & CO-ATTENDEES</span>
+                  <Users size={13} aria-hidden="true" />
+                  <span>Frequent Counterparts</span>
                 </div>
                 <div className="nexus-co-list">
                   {topCoAttendees.map((co) => (
@@ -255,12 +338,14 @@ export default async function PersonPage({
                       key={co.slug}
                       href={`/relationship/${person.slug}/${co.slug}`}
                       className="nexus-co-chip"
-                      title={`View joint timeline with ${co.name} (${co.count} mutual events)`}
+                      title={`View shared timeline with ${co.name} (${co.count} shared ${co.count === 1 ? "event" : "events"})`}
                     >
                       <span className="nexus-avatar">{getMonogram(co.name)}</span>
                       <span className="nexus-co-name">{co.name}</span>
-                      <span className="nexus-co-count">{co.count} evts</span>
-                      <ArrowRight size={11} className="nexus-co-arrow" />
+                      <span className="nexus-co-count">
+                        {co.count} {co.count === 1 ? "event" : "events"}
+                      </span>
+                      <ArrowRight size={11} className="nexus-co-arrow" aria-hidden="true" />
                     </Link>
                   ))}
                 </div>
@@ -270,14 +355,14 @@ export default async function PersonPage({
             {topCities.length > 0 && (
               <div className="nexus-group">
                 <div className="nexus-label">
-                  <MapPin size={13} />
-                  <span>PRIMARY HISTORICAL THEATRES</span>
+                  <MapPin size={13} aria-hidden="true" />
+                  <span>Key Locations</span>
                 </div>
                 <div className="nexus-theatres-list">
                   {topCities.map(([city, count]) => (
                     <span key={city} className="nexus-theatre-chip">
                       <b>{city}</b>
-                      <small>{count} evt{count === 1 ? "" : "s"}</small>
+                      <small>{count} {count === 1 ? "event" : "events"}</small>
                     </span>
                   ))}
                 </div>

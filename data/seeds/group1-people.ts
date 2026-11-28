@@ -1202,9 +1202,10 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
   {
     "id": "princess-diana",
     "slug": "princess-diana",
-    "canonicalName": "Diana, Princess of Wales",
+    "canonicalName": "Princess Diana",
     "displayName": "Princess Diana",
     "nativeName": null,
+    "fullBirthName": "Diana Frances Spencer",
     "birthDate": "1961-07-01",
     "deathDate": "1997-08-31",
     "datePrecision": "exact-day",
@@ -1221,6 +1222,7 @@ export const group1PeopleSeed: CanonicalPersonSeed[] = [
     "avatarUrl": null,
     "summary": "Member of the British royal family who was the first wife of Charles, Prince of Wales, and an international public advocate.",
     "aliases": [
+      "Diana, Princess of Wales",
       "Diana Frances Spencer",
       "Lady Diana Spencer"
     ],

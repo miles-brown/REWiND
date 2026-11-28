@@ -175,7 +175,11 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
 
     for (const [key, meta] of entries) {
       assert.ok(meta.canonicalVenue, `Key "${key}" must have canonicalVenue`);
-      assert.ok(meta.streetAddress, `Key "${key}" must have streetAddress`);
+      if (meta.isMobileVessel) {
+        assert.ok(meta.homeBasePlaceId, `Mobile vessel "${key}" must have homeBasePlaceId`);
+      } else {
+        assert.ok(meta.streetAddress, `Key "${key}" must have streetAddress`);
+      }
       assert.ok(meta.city, `Key "${key}" must have city`);
       assert.ok(meta.country, `Key "${key}" must have country`);
       assert.ok(meta.countryCode, `Key "${key}" must have countryCode`);
@@ -218,5 +222,255 @@ describe("Geographic Hierarchy & Places Multi-Tier Architecture", async () => {
     // Case 4: Venue proper name containing country name (e.g. United States Capitol)
     const evt4 = { venueName: "United States Capitol", city: "Washington, D.C.", country: "United States" };
     assert.equal(formatEventLocation(evt4), "United States Capitol, Washington, D.C., United States");
+  });
+
+  it("verifies address-only event resolution from address records in hierarchy loader", async () => {
+    // Mock Supabase client providing an event with address_id but null place_id and venue_id
+    const createQueryChain = () => {
+      const chain = {
+        order() {
+          return chain;
+        },
+        range() {
+          return Promise.resolve({ data: [], error: null });
+        },
+      };
+      return chain;
+    };
+
+    let eventsCallCount = 0;
+    const mockSupabase = {
+      from(table) {
+        if (table === "places") {
+          return {
+            select() {
+              return {
+                order() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          return Promise.resolve({
+                            data: [
+                              {
+                                id: "plc-iceland-reykjavik",
+                                slug: "iceland-reykjavik",
+                                city: "Reykjavík",
+                                country: "Iceland",
+                                venue: null,
+                                place_type: "city",
+                              },
+                            ],
+                            error: null,
+                          });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (table === "venues") {
+          return {
+            select() {
+              return createQueryChain();
+            },
+          };
+        }
+        if (table === "addresses") {
+          return {
+            select() {
+              return {
+                in(field, ids) {
+                  return Promise.resolve({
+                    data: ids.map((id) => ({
+                      id,
+                      city: "Reykjavík",
+                      country_code: "IS",
+                      formatted_english: "Hafnarstræti 1, 101 Reykjavík",
+                    })),
+                    error: null,
+                  });
+                },
+              };
+            },
+          };
+        }
+        if (table === "events") {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          eventsCallCount++;
+                          if (eventsCallCount === 1) {
+                            return Promise.resolve({
+                              data: [
+                                {
+                                  id: "evt-addr-test-1",
+                                  slug: "addr-test-event",
+                                  place_id: null,
+                                  venue_id: null,
+                                  address_id: "addr-is-reykjavik-hafnarstraeti-1",
+                                  city: null,
+                                  country: null,
+                                  venue_name: null,
+                                },
+                              ],
+                              error: null,
+                            });
+                          }
+                          return Promise.resolve({ data: [], error: null });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase);
+    assert.ok(hierarchy, "Hierarchy should build successfully with mock address-only events");
+    assert.equal(hierarchy.summary.totalEvents, 1, "Should count the address-only event");
+    assert.equal(hierarchy.error || null, null, "Hierarchy should have no error");
+    const isCountry = hierarchy.countries.find((c) => c.name === "Iceland");
+    assert.ok(isCountry, "Derived Iceland country from address_id should be present");
+    assert.equal(isCountry.eventCount, 1, "Derived Iceland country should have eventCount of 1");
+    const rvkCity = isCountry.cities.find((c) => c.name.toLowerCase().includes("reykjavik"));
+    assert.ok(rvkCity, "Derived Reykjavík city should be present under Iceland");
+    assert.equal(rvkCity.eventCount, 1, "Derived Reykjavík city should have eventCount of 1");
+  });
+
+  it("verifies address-query errors trigger scan recovery and fallback", async () => {
+    let eventsCallCount = 0;
+    const mockSupabase = {
+      from(table) {
+        if (table === "places") {
+          const chain = {
+            order() {
+              return chain;
+            },
+            range() {
+              return Promise.resolve({
+                data: [
+                  {
+                    id: "plc-reykjavik-hofdi-house",
+                    slug: "reykjavik-hofdi-house",
+                    venue: "Hofdi House",
+                    city: "Reykjavik",
+                    country: "Iceland",
+                    latitude: 64.1475,
+                    longitude: -21.9064,
+                    place_type: "historic-house",
+                  },
+                ],
+                error: null,
+              });
+            },
+          };
+          return {
+            select() {
+              return chain;
+            },
+          };
+        }
+        if (table === "venues") {
+          const chain = {
+            order() {
+              return chain;
+            },
+            range() {
+              return Promise.resolve({ data: [], error: null });
+            },
+          };
+          return {
+            select() {
+              return chain;
+            },
+          };
+        }
+        if (table === "addresses") {
+          return {
+            select() {
+              return {
+                in() {
+                  return Promise.resolve({ data: null, error: new Error("Simulated addresses table network error") });
+                },
+              };
+            },
+          };
+        }
+        if (table === "events") {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order() {
+                      return {
+                        range() {
+                          eventsCallCount++;
+                          if (eventsCallCount === 1) {
+                            return Promise.resolve({
+                              data: [
+                                {
+                                  id: "evt-err-1",
+                                  slug: "err-event",
+                                  place_id: null,
+                                  venue_id: null,
+                                  address_id: "addr-fail-1",
+                                  city: null,
+                                  country: null,
+                                  venue_name: null,
+                                },
+                              ],
+                              error: null,
+                            });
+                          }
+                          return Promise.resolve({ data: [], error: null });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const hierarchy = await placesModule.getGeographicHierarchyStrict(mockSupabase, {
+      fallbackEvents: [
+        {
+          id: "evt-fallback-recovered",
+          slug: "evt-fallback-recovered",
+          city: "Reykjavik",
+          country: "Iceland",
+          venueName: "Hofdi House",
+        },
+      ],
+    });
+    assert.ok(hierarchy, "Hierarchy should recover cleanly via fallback when address query fails");
+    assert.equal(hierarchy.summary.totalEvents, 1, "Total events count should reflect recovered fallback event");
+    assert.equal(hierarchy.summary.error || null, null, "Summary error should be absent");
+    const allEventIds = hierarchy.countries.flatMap((c) =>
+      c.cities.flatMap((ct) =>
+        (ct.venues || []).flatMap((v) => v.eventIds || [])
+      )
+    );
+    assert.ok(!allEventIds.includes("evt-err-1"), "evt-err-1 should not be present in hierarchy");
+    assert.ok(allEventIds.includes("evt-fallback-recovered"), "evt-fallback-recovered should be present in hierarchy");
   });
 });

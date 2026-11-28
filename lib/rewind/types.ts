@@ -830,6 +830,7 @@ export interface VenueAreaNode {
 export interface VenueNode {
   id: string;
   slug: string;
+  citySlug?: string;
   name: string;
   venueType: string;
   city: string;
@@ -845,6 +846,7 @@ export interface VenueNode {
   longitude?: number | null;
   venueAreas?: VenueAreaNode[];
   eventCount: number;
+  eventIds?: string[];
 }
 
 /**
@@ -860,6 +862,7 @@ export function isMobileVenue(venue: Partial<VenueNode> | null | undefined): boo
 export interface AddressNode {
   id: string;
   slug: string;
+  citySlug?: string;
   formattedAddress: string;
   streetNumber?: string | null;
   streetName?: string | null;
@@ -905,6 +908,7 @@ export interface GeographicHierarchySummary {
   totalVenues: number;
   totalAddresses: number;
   totalEvents: number;
+  error?: string | null;
 }
 
 export interface GeographicHierarchyTree {
@@ -919,6 +923,7 @@ export interface GeographicHierarchyTree {
   allVenues: VenueNode[];
   allAddresses: AddressNode[];
   summary: GeographicHierarchySummary;
+  error?: string | null;
 }
 
 export interface PlaceRecord {

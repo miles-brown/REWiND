@@ -34,12 +34,15 @@ Benjamin Netanyahu is a controversial right-wing strongman who tenaciously domin
 
 Biographical data in REWiND is relational and evidence-backed, avoiding casual assumptions.
 
-### 2.1 Identity Hierarchy
-1. **`canonical_name`**: The authoritative international transliteration (e.g., `"Benjamin Netanyahu"`, `"Menachem Begin"`).
-2. **`display_name`**: Commonly used public name (e.g., `"Bill Clinton"`, `"King Hussein"`).
-3. **`native_name`**: Native-script representation (e.g., Hebrew `בנימין נתניהו`, Arabic `ياسر عرفات`, Russian `Владимир Путин`).
-4. **`full_birth_name`**: Complete legal birth name including middle names or pre-adoption/hebraized surnames (e.g., `"William Jefferson Blythe III"`, `"Benjamin Mileikowsky"`).
-5. **`birth_date` & `death_date`**: ISO-8601 formatted (`YYYY-MM-DD`, `YYYY-MM`, `YYYY`) accompanied by `date_precision` (`"exact-day"`, `"month"`, `"year"`).
+### 2.1 Identity Hierarchy & Universal Royal Naming Rule
+1. **`canonical_name` & `display_name`**:
+   - **Civil & Political Figures**: Authoritative personal name + surname (e.g., `"Benjamin Netanyahu"`, `"Tenzin Gyatso"`, `"David Armstrong-Jones"`). Never embed numbered offices (`"14th Dalai Lama"`).
+   - **Royal Family Members (`classification: "monarch-royal"`)**: Must strictly follow one uniform, short, comma-free pattern: **`[Single Primary Title] [Given Name (+ Regnal Numeral if Monarch)]`** (e.g., `"King Charles III"`, `"Prince William"`, `"Princess Catherine"`, `"Princess Anne"`, `"Princess Beatrice"`, `"King Felipe VI"`, `"Princess Leonor"`, `"Crown Princess Victoria"`), or clean given + family surname (`"David Armstrong-Jones"`, `"Peter Phillips"`, `"Zara Tindall"`, `"Karl von Habsburg"`).
+   - **Prohibition on Comma-Chained Titles in Directory Names**: Never append subsidiary titles, territorial suffixes, or married styles (such as `", Duke of Sussex"`, `", Duchess of Brabant"`, `", Mrs Edoardo Mapelli Mozzi"`, `", Count of Monpezat"`) to `display_name`.
+   - **Where Fuller Names & Titles Live**: Complete legal birth names (`full_birth_name`), full ceremonial/regnal styles (`aliases`), and dated titles (`roles-seed.ts`) are displayed on the figure's `/person/[slug]` profile page (under **Biographical Record -> Identity & Origins** and **Official Roles**) and remain fully indexed for search, while keeping `/people` directory cards clean and scannable.
+2. **`native_name`**: Native-script representation (e.g., Hebrew `בנימין נתניהו`, Arabic `ياسر عرفات`, Russian `Владимир Путин`).
+3. **`full_birth_name`**: Complete legal birth name including middle names or dynastic house names (e.g., `"William Jefferson Blythe III"`, `"Felipe Juan Pablo Alfonso de Todos los Santos de Borbón y Grecia"`).
+4. **`birth_date` & `death_date`**: ISO-8601 formatted (`YYYY-MM-DD`, `YYYY-MM`, `YYYY`) accompanied by `date_precision` (`"exact-day"`, `"month"`, `"year"`).
 
 ### 2.2 Citizenship vs. Nationality vs. National Identity vs. Ethnicity
 - **`citizenship`** (`text[]`): Sovereign legal status under national law (e.g., `["Israel", "United States"]`). Must list all formally held passports/citizenships.

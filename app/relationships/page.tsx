@@ -3,8 +3,8 @@ import { getRelationshipsWithStatus } from "@/lib/rewind";
 import { RelationshipNetworkGraph } from "@/components/rewind/RelationshipNetworkGraph";
 
 export const metadata = {
-  title: "Diplomatic Relationships — REWIND Evidence Atlas",
-  description: "Temporal co-appearance social graph generated dynamically from verified primary event records.",
+  title: "Relationships — REWIND Evidence Atlas",
+  description: "Bilateral meetings and co-appearances generated directly from dated event records.",
 };
 
 export default async function RelationshipsPage() {
@@ -13,10 +13,10 @@ export default async function RelationshipsPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
-        <span className="eyebrow">TEMPORAL SOCIAL GRAPH</span>
-        <h1>Person × Person</h1>
+        <span className="eyebrow">INTERSECTIONS</span>
+        <h1>Relationships</h1>
         <p>
-          Every relationship is generated from dated intersections rather than a static claim that two people “knew” one another.
+          Every relationship is generated from dated intersections rather than an unverified claim that two people knew one another.
         </p>
       </header>
 

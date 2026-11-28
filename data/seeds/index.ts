@@ -14,6 +14,7 @@ import { reigningRoyaltyPeopleSeed } from "./reigning-royalty-people";
 import { historicRoyalHousesPeopleSeed } from "./historic-royal-houses-people";
 import { extendedRoyaltyPeopleSeed } from "./extended-royalty-and-succession-seed";
 import { extendedHistoricHousesPeopleSeed } from "./extended-historic-houses-seed";
+import { statesmenAndDiplomatsSeed } from "./statesmen-and-diplomats-seed";
 
 import { officialRolesSeed } from "./roles-seed";
 import { milestonesSeed } from "./milestones-seed";
@@ -57,6 +58,7 @@ export {
   historicRoyalHousesPeopleSeed,
   extendedRoyaltyPeopleSeed,
   extendedHistoricHousesPeopleSeed,
+  statesmenAndDiplomatsSeed,
   officialRolesSeed,
   milestonesSeed,
   topicsSeed,
@@ -89,6 +91,7 @@ export const allCanonicalPeopleSeed: CanonicalPersonSeed[] = [
   ...historicRoyalHousesPeopleSeed,
   ...extendedRoyaltyPeopleSeed,
   ...extendedHistoricHousesPeopleSeed,
+  ...statesmenAndDiplomatsSeed,
 ];
 
 // Ensure unique deduplicated records by slug

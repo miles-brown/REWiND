@@ -2,9 +2,11 @@ import Link from "next/link";
 import { ArrowRight, MessageSquareQuote, Quote, ShieldAlert } from "lucide-react";
 import { getQuotesWithStatus, getSpeechEventsWithStatus } from "@/lib/rewind";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
-  title: "Archival Quotes — REWIND Evidence Atlas",
-  description: "Attributable speech, plenary addresses, and verified quotations with exact coordinates.",
+  title: "Quotes — REWIND Evidence Atlas",
+  description: "Attributable speeches, statements, and transcripts linked to documented events.",
 };
 
 export default async function QuotesPage() {
@@ -20,11 +22,10 @@ export default async function QuotesPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
-        <span className="eyebrow">QUOTE REGISTER</span>
-        <h1>Words need coordinates.</h1>
+        <span className="eyebrow">VERBATIM STATEMENTS</span>
+        <h1>Quotes</h1>
         <p>
-          This edition exposes speech-bearing events while verbatim quotations and timestamps are
-          transcribed and reviewed. It does not manufacture quotation text from summaries.
+          Attributable speeches, statements, and transcripts linked to documented historical events.
         </p>
       </header>
 
@@ -79,27 +80,41 @@ export default async function QuotesPage() {
         </div>
       ) : (
         <div className="quote-event-list">
-          {quotes.map((q) => (
-            <article key={q.id} className="quote-item-card" style={{ padding: "1.5rem", border: "1px solid var(--border-subtle, #333)", borderRadius: "8px", marginBottom: "1rem" }}>
-              <blockquote style={{ fontSize: "1.1rem", fontStyle: "italic", margin: "0 0 0.75rem" }}>“{q.quote}”</blockquote>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "var(--text-muted, #888)" }}>
-                <span><b>{q.speakerName || "Documented Speaker"}</b> · {q.language?.toUpperCase()}</span>
-                {q.eventSlug && <Link href={`/event/${q.eventSlug}`}>View Event <ArrowRight size={12} /></Link>}
-              </div>
-            </article>
-          ))}
-          {speechEvents.map((e) => (
-            <Link href={`/event/${e.slug}`} key={e.id}>
-              <time>{e.startDate}</time>
-              <div>
-                <b>{e.eventName}</b>
-                <small>
-                  {e.city} · {(e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])).join(", ")}
-                </small>
-              </div>
-              <ArrowRight />
-            </Link>
-          ))}
+          {quotes.length > 0 && (
+            <section aria-label="Verbatim Quotations" style={{ marginBottom: speechEvents.length > 0 ? "2rem" : "0" }}>
+              <h2 style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted, #94a3b8)", marginBottom: "1rem" }}>
+                Verbatim Quotations
+              </h2>
+              {quotes.map((q) => (
+                <article key={q.id} className="quote-item-card" style={{ padding: "1.5rem", border: "1px solid var(--border-subtle, #333)", borderRadius: "8px", marginBottom: "1rem" }}>
+                  <blockquote style={{ fontSize: "1.1rem", fontStyle: "italic", margin: "0 0 0.75rem" }}>“{q.quote}”</blockquote>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem", color: "var(--text-muted, #888)" }}>
+                    <span><b>{q.speakerName || "Documented Speaker"}</b> · {q.language?.toUpperCase()}</span>
+                    {q.eventSlug && <Link href={`/event/${q.eventSlug}`}>View Event <ArrowRight size={12} /></Link>}
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
+          {speechEvents.length > 0 && (
+            <section aria-label="Speech and Address Events">
+              <h2 style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted, #94a3b8)", marginBottom: "1rem" }}>
+                Speech & Address Events
+              </h2>
+              {speechEvents.map((e) => (
+                <Link href={`/event/${e.slug}`} key={e.id}>
+                  <time>{e.startDate}</time>
+                  <div>
+                    <b>{e.eventName}</b>
+                    <small>
+                      {e.city} · {(e.eventTypes?.length ? e.eventTypes : (e.categories ?? [])).join(", ")}
+                    </small>
+                  </div>
+                  <ArrowRight />
+                </Link>
+              ))}
+            </section>
+          )}
         </div>
       )}
     </div>
