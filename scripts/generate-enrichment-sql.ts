@@ -229,7 +229,8 @@ export function generateAllEnrichmentSql(): {
            cultural_impact_summary = COALESCE(cultural_impact_summary, ${escapeSql(canonical.culturalImpactSummary)}),
            wikidata_id = COALESCE(wikidata_id, ${escapeSql(canonical.wikidataId)}),
            viaf_id = COALESCE(viaf_id, ${escapeSql(canonical.viafId)}),
-           summary = COALESCE(summary, ${escapeSql(canonical.summary)})
+           summary = COALESCE(summary, ${escapeSql(canonical.summary)}),
+           updated_at = NOW()
          WHERE id = ${escapeSql(aliasId)};`
       );
     }
@@ -245,7 +246,7 @@ export function generateAllEnrichmentSql(): {
          religion_status, languages, primary_role, classification, primary_figure_category,
          notability_basis, inclusion_basis, inclusion_rationale, cultural_impact_summary,
          programme_id, is_living, monitoring_priority, publication_status,
-         wikidata_id, viaf_id, summary
+         wikidata_id, viaf_id, summary, updated_at
        ) VALUES (
          COALESCE((SELECT id FROM public.people WHERE slug = ${escapeSql(p.slug)} OR id = ${escapeSql(p.id)} LIMIT 1), ${escapeSql(p.id)}),
          ${escapeSql(p.slug)}, ${escapeSql(p.canonicalName)}, ${escapeSql(p.displayName)},
@@ -259,7 +260,7 @@ export function generateAllEnrichmentSql(): {
          ${escapeSql(p.inclusionBasis || ["senior-diplomatic-or-geopolitical"])}, ${escapeSql(p.inclusionRationale)},
          ${escapeSql(p.culturalImpactSummary || null)}, ${escapeSql(p.programmeId)}, ${escapeSql(p.isLiving)},
          ${escapeSql(p.monitoringPriority)}, ${escapeSql(p.publicationStatus)}, ${escapeSql(p.wikidataId)},
-         ${escapeSql(p.viafId)}, ${escapeSql(p.summary)}
+         ${escapeSql(p.viafId)}, ${escapeSql(p.summary)}, NOW()
        )
        ON CONFLICT (id) DO UPDATE SET
          slug = EXCLUDED.slug,
@@ -288,7 +289,8 @@ export function generateAllEnrichmentSql(): {
          is_living = EXCLUDED.is_living,
          wikidata_id = COALESCE(EXCLUDED.wikidata_id, public.people.wikidata_id),
          viaf_id = COALESCE(EXCLUDED.viaf_id, public.people.viaf_id),
-         summary = EXCLUDED.summary;`
+         summary = EXCLUDED.summary,
+         updated_at = NOW();`
     );
   }
 
@@ -317,7 +319,8 @@ export function generateAllEnrichmentSql(): {
          religion = COALESCE(religion, ${escapeSql(p.religion || null)}),
          ethnicity = COALESCE(ethnicity, ${escapeSql(p.ethnicity || null)}),
          ancestry = COALESCE(ancestry, ${escapeSql(p.ancestry || null)}),
-         national_identity = COALESCE(national_identity, ${escapeSql(p.nationalIdentity || null)})
+         national_identity = COALESCE(national_identity, ${escapeSql(p.nationalIdentity || null)}),
+         updated_at = NOW()
        WHERE slug = ${escapeSql(p.slug)} OR id = ${escapeSql(p.id)};`
     );
   }
@@ -422,7 +425,8 @@ export function generateAllEnrichmentSql(): {
          inclusion_basis = ${escapeSql(data.basis)},
          inclusion_rationale = ${escapeSql(data.rationale)},
          nationality = CASE WHEN nationality = 'International' OR nationality IS NULL THEN ${escapeSql(data.nat)} ELSE nationality END,
-         languages = CASE WHEN languages IS NULL OR cardinality(languages) = 0 THEN ${escapeSql(data.lang)} ELSE languages END
+         languages = CASE WHEN languages IS NULL OR cardinality(languages) = 0 THEN ${escapeSql(data.lang)} ELSE languages END,
+         updated_at = NOW()
        WHERE id = ${escapeSql(id)};`
     );
   }

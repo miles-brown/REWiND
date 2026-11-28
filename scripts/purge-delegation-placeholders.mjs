@@ -172,6 +172,12 @@ async function run() {
           query = query.eq("primary_role", currentPrimaryRole);
         }
 
+        if (currentSummary === null || currentSummary === undefined) {
+          query = query.is("summary", null);
+        } else {
+          query = query.eq("summary", currentSummary);
+        }
+
         if (currentUpdatedAt === null || currentUpdatedAt === undefined) {
           query = query.is("updated_at", null);
         } else {

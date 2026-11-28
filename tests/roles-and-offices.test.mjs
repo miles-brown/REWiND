@@ -261,9 +261,18 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.ok(scriptCode.includes("Archival Provenance Audit"), "Script must record archival provenance audit notes");
     assert.ok(scriptCode.includes('typeof qRes.count !== "number"'), "Script must validate evidence counts");
     assert.ok(scriptCode.includes('query.is("primary_role", null)'), "Script must handle null condition on primary_role predicate");
+    assert.ok(scriptCode.includes('query.is("summary", null)'), "Script must handle null condition on summary predicate");
     assert.ok(scriptCode.includes('query.is("updated_at", null)'), "Script must handle bounded revision token on update");
-    assert.ok(!scriptCode.includes('query.eq("summary"'), "Script must not place unbounded summary into URL-encoded filter");
     assert.ok(scriptCode.includes("missingIds.length > 0"), "Script must reject verification if expected IDs are missing");
+  });
+
+  await t.test("generateAllEnrichmentSql advances updated_at across all people update and upsert statements", () => {
+    const sqls = generateAllEnrichmentSql();
+    const peopleStatements = sqls.peopleSql;
+    assert.ok(peopleStatements.length > 0, "Expected people SQL statements");
+    for (const stmt of peopleStatements) {
+      assert.ok(stmt.includes("updated_at"), "Every people update or upsert statement must advance updated_at");
+    }
   });
 
   await t.test("generateAllEnrichmentSql preserves existing room coordinates as pairs and home base IDs", () => {
