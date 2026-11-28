@@ -41,6 +41,7 @@ export const migrationFiles = [
   "20260904090000_validate_remote_and_vessel_constraints.sql",
   "20260904100000_fix_remote_coords_visibility_null_default.sql",
   "20260904110000_validate_remote_coords_visibility_check.sql",
+  "20260904120000_archive_delegation_placeholder_rpc.sql",
 ];
 
 export const legacyVersionAliases = new Map([

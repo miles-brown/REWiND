@@ -154,44 +154,65 @@ async function run() {
             ? `${existingSummary}\n\n${auditNote}`
             : auditNote;
 
-        let query = supabase
-          .from("people")
-          .update({
-            classification: "delegation",
-            primary_role: currentPrimaryRole || "Official Delegation",
-            notability_basis: "diplomatic-delegation-composite",
-            publication_status: "archived",
-            summary: updatedSummary,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", p.id);
+        // Atomically evaluate expected summary, role, and revision token via body-based RPC to avoid URL overflow
+        const { data: updateSuccess, error: rpcErr } = await supabase.rpc(
+          "archive_delegation_placeholder",
+          {
+            p_id: p.id,
+            p_expected_primary_role: currentPrimaryRole ?? null,
+            p_expected_summary: currentSummary ?? null,
+            p_expected_updated_at: currentUpdatedAt ?? null,
+            p_classification: "delegation",
+            p_primary_role: currentPrimaryRole || "Official Delegation",
+            p_notability_basis: "diplomatic-delegation-composite",
+            p_publication_status: "archived",
+            p_summary: updatedSummary,
+            p_updated_at: new Date().toISOString(),
+          }
+        );
 
-        if (currentPrimaryRole === null || currentPrimaryRole === undefined) {
-          query = query.is("primary_role", null);
-        } else {
-          query = query.eq("primary_role", currentPrimaryRole);
-        }
+        if (rpcErr) {
+          // If RPC is unavailable in remote environment, fall back to bounded REST update without URL-overflowing summary
+          if (rpcErr.code === "PGRST202" || rpcErr.message?.includes("function") || rpcErr.message?.includes("not found")) {
+            let query = supabase
+              .from("people")
+              .update({
+                classification: "delegation",
+                primary_role: currentPrimaryRole || "Official Delegation",
+                notability_basis: "diplomatic-delegation-composite",
+                publication_status: "archived",
+                summary: updatedSummary,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", p.id);
 
-        if (currentSummary === null || currentSummary === undefined) {
-          query = query.is("summary", null);
-        } else {
-          query = query.eq("summary", currentSummary);
-        }
+            if (currentPrimaryRole === null || currentPrimaryRole === undefined) {
+              query = query.is("primary_role", null);
+            } else {
+              query = query.eq("primary_role", currentPrimaryRole);
+            }
 
-        if (currentUpdatedAt === null || currentUpdatedAt === undefined) {
-          query = query.is("updated_at", null);
-        } else {
-          query = query.eq("updated_at", currentUpdatedAt);
-        }
+            if (currentUpdatedAt === null || currentUpdatedAt === undefined) {
+              query = query.is("updated_at", null);
+            } else {
+              query = query.eq("updated_at", currentUpdatedAt);
+            }
 
-        const { data: updatedRows, error: uErr } = await query.select("id");
-
-        if (uErr) {
-          console.error(`Failed to update placeholder person [${p.id}]:`, uErr.message);
-          process.exit(1);
-        }
-
-        if (updatedRows && updatedRows.length > 0) {
+            const { data: updatedRows, error: uErr } = await query.select("id");
+            if (uErr) {
+              console.error(`Failed to update placeholder person [${p.id}]:`, uErr.message);
+              process.exit(1);
+            }
+            if (updatedRows && updatedRows.length > 0) {
+              updateSucceeded = true;
+              totalUpdatedPeople++;
+              break;
+            }
+          } else {
+            console.error(`Failed to execute archival RPC for placeholder person [${p.id}]:`, rpcErr.message);
+            process.exit(1);
+          }
+        } else if (updateSuccess) {
           updateSucceeded = true;
           totalUpdatedPeople++;
           break;

@@ -260,8 +260,9 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     assert.ok(scriptCode.includes('publication_status: "archived"'), "Script must archive records in place");
     assert.ok(scriptCode.includes("Archival Provenance Audit"), "Script must record archival provenance audit notes");
     assert.ok(scriptCode.includes('typeof qRes.count !== "number"'), "Script must validate evidence counts");
+    assert.ok(scriptCode.includes("archive_delegation_placeholder"), "Script must invoke atomic body-based RPC to compare summary and update");
+    assert.ok(!scriptCode.includes('query.eq("summary"'), "Script must not place unbounded summary into URL-encoded filter");
     assert.ok(scriptCode.includes('query.is("primary_role", null)'), "Script must handle null condition on primary_role predicate");
-    assert.ok(scriptCode.includes('query.is("summary", null)'), "Script must handle null condition on summary predicate");
     assert.ok(scriptCode.includes('query.is("updated_at", null)'), "Script must handle bounded revision token on update");
     assert.ok(scriptCode.includes("missingIds.length > 0"), "Script must reject verification if expected IDs are missing");
   });
@@ -271,7 +272,13 @@ test("PR 44 Code Review Fixes — Database Scripts, Person Dossier Fallback & Ve
     const peopleStatements = sqls.peopleSql;
     assert.ok(peopleStatements.length > 0, "Expected people SQL statements");
     for (const stmt of peopleStatements) {
-      assert.ok(stmt.includes("updated_at"), "Every people update or upsert statement must advance updated_at");
+      if (stmt.includes("DO UPDATE SET")) {
+        const updateClause = stmt.split("DO UPDATE SET")[1];
+        assert.ok(updateClause.includes("updated_at"), "Every people upsert statement must advance updated_at in its DO UPDATE SET clause");
+      } else {
+        const match = stmt.match(/\bSET\b([\s\S]+?)\bWHERE\b/i);
+        assert.ok(match && match[1].includes("updated_at"), "Every plain people update statement must advance updated_at in its SET list");
+      }
     }
   });
 
